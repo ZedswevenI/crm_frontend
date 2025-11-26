@@ -1,0 +1,212 @@
+<!-- Top Bar: Search + Rows + Filters (optional) -->
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <!-- Search -->
+  <div class="position-relative" style="width: 368px; max-width: 100%" *ngIf="showsearch">
+    <img src="assets/icons/searchicon.svg" alt="search" width="24" height="24" class="position-absolute"
+      style="left: 16px; top: 50%; transform: translateY(-50%)" />
+    <input [(ngModel)]="searchText" placeholder="Search Location, email, City..."
+      class="form-control search-table-input" style="height: 48px; padding-left: 48px" [disabled]="loading"
+      (keyup.enter)="onSearch()" />
+
+    <button *ngIf="searchText" type="button" class="btn btn-link position-absolute text-muted px-0"
+      style="right: 12px; top: 50%; transform: translateY(-50%)" (click)="searchText = ''; onSearch()"
+      aria-label="Clear search">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <!-- Rows per page + Filters -->
+  <div class="d-flex align-items-center gap-3">
+    <!-- Rows per page -->
+    <div class="position-relative" *ngIf="showpageoptions">
+      <select [(ngModel)]="pageSize" (change)="onPageSizeChange(pageSize)" class="form-select filternew fs-16 fw-normal"
+        style="height: 48px; padding-right: 40px" aria-label="Rows per page">
+        <option value="5">5 Rows</option>
+        <option value="10">10 Rows</option>
+        <option value="20">20 Rows</option>
+      </select>
+    </div>
+
+    <!-- Filters button -->
+    <button *ngIf="showfilter" class="btn filter-btn d-flex align-items-center gap-2 fs-16" style="height: 48px"
+      type="button" (click)="onOpenFilters()">
+      <img src="assets/icons/filtericon.svg" alt="filter" width="24" height="24" />
+      <span class="fs-16 fw-normal">Filters</span>
+    </button>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="rounded-3 overflow-hidden position-relative" [ngStyle]="{ 'min-height': loading ? '500px' : 'auto' }">
+  <!-- Loader Overlay -->
+  <div *ngIf="loading" class="table-overlay">
+    <div class="spinner-border text-primary"></div>
+  </div>
+
+  <div class="table-responsive">
+    <!-- <table class="table table-hover mb-0 align-middle"> -->
+    <table class="table mb-0 align-middle" #tableWrap>
+      <thead>
+        <tr class="table-header">
+          <th class="px-4 py-3 fw-semibold" style="width: 78px">
+            S.No
+          </th>
+
+          <!-- Dynamic columns with sorting -->
+          <th class="px-4 py-3 fw-semibold" *ngFor="let col of columns"
+            (click)="col.sortable !== false ? onSort(col.key) : null"
+            [style.cursor]="col.sortable !== false ? 'pointer' : 'default'">
+            <span class="me-1 fw-semibold">{{ col.label }}</span>
+            <i *ngIf="col.sortable !== false" class="fas ms-1 icon-14" [ngClass]="{
+                'fa-sort': sortKey !== col.key,
+                'fa-sort-up': sortKey === col.key && sortDirection === 'asc',
+                'fa-sort-down': sortKey === col.key && sortDirection === 'desc'
+              }"></i>
+          </th>
+
+          <th class="px-4 py-3 fw-semibold text-center" *ngIf="showaction" style="width: 126px">
+            Action
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <ng-container *ngFor="let row of data; let i = index">
+          <tr>
+            <td class="px-4 py-3 text-center fw-normal">
+              {{ (currentPage - 1) * pageSize + i + 1 }}
+            </td>
+
+            <td class="px-4 py-3 fw-normal" *ngFor="let col of columns">
+              <!-- {{ getCellValue(row, col.key) }} -->
+              <!-- <ng-container *ngIf="col.date; else normal">
+              {{ (getCellValue(row, col.key) | date:'dd/MM/yyyy') || '--'}}
+            </ng-container>
+            <ng-template #normal>
+              {{ getCellValue(row, col.key) }}
+            </ng-template> -->
+              <ng-container *ngIf="col.date; else normal">
+                <span class="truncate-cell" [style.maxWidth.px]="col.maxWidthPx || 240"
+                  [attr.title]="needsTooltip(getCellValue(row, col.key), col) ? getCellValue(row, col.key) : null">
+                  {{ (getCellValue(row, col.key) | date : 'dd/MM/yyyy') || '--' }}
+                </span>
+              </ng-container>
+
+              <!-- Non-date cells: truncate + tooltip -->
+              <ng-template #normal>
+                <span class="truncate-cell" [style.maxWidth.px]="col.maxWidthPx || 240"
+                  [attr.title]="needsTooltip(getCellValue(row, col.key), col) ? getCellValue(row, col.key) : null"
+                  (mouseenter)="maybeExpand(i, col.key, getCellValue(row, col.key), col)"
+                  (mouseleave)="scheduleCollapse()" (click)="maybeExpand(i, col.key, getCellValue(row, col.key), col)">
+                  {{ truncate(getCellValue(row, col.key), col) }}
+                </span>
+              </ng-template>
+            </td>
+
+            <td class="px-4 py-3 text-center" *ngIf="showaction">
+              <div class="d-flex align-items-center justify-content-center gap-3">
+                <ng-container *ngFor="let action of actions">
+                  <!-- ICON BUTTON -->
+                  <!-- <button *ngIf="action.type === 'icon'" type="button"
+                  class="btn btn-sm btn-outline-secondary border-0 p-1" [title]="action.tooltip"
+                  (click)="action.callback(row)" [style.--icon-hover-color]="action.hoverColor || null">
+                  <i [class]="action.icon" [style.color]="action.color || ''" class="icon-20"></i>
+                </button> -->
+                  <button *ngIf="action.type === 'icon'" type="button"
+                    class="btn btn-sm btn-outline-secondary border-0 p-1" [title]="action.tooltip"
+                    (click)="action.callback(row)" [style.--hover-color]="action.hoverColor || null">
+                    <i [class]="action.icon" [style.color]="action.color || ''" class="icon-20"></i>
+                  </button>
+
+                  <!-- SIMPLE BUTTON -->
+                  <button *ngIf="action.type === 'simple'" type="button" class="btn btn-sm me-2"
+                    [ngClass]="action.color ? 'btn-' + action.color : 'btn-secondary'" (click)="action.callback(row)">
+                    <i *ngIf="action.icon" [class]="action.icon" class="me-1 icon-14"></i>
+                    {{ action.text }}
+                  </button>
+
+                  <!-- DROPDOWN BUTTON -->
+                  <div *ngIf="action.type === 'dropdown'" class="btn-group me-2">
+                    <button type="button"
+                      class="btn btn-sm submitbuttonclr d-inline-flex align-items-center whitespace-nowrap"
+                      [ngClass]="action.color ? 'btn-' + action.color : 'btn-secondary'" (click)="action.callback(row)">
+                      <i *ngIf="action.icon" [class]="action.icon" class="me-1 icon-14"></i>
+                      {{ action.text }}
+                    </button>
+                    <button type="button" class="btn btn-sm dropdown-toggle dropdown-toggle-split submitbuttonclr"
+                      [ngClass]="action.color ? 'btn-' + action.color : 'btn-secondary'" data-bs-toggle="dropdown"
+                      aria-expanded="false">
+                      <span class="visually-hidden">Toggle Dropdown</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li *ngFor="let sub of action.dropdown">
+                        <a class="dropdown-item" (click)="sub.callback(row)">
+                          <i *ngIf="sub.icon" [class]="sub.icon" class="me-1 icon-14"></i>
+                          {{ sub.text }}
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </ng-container>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="expanded && expanded.rowIndex === i" class="row-expander">
+            <td [attr.colspan]="fullColSpan" class="bg-light p-3">
+              <div class="d-flex align-items-start gap-2">
+                <!-- <i class="fa-regular fa-file-lines mt-1"></i> -->
+                <div class="w-100">
+                  <!-- Optional: show which column this is -->
+                  <!-- <div class="small text-muted mb-1">{{ columnLabel(expanded.colKey) }}:</div> -->
+                  <!-- The full, wrapped content -->
+                  <div class="fw-normal text-wrap">
+                    {{ expanded.value }}
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+
+        <!-- Empty state -->
+        <tr *ngIf="!data || data.length === 0">
+          <td [attr.colspan]="columns.length + (showaction ? 2 : 1)" class="text-center py-4 text-muted">No data found
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+<div *ngIf="totalRecords > 5" class="d-flex align-items-center justify-content-between px-2 py-2">
+  <button class="btn btn-link text-muted text-decoration-none fs-16 fw-medium d-flex align-items-center gap-2"
+    style="color: #6b7280 !important" [disabled]="currentPage <= 1" (click)="onPageChange(currentPage - 1)">
+    <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20" style="color: #6b7280 !important" />
+    Previous
+  </button>
+
+  <div class="d-flex align-items-center gap-1">
+    <ng-container *ngFor="let item of paginationItems">
+      <div *ngIf="item.page === '...'" class="d-flex align-items-center justify-content-center"
+        style="width: 40px; height: 40px">
+        <span class="fw-medium text-muted small">...</span>
+      </div>
+      <button *ngIf="item.page !== '...'" type="button"
+        class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle fs-14"
+        [class.pagination-active]="item.isActive" [ngClass]="!item.isActive ? 'bg-transparent border-0' : ''"
+        style="width: 40px; height: 40px" (click)="onPageChange(+item.page)">
+        <span class="fw-medium small" [class.text-dark]="item.isActive" [class.text-muted]="!item.isActive">
+          {{ item.page }}
+        </span>
+      </button>
+    </ng-container>
+  </div>
+
+  <button class="btn btn-link text-decoration-none fs-16 fw-medium d-flex align-items-center gap-2"
+    style="color: #6b7280 !important" [disabled]="currentPage >= totalPages" (click)="onPageChange(currentPage + 1)">
+    Next
+    <img src="assets/icons/pageiright.svg" alt="pageright" width="20" height="20" style="color: #6b7280 !important" />
+  </button>
+</div>

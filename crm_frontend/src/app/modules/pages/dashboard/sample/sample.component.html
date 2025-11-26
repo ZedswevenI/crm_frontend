@@ -1,0 +1,34 @@
+<h2>Ui Elements</h2>
+
+<form [formGroup]="form">
+    <h4>Formfield</h4>
+    <div class="col-md-4">
+        <formfield label="Formfield " [control]="form.get('location')" formControlName="location"
+            [placeholder]="'Enter Name'" [required]="true">
+        </formfield>
+    </div>
+
+    <h4 class="mt-2">Selectbox</h4>
+    <div class="col-md-4">
+        <selectbox label="Selectbox" [options]="field_options" formControlName="type" [required]="true"
+            [control]="form.get('type')"> </selectbox>
+    </div>
+
+    <h4 class="mt-2">Checkbox</h4>
+    <div class="col-md-4">
+        <checkbox label="Checkbox" class="" [required]="false" [control]="form.get('check')" formControlName="check">
+        </checkbox>
+    </div>
+
+    <h4 class="mt-2">SelectFields</h4>
+    <div class="col-md-4">
+        <multiselect label="SelectFields" placeholder="Choose options" [options]="field_options2"
+            formControlName="selectedFields" [control]="form.get('selectedFields')" [required]="true">
+        </multiselect>
+    </div>
+
+    <h4 class="mt-2">RadioButton</h4>
+    <div class="col-md-4">
+         <radiobutton class="" label="Gender" [required]="true" [options]="radioOptions" formControlName="gender" [control]="form.get('gender')"></radiobutton>
+    </div>
+</form>

@@ -1,0 +1,23 @@
+<div class="mb-1">
+  <label class="form-label fw-black fs-9 ms-n3" *ngIf="label">{{ label }}<span *ngIf="required"
+      class="requierdstar" style="color: red">*</span></label>
+
+  <select class="form-select custom-dropdown" autofocus [required]="required" [disabled]="disabled" [(ngModel)]="value"
+    (ngModelChange)="onChange($event); selectionChange.emit($event)" (blur)="onTouched()">
+    <option [value]="null" default disabled selected>{{ placeholder }}</option>
+    <option *ngFor="let opt of options" [value]="opt[optionValue]">{{ getLabel(opt) }}</option>
+  </select>
+
+  <div *ngIf="control && control.invalid && (control.touched || control.dirty)">
+    <small class="text-danger" *ngIf="control.errors?.['required']">{{label}} is required.</small>
+  </div>
+</div>
+
+<!-- Sample Implementation Code -->
+
+<!-- 
+HTML
+<selectbox class="" placeholder="" [options]="field_options" formControlName="" [required]="" [control]="" (selectionChange)="">  </selectbox>
+TS
+field_options: any[] = [{ label: 'Text Field', value: 'text' },{ label: 'Number Field', value: 'number' }];
+-->

@@ -1,0 +1,23 @@
+<div class="mb-1">
+  <label class="form-label fw-black fs-9 ms-n3" *ngIf="label" [for]="id || label">{{ label }}<span *ngIf="required"
+      class="requierdstar" style="color: red">*</span></label>
+  <input autofocus [type]="type" [id]="id || label" [placeholder]="placeholder || label" [value]="value"
+    (input)="onInput($event)" (blur)="onTouched()" class="form-control no-spinner" [required]="required" />
+  <!-- Error Code -->
+  <div *ngIf="control && control.invalid && (control.touched || control.dirty)">
+    <small class="text-danger" *ngIf="control.errors?.['required']">{{ label }} required.</small>
+    <small class="text-danger" *ngIf="control.errors?.['minlength']"> Minimum length is {{
+      control.errors?.['minlength'].requiredLength }}. </small>
+    <small class="text-danger" *ngIf="control.errors?.['maxlength']"> Maximum length is {{
+      control.errors?.['maxlength'].requiredLength }}. </small>
+    <small class="text-danger" *ngIf="control.errors?.['pattern']">Invalid format.</small>
+  </div>
+</div>
+
+<!-- Sample Implementation Code -->
+
+<!-- 
+HTML
+<formfield class="" label="" formControlName="" [control]="" placeholder="" [required]=""></formfield>
+style="background-color: #f8f9fc;"
+-->

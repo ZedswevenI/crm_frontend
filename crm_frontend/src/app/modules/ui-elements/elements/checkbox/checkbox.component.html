@@ -1,0 +1,17 @@
+<div class="form-check form-check-inline mb-2">
+  <input class="form-check-input" type="checkbox" autofocus [checked]="checked" (change)="onCheckboxChange($event)" (blur)="onTouched()" [id]="label" />
+  <label class="form-check-label" [for]="label">
+    {{ label }}
+  </label>
+</div>
+<div *ngIf="control && control.invalid && (control.touched || control.dirty)">
+  <small class="text-danger" *ngIf="control.errors?.['required']">This field is required.</small>
+  <small class="text-danger" *ngIf="control.errors?.['requiredTrue']">You must check this box.</small>
+</div>
+
+<!-- Sample Implementation Code -->
+
+<!-- 
+HTML
+<checkbox class="" [required]="" [control]="" formControlName=""></checkbox>
+-->

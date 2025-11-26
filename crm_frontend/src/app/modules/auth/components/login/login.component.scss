@@ -1,0 +1,45 @@
+:root {
+  --brand-primary: #3b5bff;
+  --brand-primary-hover: #344de5;
+}
+
+.login-page {
+  min-height: 100vh;
+  background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.75),
+      rgba(255, 255, 255, 0.85)
+    ),
+    url("/assets/img/login-bg.png") center/cover no-repeat;
+  padding: 1rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 560px;
+  border-radius: 1rem;
+}
+
+.logo-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: #fff;
+  font-size: 1.25rem;
+}
+
+.input-group-text {
+  background-color: #fff;
+}
+
+// .btn-primary {
+//   background-color: var(--brand-primary);
+//   border-color: var(--brand-primary);
+
+//   &:hover,
+//   &:focus {
+//     background-color: var(--brand-primary-hover);
+//     border-color: var(--brand-primary-hover);
+//   }
+// }

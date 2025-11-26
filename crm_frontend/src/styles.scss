@@ -1,0 +1,57 @@
+/* You can add global styles to this file, and also import other style files */
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+.w-30{
+    width: 30%;
+}
+ .w-70{
+    width: 70%;
+ }
+ .w-100{
+    width: 100%;
+ }
+
+ //layout
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-wrap {
+  flex: 1;
+  display: flex;
+  min-height: 0;  
+}
+
+.app-sidebar {
+  width: 260px;       
+  background: #fff;
+  overflow-y: auto;
+}
+
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.app-main .table-responsive,
+.app-main [class*="table-responsive"] {
+  overflow-x: auto;
+}
+
+@media (max-width: 767.98px) {
+  .app-sidebar {
+    display: none !important;
+  }
+}

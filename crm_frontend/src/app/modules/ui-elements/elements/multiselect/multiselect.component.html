@@ -1,0 +1,27 @@
+<div class="mb-3">
+  <label class="form-label">
+    {{ label }} <span *ngIf="required" style="color: red">*</span>
+  </label>
+
+  <div class="dropdown w-100">
+    <button class="btn btn-light border w-100 text-start" type="button" data-bs-toggle="dropdown">
+      <span *ngIf="selectedItems.length === 0">{{ placeholder }}</span>
+      <span *ngIf="selectedItems.length > 0">{{ getSelectedLabels() }}</span>
+    </button>
+
+    <ul class="dropdown-menu w-100 p-2" style="max-height: 220px; overflow-y: auto;">
+      <li *ngFor="let opt of options">
+        <label class="dropdown-item d-flex align-items-center">
+          <input type="checkbox" class="form-check-input me-2"
+                 [checked]="isSelected(opt)"
+                 (change)="toggleSelection(opt)">
+          {{ opt[optionLabel] }}
+        </label>
+      </li>
+    </ul>
+  </div>
+
+  <div *ngIf="control?.invalid && (control?.touched || control?.dirty)" class="text-danger mt-1" style="font-size: 13px;">
+    <span *ngIf="control?.errors?.['required']">{{ label }} is required.</span>
+  </div>
+</div>

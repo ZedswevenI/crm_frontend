@@ -1,0 +1,22 @@
+<div class="mb-3">
+  <label class="col-sm-3 col-form-label" *ngIf="label"> {{ label }} <span *ngIf="required" style="color: red;">*</span></label>
+  <span class="col-sm-1 text-center pe-4 ms-3" *ngIf="label">:</span>
+  <div *ngFor="let opt of options; let i = index" class="form-check form-check-inline">
+    <input autofocus class="form-check-input" type="radio" [name]="name" [id]="name + '-' + i" [value]="opt.value" [checked]="value === opt.value" (change)="onRadioChange(opt.value)" (blur)="onTouched()" />
+    <label class="form-check-label" [for]="name + '-' + i">
+      {{ opt.label }}
+    </label>
+  </div>
+  <div *ngIf="control && control.invalid && (control.touched || control.dirty)">
+    <small class="text-danger" *ngIf="control.errors?.['required']">{{label}} field is required.</small>
+  </div>
+</div>
+
+<!-- Sample Implementation Code -->
+
+<!-- 
+    HTML
+    <radiobutton class="" label="" [required]="" [options]="" formControlName="" [control]=""></radiobutton>
+    TS 
+    radioOptions = [{ label: 'Male', value: 'male' },{ label: 'Female', value: 'female' },{ label: 'Other', value: 'other' }];
+-->

@@ -1,0 +1,20 @@
+<div class="app-shell d-flex flex-column">
+    <!-- Header -->
+    <app-header class="flex-shrink-0 border-bottom app-header"></app-header>
+    <!-- Navbar -->
+    <!-- <app-horizontal-sidebar class="flex-shrink-0 border-bottom app-header"></app-horizontal-sidebar> -->
+    
+    <!-- Sidebar + Main content -->
+    <div class="main-wrap d-flex flex-grow-1" style="background-color: #eff1f2;">
+        <!-- Sidebar -->
+        <app-sidebar class="border-end app-sidebar"></app-sidebar>
+
+        <!-- Main content -->
+        <main class="flex-grow-1 p-3 p-md-4 app-main">
+            <router-outlet></router-outlet>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <app-footer></app-footer>
+</div> 
