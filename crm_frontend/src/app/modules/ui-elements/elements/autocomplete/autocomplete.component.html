@@ -1,1 +1,24 @@
-<p>autocomplete works!</p>
+<div class="mb-1 position-relative">
+  <label class="form-label fw-black fs-9 ms-n3" *ngIf="label"> {{ label }}<span *ngIf="required"
+      class="requiredstar">*</span> </label>
+  <input type="text" class="form-control" [autofocus]="autofocus" [placeholder]="placeholder" [(ngModel)]="searchText"
+    [disabled]="disabled" (input)="onInput($event)" (blur)="onTouched(); closeDropdown()" (focus)="openDropdown()"
+    (keydown)="onKeyDown($event)" [attr.autocomplete]="'off'" />
+
+  <!-- Suggestions dropdown -->
+  <ul class="dropdown-menu show w-100" *ngIf="dropdownOpen && filteredOptions.length > 0"
+    style="max-height: 200px; overflow-y: auto">
+    <li *ngFor="let opt of filteredOptions; let i = index" [class.active]="i === highlightedIndex"
+      (mousedown)="selectOption(opt)" class="dropdown-item" style="cursor: pointer">
+      {{ getLabel(opt) }}
+    </li>
+  </ul>
+
+  <!-- Error messages (boolean-driven) -->
+  <div *ngIf="showNoMatch || (control && (control.touched || control.dirty))">
+    <small class="text-danger" *ngIf="showNoMatch">No matches found.</small>
+    <small class="text-danger" *ngIf="!showNoMatch && control?.errors?.['required']">
+     {{label}} is required.
+    </small>
+  </div>
+</div>

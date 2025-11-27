@@ -1,1 +1,23 @@
-<p>doceditor works!</p>
+<div class="mb-3">
+  <label *ngIf="label" class="form-label" [for]="id"> {{ label }} <span *ngIf="required" style="color: red">*</span> </label>
+  <quill-editor
+    autofocus
+    [placeholder]="placeholder"
+    [id]="id"
+    [(ngModel)]="value"
+    (onBlur)="onTouched()"
+    (onContentChanged)="onEditorChanged($event)"
+    [ngClass]="{ 'is-invalid': control && control.invalid && (control.touched || control.dirty) }"
+    [styles]="{ minHeight: '180px', maxHeight: '300px' }"
+  ></quill-editor>
+  <div *ngIf="control && control.invalid && (control.touched || control.dirty)">
+    <small class="text-danger" *ngIf="control.errors?.['required']">This field is required.</small>
+  </div>
+</div>
+
+<!-- Sample Implementation Code -->
+
+<!-- 
+HTML
+<doceditor label="" [required]="" placeholder="" [control]="" formControlName="" id=""></doceditor>
+-->

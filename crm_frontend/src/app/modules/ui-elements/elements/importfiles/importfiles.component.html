@@ -1,0 +1,37 @@
+<p>importfiles works!</p>
+<div class="mb-3">
+    <label *ngIf="label" class="form-label" [for]="id">
+        {{ label }} <span *ngIf="required" style="color:red">*</span>
+    </label>
+    <!-- <input type="file" class="form-control" [id]="id" [attr.multiple]="multiple ? '' : null" [attr.accept]="accept"
+        (change)="onFileChange($event)" (blur)="onTouched()"
+        [ngClass]="{'is-invalid': control && control.invalid && (control.touched || control.dirty)}" /> -->
+    <input type="file" class="form-control form-control-lg" [id]="id" [attr.multiple]="multiple ? '' : null"
+        accept=".xls,.xlsx,.doc,.docx,.pdf,.jpg,.jpeg,.png,.svg,.ppt,.pptx" (change)="onFileChange($event)"
+        (blur)="onTouched()"
+        [ngClass]="{'is-invalid': control && control.invalid && (control.touched || control.dirty)}" />
+
+    <ul class="list-unstyled mt-2" *ngIf="files.length">
+        <li *ngFor="let file of files; let i = index" class="d-flex align-items-center">
+            <span class="me-2">{{ file.name }} <small>({{ file.size / 1024 | number:'1.0-1' }} KB)</small></span>
+            <button *ngIf="multiple" type="button" class="btn btn-sm btn-outline-danger ms-2" (click)="removeFile(i)">
+                <i class="fa fa-times"></i>
+            </button>
+        </li>
+    </ul>
+    <div *ngIf="control && control.invalid && (control.touched || control.dirty)">
+        <small class="text-danger" *ngIf="control.errors?.['required']">File is required.</small>
+    </div>
+</div>
+
+<!-- Sample Implementation Code -->
+
+<!-- 
+HTML
+<importfiles label="" [required]="" [multiple]="" accept="" [control]="" formControlName="" (filesChanged)="onFilesSelected($event)"></importfiles>
+
+TS
+onFilesSelected(files: FileList) {
+    console.log(Array.from(files));
+  }
+-->

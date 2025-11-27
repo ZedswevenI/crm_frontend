@@ -1,0 +1,28 @@
+<div class="modal fade" [ngClass]="{ show: visible }" [style.display]="visible ? 'block' : 'none'" tabindex="-1"
+  [attr.aria-hidden]="!visible ? 'true' : null" style="background: transparent">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="border: none;">
+        <h5 class="modal-title brand-blue">{{ title || 'Confirm Action' }}</h5>
+        <button class="btn btn-close p-1" type="button" (click)="close(false)" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <p class="text-body-tertiary lh-lg mb-0 fw-bolder text-break wrap-anywhere">
+          {{ message || 'Are you sure?' }}
+        </p>
+      </div>
+
+      <div class="modal-footer" style="border: none;">
+        <button class="btn btn-danger me-2 px-6 fw-black fs-8 closebuttonclr" (click)="close(false)">
+          Cancel
+        </button>
+        <button class="btn btn-primary submitbuttonclr fw-black fs-8 px-6" (click)="close(true)">
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- BACKDROP -->
+<div *ngIf="visible" class="modal-backdrop fade show"></div>

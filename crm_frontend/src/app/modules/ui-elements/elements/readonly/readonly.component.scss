@@ -1,0 +1,37 @@
+:host {
+  --phoenix-readonly-bg: #f1f3f5;
+  --phoenix-readonly-color: #344054;
+  --phoenix-readonly-border: #d0d5dd;
+}
+
+:host-context(.dark-mode) {
+  --phoenix-readonly-bg: #222834;
+  --phoenix-readonly-color: #cfd3da;
+  --phoenix-readonly-border: #2d3443;
+}
+
+input.form-control.readonly-style[readonly],
+input.form-control.readonly-style:disabled {
+  background-color: var(--phoenix-readonly-bg) !important;
+  color: var(--phoenix-readonly-color) !important;
+  border-color: var(--phoenix-readonly-border) !important;
+  cursor: default;
+}
+
+input.form-control.readonly-style[readonly]:hover,
+input.form-control.readonly-style[readonly]:focus,
+input.form-control.readonly-style:disabled:hover,
+input.form-control.readonly-style:disabled:focus {
+  background-color: var(--phoenix-readonly-bg) !important;
+  color: var(--phoenix-readonly-color) !important;
+  border-color: var(--phoenix-readonly-border) !important;
+  box-shadow: none !important;
+}
+
+.readonly-style {
+  border-radius: 8px;
+  min-height: 38px;
+  padding: 0.375rem 0.75rem;
+  display: flex;
+  align-items: center;
+}

@@ -1,0 +1,15 @@
+<div class="mb-1">
+  <label class="form-label fw-black fs-9 ms-n3" *ngIf="label"> {{ label }}<span *ngIf="required" class="requiredstar">*</span> </label>
+  <div class="form-control d-flex flex-wrap align-items-center gap-1 p-2" [ngClass]="{ 'is-invalid': control && control.invalid && (control.touched || control.dirty) }" (click)="focusInput()" style="min-height: 38px; cursor: text">
+    <ng-container *ngFor="let tag of tags; let i = index">
+      <span class="badge bg-primary px-2 py-1 me-1 mb-1 tag-badge">
+        {{ tag }}
+        <button type="button" class="btn-close btn-close-white btn-sm ms-2" (click)="removeTag(i)" tabindex="-1" aria-label="Remove tag"></button>
+      </span>
+    </ng-container>
+    <input #tagInput autofocus type="text" class="border-0 flex-grow-1" [placeholder]="tags.length === 0 ? placeholder : ''" [(ngModel)]="inputValue" [disabled]="disabled" (keydown)="onInputKeydown($event)" (blur)="onTouched()" style="outline: none; min-width: 90px" autocomplete="off" />
+  </div>
+  <div *ngIf="control && control.invalid && (control.touched || control.dirty)">
+    <small class="text-danger" *ngIf="control.errors?.['required']"> At least one value required. </small>
+  </div>
+</div>

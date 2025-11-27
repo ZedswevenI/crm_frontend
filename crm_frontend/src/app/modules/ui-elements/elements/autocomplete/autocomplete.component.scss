@@ -1,0 +1,11 @@
+.dropdown-menu {
+  z-index: 1000;
+}
+.requiredstar {
+  color: red;
+}
+.dropdown-item.active,
+.dropdown-item:hover {
+  background-color: #f2f2f2;
+  color: #222;
+}

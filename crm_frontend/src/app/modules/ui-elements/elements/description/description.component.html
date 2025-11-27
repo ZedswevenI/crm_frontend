@@ -1,0 +1,25 @@
+<div class="mb-3">
+  <label *ngIf="label" class="form-label" [for]="id"> {{ label }} <span *ngIf="required" style="color: red">*</span>
+  </label>
+  <textarea class="form-control" autofocus [id]="id" [placeholder]="placeholder" [rows]="rows" [(ngModel)]="value"
+    (input)="onInput($event)" (blur)="onTouched()"
+    [ngClass]="{ 'is-invalid': control && control.invalid && (control.touched || control.dirty) }"
+    ></textarea>
+  <div *ngIf="control && control.invalid && (control.touched || control.dirty)">
+    <small class="text-danger" *ngIf="control.errors?.['required']">This field is required.</small>
+    <small class="text-danger" *ngIf="control.errors?.['minlength']">Minimum
+      {{
+      control.errors?.['minlength']?.requiredLength }}
+      characters.</small>
+    <small class="text-danger" *ngIf="control.errors?.['maxlength']">Maximum
+      {{
+      control.errors?.['maxlength']?.requiredLength }}
+      characters.</small>
+  </div>
+</div>
+
+<!-- sample implementation -->
+
+<!-- 
+<description label="" placeholder="Add description about permit type" [control]="PermittypeForm.get('desc')" formControlName="desc" [required]="false"></description>
+ -->

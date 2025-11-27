@@ -1,0 +1,15 @@
+.requiredstar {
+  color: red;
+}
+.tag-badge {
+  font-size: 0.95em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+input:disabled {
+  background: transparent !important;
+}
+.form-control.is-invalid {
+  border-color: #dc3545;
+}

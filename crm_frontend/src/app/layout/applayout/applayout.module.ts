@@ -8,6 +8,7 @@ import { SidebarComponent } from './applayout/sidebar/sidebar.component';
 import { HeaderComponent } from './applayout/header/header.component';
 import { TablerIconsModule } from "angular-tabler-icons";
 import * as TablerIcons from "angular-tabler-icons/icons";
+import { UiElementsModule } from '../../modules/ui-elements/ui-elements.module';
 
 @NgModule({
   declarations: [
@@ -20,6 +21,7 @@ import * as TablerIcons from "angular-tabler-icons/icons";
     CommonModule,
     ApplayoutRoutingModule,
     TablerIconsModule.pick(TablerIcons),
+    UiElementsModule
   ],
 })
 export class ApplayoutModule {}

@@ -1,0 +1,30 @@
+<div class="container-fluid px-5 py-2">
+    <nav class="d-flex align-items-center" aria-label="breadcrumb">
+        <!-- Home icon -->
+        <a [routerLink]="'/app/dashboard'" class="d-flex align-items-center text-decoration-none" aria-label="Home">
+            <img src="assets/icons/home.svg" alt="home" height="20" width="20" style="color: #6B7280 !important;">
+        </a>
+
+        <!-- Dynamic crumbs -->
+        <ng-container *ngFor="let item of items; let last = last">
+            <!-- Slash separator -->
+            <span class="text-muted mx-2 fs-14 fw-normal" aria-hidden="true">/</span>
+
+            <!-- Link for non-last crumb (and when link exists) -->
+            <a *ngIf="!last && item.link" [routerLink]="item.link"
+                class="text-muted text-decoration-none fs-14 fw-normal" style="color:#6B7280 !important">
+                {{ item.label }}
+            </a>
+
+            <!-- Final crumb (or when link is missing) -->
+            <!-- <span *ngIf="last || !item.link" class="fw-medium text-dark fs-14" style="color: #1F2937 !important;"
+                [attr.aria-current]="last ? 'page' : null">
+                {{ item.label }}
+            </span> -->
+            <span *ngIf="last || !item.link" class="fw-medium text-dark fs-14"
+             [ngClass]="{'fw-bold text-white': isDarkMode,'#1F2937': !isDarkMode }" [attr.aria-current]="last ? 'page' : null">
+                {{ item.label }}
+            </span>
+        </ng-container>
+    </nav>
+</div>

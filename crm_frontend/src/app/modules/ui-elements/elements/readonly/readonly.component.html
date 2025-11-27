@@ -1,0 +1,8 @@
+<div class="mb-1">
+  <label class="form-label fw-black fs-9 ms-n3" *ngIf="label" [for]="id || label">
+    {{ label }}
+    <span *ngIf="required" class="requierdstar">*</span>
+  </label>
+  <input tabindex="-1" [type]="type" [id]="id || label" [placeholder]="placeholder || label" [value]="displayValue"
+    readonly class="form-control readonly-style" [required]="required" [attr.aria-disabled]="disabled" />
+</div>
