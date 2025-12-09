@@ -15,13 +15,17 @@ export class CenterComponent implements OnInit {
   showForm = false;
   editingId: number | null = null;
 
+  deleteModalVisible = false;
+  deleteTarget: any | null = null;
+  deleteMessage = '';
+
   columns = [
-    { key: 'name', label: 'Center Name', sortable: true },
-    { key: 'code', label: 'Code', sortable: true },
-    { key: 'instituteName', label: 'Institute', sortable: true },
-    { key: 'city', label: 'City', sortable: true },
-    { key: 'state', label: 'State', sortable: false },
-    { key: 'isActive', label: 'Active', sortable: false }
+    { key: 'name',          label: 'Center Name', sortable: true },
+    { key: 'code',          label: 'Code',        sortable: true },
+    { key: 'instituteName', label: 'Institute',   sortable: true },
+    { key: 'city',          label: 'City',        sortable: true },
+    { key: 'state',         label: 'State',       sortable: false },
+    { key: 'isActive',      label: 'Active',      sortable: false }
   ];
 
   // dummy institutes for dropdown
@@ -67,7 +71,7 @@ export class CenterComponent implements OnInit {
       tooltip: 'Delete',
       color: '#6B7280',
       hoverColor: '#D42B2B',
-      callback: (row: any) => this.delete(row)
+      callback: (row: any) => this.openDelete(row)
     }
   ];
 
@@ -82,7 +86,7 @@ export class CenterComponent implements OnInit {
     private alertService: AlertService
   ) {
     this.breadcrumb.set([
-      { label: 'Org Configs' },
+      { label: 'Control Panel' },
       { label: 'Masters' },
       { label: 'Centers' }
     ]);
@@ -102,14 +106,21 @@ export class CenterComponent implements OnInit {
   add(): void {
     this.formMode = 'create';
     this.editingId = null;
-    this.centerForm.reset({ isActive: true });
+    this.centerForm.reset({
+      name: '',
+      code: '',
+      instituteId: null,
+      city: '',
+      state: '',
+      isActive: true
+    });
     this.showForm = true;
   }
 
   edit(row: any): void {
     this.formMode = 'edit';
     this.editingId = row.id;
-    this.centerForm.patchValue({
+    this.centerForm.reset({
       name: row.name,
       code: row.code,
       instituteId: row.instituteId,
@@ -129,8 +140,10 @@ export class CenterComponent implements OnInit {
       this.centerForm.markAllAsTouched();
       return;
     }
+
     const value = this.centerForm.value;
     const inst = this.institutes.find((i) => i.id === value.instituteId);
+
     const payload = {
       ...value,
       instituteName: inst?.name || ''
@@ -146,13 +159,24 @@ export class CenterComponent implements OnInit {
       );
       this.alertService.success('Center updated successfully');
     }
+
     this.showForm = false;
   }
 
-  delete(row: any): void {
-    if (confirm(`Delete center "${row.name}"?`)) {
-      this.centerData = this.centerData.filter((c) => c.id !== row.id);
+  openDelete(row: any): void {
+    this.deleteTarget = row;
+    this.deleteMessage = `Are you sure you want to delete center "${row.name}"?`;
+    this.deleteModalVisible = true;
+  }
+
+  onDeleteModalClosed(confirmed: boolean): void {
+    this.deleteModalVisible = false;
+
+    if (confirmed && this.deleteTarget) {
+      this.centerData = this.centerData.filter((c) => c.id !== this.deleteTarget.id);
       this.alertService.success('Center deleted');
     }
+
+    this.deleteTarget = null;
   }
 }

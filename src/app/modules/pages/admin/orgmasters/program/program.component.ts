@@ -15,12 +15,16 @@ export class ProgramComponent implements OnInit {
   showForm = false;
   editingId: number | null = null;
 
+  deleteModalVisible = false;
+  deleteTarget: any | null = null;
+  deleteMessage = '';
+
   columns = [
-    { key: 'name', label: 'Program Name', sortable: true },
-    { key: 'code', label: 'Code', sortable: true },
-    { key: 'stream', label: 'Stream', sortable: true },
+    { key: 'name',     label: 'Program Name',  sortable: true },
+    { key: 'code',     label: 'Code',          sortable: true },
+    { key: 'stream',   label: 'Stream',        sortable: true },
     { key: 'duration', label: 'Duration Type', sortable: true },
-    { key: 'isActive', label: 'Active', sortable: false }
+    { key: 'isActive', label: 'Active',        sortable: false }
   ];
 
   programData: any[] = [
@@ -56,19 +60,19 @@ export class ProgramComponent implements OnInit {
       tooltip: 'Delete',
       color: '#6B7280',
       hoverColor: '#D42B2B',
-      callback: (row: any) => this.delete(row)
+      callback: (row: any) => this.openDelete(row)
     }
   ];
 
   streamOptions = [
-    { label: 'JEE', value: 'JEE' },
-    { label: 'NEET', value: 'NEET' },
-    { label: 'Foundation', value: 'Foundation' }
+    { label: 'JEE',         value: 'JEE' },
+    { label: 'NEET',        value: 'NEET' },
+    { label: 'Foundation',  value: 'Foundation' }
   ];
 
   durationOptions = [
-    { label: '2 Years', value: '2 Years' },
-    { label: '1 Year', value: '1 Year' },
+    { label: '2 Years',      value: '2 Years' },
+    { label: '1 Year',       value: '1 Year' },
     { label: 'Crash Course', value: 'Crash Course' }
   ];
 
@@ -97,14 +101,26 @@ export class ProgramComponent implements OnInit {
   add(): void {
     this.formMode = 'create';
     this.editingId = null;
-    this.programForm.reset({ isActive: true });
+    this.programForm.reset({
+      name: '',
+      code: '',
+      stream: null,
+      duration: null,
+      isActive: true
+    });
     this.showForm = true;
   }
 
   edit(row: any): void {
     this.formMode = 'edit';
     this.editingId = row.id;
-    this.programForm.patchValue(row);
+    this.programForm.reset({
+      name: row.name,
+      code: row.code,
+      stream: row.stream,
+      duration: row.duration,
+      isActive: row.isActive
+    });
     this.showForm = true;
   }
 
@@ -117,6 +133,7 @@ export class ProgramComponent implements OnInit {
       this.programForm.markAllAsTouched();
       return;
     }
+
     const value = this.programForm.value;
 
     if (this.formMode === 'create') {
@@ -129,13 +146,24 @@ export class ProgramComponent implements OnInit {
       );
       this.alertService.success('Program updated successfully');
     }
+
     this.showForm = false;
   }
 
-  delete(row: any): void {
-    if (confirm(`Delete program "${row.name}"?`)) {
-      this.programData = this.programData.filter((p) => p.id !== row.id);
+  openDelete(row: any): void {
+    this.deleteTarget = row;
+    this.deleteMessage = `Are you sure you want to delete program "${row.name}"?`;
+    this.deleteModalVisible = true;
+  }
+
+  onDeleteModalClosed(confirmed: boolean): void {
+    this.deleteModalVisible = false;
+
+    if (confirmed && this.deleteTarget) {
+      this.programData = this.programData.filter((p) => p.id !== this.deleteTarget.id);
       this.alertService.success('Program deleted');
     }
+
+    this.deleteTarget = null;
   }
 }

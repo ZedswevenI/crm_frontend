@@ -15,13 +15,17 @@ export class StaffComponent implements OnInit {
   showForm = false;
   editingId: number | null = null;
 
+  deleteModalVisible = false;
+  deleteTarget: any | null = null;
+  deleteMessage = '';
+
   columns = [
-    { key: 'name', label: 'Staff Name', sortable: true },
-    { key: 'code', label: 'Code', sortable: true },
-    { key: 'role', label: 'Role', sortable: true },
-    { key: 'centerName', label: 'Center', sortable: true },
-    { key: 'phone', label: 'Phone', sortable: false },
-    { key: 'isActive', label: 'Active', sortable: false }
+    { key: 'name',       label: 'Staff Name', sortable: true },
+    { key: 'code',       label: 'Code',       sortable: true },
+    { key: 'role',       label: 'Role',       sortable: true },
+    { key: 'centerName', label: 'Center',     sortable: true },
+    { key: 'phone',      label: 'Phone',      sortable: false },
+    { key: 'isActive',   label: 'Active',     sortable: false }
   ];
 
   centers = [
@@ -68,15 +72,15 @@ export class StaffComponent implements OnInit {
       tooltip: 'Delete',
       color: '#6B7280',
       hoverColor: '#D42B2B',
-      callback: (row: any) => this.delete(row)
+      callback: (row: any) => this.openDelete(row)
     }
   ];
 
   roleOptions = [
-    { label: 'Faculty', value: 'Faculty' },
-    { label: 'Centre Head', value: 'Centre Head' },
-    { label: 'Counsellor', value: 'Counsellor' },
-    { label: 'Admin', value: 'Admin' }
+    { label: 'Faculty',      value: 'Faculty' },
+    { label: 'Centre Head',  value: 'Centre Head' },
+    { label: 'Counsellor',   value: 'Counsellor' },
+    { label: 'Admin',        value: 'Admin' }
   ];
 
   centerOptions = this.centers.map((c) => ({
@@ -111,14 +115,22 @@ export class StaffComponent implements OnInit {
   add(): void {
     this.formMode = 'create';
     this.editingId = null;
-    this.staffForm.reset({ isActive: true });
+    this.staffForm.reset({
+      name: '',
+      code: '',
+      role: null,
+      centerId: null,
+      phone: '',
+      email: '',
+      isActive: true
+    });
     this.showForm = true;
   }
 
   edit(row: any): void {
     this.formMode = 'edit';
     this.editingId = row.id;
-    this.staffForm.patchValue({
+    this.staffForm.reset({
       name: row.name,
       code: row.code,
       role: row.role,
@@ -139,6 +151,7 @@ export class StaffComponent implements OnInit {
       this.staffForm.markAllAsTouched();
       return;
     }
+
     const value = this.staffForm.value;
     const center = this.centers.find((c) => c.id === value.centerId);
     const payload = {
@@ -156,13 +169,24 @@ export class StaffComponent implements OnInit {
       );
       this.alertService.success('Staff updated successfully');
     }
+
     this.showForm = false;
   }
 
-  delete(row: any): void {
-    if (confirm(`Delete staff "${row.name}"?`)) {
-      this.staffData = this.staffData.filter((s) => s.id !== row.id);
+  openDelete(row: any): void {
+    this.deleteTarget = row;
+    this.deleteMessage = `Are you sure you want to delete staff "${row.name}"?`;
+    this.deleteModalVisible = true;
+  }
+
+  onDeleteModalClosed(confirmed: boolean): void {
+    this.deleteModalVisible = false;
+
+    if (confirmed && this.deleteTarget) {
+      this.staffData = this.staffData.filter((s) => s.id !== this.deleteTarget.id);
       this.alertService.success('Staff deleted');
     }
+
+    this.deleteTarget = null;
   }
 }

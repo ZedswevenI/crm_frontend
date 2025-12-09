@@ -97,4 +97,8 @@
         </div>
     </div>
 
+    <delete [title]="'Delete Institute'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+
 </div>
