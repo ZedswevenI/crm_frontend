@@ -1,0 +1,61 @@
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Program Master</h5>
+        <button class="btn btn-sm btn-primary" (click)="add()">
+            <i class="fa-solid fa-plus me-1"></i> Add Program
+        </button>
+    </div>
+    <div class="card-body">
+        <list-table [autoFitChars]="true" [columns]="columns" [data]="programData" [actions]="actions">
+        </list-table>
+    </div>
+</div>
+
+<div class="card" *ngIf="showForm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+            {{ formMode === 'create' ? 'Create Program' : 'Edit Program' }}
+        </h6>
+        <button type="button" class="btn-close" (click)="cancel()"></button>
+    </div>
+    <div class="card-body">
+        <form [formGroup]="programForm" (ngSubmit)="save()">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <formfield label="Program Name" [required]="true" [control]="programForm.get('name')"
+                        formControlName="name" placeholder="JEE 2 Year Classroom">
+                    </formfield>
+                </div>
+                <div class="col-md-3">
+                    <formfield label="Code" [required]="true" [control]="programForm.get('code')" formControlName="code"
+                        placeholder="JEE-2Y-CLS">
+                    </formfield>
+                </div>
+                <div class="col-md-3">
+                    <selectbox label="Stream" [required]="true" [options]="streamOptions" [optionLabel]="'label'"
+                        [optionValue]="'value'" [control]="programForm.get('stream')" formControlName="stream">
+                    </selectbox>
+                </div>
+                <div class="col-md-3">
+                    <selectbox label="Duration Type" [required]="true" [options]="durationOptions"
+                        [optionLabel]="'label'" [optionValue]="'value'" [control]="programForm.get('duration')"
+                        formControlName="duration">
+                    </selectbox>
+                </div>
+                <div class="col-md-2 d-flex align-items-center">
+                    <checkbox label="Active" [control]="programForm.get('isActive')" formControlName="isActive">
+                    </checkbox>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary me-2" [disabled]="programForm.invalid">
+                    Save
+                </button>
+                <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

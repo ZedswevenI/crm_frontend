@@ -1,29 +1,180 @@
-<nav class="navbar navbar-light bg-white shadow-sm px-4 py-2 d-flex justify-content-between align-items-center">
+<nav class="navbar navbar-expand-lg shadow-sm app-navbar">
+  <div class="container-fluid px-4">
 
-  <!-- Left: Logo -->
-  <div class="d-flex align-items-center">
-    <img src="assets/namith_logo.png" alt="Logo" style="height: 40px;">
-    <!-- <span class="ms-2 h5 mb-0 fw-semibold">Warehouse System</span> -->
-  </div>
+    <!-- Logo -->
+    <a class="navbar-brand d-flex align-items-center" routerLink="/app/dashboard">
+      <img src="../../../../../assets/logo.png" alt="Z7i Logo" style="height:40px;">
+    </a>
 
-  <!-- Right: Notifications + Sign Out -->
-  <div class="d-flex align-items-center">
-
-    <!-- Notification icon -->
-    <button class="btn position-relative me-3">
-      <i class="fa-regular fa-bell fs-5"></i>
-      <span
-        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger p-1">
-        3
-      </span>
+    <!-- Mobile toggle -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+      aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
     </button>
 
-    <!-- Sign out -->
-    <button class="btn btn-outline-danger" (click)="logout()">
-      <i class="fa-solid fa-right-from-bracket me-1"></i>
-      Sign Out
-    </button>
+    <!-- Nav + user section -->
+    <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
 
+      <!-- LEFT: Menus -->
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+        <!-- Dashboard -->
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/app/dashboard" routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }">
+            Dashboard
+          </a>
+        </li>
+
+        <!-- Admissions & Fees -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Admissions & Fees
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/app/admissions" routerLinkActive="active">Admissions</a></li>
+            <li><a class="dropdown-item" routerLink="/app/fees/collection" routerLinkActive="active">Fee Collection</a>
+            </li>
+            <li><a class="dropdown-item" routerLink="/app/fees/reports" routerLinkActive="active">Fee Reports</a></li>
+          </ul>
+        </li>
+
+        <!-- Students & Batches -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Students & Batches
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/app/students" routerLinkActive="active">Students</a></li>
+            <li><a class="dropdown-item" routerLink="/app/batches" routerLinkActive="active">Batches</a></li>
+            <li><a class="dropdown-item" routerLink="/app/enrollment" routerLinkActive="active">Enrollment</a></li>
+            <li><a class="dropdown-item" routerLink="/app/faculty-assignment" routerLinkActive="active">Faculty
+                Assignment</a></li>
+          </ul>
+        </li>
+
+        <!-- Timetable & Classes -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Timetable & Classes
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/app/timetable" routerLinkActive="active">Timetable</a></li>
+            <li><a class="dropdown-item" routerLink="/app/classes" routerLinkActive="active">Class Management</a></li>
+            <li><a class="dropdown-item" routerLink="/app/classes/rearranged-report" routerLinkActive="active">Class
+                Rearranged Report</a></li>
+          </ul>
+        </li>
+
+        <!-- Attendance -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Attendance
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/app/attendance/entry" routerLinkActive="active">Attendance
+                Entry</a></li>
+            <li><a class="dropdown-item" routerLink="/app/attendance/absentees" routerLinkActive="active">Absentees</a>
+            </li>
+            <li><a class="dropdown-item" routerLink="/app/attendance/followup" routerLinkActive="active">Follow-up</a>
+            </li>
+            <li><a class="dropdown-item" routerLink="/app/attendance/reports" routerLinkActive="active">Attendance
+                Reports</a></li>
+          </ul>
+        </li>
+
+        <!-- Exams & Performance -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Exams & Performance
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/app/exams" routerLinkActive="active">Exam Setup</a></li>
+            <li><a class="dropdown-item" routerLink="/app/exams/marks-entry" routerLinkActive="active">Marks Entry</a>
+            </li>
+            <li><a class="dropdown-item" routerLink="/app/exams/reports" routerLinkActive="active">Performance
+                Reports</a></li>
+          </ul>
+        </li>
+
+        <!-- Feedback & Quality -->
+        <!-- <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Feedback & Quality
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/app/feedback/student" routerLinkActive="active">Student
+                Feedback</a></li>
+            <li><a class="dropdown-item" routerLink="/app/feedback/faculty" routerLinkActive="active">Faculty
+                Feedback</a></li>
+            <li><a class="dropdown-item" routerLink="/app/feedback/reports" routerLinkActive="active">Feedback
+                Reports</a></li>
+          </ul>
+        </li> -->
+
+        <!-- Utilities -->
+        <!-- <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Utilities
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/app/utilities/bulk-upload" routerLinkActive="active">Bulk
+                Uploads</a></li>
+            <li><a class="dropdown-item" routerLink="/app/utilities/export" routerLinkActive="active">Data Export</a>
+            </li>
+          </ul>
+        </li> -->
+
+        <!-- Control Panel -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Org Config's
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/app/admin/masters/institute">Institute</a></li>
+            <li><a class="dropdown-item" routerLink="/app/admin/masters/centers">Centers</a></li>
+            <li><a class="dropdown-item" routerLink="/app/admin/masters/staff">Staff</a></li>
+            <li><a class="dropdown-item" routerLink="/app/admin/masters/programs">Programs</a></li>
+            <li><a class="dropdown-item" routerLink="/app/admin/masters" routerLinkActive="active">Masters</a></li>
+            <li><a class="dropdown-item" routerLink="/app/admin/users" routerLinkActive="active">Users & Roles</a></li>
+            <li><a class="dropdown-item" routerLink="/app/admin/settings" routerLinkActive="active">Settings</a></li>
+          </ul>
+        </li>
+
+      </ul>
+
+      <!-- RIGHT: User dropdown (notifications + logout) -->
+      <div class="d-flex align-items-center">
+        <div class="dropdown">
+          <button class="btn btn-user dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            <span class="position-relative me-2">
+              <i class="fa-regular fa-bell"></i>
+              <span class="badge rounded-pill notif-badge">3</span>
+            </span>
+            <span class="user-name d-none d-md-inline">Admin</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li class="dropdown-header small text-muted">
+              Logged in as <strong>Admin</strong>
+            </li>
+            <li>
+              <hr class="dropdown-divider">
+            </li>
+            <li>
+              <button type="button" class="dropdown-item">
+                <i class="fa-regular fa-bell me-2"></i> Notifications
+              </button>
+            </li>
+            <li>
+              <button type="button" class="dropdown-item text-danger" (click)="logout()">
+                <i class="fa-solid fa-right-from-bracket me-2"></i> Sign Out
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
   </div>
-
 </nav>

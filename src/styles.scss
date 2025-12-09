@@ -1,23 +1,31 @@
-/* You can add global styles to this file, and also import other style files */
-
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
-
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
-
-.w-30{
-    width: 30%;
+:root {
+  --z7i-saffron: #f47b20;
+  --z7i-blue: #f47b20;
+  --z7i-green: #00a651;
+  --z7i-lightblue: #00a0e3;
 }
- .w-70{
-    width: 70%;
- }
- .w-100{
-    width: 100%;
- }
 
- //layout
-html, body {
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+.w-30 {
+  width: 30%;
+}
+.w-70 {
+  width: 70%;
+}
+.w-100 {
+  width: 100%;
+}
+
+html,
+body {
   height: 100%;
   margin: 0;
 }
@@ -31,11 +39,11 @@ html, body {
 .main-wrap {
   flex: 1;
   display: flex;
-  min-height: 0;  
+  min-height: 0;
 }
 
 .app-sidebar {
-  width: 260px;       
+  width: 260px;
   background: #fff;
   overflow-y: auto;
 }
@@ -54,4 +62,13 @@ html, body {
   .app-sidebar {
     display: none !important;
   }
+}
+
+.app-navbar .nav-link.active {
+  color: #f47b20 !important; /* saffron */
+  border-bottom: 2px solid #f47b20; /* underline */
+}
+
+.app-navbar .nav-link:hover {
+  color: #f47b20 !important;
 }

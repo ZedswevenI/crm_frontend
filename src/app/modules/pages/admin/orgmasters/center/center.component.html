@@ -1,0 +1,65 @@
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Center Management</h5>
+        <button class="btn btn-sm btn-primary" (click)="add()">
+            <i class="fa-solid fa-plus me-1"></i> Add Center
+        </button>
+    </div>
+    <div class="card-body">
+        <list-table [autoFitChars]="true" [columns]="columns" [data]="centerData" [actions]="actions">
+        </list-table>
+    </div>
+</div>
+
+<div class="card" *ngIf="showForm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+            {{ formMode === 'create' ? 'Create Center' : 'Edit Center' }}
+        </h6>
+        <button type="button" class="btn-close" (click)="cancel()"></button>
+    </div>
+    <div class="card-body">
+        <form [formGroup]="centerForm" (ngSubmit)="save()">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <formfield label="Center Name" [required]="true" [control]="centerForm.get('name')"
+                        formControlName="name" placeholder="Gandhipuram Center">
+                    </formfield>
+                </div>
+                <div class="col-md-3">
+                    <formfield label="Code" [required]="true" [control]="centerForm.get('code')" formControlName="code"
+                        placeholder="CT-GDP">
+                    </formfield>
+                </div>
+                <div class="col-md-4">
+                    <selectbox label="Institute" [required]="true" [options]="instituteOptions" [optionLabel]="'label'"
+                        [optionValue]="'value'" [control]="centerForm.get('instituteId')" formControlName="instituteId">
+                    </selectbox>
+                </div>
+                <div class="col-md-3">
+                    <formfield label="City" [required]="true" [control]="centerForm.get('city')" formControlName="city"
+                        placeholder="City">
+                    </formfield>
+                </div>
+                <div class="col-md-3">
+                    <formfield label="State" [required]="true" [control]="centerForm.get('state')"
+                        formControlName="state" placeholder="State">
+                    </formfield>
+                </div>
+                <div class="col-md-2 d-flex align-items-center">
+                    <checkbox label="Active" [control]="centerForm.get('isActive')" formControlName="isActive">
+                    </checkbox>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary me-2" [disabled]="centerForm.invalid">
+                    Save
+                </button>
+                <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,22 +1,15 @@
-<div class="app-shell d-flex flex-column">
-    <!-- Header -->
-    <app-header class="flex-shrink-0 border-bottom app-header"></app-header>
-    <!-- Navbar -->
-    <!-- <app-horizontal-sidebar class="flex-shrink-0 border-bottom app-header"></app-horizontal-sidebar> -->
-    
-    <!-- Sidebar + Main content -->
-    <div class="main-wrap d-flex flex-grow-1" style="background-color: #eff1f2;">
-        <!-- Sidebar -->
-        <app-sidebar class="border-end app-sidebar"></app-sidebar>
+<div class="app-shell d-flex flex-column min-vh-100">
 
-        <!-- Main content -->
-        <main class="flex-grow-1 p-3 p-md-4 app-main">
-            <alert></alert>
-            <app-bredcrump></app-bredcrump>
-            <router-outlet></router-outlet>
-        </main>
-    </div>
+    <!-- Top header + navigation -->
+    <app-header class="flex-shrink-0"></app-header>
+
+    <!-- Main content area -->
+    <main class="flex-grow-1 p-3 p-md-4 app-main">
+        <alert></alert>
+        <app-bredcrump></app-bredcrump>
+        <router-outlet></router-outlet>
+    </main>
 
     <!-- Footer -->
-    <app-footer></app-footer>
-</div> 
+    <app-footer class="flex-shrink-0"></app-footer>
+</div>

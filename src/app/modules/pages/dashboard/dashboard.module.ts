@@ -1,21 +1,14 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DashboardRoutingModule } from './dashboard.routing.module';
 
-import { SampleComponent } from './sample/sample.component';
-import { UiElementsModule } from '../../ui-elements/ui-elements.module';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { DashboardRoutingModule } from './dashboard-routing.module';
+
 
 @NgModule({
-  declarations: [
-    SampleComponent
-  ],
+  declarations: [],
   imports: [
-    CommonModule, 
-    DashboardRoutingModule, 
-    UiElementsModule,
-    ReactiveFormsModule,
-    FormsModule
-  ],
+    CommonModule,
+    DashboardRoutingModule
+  ]
 })
-export class DashboardModule {}
+export class DashboardModule { }
