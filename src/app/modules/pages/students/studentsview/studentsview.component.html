@@ -1,0 +1,351 @@
+<div class="student-detail-page" *ngIf="student">
+
+    <!-- Header Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+
+            <div class="d-flex align-items-center gap-3">
+                <div class="avatar-circle-lg">
+                    <span class="avatar-initials-lg">
+                        {{ getInitials(student.basic.name) }}
+                    </span>
+                </div>
+                <div>
+                    <h5 class="mb-1 fw-semibold">{{ student.basic.name }}</h5>
+                    <div class="text-muted small">
+                        Enrolment: <span class="fw-medium">{{ student.basic.enrolmentNo }}</span>
+                    </div>
+                    <div class="text-muted small">
+                        Program: <span class="fw-medium">{{ student.program.programName }}</span>
+                        &nbsp;&bull;&nbsp;
+                        Center: <span class="fw-medium">{{ student.program.center }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge px-3 py-1" [ngClass]="{
+                'bg-success-subtle text-success': student.basic.status === 'Active',
+                'bg-secondary-subtle text-secondary': student.basic.status === 'Completed',
+                'bg-danger-subtle text-danger': student.basic.status === 'Dropout'
+              }">
+                    {{ student.basic.status }}
+                </span>
+
+                <div class="text-muted small">
+                    Attendance: <span class="fw-semibold">{{ student.attendance.overallPct }}%</span>
+                    &nbsp;&bull;&nbsp;
+                    Fees Due: <span class="fw-semibold" [class.text-danger]="student.fees.outstandingAmount > 0">
+                        ₹{{ student.fees.outstandingAmount | number : '1.0-0' }}
+                    </span>
+                </div>
+
+                <button type="button" class="btn btn-outline-secondary btn-sm" routerLink="/app/students">
+                    <i class="fa-solid fa-arrow-left-long me-1"></i>
+                    Back to Students
+                </button>
+
+                <button type="button" class="btn btn-saffron btn-sm" (click)="editStudent()">
+                    <i class="fa-regular fa-pen-to-square me-1"></i>
+                    Edit Profile
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- LEFT: Profile -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 mb-3">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0 fw-semibold">Profile</h6>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="mb-2">
+                        <div class="text-muted small">Mobile</div>
+                        <div class="fw-medium">
+                            <i class="fa-solid fa-phone me-1"></i>{{ student.basic.mobile }}
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="text-muted small">Email</div>
+                        <div class="fw-medium text-break">{{ student.basic.email }}</div>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="text-muted small">Parent Name</div>
+                        <div class="fw-medium">{{ student.basic.parentName }}</div>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="text-muted small">Parent Mobile</div>
+                        <div class="fw-medium">{{ student.basic.parentMobile }}</div>
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="text-muted small">Address</div>
+                        <div class="fw-medium text-wrap">
+                            {{ student.basic.addressLine1 }}<br />
+                            <ng-container *ngIf="student.basic.addressLine2">
+                                {{ student.basic.addressLine2 }}<br />
+                            </ng-container>
+                            {{ student.basic.city }} - {{ student.basic.pincode }}<br />
+                            {{ student.basic.state }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0">
+                    <h6 class="mb-0 fw-semibold">Quick Stats</h6>
+                </div>
+                <div class="card-body pt-2 small text-muted">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Attendance</span>
+                        <span class="fw-semibold">{{ student.attendance.overallPct }}%</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Assignments Completed</span>
+                        <span class="fw-semibold">{{ student.assignments.completed }}/{{ student.assignments.total
+                            }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Average Score</span>
+                        <span class="fw-semibold">{{ student.exams.averageScore }}%</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Fees Paid</span>
+                        <span class="fw-semibold">₹{{ student.fees.paidAmount | number : '1.0-0' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Tabs -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0 pb-0">
+                    <ul class="nav nav-tabs student-tabs border-bottom-0">
+                        <li class="nav-item" *ngFor="let tab of tabs">
+                            <button class="nav-link" [class.active]="activeTab === tab.key" type="button"
+                                (click)="setTab(tab.key)">
+                                {{ tab.label }}
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card-body pt-3">
+                    <!-- Program Tab -->
+                    <ng-container *ngIf="activeTab === 'program'">
+                        <div class="row g-3 small">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <div class="text-muted">Program</div>
+                                    <div class="fw-semibold">{{ student.program.programName }}</div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="text-muted">Stream</div>
+                                    <div class="fw-medium">{{ student.program.stream }}</div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="text-muted">Duration</div>
+                                    <div class="fw-medium">{{ student.program.duration }}</div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <div class="text-muted">Batch</div>
+                                    <div class="fw-medium">{{ student.program.batchName }}</div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="text-muted">Joining Date</div>
+                                    <div class="fw-medium">{{ student.program.joiningDate | date : 'dd/MM/yyyy' }}</div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="text-muted">Mentor</div>
+                                    <div class="fw-medium">{{ student.program.mentorName }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </ng-container>
+
+                    <!-- Attendance Tab -->
+                    <ng-container *ngIf="activeTab === 'attendance'">
+                        <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
+                            <span>Overall Attendance</span>
+                            <span class="fw-semibold">{{ student.attendance.overallPct }}%</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="small text-muted">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Session</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="small">
+                                    <tr *ngFor="let a of student.attendance.lastSessions">
+                                        <td>{{ a.date | date : 'dd/MM/yyyy' }}</td>
+                                        <td>{{ a.session }}</td>
+                                        <td>
+                                            <span class="badge rounded-pill" [ngClass]="{
+                              'bg-success-subtle text-success': a.status === 'Present',
+                              'bg-danger-subtle text-danger': a.status === 'Absent'
+                            }">
+                                                {{ a.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr *ngIf="!student.attendance.lastSessions.length">
+                                        <td colspan="3" class="text-center text-muted">No attendance records found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </ng-container>
+
+                    <!-- Assignments Tab -->
+                    <ng-container *ngIf="activeTab === 'assignments'">
+                        <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
+                            <span>Completed / Total</span>
+                            <span class="fw-semibold">
+                                {{ student.assignments.completed }}/{{ student.assignments.total }}
+                            </span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="small text-muted">
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Subject</th>
+                                        <th>Due Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="small">
+                                    <tr *ngFor="let asg of student.assignments.items">
+                                        <td>{{ asg.title }}</td>
+                                        <td>{{ asg.subject }}</td>
+                                        <td>{{ asg.dueDate | date : 'dd/MM/yyyy' }}</td>
+                                        <td>
+                                            <span class="badge rounded-pill" [ngClass]="{
+                              'bg-success-subtle text-success': asg.status === 'Submitted',
+                              'bg-warning-subtle text-warning': asg.status === 'Pending',
+                              'bg-danger-subtle text-danger': asg.status === 'Overdue'
+                            }">
+                                                {{ asg.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr *ngIf="!student.assignments.items.length">
+                                        <td colspan="4" class="text-center text-muted">No assignments found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </ng-container>
+
+                    <!-- Exams Tab -->
+                    <ng-container *ngIf="activeTab === 'exams'">
+                        <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
+                            <span>Average Score</span>
+                            <span class="fw-semibold">{{ student.exams.averageScore }}%</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="small text-muted">
+                                    <tr>
+                                        <th>Exam</th>
+                                        <th>Date</th>
+                                        <th>Score</th>
+                                        <th>Result</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="small">
+                                    <tr *ngFor="let ex of student.exams.items">
+                                        <td>{{ ex.name }}</td>
+                                        <td>{{ ex.date | date : 'dd/MM/yyyy' }}</td>
+                                        <td>{{ ex.score }}%</td>
+                                        <td>
+                                            <span class="badge rounded-pill" [ngClass]="{
+                              'bg-success-subtle text-success': ex.result === 'Pass',
+                              'bg-danger-subtle text-danger': ex.result === 'Fail'
+                            }">
+                                                {{ ex.result }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr *ngIf="!student.exams.items.length">
+                                        <td colspan="4" class="text-center text-muted">No exam records found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </ng-container>
+
+                    <!-- Fees Tab -->
+                    <ng-container *ngIf="activeTab === 'fees'">
+                        <div class="row g-3 mb-2 small">
+                            <div class="col-md-4">
+                                <div class="fees-summary-card bg-light rounded-3 p-2">
+                                    <div class="text-muted">Total Fees</div>
+                                    <div class="fw-semibold">₹{{ student.fees.totalAmount | number : '1.0-0' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fees-summary-card bg-light rounded-3 p-2">
+                                    <div class="text-muted">Paid</div>
+                                    <div class="fw-semibold">₹{{ student.fees.paidAmount | number : '1.0-0' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="fees-summary-card rounded-3 p-2" [ngClass]="{
+                       'bg-light': student.fees.outstandingAmount === 0,
+                       'bg-warning-subtle': student.fees.outstandingAmount > 0
+                     }">
+                                    <div class="text-muted">Outstanding</div>
+                                    <div class="fw-semibold" [class.text-danger]="student.fees.outstandingAmount > 0">
+                                        ₹{{ student.fees.outstandingAmount | number : '1.0-0' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="small text-muted">
+                                    <tr>
+                                        <th>Receipt No</th>
+                                        <th>Date</th>
+                                        <th>Mode</th>
+                                        <th>Amount</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="small">
+                                    <tr *ngFor="let f of student.fees.receipts">
+                                        <td>{{ f.receiptNo }}</td>
+                                        <td>{{ f.date | date : 'dd/MM/yyyy' }}</td>
+                                        <td>{{ f.mode }}</td>
+                                        <td>₹{{ f.amount | number : '1.0-0' }}</td>
+                                        <td>{{ f.remarks || '--' }}</td>
+                                    </tr>
+                                    <tr *ngIf="!student.fees.receipts.length">
+                                        <td colspan="5" class="text-center text-muted">No fee receipts found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </ng-container>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

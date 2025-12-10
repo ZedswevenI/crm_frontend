@@ -7,64 +7,25 @@ import { AlertService } from '../../../../../service/alert/alert.service';
   selector: 'app-institute',
   standalone: false,
   templateUrl: './institute.component.html',
-  styleUrl: './institute.component.scss',
+  styleUrl: './institute.component.scss'
 })
 export class InstituteComponent implements OnInit {
   instituteForm!: FormGroup;
-  formMode: 'create' | 'edit' = 'create';
   showForm = false;
-  editingId: number | null = null;
-  deleteModalVisible = false;
-  deleteTarget: any | null = null;
-  deleteMessage = '';
 
-  columns = [
-    { key: 'name', label: 'Institute Name', sortable: true },
-    { key: 'code', label: 'Code', sortable: true },
-    { key: 'city', label: 'City', sortable: true },
-    { key: 'contactEmail', label: 'Email', sortable: false },
-    { key: 'phone', label: 'Phone', sortable: false },
-    { key: 'isActive', label: 'Active', sortable: false },
-  ];
-
-  data: any[] = [
-    {
-      id: 1,
-      name: 'Z7i Institute - Main',
-      code: 'Z7I-MAIN',
-      city: 'Coimbatore',
-      contactEmail: 'info@z7iinstitute.com',
-      phone: '9876543210',
-      isActive: true,
-    },
-    {
-      id: 2,
-      name: 'Z7i Institute - Chennai',
-      code: 'Z7I-CHN',
-      city: 'Chennai',
-      contactEmail: 'chennai@z7iinstitute.com',
-      phone: '9123456780',
-      isActive: true,
-    },
-  ];
-
-  actions = [
-    {
-      type: 'icon',
-      icon: 'fa-regular fa-pen-to-square',
-      tooltip: 'Edit',
-      color: '#6B7280',
-      callback: (row: any) => this.edit(row),
-    },
-    {
-      type: 'icon',
-      icon: 'fa-regular fa-trash-can',
-      tooltip: 'Delete',
-      color: '#6B7280',
-      hoverColor: '#D42B2B',
-      callback: (row: any) => this.openDelete(row),
-    },
-  ];
+  // Single institute info object (instead of data[])
+  instituteInfo: any = {
+    name: 'Z7i Institute',
+    code: 'Z7I-HO',
+    city: 'Coimbatore',
+    state: 'Tamil Nadu',
+    pincode: '641002',
+    addressLine1: '123, Avinashi Road',
+    addressLine2: 'Near XYZ Signal',
+    contactEmail: 'info@z7iinstitute.com',
+    phone: '9876543210',
+    isActive: true
+  };
 
   constructor(
     private fb: FormBuilder,
@@ -74,45 +35,47 @@ export class InstituteComponent implements OnInit {
     this.breadcrumb.set([
       { label: 'Control Panel' },
       { label: 'Masters' },
-      { label: 'Institute' },
+      { label: 'Institute Information' }
     ]);
   }
 
   ngOnInit(): void {
     this.instituteForm = this.fb.group({
-      name: ['', Validators.required],
-      code: ['', Validators.required],
-      city: ['', Validators.required],
-      contactEmail: ['', [Validators.required, Validators.email]],
-      phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-      isActive: [true],
+      name: [this.instituteInfo.name, Validators.required],
+      code: [this.instituteInfo.code, Validators.required],
+      city: [this.instituteInfo.city, Validators.required],
+      state: [this.instituteInfo.state, Validators.required],
+      pincode: [
+        this.instituteInfo.pincode,
+        [Validators.required, Validators.pattern(/^\d{6}$/)]
+      ],
+      addressLine1: [this.instituteInfo.addressLine1, Validators.required],
+      addressLine2: [this.instituteInfo.addressLine2],
+      contactEmail: [
+        this.instituteInfo.contactEmail,
+        [Validators.required, Validators.email]
+      ],
+      phone: [
+        this.instituteInfo.phone,
+        [Validators.required, Validators.pattern(/^\d{10}$/)]
+      ],
+      isActive: [this.instituteInfo.isActive]
     });
   }
 
-  add(): void {
-    this.formMode = 'create';
-    this.editingId = null;
+  openEdit(): void {
+    // Ensure form is synced with current info
     this.instituteForm.reset({
-      name: '',
-      code: '',
-      city: '',
-      contactEmail: '',
-      phone: '',
-      isActive: true,
-    });
-    this.showForm = true;
-  }
-
-  edit(row: any): void {
-    this.formMode = 'edit';
-    this.editingId = row.id;
-    this.instituteForm.reset({
-      name: row.name,
-      code: row.code,
-      city: row.city,
-      contactEmail: row.contactEmail,
-      phone: row.phone,
-      isActive: row.isActive,
+      name: this.instituteInfo.name,
+      code: this.instituteInfo.code,
+      city: this.instituteInfo.city,
+      state: this.instituteInfo.state,
+      pincode: this.instituteInfo.pincode,
+      addressLine1: this.instituteInfo.addressLine1,
+      addressLine2: this.instituteInfo.addressLine2,
+      contactEmail: this.instituteInfo.contactEmail,
+      phone: this.instituteInfo.phone,
+      isActive: this.instituteInfo.isActive
     });
     this.showForm = true;
   }
@@ -129,32 +92,13 @@ export class InstituteComponent implements OnInit {
 
     const value = this.instituteForm.value;
 
-    if (this.formMode === 'create') {
-      const newId = (this.data[this.data.length - 1]?.id || 0) + 1;
-      this.data = [...this.data, { id: newId, ...value }];
-      this.alertService.success('Institute created successfully');
-    } else if (this.editingId != null) {
-      this.data = this.data.map((i) =>
-        i.id === this.editingId ? { ...i, ...value } : i
-      );
-      this.alertService.success('Institute updated successfully');
-    }
+    // Update single institute info
+    this.instituteInfo = {
+      ...this.instituteInfo,
+      ...value
+    };
 
+    this.alertService.success('Institute information updated successfully');
     this.showForm = false;
-  }
-
-  openDelete(row: any): void {
-    this.deleteTarget = row;
-    this.deleteMessage = `Are you sure you want to delete institute "${row.name}"?`;
-    this.deleteModalVisible = true;
-  }
-
-  onDeleteModalClosed(confirmed: boolean): void {
-    this.deleteModalVisible = false;
-    if (confirmed && this.deleteTarget) {
-      this.data = this.data.filter((i) => i.id !== this.deleteTarget.id);
-      this.alertService.success('Institute deleted');
-    }
-    this.deleteTarget = null;
   }
 }

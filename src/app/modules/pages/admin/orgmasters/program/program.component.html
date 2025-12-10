@@ -6,7 +6,7 @@
             <div>
                 <h5 class="mb-1 fw-semibold">Program Master</h5>
                 <p class="mb-0 text-muted small">
-                    Configure JEE / NEET / Foundation programs, codes and durations.
+                    Configure JEE / NEET / Foundation programs with class, venue and batch details.
                 </p>
             </div>
             <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
@@ -33,8 +33,8 @@
                     </h6>
                     <span class="text-muted small">
                         {{ formMode === 'create'
-                        ? 'Add a new program for JEE / NEET / Foundation.'
-                        : 'Update program details.' }}
+                        ? 'Add a new program with CCD-style details.'
+                        : 'Update program configuration details.' }}
                     </span>
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
@@ -44,19 +44,21 @@
             <div class="app-modal-body">
                 <form [formGroup]="programForm" (ngSubmit)="save()">
                     <div class="row g-3">
+
+                        <!-- Row 1: Core program info -->
                         <div class="col-md-4">
                             <formfield label="Program Name" [required]="true" [control]="programForm.get('name')"
-                                formControlName="name" placeholder="JEE 2 Year Classroom">
+                                formControlName="name" placeholder="Arise - One Year Foundation">
                             </formfield>
                         </div>
 
                         <div class="col-md-3">
-                            <formfield label="Code" [required]="true" [control]="programForm.get('code')"
-                                formControlName="code" placeholder="JEE-2Y-CLS">
+                            <formfield label="Program Code" [required]="true" [control]="programForm.get('code')"
+                                formControlName="code" placeholder="C6053, M6053, U6053">
                             </formfield>
                         </div>
 
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <selectbox label="Stream" [required]="true" [options]="streamOptions"
                                 [optionLabel]="'label'" [optionValue]="'value'" [control]="programForm.get('stream')"
                                 formControlName="stream">
@@ -70,10 +72,61 @@
                             </selectbox>
                         </div>
 
-                        <div class="col-md-2 d-flex align-items-center">
+                        <!-- Row 2: Academic year & class band -->
+                        <div class="col-md-3">
+                            <selectbox label="Academic Year" [required]="true" [options]="academicYearOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'"
+                                [control]="programForm.get('academicYear')" formControlName="academicYear">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-5">
+                            <selectbox label="For Students (Studying In)" [required]="true"
+                                [options]="studentBandOptions" [optionLabel]="'label'" [optionValue]="'value'"
+                                [control]="programForm.get('forStudents')" formControlName="forStudents">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Version" [required]="true" [control]="programForm.get('version')"
+                                formControlName="version" placeholder="Special Sunday / Regular">
+                            </formfield>
+                        </div>
+
+                        <!-- Row 3: Venue & schedule -->
+                        <div class="col-md-6">
+                            <formfield label="Class Venue" [required]="true" [control]="programForm.get('classVenue')"
+                                formControlName="classVenue" placeholder="Suguna School, Gandhipuram">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-2">
+                            <formfield label="Hrs per Week" [required]="true"
+                                [control]="programForm.get('hoursPerWeek')" formControlName="hoursPerWeek"
+                                placeholder="6">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Class Timings" [required]="true"
+                                [control]="programForm.get('classTimings')" formControlName="classTimings"
+                                placeholder="9:30 AM to 4:30 PM">
+                            </formfield>
+                        </div>
+
+                        <!-- Row 4: Start date & active -->
+                        <div class="col-md-4">
+                            <formfield label="Commencement Date" [required]="true"
+                                [control]="programForm.get('commencementDate')" formControlName="commencementDate"
+                                placeholder="28-06-2026">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3 d-flex align-items-center">
                             <checkbox label="Active" [control]="programForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
+
                     </div>
 
                     <!-- Modal footer actions -->

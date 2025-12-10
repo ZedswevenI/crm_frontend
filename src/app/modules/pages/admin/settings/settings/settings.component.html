@@ -1,0 +1,164 @@
+<div class="settings-page">
+
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Application Settings</h5>
+                <p class="mb-0 text-muted small">
+                    Configure institute-wide defaults for academic year, admissions and communication.
+                </p>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="resetToSaved()">
+                    Reset Changes
+                </button>
+                <button type="button" class="btn btn-saffron btn-sm" (click)="save()" [disabled]="settingsForm.invalid">
+                    <i class="fa-regular fa-floppy-disk me-1"></i>
+                    Save Settings
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-2">
+            <form [formGroup]="settingsForm" (ngSubmit)="save()">
+
+                <!-- GENERAL SECTION -->
+                <div class="settings-section">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 fw-semibold">General</h6>
+                        <span class="badge bg-light text-muted fw-normal small">
+                            Basic institute-wide defaults
+                        </span>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <formfield label="Display Name" [required]="true"
+                                [control]="settingsForm.get('general.displayName')" formControlName="displayName"
+                                placeholder="Z7i Institute">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <selectbox label="Academic Year" [required]="true" [options]="academicYearOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'"
+                                [control]="settingsForm.get('general.academicYear')" formControlName="academicYear">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-2">
+                            <selectbox label="Date Format" [required]="true" [options]="dateFormatOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'"
+                                [control]="settingsForm.get('general.dateFormat')" formControlName="dateFormat">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Time Zone" [required]="true"
+                                [control]="settingsForm.get('general.timeZone')" formControlName="timeZone"
+                                placeholder="Asia/Kolkata">
+                            </formfield>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADMISSION SECTION -->
+                <div class="settings-section">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 fw-semibold">Admissions</h6>
+                        <span class="badge bg-light text-muted fw-normal small">
+                            Enrolment, prefixes and approvals
+                        </span>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <checkbox label="Enable online admissions"
+                                [control]="settingsForm.get('admission.enableOnline')" formControlName="enableOnline">
+                            </checkbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <checkbox label="Auto-generate enrolment number"
+                                [control]="settingsForm.get('admission.autoGenerateEnrolNo')"
+                                formControlName="autoGenerateEnrolNo">
+                            </checkbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Enrolment Prefix" [required]="true"
+                                [control]="settingsForm.get('admission.enrolPrefix')" formControlName="enrolPrefix"
+                                placeholder="Z7I-ENR">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <checkbox label="Allow name / address / phone changes post admission"
+                                [control]="settingsForm.get('admission.allowProfileEdit')"
+                                formControlName="allowProfileEdit">
+                            </checkbox>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COMMUNICATION SECTION -->
+                <div class="settings-section mb-0">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 fw-semibold">Communication</h6>
+                        <span class="badge bg-light text-muted fw-normal small">
+                            Email, SMS and WhatsApp defaults
+                        </span>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <checkbox label="Enable Email" [control]="settingsForm.get('communication.enableEmail')"
+                                formControlName="enableEmail">
+                            </checkbox>
+                        </div>
+
+                        <div class="col-md-3">
+                            <checkbox label="Enable WhatsApp"
+                                [control]="settingsForm.get('communication.enableWhatsapp')"
+                                formControlName="enableWhatsapp">
+                            </checkbox>
+                        </div>
+
+                        <div class="col-md-3">
+                            <checkbox label="Enable SMS" [control]="settingsForm.get('communication.enableSms')"
+                                formControlName="enableSms">
+                            </checkbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Email From Address" [required]="true"
+                                [control]="settingsForm.get('communication.emailFrom')" formControlName="emailFrom"
+                                placeholder="noreply@z7iinstitute.com">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="SMS Sender ID" [required]="false"
+                                [control]="settingsForm.get('communication.smsSenderId')" formControlName="smsSenderId"
+                                placeholder="Z7IINS">
+                            </formfield>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom actions (for mobile) -->
+                <div class="d-flex justify-content-end gap-2 mt-4 d-md-none">
+                    <button type="button" class="btn btn-outline-secondary" (click)="resetToSaved()">
+                        Reset Changes
+                    </button>
+                    <button type="submit" class="btn btn-saffron" [disabled]="settingsForm.invalid">
+                        <i class="fa-regular fa-floppy-disk me-1"></i>
+                        Save Settings
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>

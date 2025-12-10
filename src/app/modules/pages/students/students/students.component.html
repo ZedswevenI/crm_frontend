@@ -1,0 +1,145 @@
+<div class="student-page">
+
+    <div class="card mb-3 shadow-sm border-0">
+        <!-- Header -->
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Students</h5>
+                <p class="mb-0 text-muted small">
+                    Manage student profiles, enrolment and academic information.
+                </p>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <!-- View toggle -->
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" [class.active]="viewMode === 'list'"
+                        (click)="setView('list')">
+                        <i class="fa-solid fa-list-ul me-1"></i> List
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" [class.active]="viewMode === 'grid'"
+                        (click)="setView('grid')">
+                        <i class="fa-solid fa-border-all me-1"></i> Grid
+                    </button>
+                </div>
+
+                <button class="btn btn-saffron btn-sm d-flex align-items-center gap-1" (click)="addStudent()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Student</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="card-body pt-0">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+
+                <!-- Search -->
+                <div class="position-relative student-search">
+                    <img src="assets/icons/searchicon.svg" alt="search" width="20" height="20"
+                        class="position-absolute search-icon" />
+                    <input [(ngModel)]="searchText" (keyup.enter)="applyFilters()" class="form-control"
+                        placeholder="Search by name, enrolment, phone..." [disabled]="loading" />
+                    <button *ngIf="searchText" type="button" class="btn btn-link text-muted px-0 clear-btn"
+                        (click)="searchText = ''; applyFilters()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Filters -->
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <select class="form-select form-select-sm filter-select" [(ngModel)]="selectedProgram"
+                        (change)="applyFilters()">
+                        <option value="">All Programs</option>
+                        <option *ngFor="let p of programFilters" [value]="p">{{ p }}</option>
+                    </select>
+
+                    <select class="form-select form-select-sm filter-select" [(ngModel)]="selectedCenter"
+                        (change)="applyFilters()">
+                        <option value="">All Centers</option>
+                        <option *ngFor="let c of centerFilters" [value]="c">{{ c }}</option>
+                    </select>
+
+                    <select class="form-select form-select-sm filter-select" [(ngModel)]="selectedStatus"
+                        (change)="applyFilters()">
+                        <option value="">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Dropout">Dropout</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- LIST VIEW -->
+            <div *ngIf="viewMode === 'list'">
+                <list-table [autoFitChars]="true" [columns]="columns" [data]="filteredStudents" [actions]="actions"
+                    [showsearch]="false" [showfilter]="false" [showpageoptions]="true">
+                </list-table>
+            </div>
+
+
+            <!-- GRID VIEW -->
+            <div *ngIf="viewMode === 'grid'">
+                <div class="row g-3">
+                    <div class="col-12" *ngIf="!filteredStudents.length">
+                        <div class="text-center text-muted py-4 small">
+                            No students found for the selected filters.
+                        </div>
+                    </div>
+
+                    <div class="col-sm-6 col-md-4 col-lg-3" *ngFor="let s of filteredStudents">
+                        <div class="card student-card h-100" (click)="openDetail(s)">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="avatar-circle me-2">
+                                        <span class="avatar-initials">
+                                            {{ getInitials(s.name) }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold text-truncate">{{ s.name }}</div>
+                                        <div class="text-muted small">Enr: {{ s.enrolmentNo }}</div>
+                                    </div>
+                                    <span class="badge rounded-pill" [ngClass]="{
+                          'bg-success-subtle text-success': s.status === 'Active',
+                          'bg-secondary-subtle text-secondary': s.status === 'Completed',
+                          'bg-danger-subtle text-danger': s.status === 'Dropout'
+                        }">
+                                        {{ s.status }}
+                                    </span>
+                                </div>
+
+                                <div class="small text-muted mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>{{ s.program }}</span>
+                                        <span class="fw-medium">{{ s.center }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="small text-muted mb-2">
+                                    <div><i class="fa-solid fa-phone me-1"></i>{{ s.mobile }}</div>
+                                    <div class="text-truncate">
+                                        <i class="fa-solid fa-location-dot me-1"></i>{{ s.city }}
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div class="small">
+                                        Attd: <span class="fw-semibold">{{ s.attendancePct }}%</span>
+                                    </div>
+                                    <button type="button" class="btn btn-link btn-sm p-0 small text-saffron"
+                                        (click)="openDetail(s); $event.stopPropagation()">
+                                        View details <i class="fa-solid fa-arrow-right-long ms-1"></i>
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>

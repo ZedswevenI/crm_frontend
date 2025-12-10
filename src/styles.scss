@@ -72,3 +72,55 @@ body {
 .app-navbar .nav-link:hover {
   color: #f47b20 !important;
 }
+
+/* Global button look: saffron + pill radius */
+.btn,
+button.btn {
+  border-radius: 999px; // curved / pill
+}
+
+/* Primary button -> saffron */
+.btn-primary {
+  background-color: var(--z7i-saffron) !important;
+  border-color: var(--z7i-saffron) !important;
+  color: #ffffff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: #e96f16; // slightly darker saffron
+  border-color: #e96f16;
+  color: #ffffff;
+}
+
+/* Disabled state */
+.btn-primary:disabled,
+.btn-primary.disabled {
+  background-color: #fbb98a; // lighter saffron
+  border-color: #fbb98a;
+  color: #ffffff;
+}
+
+/* For .btn-check + .btn-primary (Bootstrap toggle buttons) */
+.btn-check:checked + .btn-primary,
+.btn-check:active + .btn-primary {
+  background-color: #cf6415; // another darker step
+  border-color: #cf6415;
+  color: #ffffff;
+}
+
+/* Outline variant in saffron */
+.btn-outline-saffron {
+  border-radius: 999px;
+  border: 1px solid var(--z7i-saffron);
+  color: var(--z7i-saffron);
+  background-color: transparent;
+}
+
+.btn-outline-saffron:hover,
+.btn-outline-saffron:focus {
+  background-color: rgba(244, 123, 32, 0.08);
+  color: var(--z7i-saffron);
+  border-color: var(--z7i-saffron);
+}

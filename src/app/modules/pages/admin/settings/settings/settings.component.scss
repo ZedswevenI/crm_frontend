@@ -1,0 +1,44 @@
+.settings-page {
+  .card {
+    border-radius: 0.75rem;
+
+    .card-header {
+      padding: 0.9rem 1.25rem 0.75rem;
+    }
+
+    .card-body {
+      padding: 0.75rem 1.25rem 1.25rem;
+    }
+  }
+}
+
+/* Section blocks */
+.settings-section {
+  padding: 1rem 0;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 0.5rem;
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  h6 {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #374151;
+  }
+}
+
+/* Optional: spacing for badges */
+.settings-section .badge {
+  border-radius: 999px;
+}
+
+/* Responsive tweaks */
+@media (max-width: 576px) {
+  .settings-page .card-body {
+    padding-inline: 1rem;
+  }
+}
