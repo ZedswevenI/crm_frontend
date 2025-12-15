@@ -1,0 +1,63 @@
+/* Ensure page doesn't create weird stacking contexts */
+.batch-page {
+  position: relative;
+}
+
+/* Backdrop must cover full viewport */
+.app-modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important; /* top/right/bottom/left = 0 */
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1055; /* above cards/tables */
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.25rem;
+  overflow: auto; /* allows scroll if modal is tall */
+}
+
+/* Base modal */
+.app-modal {
+  width: min(980px, 100%);
+  margin-top: 3vh;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden; /* keep header/body clean */
+}
+
+/* Header */
+.app-modal-header {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+/* Body scroll */
+.app-modal-body {
+  padding: 1rem;
+  max-height: calc(94vh - 72px); /* 72px ~ header height */
+  overflow: auto;
+}
+
+/* Wider modal for mapping */
+.batch-map-modal {
+  width: min(1200px, 100%);
+}
+
+/* Optional: tiny helper class used in mapping lists */
+.tiny {
+  font-size: 0.75rem;
+}
+
+/* Optional: make close button clickable and visible on dark header backgrounds */
+.btn-close {
+  opacity: 0.8;
+}
+.btn-close:hover {
+  opacity: 1;
+}
+
+body.modal-open {
+  overflow: hidden;
+}

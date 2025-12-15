@@ -1,0 +1,136 @@
+<div class="class-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Class Management</h5>
+                <p class="mb-0 text-muted small">
+                    Create class sessions for a batch (subject, faculty, date/time) and track status.
+                </p>
+            </div>
+
+            <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="add()">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add Class</span>
+            </button>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="classData" [actions]="actions">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- Create / Edit Modal -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal class-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">{{ formMode === 'create' ? 'Create Class' : 'Edit Class' }}</h6>
+                    <span class="text-muted small">
+                        {{ formMode === 'create' ? 'Schedule a new class session.' : 'Update session details.' }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="classForm" (ngSubmit)="save()">
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+                            <selectbox label="Program" [required]="true" [options]="programOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="classForm.get('programId')"
+                                formControlName="programId">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <selectbox label="Batch" [required]="true" [options]="batchOptions" [optionLabel]="'label'"
+                                [optionValue]="'value'" [control]="classForm.get('batchId')" formControlName="batchId">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <selectbox label="Subject" [required]="true" [options]="subjectOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="classForm.get('subjectId')"
+                                formControlName="subjectId">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <selectbox label="Faculty" [required]="true" [options]="facultyOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="classForm.get('facultyId')"
+                                formControlName="facultyId">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Class Date</label>
+                            <input class="form-control" type="date" formControlName="classDate"
+                                [class.is-invalid]="classForm.get('classDate')?.touched && classForm.get('classDate')?.invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">Start</label>
+                            <input class="form-control" type="time" formControlName="startTime"
+                                [class.is-invalid]="classForm.get('startTime')?.touched && classForm.get('startTime')?.invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted">End</label>
+                            <input class="form-control" type="time" formControlName="endTime"
+                                [class.is-invalid]="classForm.get('endTime')?.touched && classForm.get('endTime')?.invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Room / Hall</label>
+                            <input class="form-control" placeholder="Eg: Room A1" formControlName="room" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Status</label>
+                            <select class="form-select" formControlName="status">
+                                <option value="scheduled">Scheduled</option>
+                                <option value="completed">Completed</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4 d-flex align-items-end">
+                            <checkbox label="Active" [control]="classForm.get('isActive')" formControlName="isActive">
+                            </checkbox>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted">Notes</label>
+                            <textarea class="form-control" rows="2" placeholder="optional"
+                                formControlName="notes"></textarea>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+                        <button type="submit" class="btn btn-saffron" [disabled]="classForm.invalid">
+                            {{ formMode === 'create' ? 'Save Class' : 'Update Class' }}
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Delete Confirmation -->
+    <delete [title]="'Delete Class'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+
+</div>

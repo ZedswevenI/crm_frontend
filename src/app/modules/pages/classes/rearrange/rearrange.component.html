@@ -1,0 +1,260 @@
+<div class="class-rearrange-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Class Rearrange</h5>
+                <p class="mb-0 text-muted small">
+                    Rearrange scheduled classes and see rearrangement report in the same screen.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <input class="form-control form-control-sm" style="min-width: 260px;"
+                    placeholder="Search by Batch / Subject / Faculty" [(ngModel)]="search"
+                    [ngModelOptions]="{standalone:true}" (input)="applyFilter()" />
+
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" (click)="reload()">
+                    <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+
+            <div class="row g-3">
+
+                <!-- LEFT: LIST -->
+                <div class="col-lg-8">
+
+                    <!-- Filters -->
+                    <div class="border rounded-3 p-3 mb-3">
+                        <div class="row g-2 align-items-end">
+
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">From</label>
+                                <input type="date" class="form-control form-control-sm" [(ngModel)]="filterFrom"
+                                    [ngModelOptions]="{standalone:true}" (change)="applyFilter()" />
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">To</label>
+                                <input type="date" class="form-control form-control-sm" [(ngModel)]="filterTo"
+                                    [ngModelOptions]="{standalone:true}" (change)="applyFilter()" />
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Batch</label>
+                                <select class="form-select form-select-sm" [(ngModel)]="filterBatchId"
+                                    [ngModelOptions]="{standalone:true}" (change)="applyFilter()">
+                                    <option value="all">All</option>
+                                    <option *ngFor="let b of batches" [value]="b.id">{{ b.name }}</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Status</label>
+                                <select class="form-select form-select-sm" [(ngModel)]="filterStatus"
+                                    [ngModelOptions]="{standalone:true}" (change)="applyFilter()">
+                                    <option value="all">All</option>
+                                    <option value="scheduled">Scheduled</option>
+                                    <option value="rearranged">Rearranged</option>
+                                    <option value="cancelled">Cancelled</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+
+                        </div>
+
+                        <div class="alert alert-light small mb-0 mt-2">
+                            Tip: Use <b>Rearrange</b> to change date/time/faculty/room. All changes are logged for
+                            report.
+                        </div>
+                    </div>
+
+                    <!-- list-table -->
+                    <list-table [autoFitChars]="true" [columns]="columns" [data]="filtered" [actions]="actions">
+                    </list-table>
+
+                </div>
+
+                <!-- RIGHT: REPORT -->
+                <div class="col-lg-4">
+                    <div class="border rounded-3 p-3 h-100">
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="fw-semibold">Rearrangement Report</div>
+                            <span class="badge bg-light text-muted small">{{ filtered.length }} classes</span>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="border rounded-3 p-2 bg-light-subtle">
+                                    <div class="text-muted tiny">Rearranged</div>
+                                    <div class="fw-bold">{{ report.rearranged }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded-3 p-2 bg-light-subtle">
+                                    <div class="text-muted tiny">Cancelled</div>
+                                    <div class="fw-bold">{{ report.cancelled }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded-3 p-2 bg-light-subtle">
+                                    <div class="text-muted tiny">Completed</div>
+                                    <div class="fw-bold">{{ report.completed }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded-3 p-2 bg-light-subtle">
+                                    <div class="text-muted tiny">Scheduled</div>
+                                    <div class="fw-bold">{{ report.scheduled }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-3" />
+
+                        <!-- Faculty-wise summary -->
+                        <div class="fw-semibold small mb-2">Faculty-wise (Rearranged)</div>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Faculty</th>
+                                        <th class="text-end">Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let r of report.facultyWise">
+                                        <td class="small">{{ r.name }}</td>
+                                        <td class="text-end small fw-semibold">{{ r.count }}</td>
+                                    </tr>
+                                    <tr *ngIf="report.facultyWise.length === 0">
+                                        <td colspan="2" class="text-center text-muted small py-2">No rearranged classes
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <hr class="my-3" />
+
+                        <!-- Day-wise summary -->
+                        <div class="fw-semibold small mb-2">Day-wise (Rearranged)</div>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th class="text-end">Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let d of report.dayWise">
+                                        <td class="small">{{ d.date | date:'dd-MMM-yyyy' }}</td>
+                                        <td class="text-end small fw-semibold">{{ d.count }}</td>
+                                    </tr>
+                                    <tr *ngIf="report.dayWise.length === 0">
+                                        <td colspan="2" class="text-center text-muted small py-2">No rearranged classes
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-grid mt-3">
+                            <button class="btn btn-outline-primary btn-sm" (click)="exportReport()">
+                                <i class="fa-solid fa-file-export me-1"></i> Export Report (dummy)
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Rearrange Modal -->
+    <div class="app-modal-backdrop" *ngIf="showRearrange">
+        <div class="app-modal class-rearrange-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Rearrange Class</h6>
+                    <span class="text-muted small" *ngIf="selected">
+                        {{ selected.batchName }} • {{ selected.subjectName }} • {{ selected.facultyName }}
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeRearrange()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="rearrangeForm" (ngSubmit)="saveRearrange()">
+
+                    <div class="alert alert-warning small">
+                        <b>Note:</b> This will create a rearrangement log entry. Reason is mandatory.
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">New Date</label>
+                            <input type="date" class="form-control" formControlName="newDate"
+                                [class.is-invalid]="rf('newDate').touched && rf('newDate').invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">New Start</label>
+                            <input type="time" class="form-control" formControlName="newStart"
+                                [class.is-invalid]="rf('newStart').touched && rf('newStart').invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">New End</label>
+                            <input type="time" class="form-control" formControlName="newEnd"
+                                [class.is-invalid]="rf('newEnd').touched && rf('newEnd').invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">New Faculty</label>
+                            <select class="form-select" formControlName="newFacultyId">
+                                <option *ngFor="let f of faculties" [value]="f.id">{{ f.name }}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Room</label>
+                            <input class="form-control" formControlName="room" placeholder="Eg: Hall A" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted">Reason</label>
+                            <textarea class="form-control" rows="2" formControlName="reason"
+                                placeholder="Eg: Faculty not available / Holiday / Batch request"
+                                [class.is-invalid]="rf('reason').touched && rf('reason').invalid"></textarea>
+                            <div class="invalid-feedback">Reason is required</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary"
+                            (click)="closeRearrange()">Cancel</button>
+                        <button type="submit" class="btn btn-saffron" [disabled]="rearrangeForm.invalid">
+                            Save Rearrangement
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+</div>

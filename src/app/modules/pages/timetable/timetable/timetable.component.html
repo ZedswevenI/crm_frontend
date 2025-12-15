@@ -1,0 +1,95 @@
+<div class="timetable-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Timetable Management</h5>
+                <p class="mb-0 text-muted small">
+                    Upload, manage and publish batch-wise timetables.
+                </p>
+            </div>
+
+            <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="openUpload()">
+                <i class="fa-solid fa-upload"></i>
+                <span>Upload Timetable</span>
+            </button>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [actions]="actions">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="app-modal-backdrop" *ngIf="showUpload">
+        <div class="app-modal timetable-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Upload Timetable</h6>
+                    <span class="text-muted small">Excel format only</span>
+                </div>
+                <button class="btn-close" (click)="closeUpload()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="uploadForm" (ngSubmit)="upload()">
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+                            <selectbox label="Program" [required]="true" [options]="programOptions"
+                                formControlName="programId" [control]="uploadForm.get('programId')">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <selectbox label="Batch" [required]="true" [options]="batchOptions"
+                                formControlName="batchId" [control]="uploadForm.get('batchId')">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-4">
+                            <selectbox label="Centre" [required]="true" [options]="centreOptions"
+                                formControlName="centreId" [control]="uploadForm.get('centreId')">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Valid From</label>
+                            <input class="form-control" type="date" formControlName="validFrom">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Valid To</label>
+                            <input class="form-control" type="date" formControlName="validTo">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted">Upload Excel</label>
+                            <input type="file" class="form-control" accept=".xlsx" (change)="onFileChange($event)">
+                        </div>
+
+                        <div class="col-12">
+                            <div class="alert alert-light small mb-0">
+                                Upload must match the provided timetable format.
+                                Faculty clashes and invalid subjects will be flagged.
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="closeUpload()">Cancel</button>
+                        <button type="submit" class="btn btn-saffron" [disabled]="uploadForm.invalid || !file">
+                            Upload & Preview
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+</div>

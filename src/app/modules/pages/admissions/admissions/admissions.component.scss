@@ -1,0 +1,62 @@
+.admission-page {
+  .stepper {
+    .step-pill {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+
+      &.active {
+        background: rgba(245, 158, 11, 0.18); // saffron-ish
+        color: #b45309;
+        border-color: rgba(245, 158, 11, 0.35);
+      }
+    }
+
+    .step-line {
+      width: 40px;
+      height: 2px;
+      background: #e2e8f0;
+      border-radius: 2px;
+    }
+  }
+
+  .tiny {
+    font-size: 0.75rem;
+  }
+
+  .text-saffron {
+    color: #b45309;
+  }
+}
+
+.admission-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admission-footer-actions {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.admission-confirm-btn {
+  min-width: 180px;
+}
+
+/* Optional: on small screens make buttons stack nicely */
+@media (min-width: 992px) {
+  .admission-footer-actions {
+    width: auto;
+  }
+}

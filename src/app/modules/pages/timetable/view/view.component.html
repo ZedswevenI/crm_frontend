@@ -1,0 +1,119 @@
+<div class="timetable-view-page">
+
+    <!-- Header -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Timetable View</h5>
+                <p class="mb-0 text-muted small">
+                    {{ timetable.program }} • {{ timetable.batch }} • {{ timetable.centre }}
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-secondary" (click)="back()">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back
+                </button>
+
+                <button class="btn btn-sm btn-outline-primary" (click)="openUpload()">
+                    <i class="fa-solid fa-upload me-1"></i> Upload New Version
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+
+            <!-- Meta -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-2 small">
+                        <div class="text-muted">Valid From</div>
+                        <div class="fw-semibold">{{ timetable.validFrom | date }}</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-2 small">
+                        <div class="text-muted">Valid To</div>
+                        <div class="fw-semibold">{{ timetable.validTo | date }}</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-2 small">
+                        <div class="text-muted">Status</div>
+                        <span class="badge bg-success-subtle text-success">Active</span>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-2 small">
+                        <div class="text-muted">Version</div>
+                        <div class="fw-semibold">v{{ timetable.version }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timetable Grid -->
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle timetable-grid">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:120px;">Day</th>
+                            <th *ngFor="let p of periods">{{ p }}</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr *ngFor="let row of timetable.schedule">
+                            <td class="fw-semibold">{{ row.day }}</td>
+
+                            <td *ngFor="let cell of row.periods">
+                                <div class="tt-cell">
+                                    <div class="fw-semibold small">{{ cell.subject }}</div>
+                                    <div class="text-muted tiny">{{ cell.faculty }}</div>
+                                    <div class="text-muted tiny">{{ cell.room }}</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="app-modal-backdrop" *ngIf="showUpload">
+        <div class="app-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Upload Timetable</h6>
+                    <span class="text-muted small">
+                        Upload Excel as per defined format
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeUpload()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="border rounded-3 p-3">
+                    <label class="form-label small text-muted">Timetable Excel</label>
+                    <input type="file" class="form-control" accept=".xlsx,.xls" />
+
+                    <div class="alert alert-light small mt-3 mb-0">
+                        Uploading will create a <b>new version</b> and deactivate the previous timetable.
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button class="btn btn-outline-secondary" (click)="closeUpload()">Cancel</button>
+                        <button class="btn btn-saffron" (click)="upload()">Upload</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>

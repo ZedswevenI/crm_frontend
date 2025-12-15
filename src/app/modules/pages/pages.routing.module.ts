@@ -45,6 +45,10 @@ const routes: Routes = [
   {
     path: 'timetable',
     loadChildren: () => import('./timetable/timetable.module').then(m => m.TimetableModule)
+  },
+  {
+    path: 'faculty-assignment',
+    loadChildren: () => import('./faculty/faculty.module').then(m => m.FacultyModule)
   }
 ];
 

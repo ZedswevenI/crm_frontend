@@ -1,14 +1,15 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+
+import { UiElementsModule } from '../../ui-elements/ui-elements.module';
 
 import { AdmissionsRoutingModule } from './admissions-routing.module';
-
+import { AdmissionsComponent } from './admissions/admissions.component';
+import { ListComponent } from './list/list.component';
 
 @NgModule({
-  declarations: [],
-  imports: [
-    CommonModule,
-    AdmissionsRoutingModule
-  ]
+  declarations: [AdmissionsComponent, ListComponent],
+  imports: [CommonModule, AdmissionsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })
-export class AdmissionsModule { }
+export class AdmissionsModule {}

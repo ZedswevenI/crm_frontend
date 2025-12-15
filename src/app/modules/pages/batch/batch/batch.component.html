@@ -1,0 +1,283 @@
+<div class="batch-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Batch Master</h5>
+                <p class="mb-0 text-muted small">
+                    Configure batches, associate programs & centres, and map students.
+                </p>
+            </div>
+            <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="add()">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add Batch</span>
+            </button>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="batchData" [actions]="actions">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- Create / Edit Modal -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal">
+
+            <!-- Modal header -->
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        {{ formMode === 'create' ? 'Create Batch' : 'Edit Batch' }}
+                    </h6>
+                    <span class="text-muted small">
+                        {{ formMode === 'create'
+                        ? 'Add a new batch and link it to program & centre.'
+                        : 'Update batch details.' }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close">
+                </button>
+            </div>
+
+            <!-- Modal body -->
+            <div class="app-modal-body">
+                <form [formGroup]="batchForm" (ngSubmit)="save()">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <formfield label="Batch Name" [required]="true" [control]="batchForm.get('name')"
+                                formControlName="name" placeholder="JEE 2026 - Phase 1">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Code" [required]="true" [control]="batchForm.get('code')"
+                                formControlName="code" placeholder="JEE26-P1">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <selectbox label="Program" [required]="true" [options]="programOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="batchForm.get('programId')"
+                                formControlName="programId">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-3">
+                            <selectbox label="Centre" [required]="true" [options]="centerOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="batchForm.get('centerId')"
+                                formControlName="centerId">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Academic Year" [required]="true" [control]="batchForm.get('academicYear')"
+                                formControlName="academicYear" placeholder="2025-2026">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Start Date" [required]="true" [control]="batchForm.get('startDate')"
+                                formControlName="startDate" [type]="'date'">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="End Date" [control]="batchForm.get('endDate')" formControlName="endDate"
+                                [type]="'date'">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Planned Strength" [control]="batchForm.get('plannedStrength')"
+                                formControlName="plannedStrength" [type]="'number'" placeholder="40">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3 d-flex align-items-center">
+                            <checkbox label="Active" [control]="batchForm.get('isActive')" formControlName="isActive">
+                            </checkbox>
+                        </div>
+                    </div>
+
+                    <!-- Modal footer actions -->
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-saffron" [disabled]="batchForm.invalid">
+                            {{ formMode === 'create' ? 'Save Batch' : 'Update Batch' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MAP STUDENTS MODAL -->
+    <div class="app-modal-backdrop" *ngIf="showMapModal">
+        <div class="app-modal batch-map-modal">
+
+            <!-- Header -->
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        Map Students to Batch
+                    </h6>
+                    <span class="text-muted small" *ngIf="selectedBatch">
+                        {{ selectedBatch.name }} • {{ selectedBatch.programName }} • {{ selectedBatch.centerName }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeMapModal()" aria-label="Close"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="app-modal-body">
+                <!-- Filters -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3">
+                        <selectbox label="Filter by Program" [options]="programFilterOptions" [optionLabel]="'label'"
+                            [optionValue]="'value'" [(ngModel)]="filterProgram" [ngModelOptions]="{ standalone: true }">
+                        </selectbox>
+                    </div>
+                    <div class="col-md-3">
+                        <selectbox label="Filter by Centre" [options]="centerFilterOptions" [optionLabel]="'label'"
+                            [optionValue]="'value'" [(ngModel)]="filterCenter" [ngModelOptions]="{ standalone: true }">
+                        </selectbox>
+                    </div>
+                    <div class="col-md-3">
+                        <formfield label="Search by name / enrolment" [(ngModel)]="filterSearch"
+                            [ngModelOptions]="{ standalone: true }" placeholder="Type to filter">
+                        </formfield>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <!-- Available students -->
+                    <div class="col-lg-6">
+                        <div class="border rounded-3 h-100 d-flex flex-column">
+                            <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-semibold small">Available Students</span>
+                                    <span class="text-muted small ms-1">
+                                        (Not yet mapped to this batch)
+                                    </span>
+                                </div>
+                                <span class="badge bg-light text-muted small">
+                                    {{ filteredAvailableStudents.length }} students
+                                </span>
+                            </div>
+                            <div class="p-0" style="max-height: 360px; overflow: auto;">
+                                <table class="table table-sm mb-0 align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 40px;"></th>
+                                            <th>Student</th>
+                                            <th>Enrolment</th>
+                                            <th>Program</th>
+                                            <th>Centre</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let stu of filteredAvailableStudents">
+                                            <td class="text-center">
+                                                <input type="checkbox" class="form-check-input"
+                                                    [checked]="isSelectedToAdd(stu.id)"
+                                                    (change)="toggleSelectToAdd(stu.id, $any($event.target).checked)" />
+                                            </td>
+                                            <td>
+                                                <div class="fw-semibold small">{{ stu.name }}</div>
+                                                <div class="text-muted tiny">{{ stu.phone }}</div>
+                                            </td>
+                                            <td class="small">{{ stu.enrolmentNo }}</td>
+                                            <td class="small">{{ stu.programName }}</td>
+                                            <td class="small">{{ stu.centerName }}</td>
+                                        </tr>
+                                        <tr *ngIf="filteredAvailableStudents.length === 0">
+                                            <td colspan="5" class="text-center text-muted small py-3">
+                                                No students found for the current filter.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="px-3 py-2 border-top d-flex justify-content-end">
+                                <button type="button" class="btn btn-saffron btn-sm"
+                                    [disabled]="selectedToAdd.size === 0" (click)="addSelectedToBatch()">
+                                    Add Selected to Batch
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mapped students -->
+                    <div class="col-lg-6">
+                        <div class="border rounded-3 h-100 d-flex flex-column">
+                            <div class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-semibold small">Mapped Students</span>
+                                    <span class="text-muted small ms-1">
+                                        (Currently in this batch)
+                                    </span>
+                                </div>
+                                <span class="badge bg-light text-muted small">
+                                    {{ mappedStudents.length }} students
+                                </span>
+                            </div>
+                            <div class="p-0" style="max-height: 360px; overflow: auto;">
+                                <table class="table table-sm mb-0 align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Enrolment</th>
+                                            <th>Program</th>
+                                            <th>Centre</th>
+                                            <th style="width: 40px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let stu of mappedStudents">
+                                            <td>
+                                                <div class="fw-semibold small">{{ stu.name }}</div>
+                                                <div class="text-muted tiny">{{ stu.phone }}</div>
+                                            </td>
+                                            <td class="small">{{ stu.enrolmentNo }}</td>
+                                            <td class="small">{{ stu.programName }}</td>
+                                            <td class="small">{{ stu.centerName }}</td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-link text-danger p-0 small"
+                                                    (click)="removeFromBatch(stu.id)">
+                                                    Remove
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        <tr *ngIf="mappedStudents.length === 0">
+                                            <td colspan="5" class="text-center text-muted small py-3">
+                                                No students mapped to this batch yet.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="px-3 py-2 border-top text-end">
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-2"
+                                    (click)="closeMapModal()">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Delete Confirmation -->
+    <delete [title]="'Delete Batch'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+
+</div>
