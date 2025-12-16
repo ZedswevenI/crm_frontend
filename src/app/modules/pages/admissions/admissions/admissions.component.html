@@ -1,16 +1,14 @@
 <div class="admission-page">
-
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h5 class="mb-1 fw-semibold">New Admission</h5>
                 <p class="mb-0 text-muted small">
-                    Enter enrolment number → verify scholarship & discounts → collect NEFT + PDC → generate
-                    acknowledgement → send for approval.
+                    Fetch by Enrolment/Reg No or Direct enrolment → select fee plan → apply scholarships → NEFT +
+                    Cheques → fee calculation → approval → confirm.
                 </p>
             </div>
 
-            <!-- Stepper -->
             <div class="stepper d-flex align-items-center gap-2">
                 <span class="step-pill" [class.active]="step === 0">0</span>
                 <span class="step-line"></span>
@@ -21,70 +19,85 @@
         </div>
 
         <div class="card-body pt-2">
-
-            <!-- STEP 0: Enter enrolment/reg no -->
+            <!-- STEP 0 -->
             <ng-container *ngIf="step === 0">
                 <div class="row g-3">
                     <div class="col-lg-7">
                         <div class="border rounded-3 p-3">
-                            <div class="fw-semibold">Enter Enrolment / Registration Number</div>
-                            <div class="text-muted small mb-2">We will fetch scholarship test results and student
-                                details from portal.</div>
+                            <div class="fw-semibold mb-1">Choose how you want to enrol the student</div>
+                            <div class="text-muted small mb-3">
+                                <b>Option A:</b> Fetch from portal using Enrolment / Reg No<br />
+                                <b>Option B:</b> Direct enrolment (enter student details manually)
+                            </div>
 
-                            <form [formGroup]="lookupForm" (ngSubmit)="fetchByRegNo()">
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-md-7">
-                                        <label class="form-label small text-muted">Enrolment / Reg No</label>
-                                        <input class="form-control" formControlName="regNo"
-                                            placeholder="Eg: 9001111012809250093"
-                                            [class.is-invalid]="lookupForm.get('regNo')?.touched && lookupForm.get('regNo')?.invalid" />
-                                        <div class="invalid-feedback">Enter a valid number</div>
-                                    </div>
-                                    <div class="col-md-5">
-                                        <button class="btn btn-saffron w-100" type="submit" [disabled]="loading">
-                                            <i class="fa-solid fa-cloud-arrow-down me-1"></i>
-                                            Fetch Result
-                                        </button>
-                                    </div>
+                            <!-- OPTION A: FETCH -->
+                            <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
+                                <div class="fw-semibold">Option A — Fetch from Portal</div>
+                                <div class="text-muted small mb-2">
+                                    If you have the Enrolment/Reg No, you can fetch and auto-fill details.
                                 </div>
-                            </form>
 
-                            <div class="text-muted tiny mt-2">
-                                Tip: You can edit student details after fetch (except registration number).
+                                <form [formGroup]="lookupForm" (ngSubmit)="fetchByRegNo()">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-7">
+                                            <label class="form-label small text-muted">Enrolment / Reg No</label>
+                                            <input class="form-control" formControlName="regNo"
+                                                placeholder="Enter any number/text" />
+                                            <div class="text-muted tiny mt-1">No strict validation for now.</div>
+                                        </div>
+
+                                        <div class="col-md-5">
+                                            <button class="btn btn-saffron w-100" type="submit" [disabled]="loading">
+                                                <i class="fa-solid fa-cloud-arrow-down me-1"></i>
+                                                Fetch & Continue
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- OPTION B: DIRECT -->
+                            <div class="border rounded-3 p-3">
+                                <div class="fw-semibold">Option B — Direct Enrolment</div>
+                                <div class="text-muted small mb-2">
+                                    If you don’t have an enrolment number, proceed to Step 1 and enter details manually.
+                                </div>
+
+                                <button class="btn btn-outline-primary w-100" type="button"
+                                    (click)="proceedDirectEnrolment()">
+                                    <i class="fa-solid fa-pen-to-square me-1"></i>
+                                    Start Direct Enrolment
+                                </button>
                             </div>
                         </div>
                     </div>
 
                     <div class="col-lg-5">
                         <div class="alert alert-light small mb-0">
-                            <b>Flow:</b> Fetch → apply discounts → fee schedule → NEFT + PDC → acknowledgement →
-                            approval → confirm.
+                            <b>Flow:</b> Step 0 → Step 1 (Fee Plan + Scholarships) → Step 2 (NEFT + Cheques) → Fee
+                            Calculation → Approval → Confirm.
                         </div>
                     </div>
                 </div>
             </ng-container>
 
-            <!-- STEP 1: Scholarship + Discounts + Editable student info -->
+            <!-- STEP 1 -->
             <ng-container *ngIf="step === 1">
                 <form [formGroup]="step1Form">
                     <div class="row g-3">
-
-                        <!-- Student info -->
                         <div class="col-lg-8">
                             <div class="border rounded-3 p-3 h-100 bg-light-subtle">
                                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                                     <div>
                                         <div class="fw-semibold">Student Details</div>
                                         <div class="text-muted small">
-                                            Reg No:
-                                            <span class="fw-medium">{{ step1Form.getRawValue().regNo }}</span>
+                                            <span class="me-2">Reg No:</span>
+                                            <span class="fw-medium">{{ step1Form.getRawValue().regNo || '—' }}</span>
                                             <button type="button" class="btn btn-link btn-sm ms-2 p-0"
-                                                (click)="goToLookup()">
-                                                Change Reg No
-                                            </button>
+                                                (click)="goToLookup()">Change</button>
                                         </div>
                                     </div>
-                                    <span class="badge bg-light text-muted">Portal + Editable</span>
+                                    <span class="badge bg-light text-muted">Editable</span>
                                 </div>
 
                                 <div class="row g-3 mt-1">
@@ -124,88 +137,156 @@
                                     </div>
 
                                     <div class="col-md-4">
+                                        <label class="form-label">Select Fee Plan</label>
+                                        <select class="form-select" formControlName="feePlanId">
+                                            <option *ngFor="let p of feePlans" [value]="p.id">{{ p.name }}</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
                                         <formfield label="Base Fee" [control]="step1Form.get('baseFee')"
                                             formControlName="baseFee"></formfield>
                                     </div>
 
                                     <div class="col-md-4">
-                                        <formfield label="Scholarship (%)" [control]="step1Form.get('scholarshipPct')"
-                                            formControlName="scholarshipPct"></formfield>
+                                        <formfield label="Test Scholarship (%)"
+                                            [control]="step1Form.get('testScholarshipPct')"
+                                            formControlName="testScholarshipPct"></formfield>
                                     </div>
                                 </div>
 
                                 <div class="text-muted tiny mt-2">
-                                    Scholarship is fetched from portal. You can edit student details, but registration
-                                    number is locked.
+                                    Test Scholarship is fetched from portal (fetch mode). In direct enrolment you can
+                                    type it manually.
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Fee summary -->
                         <div class="col-lg-4">
-                            <div class="border rounded-3 p-3 h-100">
-                                <div class="fw-semibold">Fee Summary</div>
+                            <div class="col-12">
+                                <div class="border rounded-3 p-3">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                        <div>
+                                            <div class="fw-semibold">Fee Details</div>
+                                            <div class="text-muted small">
+                                                Discount is applied only to <b>Tuition Fee</b>. Other fee heads remain
+                                                unchanged.
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary">
+                                            Print Report
+                                        </button>
+                                    </div>
 
-                                <div class="d-flex justify-content-between mt-2 small">
-                                    <span class="text-muted">Base Fee</span>
-                                    <span class="fw-semibold">₹{{ baseFee | number:'1.0-0' }}</span>
-                                </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Fee Head</th>
+                                                    <th class="text-end" style="width:160px;">Fee</th>
+                                                    <th class="text-end" style="width:160px;">STax</th>
+                                                    <th class="text-end" style="width:160px;">Total</th>
+                                                    <th class="text-end" style="width:180px;">Schol Benefits</th>
+                                                </tr>
+                                            </thead>
 
-                                <div class="d-flex justify-content-between mt-1 small">
-                                    <span class="text-muted">Scholarship</span>
-                                    <span class="fw-semibold">{{ scholarshipPct }}%</span>
-                                </div>
+                                            <tbody>
+                                                <tr *ngFor="let r of feeHeadPreview">
+                                                    <td class="fw-medium">{{ r.label }}</td>
+                                                    <td class="text-end">₹{{ r.fee | number:'1.0-0' }}</td>
+                                                    <td class="text-end">₹{{ r.stax | number:'1.0-0' }}</td>
+                                                    <td class="text-end fw-semibold">₹{{ r.total | number:'1.0-0' }}
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <span *ngIf="r.scholBenefits > 0"
+                                                            class="fw-semibold text-success">
+                                                            ₹{{ r.scholBenefits | number:'1.0-0' }}
+                                                        </span>
+                                                        <span *ngIf="r.scholBenefits <= 0" class="text-muted">0</span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
 
-                                <div class="d-flex justify-content-between mt-1 small">
-                                    <span class="text-muted">Special Discount</span>
-                                    <span class="fw-semibold">{{ specialDiscountPct }}%</span>
-                                </div>
+                                            <tfoot class="table-light">
+                                                <tr>
+                                                    <th class="text-end" colspan="3">Grand Total</th>
+                                                    <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
+                                                    <th></th>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
 
-                                <div class="d-flex justify-content-between mt-1 small">
-                                    <span class="text-muted">Sibling Discount</span>
-                                    <span class="fw-semibold">{{ siblingDiscountPct }}%</span>
-                                </div>
-
-                                <hr class="my-2" />
-
-                                <div class="d-flex justify-content-between small">
-                                    <span class="text-muted">Total Discount</span>
-                                    <span class="fw-bold">{{ totalDiscountPct }}%</span>
-                                </div>
-
-                                <div class="d-flex justify-content-between mt-1">
-                                    <span class="text-muted">Final Fee</span>
-                                    <span class="fw-bold text-saffron">₹{{ finalFee | number:'1.0-0' }}</span>
                                 </div>
                             </div>
+
                         </div>
 
-                        <!-- Discounts -->
+                        <!-- Scholarships -->
                         <div class="col-12">
                             <div class="border rounded-3 p-3">
-                                <div class="fw-semibold mb-2">Discounts</div>
+                                <div class="fw-semibold mb-2">Scholarships</div>
 
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label small text-muted">Special Discount (%)</label>
-                                        <select class="form-select" formControlName="specialDiscountPct">
+                                        <label class="form-label small text-muted">Scholarship (%)</label>
+                                        <select class="form-select" formControlName="scholarshipPct">
                                             <option *ngFor="let d of discountOptions" [value]="d">{{ d }}%</option>
                                         </select>
                                     </div>
 
                                     <div class="col-md-3">
-                                        <label class="form-label small text-muted">Sibling Discount (%)</label>
-                                        <select class="form-select" formControlName="siblingDiscountPct">
+                                        <label class="form-label small text-muted">Additional Scholarship (%)</label>
+                                        <select class="form-select" formControlName="additionalScholarshipPct">
                                             <option *ngFor="let d of discountOptions" [value]="d">{{ d }}%</option>
                                         </select>
                                     </div>
 
                                     <div class="col-md-6 d-flex align-items-end">
                                         <div class="alert alert-light small mb-0 w-100">
-                                            Final Fee = Base Fee - (Scholarship + Special + Sibling). Total discount
-                                            capped at 100%.
+                                            Final Fee = Base Fee - (Test Scholarship + Scholarship + Additional
+                                            Scholarship). Total discount capped at 100%.
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- (3) Fee Split Preview -->
+                        <div class="col-12">
+                            <div class="border rounded-3 p-3">
+                                <div class="fw-semibold mb-2">Fee Split</div>
+                                <div class="text-muted small mb-2">Preview based on selected plan & final fee.</div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width:70px;">#</th>
+                                                <th>Split</th>
+                                                <th style="width:140px;">Type</th>
+                                                <th style="width:180px;" class="text-end">Amount (₹)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr *ngFor="let r of feeSplitPreview; let i = index">
+                                                <td class="fw-semibold">{{ i + 1 }}</td>
+                                                <td>{{ r.label }}</td>
+                                                <td>
+                                                    <span class="badge" [class.bg-primary]="r.type==='NEFT'"
+                                                        [class.bg-secondary]="r.type==='CHEQUE'">
+                                                        {{ r.type }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-end fw-semibold">₹{{ r.amount | number:'1.0-0' }}</td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot class="table-light">
+                                            <tr>
+                                                <th colspan="3" class="text-end">Total</th>
+                                                <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
                                 </div>
 
                             </div>
@@ -213,145 +294,201 @@
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button class="btn btn-outline-primary" type="button" (click)="generateAcknowledgementStep1()">
+                            <i class="fa-solid fa-file-circle-check me-1"></i>
+                            Acknowledgement (Provision)
+                        </button>
+
                         <button class="btn btn-saffron" type="button" (click)="next()">
-                            Next
+                            Proceed to Payments
                             <i class="fa-solid fa-arrow-right-long ms-1"></i>
                         </button>
                     </div>
                 </form>
             </ng-container>
 
-            <!-- STEP 2: Redesigned payments -->
+            <!-- STEP 2 -->
             <ng-container *ngIf="step === 2">
                 <div class="alert alert-warning small mb-3">
-                    <b>Important:</b> Please verify NEFT UTRs and collect all PDC cheques properly.
-                    Once acknowledgement is generated and sent for approval, changes should be done only via edit
-                    workflow.
+                    <b>Important:</b> NEFT can have multiple refs, but total should not exceed the NEFT split amount.
+                    Cheques can be PDC/CDC.
                 </div>
 
                 <form [formGroup]="step2Form">
-                    <!-- NEFT ADVANCE (2 instalments) -->
+                    <!-- NEFT -->
                     <div class="border rounded-3 p-3 mb-3">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
                                 <div class="fw-semibold">Advance Payment (NEFT)</div>
-                                <div class="text-muted small">Instalment 1 & 2 must be NEFT. UTR is mandatory.</div>
-                            </div>
-                            <span class="badge bg-success-subtle text-success">Advance</span>
-                        </div>
-
-                        <div class="row g-3 mt-1">
-                            <div class="col-md-6" *ngFor="let row of neftRows; let i = index">
-                                <div class="p-3 rounded-3 border bg-light-subtle">
-                                    <div class="d-flex justify-content-between small">
-                                        <span class="text-muted">Instalment</span>
-                                        <span class="fw-semibold">#{{ row.get('instalmentNo')?.value }}</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between small mt-1">
-                                        <span class="text-muted">Amount</span>
-                                        <span class="fw-bold">₹{{ row.get('amount')?.value | number:'1.0-0' }}</span>
-                                    </div>
-
-                                    <div class="row g-2 mt-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label small text-muted">UTR Number</label>
-                                            <input class="form-control form-control-sm"
-                                                [formControl]="$any(row.get('utrNo'))" placeholder="UTR Number"
-                                                [class.is-invalid]="row.get('utrNo')?.touched && row.get('utrNo')?.invalid" />
-                                            <div class="invalid-feedback">UTR is required</div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label small text-muted">Paid On (optional)</label>
-                                            <input class="form-control form-control-sm" type="date"
-                                                [formControl]="$any(row.get('paidOn'))" />
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label small text-muted">Remarks</label>
-                                            <input class="form-control form-control-sm"
-                                                [formControl]="$any(row.get('remarks'))" placeholder="optional" />
-                                        </div>
-                                    </div>
+                                <div class="text-muted small">
+                                    One NEFT split: <b>₹{{ neftAmount | number:'1.0-0' }}</b> — add one or more refs
+                                    (total must not exceed split).
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- PDC TABLE -->
-                    <div class="border rounded-3 p-3">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div>
-                                <div class="fw-semibold">Post Dated Cheques (PDC)</div>
-                                <div class="text-muted small">Enter cheque details for remaining instalments.</div>
-                            </div>
-                            <span class="badge bg-secondary-subtle text-secondary">PDC</span>
+                            <button type="button" class="btn btn-sm btn-outline-primary" (click)="addNeftRef()">
+                                <i class="fa-solid fa-plus me-1"></i> Add Ref
+                            </button>
                         </div>
 
                         <div class="table-responsive mt-2">
                             <table class="table table-sm align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width:70px;">#</th>
-                                        <th style="width:140px;">Amount (₹)</th>
-                                        <th style="width:160px;">Cheque No</th>
-                                        <th style="width:220px;">Bank</th>
-                                        <th style="width:160px;">Cheque Date</th>
+                                        <th style="width:60px;">#</th>
+                                        <th style="width:220px;">UTR No</th>
+                                        <th style="width:160px;">Amount (₹)</th>
+                                        <th style="width:160px;">Paid On</th>
                                         <th>Remarks</th>
+                                        <th style="width:60px;"></th>
                                     </tr>
                                 </thead>
 
-                                <tbody formArrayName="instalments">
-                                    <ng-container
-                                        *ngFor="let row of instalmentsFA.controls; let idx = index; trackBy: trackByIndex">
-                                        <tr *ngIf="row.get('mode')?.value === 'PDC'" [formGroupName]="idx">
-                                            <td class="fw-semibold">{{ row.get('instalmentNo')?.value }}</td>
-                                            <td>
-                                                <input class="form-control form-control-sm" type="number"
-                                                    formControlName="amount" readonly />
-                                            </td>
-                                            <td>
-                                                <input class="form-control form-control-sm" placeholder="Cheque No"
-                                                    formControlName="chequeNo"
-                                                    [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
-                                                <div class="invalid-feedback">Required</div>
-                                            </td>
-                                            <td>
-                                                <input class="form-control form-control-sm" placeholder="Bank"
-                                                    formControlName="bank"
-                                                    [class.is-invalid]="row.get('bank')?.touched && row.get('bank')?.invalid" />
-                                                <div class="invalid-feedback">Required</div>
-                                            </td>
-                                            <td>
-                                                <input class="form-control form-control-sm" type="date"
-                                                    formControlName="chequeDate"
-                                                    [class.is-invalid]="row.get('chequeDate')?.touched && row.get('chequeDate')?.invalid" />
-                                                <div class="invalid-feedback">Required</div>
-                                            </td>
-                                            <td>
-                                                <input class="form-control form-control-sm" placeholder="optional"
-                                                    formControlName="remarks" />
-                                            </td>
-                                        </tr>
-                                    </ng-container>
+                                <tbody formArrayName="neftRefs">
+                                    <tr *ngFor="let r of neftRefsFA.controls; let i = index; trackBy: trackByIndex"
+                                        [formGroupName]="i">
+                                        <td class="fw-semibold">{{ i + 1 }}</td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" placeholder="UTR Number"
+                                                formControlName="utrNo"
+                                                [class.is-invalid]="r.get('utrNo')?.touched && r.get('utrNo')?.invalid" />
+                                            <div class="invalid-feedback">Required</div>
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" type="number"
+                                                placeholder="Amount" formControlName="amount"
+                                                [class.is-invalid]="r.get('amount')?.touched && r.get('amount')?.invalid" />
+                                            <div class="invalid-feedback">Required</div>
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" type="date"
+                                                formControlName="paidOn" />
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" placeholder="optional"
+                                                formControlName="remarks" />
+                                        </td>
+
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                (click)="removeNeftRef(i)" [disabled]="neftRefsFA.length <= 1">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
                                 </tbody>
 
-                                <tfoot>
-                                    <tr class="table-light">
-                                        <th colspan="1" class="text-end">Total</th>
-                                        <th colspan="5" class="fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="2" class="text-end">Total Entered</th>
+                                        <th colspan="4" class="fw-bold">
+                                            ₹{{ neftTotalEntered | number:'1.0-0' }}
+                                            <span class="text-muted ms-2">(Max: ₹{{ neftAmount | number:'1.0-0'
+                                                }})</span>
+                                        </th>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
                     </div>
 
-                    <!-- STEP 2 FOOTER -->
+                    <!-- Cheques -->
+                    <div class="border rounded-3 p-3">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <div class="fw-semibold">Cheques</div>
+                                <div class="text-muted small">
+                                    Cheque Date is default; only Due Date should be entered. Payee is fixed.
+                                </div>
+                            </div>
+                            <span class="badge bg-secondary-subtle text-secondary">Cheques</span>
+                        </div>
+
+                        <div class="table-responsive mt-2">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:70px;">Sno</th>
+                                        <th style="width:150px;">Cheque Date</th>
+                                        <th style="width:260px;">Favour of</th>
+                                        <th style="width:150px;">Amount (₹)</th>
+                                        <th style="width:170px;">Cheque No</th>
+                                        <th style="width:160px;">Due Date</th>
+                                        <th style="width:140px;">Mode</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody formArrayName="cheques">
+                                    <tr *ngFor="let row of chequesFA.controls; let idx = index; trackBy: trackByIndex"
+                                        [formGroupName]="idx">
+                                        <td class="fw-semibold">{{ row.get('sno')?.value }}</td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" type="date"
+                                                formControlName="chequeDate" [disabled]="true" />
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" formControlName="favourOf"
+                                                [disabled]="true" />
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" type="number"
+                                                formControlName="amount" readonly />
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" placeholder="Cheque Number"
+                                                formControlName="chequeNo"
+                                                [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
+                                            <div class="invalid-feedback">Required</div>
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" type="date"
+                                                formControlName="dueDate"
+                                                [class.is-invalid]="row.get('dueDate')?.touched && row.get('dueDate')?.invalid" />
+                                            <div class="invalid-feedback">Required</div>
+                                        </td>
+
+                                        <td>
+                                            <select class="form-select form-select-sm" formControlName="mode">
+                                                <option value="PDC">PDC</option>
+                                                <option value="CDC">CDC</option>
+                                            </select>
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" placeholder="optional"
+                                                formControlName="remarks" />
+                                        </td>
+                                    </tr>
+                                </tbody>
+
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="2" class="text-end">Total Cheques</th>
+                                        <th class="fw-bold">{{ chequeCount }}</th>
+                                        <th colspan="5" class="fw-bold">Amount: ₹{{ chequeTotal | number:'1.0-0' }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
                     <div class="admission-footer mt-3">
                         <button type="button" class="btn btn-outline-secondary" (click)="back()">
                             <i class="fa-solid fa-arrow-left-long me-1"></i>
                             Back
                         </button>
 
-                        <!-- BEFORE SUBMIT -->
                         <div class="d-flex gap-2 flex-wrap justify-content-end admission-footer-actions"
                             *ngIf="!submittedForAck">
                             <button type="button" class="btn btn-saffron" (click)="submitPayments()"
@@ -361,22 +498,21 @@
                             </button>
                         </div>
 
-                        <!-- AFTER SUBMIT -->
                         <div class="d-flex gap-2 flex-wrap justify-content-end admission-footer-actions"
                             *ngIf="submittedForAck">
-                            <button type="button" class="btn btn-outline-primary" (click)="generateAcknowledgement()">
-                                <i class="fa-solid fa-receipt me-1"></i>
-                                Generate Acknowledgement
+                            <button type="button" class="btn btn-outline-primary" (click)="generateFeeCalculation()">
+                                <i class="fa-solid fa-calculator me-1"></i>
+                                Generate Fee Calculation
                             </button>
 
-                            <button type="button" class="btn btn-outline-success" [disabled]="!ackGenerated"
+                            <button type="button" class="btn btn-outline-success" [disabled]="!feeCalcGenerated"
                                 (click)="sendForApproval()">
                                 <i class="fa-solid fa-paper-plane me-1"></i>
                                 Send for Approval
                             </button>
 
                             <button type="button" class="btn btn-saffron admission-confirm-btn"
-                                [disabled]="!ackGenerated || !approvalSent" (click)="confirmAdmission()">
+                                [disabled]="!feeCalcGenerated || !approvalSent" (click)="confirmAdmission()">
                                 Confirm Admission
                                 <i class="fa-regular fa-circle-check ms-1"></i>
                             </button>
@@ -387,8 +523,8 @@
                         Status:
                         <span class="badge bg-light text-muted">Submit: {{ submittedForAck ? 'Done' : 'Pending'
                             }}</span>
-                        <span class="badge bg-light text-muted ms-1">Ack: {{ ackGenerated ? 'Generated' : 'Pending'
-                            }}</span>
+                        <span class="badge bg-light text-muted ms-1">Fee Calc: {{ feeCalcGenerated ? 'Generated' :
+                            'Pending' }}</span>
                         <span class="badge bg-light text-muted ms-1">Approval: {{ approvalSent ? 'Sent' : 'Pending'
                             }}</span>
                     </div>

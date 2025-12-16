@@ -1,0 +1,304 @@
+<div class="admission-view-page">
+
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Admission View</h5>
+                <div class="text-muted small">
+                    Admission ID: <b>{{ admissionId }}</b>
+                    <span class="mx-2">•</span>
+                    Status:
+                    <span class="badge" [class.bg-success]="admission.status==='confirmed'"
+                        [class.bg-warning]="admission.status==='submitted'"
+                        [class.bg-secondary]="admission.status==='draft'"
+                        [class.bg-danger]="admission.status==='cancelled'">
+                        {{ admission.status || '—' }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-primary btn-sm" (click)="printFeeAcknowledgement()">
+                    <i class="fa-solid fa-print me-1"></i> Fee Acknowledgement
+                </button>
+                <button class="btn btn-outline-primary btn-sm" (click)="printContract()">
+                    <i class="fa-solid fa-print me-1"></i> Contract
+                </button>
+                <button class="btn btn-outline-primary btn-sm" (click)="printFeeCalculation()">
+                    <i class="fa-solid fa-print me-1"></i> Fee Calculation
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" (click)="goBack()">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body" *ngIf="!loading; else loadingTpl">
+
+            <!-- Student + Academic mapping -->
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="fw-semibold mb-2">Student Information</div>
+
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <div class="label">Student Name</div>
+                                <div class="value">{{ admission.student.name }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="label">Enrolment / Reg No</div>
+                                <div class="value">{{ admission.student.regNo || '—' }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="label">Student Mobile</div>
+                                <div class="value">{{ admission.student.phone }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="label">Email</div>
+                                <div class="value">{{ admission.student.email || '—' }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="label">Parent Name</div>
+                                <div class="value">{{ admission.student.parentName }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="label">Parent Mobile</div>
+                                <div class="value">{{ admission.student.parentPhone }}</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="fw-semibold mb-2">Program / Batch / Class</div>
+
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <div class="label">Centre</div>
+                                <div class="value">{{ admission.academics.centreName }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="label">Program</div>
+                                <div class="value">{{ admission.academics.programName }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="label">Batch</div>
+                                <div class="value">{{ admission.academics.batchName || '—' }}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="label">Class</div>
+                                <div class="value">{{ admission.academics.className || '—' }}</div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test details -->
+            <div class="border rounded-3 p-3 mt-3">
+                <div class="fw-semibold mb-2">Test & Result</div>
+
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <div class="label">Test Date</div>
+                        <div class="value">{{ admission.test.testDate || '—' }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="label">Test Name</div>
+                        <div class="value">{{ admission.test.testName || '—' }}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="label">Score</div>
+                        <div class="value">{{ admission.test.score ?? '—' }}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="label">Percentile</div>
+                        <div class="value">{{ admission.test.percentile ?? '—' }}</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="label">Result</div>
+                        <div class="value">
+                            <span class="badge" [class.bg-success]="admission.test.result==='pass'"
+                                [class.bg-danger]="admission.test.result==='fail'"
+                                [class.bg-secondary]="!admission.test.result || admission.test.result==='pending'">
+                                {{ admission.test.result || 'pending' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="label">Remarks</div>
+                        <div class="value">{{ admission.test.remarks || '—' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fee plan & fee heads -->
+            <div class="border rounded-3 p-3 mt-3">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                    <div>
+                        <div class="fw-semibold">Fee Plan</div>
+                        <div class="text-muted small">
+                            Plan Code: <b>{{ admission.fee.feePlanCode }}</b>
+                            <span class="mx-2">•</span>
+                            {{ admission.fee.feePlanName }}
+                            <span class="mx-2">•</span>
+                            Discount (only Tuition Fee): <b>{{ admission.fee.discountPctTotal }}%</b>
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <div class="text-muted small">Final Fee</div>
+                        <div class="fs-5 fw-bold text-saffron">₹{{ finalFee | number:'1.0-0' }}</div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fee Head</th>
+                                <th class="text-end" style="width:160px;">Fee</th>
+                                <th class="text-end" style="width:160px;">STax</th>
+                                <th class="text-end" style="width:160px;">Total</th>
+                                <th class="text-end" style="width:180px;">Schol Benefits</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let r of feeHeadPreview">
+                                <td class="fw-medium">{{ r.label }}</td>
+                                <td class="text-end">₹{{ r.fee | number:'1.0-0' }}</td>
+                                <td class="text-end">₹{{ r.stax | number:'1.0-0' }}</td>
+                                <td class="text-end fw-semibold">₹{{ r.total | number:'1.0-0' }}</td>
+                                <td class="text-end">
+                                    <span *ngIf="r.scholBenefits > 0" class="fw-semibold text-success">
+                                        ₹{{ r.scholBenefits | number:'1.0-0' }}
+                                    </span>
+                                    <span *ngIf="r.scholBenefits <= 0" class="text-muted">0</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th class="text-end" colspan="3">Grand Total</th>
+                                <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Payments -->
+            <div class="row g-3 mt-1">
+                <!-- NEFT -->
+                <div class="col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold">NEFT</div>
+                                <div class="text-muted small">Split Amount: <b>₹{{ admission.payments.neftSplitAmount |
+                                        number:'1.0-0' }}</b></div>
+                            </div>
+                            <div class="text-end">
+                                <div class="text-muted small">Total Paid</div>
+                                <div class="fw-bold">₹{{ neftTotal | number:'1.0-0' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive mt-2">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:60px;">#</th>
+                                        <th>UTR No</th>
+                                        <th class="text-end" style="width:140px;">Amount</th>
+                                        <th style="width:140px;">Paid On</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let n of admission.payments.neftRefs; let i = index">
+                                        <td class="fw-semibold">{{ i + 1 }}</td>
+                                        <td>{{ n.utrNo }}</td>
+                                        <td class="text-end">₹{{ n.amount | number:'1.0-0' }}</td>
+                                        <td>{{ n.paidOn || '—' }}</td>
+                                        <td>{{ n.remarks || '—' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Cheques -->
+                <div class="col-lg-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold">PDC / CDC</div>
+                                <div class="text-muted small">
+                                    Total Cheques: <b>{{ chequeCount }}</b>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="text-muted small">Total Amount</div>
+                                <div class="fw-bold">₹{{ chequeTotal | number:'1.0-0' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive mt-2">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:60px;">Sno</th>
+                                        <th style="width:120px;">Cheque Date</th>
+                                        <th style="width:120px;">Due Date</th>
+                                        <th>Favour of</th>
+                                        <th class="text-end" style="width:120px;">Amount</th>
+                                        <th style="width:120px;">Cheque No</th>
+                                        <th style="width:90px;">Mode</th>
+                                        <th style="width:110px;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let c of admission.payments.cheques">
+                                        <td class="fw-semibold">{{ c.sno }}</td>
+                                        <td>{{ c.chequeDate }}</td>
+                                        <td>{{ c.dueDate }}</td>
+                                        <td>{{ c.favourOf }}</td>
+                                        <td class="text-end">₹{{ c.amount | number:'1.0-0' }}</td>
+                                        <td>{{ c.chequeNo }}</td>
+                                        <td>{{ c.mode }}</td>
+                                        <td>
+                                            <span class="badge" [class.bg-secondary]="c.status==='pending'"
+                                                [class.bg-info]="c.status==='deposited'"
+                                                [class.bg-success]="c.status==='cleared'"
+                                                [class.bg-danger]="c.status==='bounced'"
+                                                [class.bg-warning]="c.status==='cancelled'">
+                                                {{ c.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <ng-template #loadingTpl>
+            <div class="card-body">
+                <div class="text-muted small">Loading admission…</div>
+            </div>
+        </ng-template>
+
+    </div>
+</div>

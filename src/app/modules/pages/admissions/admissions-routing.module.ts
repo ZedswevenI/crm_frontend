@@ -3,8 +3,19 @@ import { RouterModule, Routes } from '@angular/router';
 import { ListComponent } from './list/list.component';
 
 import { AdmissionsComponent } from './admissions/admissions.component';
+import { AdmissionviewComponent } from './admissionview/admissionview.component';
+import { AdmissionreportsComponent } from './admissionreports/admissionreports.component';
+import { AdmissioncommunicationComponent } from './admissioncommunication/admissioncommunication.component';
+import { AdmissionfeecalComponent } from './admissionfeecal/admissionfeecal.component';
 
-const routes: Routes = [{ path: '', component: ListComponent }, { path: 'new', component: AdmissionsComponent }];
+const routes: Routes = [
+  { path: '', component: ListComponent },
+  { path: 'new', component: AdmissionsComponent },
+  { path: 'view/:id', component: AdmissionviewComponent },
+  { path: 'reports', component: AdmissionreportsComponent },
+  { path: 'communication', component: AdmissioncommunicationComponent },
+  { path: 'fee-calculator', component: AdmissionfeecalComponent }
+];
 
 @NgModule({
   imports: [RouterModule.forChild(routes)],

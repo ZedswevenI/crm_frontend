@@ -32,7 +32,42 @@
             Admissions & Fees
           </a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" routerLink="/app/admissions" routerLinkActive="active">Admissions</a></li>
+            <!-- <li><a class="dropdown-item" routerLink="/app/admissions" routerLinkActive="active">Admissions</a></li> -->
+            <li class="dropdown-submenu">
+              <a class="dropdown-item d-flex align-items-center justify-content-between" href="#" role="button">
+                <span> Admission
+                  <i class="fa-solid fa-caret-right ms-5"></i>
+                </span>
+              </a>
+
+              <ul class="dropdown-menu">
+                <li>
+                  <a class="dropdown-item" routerLink="/app/admissions/new">
+                    New Admission
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" routerLink="/app/admissions">
+                    Search Enrollment
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" routerLink="/app/admissions/reports">
+                    Reports
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" routerLink="/app/admissions/communication">
+                    Communication
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" routerLink="/app/admissions/fee-calculator">
+                    Fee Calculator
+                  </a>
+                </li>
+              </ul>
+            </li>
             <li><a class="dropdown-item" routerLink="/app/fees/collection" routerLinkActive="active">Fee Collection</a>
             </li>
             <li><a class="dropdown-item" routerLink="/app/fees/reports" routerLinkActive="active">Fee Reports</a></li>

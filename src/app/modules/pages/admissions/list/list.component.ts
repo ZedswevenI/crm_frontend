@@ -62,6 +62,7 @@ export class ListComponent {
   view(id: string): void {
     // later route to view page
     console.log('view', id);
+    this.router.navigate(['/app/admissions/view', id]);
   }
 
   edit(id: string): void {

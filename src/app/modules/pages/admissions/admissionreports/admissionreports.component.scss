@@ -1,0 +1,148 @@
+.admission-reports-page {
+  .reports-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .report-tabs {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    flex: 1;
+    min-width: 220px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 16px;
+    padding: 10px 14px;
+    text-align: left;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    transition: all 0.15s ease;
+
+    .sub {
+      margin-left: 6px;
+      font-size: 12px;
+      color: #6c757d;
+      font-weight: 500;
+    }
+
+    &:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+      transform: translateY(-1px);
+    }
+
+    &.active {
+      border-color: #f59f00;
+      box-shadow: 0 8px 22px rgba(245, 159, 0, 0.18);
+    }
+  }
+
+  .filter-card {
+    background: #fff;
+
+    .form-label {
+      margin-bottom: 4px;
+    }
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    gap: 12px;
+
+    @media (max-width: 992px) {
+      grid-template-columns: repeat(2, minmax(180px, 1fr));
+    }
+    @media (max-width: 576px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .kpi-tile {
+    border: 1px solid #eef0f3;
+    border-radius: 16px;
+    background: #fff;
+    padding: 14px 16px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+
+    .kpi-label {
+      font-size: 12px;
+      color: #6c757d;
+      margin-bottom: 2px;
+    }
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+  }
+
+  .table-wrap {
+    background: #fff;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+
+    table {
+      margin-bottom: 0;
+
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8f9fa;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      tbody td {
+        white-space: nowrap;
+      }
+    }
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid transparent;
+
+    &.gray {
+      background: #f3f4f6;
+      color: #6b7280;
+      border-color: #e5e7eb;
+    }
+    &.blue {
+      background: #eff6ff;
+      color: #2563eb;
+      border-color: #bfdbfe;
+    }
+    &.green {
+      background: #ecfdf5;
+      color: #059669;
+      border-color: #a7f3d0;
+    }
+    &.red {
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fecaca;
+    }
+  }
+
+  .hint {
+    font-size: 13px;
+    color: #6c757d;
+    background: #f8f9fa;
+    border: 1px dashed #dee2e6;
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+}
