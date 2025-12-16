@@ -1,0 +1,144 @@
+<div class="reports-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Feedback Reports</h5>
+                <p class="mb-0 text-muted small">
+                    Consolidated report for student feedback and faculty feedback with filters and summary.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                    (click)="resetFilters()">
+                    <i class="fa-solid fa-broom"></i><span>Reset</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" (click)="reload()">
+                    <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+                </button>
+                <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="exportExcel()">
+                    <i class="fa-solid fa-file-excel"></i><span>Export</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+
+            <!-- Filters -->
+            <div class="border rounded-3 p-3 mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">From</label>
+                        <input type="date" class="form-control form-control-sm" [(ngModel)]="fromDate"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilters()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">To</label>
+                        <input type="date" class="form-control form-control-sm" [(ngModel)]="toDate"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilters()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Batch</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="batchId"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilters()">
+                            <option value="all">All</option>
+                            <option *ngFor="let b of batches" [value]="b.id">{{ b.name }}</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Rating</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="rating"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilters()">
+                            <option value="all">All</option>
+                            <option *ngFor="let r of ratingOptions" [value]="r">{{ r }} ⭐</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Faculty</label>
+                        <input class="form-control form-control-sm" placeholder="Type faculty name (optional)"
+                            [(ngModel)]="facultySearch" [ngModelOptions]="{ standalone: true }"
+                            (input)="applyFilters()" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Search</label>
+                        <input class="form-control form-control-sm" placeholder="Reg No / Student / Subject / Batch"
+                            [(ngModel)]="search" [ngModelOptions]="{ standalone: true }" (input)="applyFilters()" />
+                    </div>
+                </div>
+
+                <div class="alert alert-light small mb-0 mt-2">
+                    This report is based on current feedback entries (dummy data now). Later, connect to API for
+                    real-time.
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                        <div class="text-muted small">Total Feedback</div>
+                        <div class="fs-5 fw-bold">{{ summary.total }}</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                        <div class="text-muted small">Avg Rating</div>
+                        <div class="fs-5 fw-bold text-saffron">{{ summary.avgRating }}</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                        <div class="text-muted small">Open Items</div>
+                        <div class="fs-5 fw-bold text-warning">{{ summary.open }}</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                        <div class="text-muted small">Resolved</div>
+                        <div class="fs-5 fw-bold text-success">{{ summary.resolved }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    <button class="nav-link" [class.active]="tab==='student'" (click)="tab='student'">
+                        Student Feedback ({{ studentFiltered.length }})
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" [class.active]="tab==='faculty'" (click)="tab='faculty'">
+                        Faculty Feedback ({{ facultyFiltered.length }})
+                    </button>
+                </li>
+            </ul>
+
+            <div class="pt-3">
+                <!-- Student Feedback -->
+                <ng-container *ngIf="tab === 'student'">
+                    <list-table [autoFitChars]="true" [columns]="studentColumns" [data]="studentFiltered"
+                        [actions]="studentActions">
+                    </list-table>
+                </ng-container>
+
+                <!-- Faculty Feedback -->
+                <ng-container *ngIf="tab === 'faculty'">
+                    <list-table [autoFitChars]="true" [columns]="facultyColumns" [data]="facultyFiltered"
+                        [actions]="facultyActions">
+                    </list-table>
+                </ng-container>
+            </div>
+        </div>
+    </div>
+</div>

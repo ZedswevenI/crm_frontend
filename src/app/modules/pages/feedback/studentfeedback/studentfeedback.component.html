@@ -1,0 +1,246 @@
+<div class="feedback-page">
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Student Feedback</h5>
+                <p class="mb-0 text-muted small">
+                    Collect feedback on classes, faculty, and overall experience.
+                </p>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <div style="min-width: 260px;">
+                    <input class="form-control form-control-sm"
+                        placeholder="Search by Reg No / Name / Faculty / Subject" [(ngModel)]="search"
+                        [ngModelOptions]="{ standalone: true }" (input)="applyFilter()" />
+                </div>
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" (click)="reload()">
+                    <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+                </button>
+                <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i><span>Add Feedback</span>
+                </button>
+            </div>
+        </div>
+        <div class="card-body pt-0">
+            <!-- Filters -->
+            <div class="border rounded-3 p-3 mb-3">
+                <div class="row g-2 align-items-end">
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">From</label>
+                        <input type="date" class="form-control form-control-sm" [(ngModel)]="fromDate"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilter()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">To</label>
+                        <input type="date" class="form-control form-control-sm" [(ngModel)]="toDate"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilter()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Batch</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="filterBatchId"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilter()">
+                            <option value="all">All</option>
+                            <option *ngFor="let b of batches" [value]="b.id">{{ b.name }}</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Rating</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="filterRating"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilter()">
+                            <option value="all">All</option>
+                            <option value="5">5 ⭐</option>
+                            <option value="4">4 ⭐</option>
+                            <option value="3">3 ⭐</option>
+                            <option value="2">2 ⭐</option>
+                            <option value="1">1 ⭐</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="alert alert-light small mb-0 mt-2">
+                    Tip: Use “View” to see full comments, and “Resolve” after action is taken.
+                </div>
+            </div>
+
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="filtered" [actions]="actions">
+            </list-table>
+
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal feedback-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">{{ formMode === 'create' ? 'Add Feedback' : 'Edit Feedback' }}</h6>
+                    <span class="text-muted small">Capture student feedback with rating and comments.</span>
+                </div>
+                <button class="btn-close" (click)="cancel()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="form" (ngSubmit)="save()">
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Reg No</label>
+                            <input class="form-control" formControlName="regNo" placeholder="JEE26-0001"
+                                [class.is-invalid]="f('regNo').touched && f('regNo').invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Student Name</label>
+                            <input class="form-control" formControlName="studentName" placeholder="Student name"
+                                [class.is-invalid]="f('studentName').touched && f('studentName').invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Batch</label>
+                            <select class="form-select" formControlName="batchId"
+                                [class.is-invalid]="f('batchId').touched && f('batchId').invalid">
+                                <option [ngValue]="null">Select</option>
+                                <option *ngFor="let b of batches" [ngValue]="b.id">{{ b.name }}</option>
+                            </select>
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Subject</label>
+                            <input class="form-control" formControlName="subject" placeholder="Physics" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Faculty</label>
+                            <input class="form-control" formControlName="faculty" placeholder="Sivakumar" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Feedback Date</label>
+                            <input type="date" class="form-control" formControlName="date"
+                                [class.is-invalid]="f('date').touched && f('date').invalid" />
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Rating</label>
+                            <select class="form-select" formControlName="rating"
+                                [class.is-invalid]="f('rating').touched && f('rating').invalid">
+                                <option [ngValue]="null">Select</option>
+                                <option *ngFor="let r of ratingOptions" [ngValue]="r">{{ r }} ⭐</option>
+                            </select>
+                            <div class="invalid-feedback">Required</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted">Comments</label>
+                            <textarea class="form-control" rows="3" formControlName="comments"
+                                placeholder="Write feedback..."></textarea>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted">Internal Notes (optional)</label>
+                            <input class="form-control" formControlName="internalNotes"
+                                placeholder="staff notes / action item" />
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+                        <button type="submit" class="btn btn-saffron" [disabled]="form.invalid">
+                            {{ formMode === 'create' ? 'Save' : 'Update' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div class="app-modal-backdrop" *ngIf="showView">
+        <div class="app-modal feedback-view-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Feedback Details</h6>
+                    <span class="text-muted small" *ngIf="selected">
+                        {{ selected.studentName }} • {{ selected.regNo }} • {{ selected.batchName }}
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeView()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                            <div class="fw-semibold mb-2">Summary</div>
+
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">Date</span>
+                                <span class="fw-semibold">{{ selected?.date }}</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between small mt-1">
+                                <span class="text-muted">Rating</span>
+                                <span class="fw-bold text-saffron">{{ selected?.rating }} ⭐</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between small mt-1">
+                                <span class="text-muted">Faculty</span>
+                                <span class="fw-semibold">{{ selected?.faculty || '-' }}</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between small mt-1">
+                                <span class="text-muted">Subject</span>
+                                <span class="fw-semibold">{{ selected?.subject || '-' }}</span>
+                            </div>
+
+                            <hr class="my-2" />
+
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">Status</span>
+                                <span class="badge"
+                                    [ngClass]="selected?.status==='resolved' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'">
+                                    {{ selected?.status === 'resolved' ? 'Resolved' : 'Open' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-8">
+                        <div class="border rounded-3 p-3">
+                            <div class="fw-semibold mb-2">Student Comments</div>
+                            <div class="small" style="white-space: pre-wrap;">{{ selected?.comments || '-' }}</div>
+
+                            <hr class="my-3" />
+
+                            <div class="fw-semibold mb-2">Internal Notes</div>
+                            <div class="small text-muted" style="white-space: pre-wrap;">{{ selected?.internalNotes ||
+                                '-' }}</div>
+
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button class="btn btn-outline-secondary" (click)="closeView()">Close</button>
+                                <button class="btn btn-outline-success" *ngIf="selected?.status!=='resolved'"
+                                    (click)="resolve(selected!.id)">
+                                    <i class="fa-regular fa-circle-check me-1"></i> Mark Resolved
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

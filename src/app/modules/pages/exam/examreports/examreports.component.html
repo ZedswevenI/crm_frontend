@@ -1,0 +1,212 @@
+<div class="perf-page">
+
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Performance Reports</h5>
+                <p class="mb-0 text-muted small">
+                    Analyze exam performance by batch, subject, and student rank list.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" (click)="reload()">
+                    <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                    (click)="exportExcel()">
+                    <i class="fa-regular fa-file-excel"></i><span>Export</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" (click)="print()">
+                    <i class="fa-solid fa-print"></i><span>Print</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+
+            <!-- Filters -->
+            <div class="border rounded-3 p-3 mt-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <selectbox label="Program" [options]="programOptions" [optionLabel]="'label'"
+                            [optionValue]="'value'" [(ngModel)]="filters.programId"
+                            [ngModelOptions]="{ standalone: true }" (selectionChange)="onProgramChange()">
+                        </selectbox>
+                    </div>
+
+                    <div class="col-md-3">
+                        <selectbox label="Batch" [options]="batchOptions" [optionLabel]="'label'"
+                            [optionValue]="'value'" [(ngModel)]="filters.batchId"
+                            [ngModelOptions]="{ standalone: true }" (selectionChange)="applyFilters()">
+                        </selectbox>
+                    </div>
+
+                    <div class="col-md-3">
+                        <selectbox label="Exam" [options]="examOptions" [optionLabel]="'label'" [optionValue]="'value'"
+                            [(ngModel)]="filters.examId" [ngModelOptions]="{ standalone: true }"
+                            (selectionChange)="onExamChange()">
+                        </selectbox>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Search (Reg/Name)</label>
+                        <input class="form-control form-control-sm" [(ngModel)]="filters.search"
+                            [ngModelOptions]="{ standalone: true }" (input)="applyFilters()"
+                            placeholder="Type to filter" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">From</label>
+                        <input class="form-control form-control-sm" type="date" [(ngModel)]="filters.from"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilters()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">To</label>
+                        <input class="form-control form-control-sm" type="date" [(ngModel)]="filters.to"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilters()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Pass % Threshold</label>
+                        <input class="form-control form-control-sm" type="number" [(ngModel)]="filters.passPct"
+                            [ngModelOptions]="{ standalone: true }" (input)="applyFilters()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <button class="btn btn-sm btn-saffron w-100" (click)="applyFilters()">
+                            <i class="fa-solid fa-filter me-1"></i> Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPIs -->
+            <div class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Students</div>
+                        <div class="fw-bold fs-5">{{ kpi.students }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Average %</div>
+                        <div class="fw-bold fs-5">{{ kpi.avgPct }}%</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Topper %</div>
+                        <div class="fw-bold fs-5">{{ kpi.topperPct }}%</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted small">Pass %</div>
+                        <div class="fw-bold fs-5">{{ kpi.passPct }}%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tables -->
+            <div class="row g-3 mt-1">
+
+                <!-- Rank List -->
+                <div class="col-lg-8">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <div class="fw-semibold">Rank List</div>
+                            <span class="badge bg-light text-muted">
+                                {{ filteredRows.length }} students
+                            </span>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:60px;">Rank</th>
+                                        <th style="width:150px;">Reg No</th>
+                                        <th>Student</th>
+                                        <th class="text-center" style="width:120px;">Total</th>
+                                        <th class="text-center" style="width:100px;">%</th>
+                                        <th class="text-center" style="width:90px;">Pass</th>
+                                        <th style="width:90px;"></th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <tr *ngFor="let r of filteredRows; let i = index">
+                                        <td class="fw-semibold">{{ i + 1 }}</td>
+                                        <td class="fw-semibold">{{ r.regNo }}</td>
+                                        <td>
+                                            <div class="fw-semibold small">{{ r.name }}</div>
+                                            <div class="text-muted tiny">{{ r.batchName }}</div>
+                                        </td>
+                                        <td class="text-center fw-bold">{{ r.total }}</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-light text-muted">{{ r.pct }}%</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge"
+                                                [ngClass]="r.pct >= filters.passPct ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                                                {{ r.pct >= filters.passPct ? 'Yes' : 'No' }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-link p-0 small" (click)="viewStudent(r)">
+                                                View
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <tr *ngIf="filteredRows.length === 0">
+                                        <td colspan="7" class="text-center text-muted py-3">No records found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Subject Split -->
+                <div class="col-lg-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="fw-semibold mb-2">Subject Performance</div>
+                        <div class="text-muted small mb-2">
+                            Average marks by subject (based on current filtered set).
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Subject</th>
+                                        <th class="text-end">Avg</th>
+                                        <th class="text-end">Max</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let s of subjectKpi">
+                                        <td class="fw-semibold small">{{ s.name }}</td>
+                                        <td class="text-end">{{ s.avg }}</td>
+                                        <td class="text-end">{{ s.max }}</td>
+                                    </tr>
+                                    <tr *ngIf="subjectKpi.length === 0">
+                                        <td colspan="3" class="text-center text-muted py-3">No data.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="alert alert-light small mt-3 mb-0">
+                            Tip: Later we can add charts (trend by exams, subject graph, topper comparison).
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

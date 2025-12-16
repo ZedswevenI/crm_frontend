@@ -35,6 +35,10 @@ const routes: Routes = [
     loadChildren: () => import('./enrollment/enrollment.module').then(m => m.EnrollmentModule)
   },
   {
+    path: 'exams',
+    loadChildren: () => import('./exam/exam.module').then(m => m.ExamModule)
+  },
+  {
     path: 'dashboard',
     loadChildren: () => import('./faculty/faculty.module').then(m => m.FacultyModule)
   },
@@ -49,6 +53,10 @@ const routes: Routes = [
   {
     path: 'faculty-assignment',
     loadChildren: () => import('./faculty/faculty.module').then(m => m.FacultyModule)
+  },
+  {
+    path: 'feedback',
+    loadChildren: () => import('./feedback/feedback.module').then(m => m.FeedbackModule)
   }
 ];
 

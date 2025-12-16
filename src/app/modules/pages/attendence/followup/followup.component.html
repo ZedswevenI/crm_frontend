@@ -1,0 +1,185 @@
+<div class="followup-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Follow-ups</h5>
+                <p class="mb-0 text-muted small">
+                    Track calls/messages and close follow-ups with remarks.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <div style="min-width: 260px;">
+                    <input class="form-control form-control-sm" placeholder="Search by Reg No / Name / Phone"
+                        [(ngModel)]="search" [ngModelOptions]="{ standalone: true }" (input)="applyFilter()" />
+                </div>
+
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" (click)="reload()">
+                    <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+                </button>
+
+                <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i><span>New Follow-up</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+
+            <!-- Filters -->
+            <div class="border rounded-3 p-3 mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Category</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="filterCategory"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilter()">
+                            <option value="all">All</option>
+                            <option value="ABSENT">Absentees</option>
+                            <option value="FEE_DUE">Fee Due</option>
+                            <option value="ADMISSION">Admission</option>
+                            <option value="GENERAL">General</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Status</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="filterStatus"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilter()">
+                            <option value="all">All</option>
+                            <option value="pending">Pending</option>
+                            <option value="inprogress">In Progress</option>
+                            <option value="done">Completed</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">From</label>
+                        <input type="date" class="form-control form-control-sm" [(ngModel)]="filterFrom"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilter()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">To</label>
+                        <input type="date" class="form-control form-control-sm" [(ngModel)]="filterTo"
+                            [ngModelOptions]="{ standalone: true }" (change)="applyFilter()" />
+                    </div>
+                </div>
+
+                <div class="alert alert-light small mb-0 mt-2">
+                    Tip: Use <b>In Progress</b> for ongoing calls/messages. Close with a remark to keep history clean.
+                </div>
+            </div>
+
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="filtered" [actions]="actions">
+            </list-table>
+
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal followup-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">{{ formMode === 'create' ? 'New Follow-up' : 'Edit Follow-up' }}</h6>
+                    <span class="text-muted small">Add follow-up details and assign an owner.</span>
+                </div>
+                <button class="btn-close" (click)="cancel()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="form" (ngSubmit)="save()">
+                    <div class="row g-3">
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Category</label>
+                            <select class="form-select" formControlName="category">
+                                <option value="ABSENT">Absentees</option>
+                                <option value="FEE_DUE">Fee Due</option>
+                                <option value="ADMISSION">Admission</option>
+                                <option value="GENERAL">General</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Priority</label>
+                            <select class="form-select" formControlName="priority">
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Due Date</label>
+                            <input type="date" class="form-control" formControlName="dueDate"
+                                [class.is-invalid]="f('dueDate').touched && f('dueDate').invalid" />
+                            <div class="invalid-feedback">Due date is required</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Reg No</label>
+                            <input class="form-control" formControlName="regNo" placeholder="optional" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Student Name</label>
+                            <input class="form-control" formControlName="studentName" placeholder="optional" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Parent Phone</label>
+                            <input class="form-control" formControlName="parentPhone" placeholder="optional" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Owner</label>
+                            <select class="form-select" formControlName="owner">
+                                <option *ngFor="let u of owners" [value]="u">{{ u }}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Status</label>
+                            <select class="form-select" formControlName="status">
+                                <option value="pending">Pending</option>
+                                <option value="inprogress">In Progress</option>
+                                <option value="done">Completed</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Preferred Channel</label>
+                            <select class="form-select" formControlName="channel">
+                                <option value="CALL">Call</option>
+                                <option value="WHATSAPP">WhatsApp</option>
+                                <option value="SMS">SMS</option>
+                                <option value="EMAIL">Email</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small text-muted">Notes</label>
+                            <textarea class="form-control" rows="3" formControlName="notes"
+                                placeholder="what to discuss..."></textarea>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+                        <button type="submit" class="btn btn-saffron" [disabled]="form.invalid">
+                            {{ formMode === 'create' ? 'Save' : 'Update' }}
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>

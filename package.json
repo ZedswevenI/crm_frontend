@@ -20,6 +20,7 @@
     "@fortawesome/fontawesome-free": "^7.1.0",
     "angular-tabler-icons": "^3.26.0",
     "bootstrap": "^5.3.8",
+    "chart.js": "^4.5.1",
     "ngx-quill": "^27.1.2",
     "quill": "^2.0.3",
     "rxjs": "~7.8.0",

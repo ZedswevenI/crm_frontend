@@ -1,0 +1,205 @@
+<div class="attendance-report-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Attendance Reports</h5>
+                <p class="mb-0 text-muted small">
+                    Batch-wise summary and student-wise attendance with drill-down.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" (click)="reload()">
+                    <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+
+            <!-- Filters -->
+            <div class="border rounded-3 p-3 mb-3">
+                <div class="row g-2 align-items-end">
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">From</label>
+                        <input type="date" class="form-control form-control-sm" [(ngModel)]="fromDate"
+                            [ngModelOptions]="{standalone:true}" (change)="apply()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">To</label>
+                        <input type="date" class="form-control form-control-sm" [(ngModel)]="toDate"
+                            [ngModelOptions]="{standalone:true}" (change)="apply()" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Program</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="filterProgramId"
+                            [ngModelOptions]="{standalone:true}" (change)="apply()">
+                            <option value="all">All</option>
+                            <option *ngFor="let p of programs" [value]="p.id">{{ p.name }}</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Batch</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="filterBatchId"
+                            [ngModelOptions]="{standalone:true}" (change)="apply()">
+                            <option value="all">All</option>
+                            <option *ngFor="let b of batches" [value]="b.id">{{ b.name }}</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mt-2">
+                        <input class="form-control form-control-sm"
+                            placeholder="Search student by Reg No / Name / Phone" [(ngModel)]="search"
+                            [ngModelOptions]="{standalone:true}" (input)="apply()" />
+                    </div>
+
+                    <div class="col-md-6 mt-2 d-flex justify-content-end gap-2 flex-wrap">
+                        <button class="btn btn-sm btn-outline-primary" (click)="exportExcel()">
+                            <i class="fa-regular fa-file-excel me-1"></i> Export Excel
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" (click)="exportPdf()">
+                            <i class="fa-regular fa-file-pdf me-1"></i> Export PDF
+                        </button>
+                    </div>
+
+                </div>
+
+                <div class="alert alert-light small mb-0 mt-2">
+                    Showing reports from <b>{{ fromDate }}</b> to <b>{{ toDate }}</b>.
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-pills mb-3 gap-2">
+                <li class="nav-item">
+                    <button class="nav-link" [class.active]="tab==='batch'" (click)="tab='batch'">
+                        Batch Summary
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" [class.active]="tab==='student'" (click)="tab='student'">
+                        Student Report
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Batch Summary -->
+            <ng-container *ngIf="tab==='batch'">
+                <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
+                    <div class="fw-semibold">Batch Attendance Summary</div>
+                    <div class="text-muted small">Total classes, present count and attendance %.</div>
+                </div>
+
+                <list-table [autoFitChars]="true" [columns]="batchColumns" [data]="batchSummary"
+                    [actions]="batchActions">
+                </list-table>
+            </ng-container>
+
+            <!-- Student Report -->
+            <ng-container *ngIf="tab==='student'">
+                <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
+                    <div class="fw-semibold">Student Attendance</div>
+                    <div class="text-muted small">Attendance % per student with drill-down.</div>
+                </div>
+
+                <list-table [autoFitChars]="true" [columns]="studentColumns" [data]="studentRows"
+                    [actions]="studentActions">
+                </list-table>
+            </ng-container>
+
+        </div>
+    </div>
+
+    <!-- Student Details Modal -->
+    <div class="app-modal-backdrop" *ngIf="showDetails">
+        <div class="app-modal att-details-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Attendance Details</h6>
+                    <span class="text-muted small" *ngIf="selectedStudent">
+                        {{ selectedStudent.name }} • {{ selectedStudent.regNo }} • {{ selectedStudent.batchName }}
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeDetails()"></button>
+            </div>
+
+            <div class="app-modal-body">
+
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                            <div class="fw-semibold mb-2">Summary</div>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">Total Classes</span>
+                                <span class="fw-semibold">{{ selectedSummary?.total }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between small mt-1">
+                                <span class="text-muted">Present</span>
+                                <span class="fw-semibold">{{ selectedSummary?.present }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between small mt-1">
+                                <span class="text-muted">Absent</span>
+                                <span class="fw-semibold">{{ selectedSummary?.absent }}</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Attendance %</span>
+                                <span class="fw-bold text-saffron">{{ selectedSummary?.pct }}%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-8">
+                        <div class="border rounded-3 p-3">
+                            <div class="fw-semibold mb-2">Class-wise Status</div>
+
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Subject</th>
+                                            <th>Faculty</th>
+                                            <th>Time</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let r of selectedDetails">
+                                            <td class="small">{{ r.date }}</td>
+                                            <td class="small">{{ r.subject }}</td>
+                                            <td class="small">{{ r.faculty }}</td>
+                                            <td class="small">{{ r.start }} - {{ r.end }}</td>
+                                            <td>
+                                                <span class="badge bg-success-subtle text-success"
+                                                    *ngIf="r.status==='P'">Present</span>
+                                                <span class="badge bg-danger-subtle text-danger"
+                                                    *ngIf="r.status==='A'">Absent</span>
+                                            </td>
+                                        </tr>
+                                        <tr *ngIf="selectedDetails.length===0">
+                                            <td colspan="5" class="text-center text-muted py-3">No records found.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-3">
+                                <button class="btn btn-outline-secondary" (click)="closeDetails()">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>

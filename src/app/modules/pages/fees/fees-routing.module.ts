@@ -5,7 +5,7 @@ import { FeesreportsComponent } from './feesreports/feesreports.component';
 
 const routes: Routes = [
   {
-    path: '',
+    path: 'collection',
     component: FeesComponent
   },
   {
