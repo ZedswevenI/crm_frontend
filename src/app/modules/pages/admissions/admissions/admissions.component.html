@@ -5,7 +5,8 @@
                 <h5 class="mb-1 fw-semibold">New Admission</h5>
                 <p class="mb-0 text-muted small">
                     Fetch by Enrolment/Reg No or Direct enrolment → select fee plan → apply scholarships → NEFT +
-                    Cheques → fee calculation → approval → confirm.
+                    Cheques → fee
+                    calculation → approval → confirm.
                 </p>
             </div>
 
@@ -75,7 +76,8 @@
                     <div class="col-lg-5">
                         <div class="alert alert-light small mb-0">
                             <b>Flow:</b> Step 0 → Step 1 (Fee Plan + Scholarships) → Step 2 (NEFT + Cheques) → Fee
-                            Calculation → Approval → Confirm.
+                            Calculation →
+                            Approval → Confirm.
                         </div>
                     </div>
                 </div>
@@ -105,10 +107,15 @@
                                         <formfield label="Student Name" [required]="true"
                                             [control]="step1Form.get('name')" formControlName="name"></formfield>
                                     </div>
+
+                                    <!-- ✅ single mobile only -->
                                     <div class="col-md-4">
-                                        <formfield label="Student Mobile" [required]="true"
+                                        <formfield label="Mobile No (Student/Parent)" [required]="true"
                                             [control]="step1Form.get('phone')" formControlName="phone"></formfield>
+                                        <div class="text-muted tiny mt-1">Same number will be saved as parent mobile
+                                            too.</div>
                                     </div>
+
                                     <div class="col-md-4">
                                         <formfield label="Email" [control]="step1Form.get('email')"
                                             formControlName="email" placeholder="optional"></formfield>
@@ -119,28 +126,63 @@
                                             [control]="step1Form.get('parentName')" formControlName="parentName">
                                         </formfield>
                                     </div>
+
                                     <div class="col-md-4">
-                                        <formfield label="Parent Mobile" [required]="true"
-                                            [control]="step1Form.get('parentPhone')" formControlName="parentPhone">
-                                        </formfield>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <formfield label="Program" [required]="true"
-                                            [control]="step1Form.get('programName')" formControlName="programName">
-                                        </formfield>
+                                        <label class="form-label">Program</label>
+
+                                        <!-- ✅ IMPORTANT: explicitly call onProgramChanged -->
+                                        <select class="form-select" formControlName="programId"
+                                            (change)="onProgramChanged(step1Form.get('programId')?.value)">
+                                            <option value="" disabled>Select program</option>
+                                            <option *ngFor="let p of programs" [value]="p.programId">
+                                                {{ p.programName }}
+                                                <ng-container *ngIf="p.programCode"> ({{ p.programCode
+                                                    }})</ng-container>
+                                                <ng-container *ngIf="p.centerName"> — {{ p.centerName }}</ng-container>
+                                            </option>
+                                        </select>
+
+                                        <div class="invalid-feedback d-block"
+                                            *ngIf="step1Form.get('programId')?.touched && step1Form.get('programId')?.invalid">
+                                            Required
+                                        </div>
+                                        <div class="text-muted tiny mt-1" *ngIf="programsLoading">Loading programs…
+                                        </div>
+
+                                        <!-- ✅ Helpful to debug programCode mapping -->
+                                        <div class="text-muted tiny mt-1" *ngIf="step1Form.getRawValue().programCode">
+                                            Program Code: {{ step1Form.getRawValue().programCode }}
+                                        </div>
                                     </div>
 
                                     <div class="col-md-4">
                                         <formfield label="Centre" [required]="true"
-                                            [control]="step1Form.get('centerName')" formControlName="centerName">
-                                        </formfield>
+                                            [control]="step1Form.get('centerName')" formControlName="centerName"
+                                            readonly="'true'"></formfield>
+                                        <div class="text-muted tiny mt-1" *ngIf="step1Form.getRawValue().centerCode">
+                                            Center Code: {{ step1Form.getRawValue().centerCode }}
+                                        </div>
                                     </div>
 
                                     <div class="col-md-4">
                                         <label class="form-label">Select Fee Plan</label>
-                                        <select class="form-select" formControlName="feePlanId">
-                                            <option *ngFor="let p of feePlans" [value]="p.id">{{ p.name }}</option>
+                                        <select class="form-select" formControlName="feePlanId"
+                                            [disabled]="feePlansLoading || feePlans.length===0 || !step1Form.get('programId')?.value">
+                                            <option value="" disabled>Select fee plan</option>
+                                            <option *ngFor="let fp of feePlans" [value]="fp.id">{{ fp.name }}</option>
                                         </select>
+
+                                        <div class="text-muted tiny mt-1" *ngIf="feePlansLoading">Loading fee plans...
+                                        </div>
+                                        <div class="text-muted tiny mt-1"
+                                            *ngIf="!feePlansLoading && step1Form.get('programId')?.value && feePlans.length===0">
+                                            No fee plans found for this program / academic year.
+                                        </div>
+
+                                        <div class="invalid-feedback d-block"
+                                            *ngIf="step1Form.get('feePlanId')?.touched && step1Form.get('feePlanId')?.invalid">
+                                            Required
+                                        </div>
                                     </div>
 
                                     <div class="col-md-4">
@@ -161,71 +203,65 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Right: Fee Preview -->
                         <div class="col-lg-4">
-                            <div class="col-12">
-                                <div class="border rounded-3 p-3">
-                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                                        <div>
-                                            <div class="fw-semibold">Fee Details</div>
-                                            <div class="text-muted small">
-                                                Discount is applied only to <b>Tuition Fee</b>. Other fee heads remain
-                                                unchanged.
-                                            </div>
+                            <div class="border rounded-3 p-3">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                    <div>
+                                        <div class="fw-semibold">Fee Details</div>
+                                        <div class="text-muted small">
+                                            Discount is applied only to <b>Tuition Fee</b>. Other fee heads remain
+                                            unchanged.
                                         </div>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary">
-                                            Print Report
-                                        </button>
                                     </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        (click)="printReportStep1()">
+                                        Print Report
+                                    </button>
+                                </div>
 
-                                    <div class="table-responsive">
-                                        <table class="table table-sm align-middle mb-0">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>Fee Head</th>
-                                                    <th class="text-end" style="width:160px;">Fee</th>
-                                                    <th class="text-end" style="width:160px;">STax</th>
-                                                    <th class="text-end" style="width:160px;">Total</th>
-                                                    <th class="text-end" style="width:180px;">Schol Benefits</th>
-                                                </tr>
-                                            </thead>
-
-                                            <tbody>
-                                                <tr *ngFor="let r of feeHeadPreview">
-                                                    <td class="fw-medium">{{ r.label }}</td>
-                                                    <td class="text-end">₹{{ r.fee | number:'1.0-0' }}</td>
-                                                    <td class="text-end">₹{{ r.stax | number:'1.0-0' }}</td>
-                                                    <td class="text-end fw-semibold">₹{{ r.total | number:'1.0-0' }}
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <span *ngIf="r.scholBenefits > 0"
-                                                            class="fw-semibold text-success">
-                                                            ₹{{ r.scholBenefits | number:'1.0-0' }}
-                                                        </span>
-                                                        <span *ngIf="r.scholBenefits <= 0" class="text-muted">0</span>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-
-                                            <tfoot class="table-light">
-                                                <tr>
-                                                    <th class="text-end" colspan="3">Grand Total</th>
-                                                    <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
-                                                    <th></th>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Fee Head</th>
+                                                <th class="text-end" style="width:160px;">Fee</th>
+                                                <th class="text-end" style="width:160px;">STax</th>
+                                                <th class="text-end" style="width:160px;">Total</th>
+                                                <th class="text-end" style="width:180px;">Schol Benefits</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr *ngFor="let r of feeHeadPreview">
+                                                <td class="fw-medium">{{ r.label }}</td>
+                                                <td class="text-end">₹{{ r.fee | number:'1.0-0' }}</td>
+                                                <td class="text-end">₹{{ r.stax | number:'1.0-0' }}</td>
+                                                <td class="text-end fw-semibold">₹{{ r.total | number:'1.0-0' }}</td>
+                                                <td class="text-end">
+                                                    <span *ngIf="r.scholBenefits > 0" class="fw-semibold text-success">
+                                                        ₹{{ r.scholBenefits | number:'1.0-0' }}
+                                                    </span>
+                                                    <span *ngIf="r.scholBenefits <= 0" class="text-muted">0</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot class="table-light">
+                                            <tr>
+                                                <th class="text-end" colspan="3">Grand Total</th>
+                                                <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
+                                                <th></th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
                                 </div>
                             </div>
-
                         </div>
 
                         <!-- Scholarships -->
                         <div class="col-12">
                             <div class="border rounded-3 p-3">
                                 <div class="fw-semibold mb-2">Scholarships</div>
-
                                 <div class="row g-3">
                                     <div class="col-md-3">
                                         <label class="form-label small text-muted">Scholarship (%)</label>
@@ -251,46 +287,6 @@
                             </div>
                         </div>
 
-                        <!-- (3) Fee Split Preview -->
-                        <div class="col-12">
-                            <div class="border rounded-3 p-3">
-                                <div class="fw-semibold mb-2">Fee Split</div>
-                                <div class="text-muted small mb-2">Preview based on selected plan & final fee.</div>
-
-                                <div class="table-responsive">
-                                    <table class="table table-sm align-middle mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th style="width:70px;">#</th>
-                                                <th>Split</th>
-                                                <th style="width:140px;">Type</th>
-                                                <th style="width:180px;" class="text-end">Amount (₹)</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr *ngFor="let r of feeSplitPreview; let i = index">
-                                                <td class="fw-semibold">{{ i + 1 }}</td>
-                                                <td>{{ r.label }}</td>
-                                                <td>
-                                                    <span class="badge" [class.bg-primary]="r.type==='NEFT'"
-                                                        [class.bg-secondary]="r.type==='CHEQUE'">
-                                                        {{ r.type }}
-                                                    </span>
-                                                </td>
-                                                <td class="text-end fw-semibold">₹{{ r.amount | number:'1.0-0' }}</td>
-                                            </tr>
-                                        </tbody>
-                                        <tfoot class="table-light">
-                                            <tr>
-                                                <th colspan="3" class="text-end">Total</th>
-                                                <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-
-                            </div>
-                        </div>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-3">
@@ -350,9 +346,10 @@
                                         <td class="fw-semibold">{{ i + 1 }}</td>
 
                                         <td>
+                                            <!-- ✅ changed utrNo -> utr -->
                                             <input class="form-control form-control-sm" placeholder="UTR Number"
-                                                formControlName="utrNo"
-                                                [class.is-invalid]="r.get('utrNo')?.touched && r.get('utrNo')?.invalid" />
+                                                formControlName="utr"
+                                                [class.is-invalid]="r.get('utr')?.touched && r.get('utr')?.invalid" />
                                             <div class="invalid-feedback">Required</div>
                                         </td>
 
@@ -528,6 +525,7 @@
                         <span class="badge bg-light text-muted ms-1">Approval: {{ approvalSent ? 'Sent' : 'Pending'
                             }}</span>
                     </div>
+
                 </form>
             </ng-container>
         </div>

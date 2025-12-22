@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import {
-  AbstractControl,
   UntypedFormArray,
   UntypedFormBuilder,
   UntypedFormGroup,
@@ -9,20 +8,41 @@ import {
 import { AlertService } from '../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { Router } from '@angular/router';
+import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 
 type ChequeMode = 'PDC' | 'CDC';
 
 interface PortalStudentResult {
-  portalStudentId: string;
-  regNo: string;
-  name: string;
-  phone: string;
-  parentName: string;
-  parentPhone: string;
+  portalStudentId?: string;
+  regNo?: string;
+  registrationNumber?: string;
+
+  name?: string;
+  phone?: string;
+
+  parentName?: string;
+  parentPhone?: string;
+
   email?: string;
+
+  programName?: string;
+  programCode?: string;
+
+  centerName?: string; // may not come
+  centerCode?: string; // comes
+  studyCentre?: string; // comes
+
+  testScholarshipPct?: number; // waiverPerInTf
+
+  scholarshipTestId?: string;
+}
+
+interface ProgramItem {
+  programId: string;
   programName: string;
-  centerName: string;
-  testScholarshipPct: number;
+  programCode?: string;
+  centerId?: string;
+  centerName?: string;
 }
 
 interface FeePlan {
@@ -35,6 +55,7 @@ interface FeePlan {
     fee: number;
     stax: number;
   }>;
+  feePlanCode?: string;
 }
 
 @Component({
@@ -63,44 +84,26 @@ export class AdmissionsComponent implements OnInit {
   // Direct enrolment toggle
   isDirectEnrolment = false;
 
-  // fetched portal data (dummy)
+  // fetched portal data
   portal: PortalStudentResult | null = null;
 
-  // Fee plans
-  feePlans: FeePlan[] = [
-    {
-      id: 'plan16',
-      name: '9020 Base Fee Plan',
-      baseInstalments: [92866, 55720, 55720, 55720, 55720, 55720],
-      feeHeads: [
-        { key: 'admission', label: 'Admission Fee', fee: 118050, stax: 21249 },
-        {
-          key: 'admin',
-          label: 'Administrative Charges',
-          fee: 78700,
-          stax: 14166,
-        },
-        {
-          key: 'study',
-          label: 'Study Material Price',
-          fee: 84000,
-          stax: 15120,
-        },
-        { key: 'exam', label: 'Examination Fee', fee: 22000, stax: 3960 },
-        { key: 'cbt', label: 'CBT Support Charges', fee: 2500, stax: 450 },
-        { key: 'tuition', label: 'Tuition Fee', fee: 135492, stax: 24389 },
-      ],
-    },
-  ];
+  // loaded from backend
+  programs: ProgramItem[] = [];
+  feePlans: FeePlan[] = [];
+  programsLoading = false;
+  feePlansLoading = false;
 
-  // constant payee as requested
+  // admission state
+  admissionId: string | null = null;
+
   readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
 
   constructor(
     private fb: UntypedFormBuilder,
     private alert: AlertService,
     private breadcrumb: BredcrumpService,
-    private router: Router
+    private router: Router,
+    private api: CommonapiService
   ) {
     this.breadcrumb.set([
       { label: 'Control Panel' },
@@ -110,27 +113,44 @@ export class AdmissionsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // (2) regNo validation relaxed – no strict validators
+    // Step 0
     this.lookupForm = this.fb.group({
       regNo: [''],
       directEnrolment: [false],
     });
 
+    // Step 1
     this.step1Form = this.fb.group({
+      academicYear: [''],
       portalStudentId: [''],
+      scholarshipTestId: [''],
 
-      // regNo can be anything or blank (direct enrolment)
       regNo: [{ value: '', disabled: true }],
 
       name: ['', Validators.required],
-      phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-      parentName: ['', Validators.required],
-      parentPhone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-      email: ['', [Validators.email]],
-      programName: ['', Validators.required],
-      centerName: ['', Validators.required],
 
-      feePlanId: [this.feePlans[0]?.id || '', Validators.required],
+      // ✅ single mobile field (used for parentPhone internally)
+      phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+
+      parentName: ['', Validators.required],
+
+      // ✅ keep parentPhone for backend payload but do NOT show in UI
+      parentPhone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+
+      email: ['', [Validators.email]],
+
+      programId: ['', Validators.required],
+      programName: ['', Validators.required],
+      programCode: [''],
+
+      centerId: [''],
+      centerName: ['', Validators.required],
+      centerCode: [''],
+      studyCentre: [''],
+
+      feePlanId: ['', Validators.required],
+      feePlanCode: [''],
+
       baseFee: [{ value: 0, disabled: true }],
 
       testScholarshipPct: [{ value: 0, disabled: true }],
@@ -138,14 +158,37 @@ export class AdmissionsComponent implements OnInit {
       additionalScholarshipPct: [0, [Validators.min(0), Validators.max(100)]],
     });
 
+    // ✅ Sync parentPhone = phone always
+    this.step1Form.get('phone')?.valueChanges.subscribe((v) => {
+      const phone = String(v || '').trim();
+      const cur = String(this.step1Form.get('parentPhone')?.value || '').trim();
+      if (phone && phone !== cur) {
+        this.step1Form
+          .get('parentPhone')
+          ?.setValue(phone, { emitEvent: false });
+      }
+    });
+
+    // Step 2
     this.step2Form = this.fb.group({
       neftAmount: [{ value: 0, disabled: true }],
       neftRefs: this.fb.array([]),
       cheques: this.fb.array([]),
     });
 
-    this.step1Form.get('feePlanId')?.valueChanges.subscribe(() => {
-      this.refreshBaseFeeFromPlan();
+    this.loadPrograms();
+
+    this.step1Form.get('programId')?.valueChanges.subscribe((pid) => {
+      this.onProgramChanged(String(pid || '').trim());
+    });
+
+    this.step1Form.get('academicYear')?.valueChanges.subscribe(() => {
+      this.loadFeePlans();
+      this.resetWorkflowFlags();
+    });
+
+    this.step1Form.get('feePlanId')?.valueChanges.subscribe((id) => {
+      this.onFeePlanChanged(String(id || '').trim());
       this.resetWorkflowFlags();
     });
 
@@ -159,11 +202,16 @@ export class AdmissionsComponent implements OnInit {
       .get('testScholarshipPct')
       ?.valueChanges.subscribe(() => this.resetWorkflowFlags());
 
-    // init base fee
-    this.refreshBaseFeeFromPlan();
+    this.buildEmptyPayments();
   }
 
-  // ---------- common ----------
+  private pickTenantId(): string {
+    const entiId =
+      (localStorage.getItem('entiId') || '').trim() ||
+      (localStorage.getItem('tenantId') || '').trim();
+    return entiId;
+  }
+
   private resetWorkflowFlags(): void {
     this.feeCalcGenerated = false;
     this.approvalSent = false;
@@ -182,106 +230,448 @@ export class AdmissionsComponent implements OnInit {
     lock ? c.disable({ emitEvent: false }) : c.enable({ emitEvent: false });
   }
 
-  get selectedPlan(): FeePlan | null {
-    const id = this.step1Form.get('feePlanId')?.value;
-    return this.feePlans.find((p) => p.id === id) || null;
+  trackByIndex(i: number): number {
+    return i;
   }
 
-  private refreshBaseFeeFromPlan(): void {
-    const plan = this.selectedPlan;
+  private todayISO(): string {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // ---------------------- Masters loading ----------------------
+
+  private loadPrograms(): void {
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+
+    this.programsLoading = true;
+    const body: any = { entiId: tenantId };
+
+    this.api.fetchData(body, 'ims/program', 'list?list=full').subscribe({
+      next: (res: any) => {
+        this.programsLoading = false;
+        if (!res?.status) {
+          this.alert.error(
+            res?.message || res?.error || 'Failed to load programs'
+          );
+          this.programs = [];
+          return;
+        }
+
+        const arr = Array.isArray(res?.data) ? res.data : [];
+        this.programs = arr
+          .map((x: any) => ({
+            programId: String(x.programId || x._id || ''),
+            programName: String(x.programName || x.name || ''),
+            programCode: x.programCode ? String(x.programCode) : '',
+            centerId: x.centerId ? String(x.centerId) : '',
+            centerName: x.centerName ? String(x.centerName) : '',
+          }))
+          .filter((p: ProgramItem) => !!p.programId && !!p.programName);
+
+        // ✅ if portal already fetched, map programId now
+        this.tryMapProgramFromPortal();
+      },
+      error: () => {
+        this.programsLoading = false;
+        this.programs = [];
+        this.alert.error('Failed to load programs');
+      },
+    });
+  }
+
+  private tryMapProgramFromPortal(): void {
+    if (!this.portal) return;
+
+    const code = String(this.portal.programCode || '').trim();
+    if (!code) return;
+
+    const match =
+      this.programs.find((p) => String(p.programCode || '').trim() === code) ||
+      null;
+    if (!match) return;
+
+    // patch programId -> triggers onProgramChanged -> loadFeePlans
+    this.step1Form.patchValue(
+      {
+        programId: match.programId,
+      },
+      { emitEvent: true }
+    );
+
+    // also patch center/program info from program master (more reliable)
+    this.step1Form.patchValue(
+      {
+        programName:
+          match.programName || this.step1Form.value.programName || '',
+        programCode:
+          match.programCode || this.step1Form.value.programCode || '',
+        centerId: match.centerId || '',
+        centerName:
+          String(match.centerName || '').trim() ||
+          String(this.portal.studyCentre || '').trim() ||
+          String(this.portal.centerCode || '').trim() ||
+          String(this.step1Form.value.centerName || '').trim() ||
+          '',
+      },
+      { emitEvent: false }
+    );
+  }
+
+  private loadFeePlans(): void {
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+
+    const programId = String(
+      this.step1Form.get('programId')?.value || ''
+    ).trim();
+    const programCode = String(
+      this.step1Form.get('programCode')?.value || ''
+    ).trim();
+
+    // ✅ ONLY require programId OR programCode
+    if (!programId && !programCode) {
+      this.feePlans = [];
+      this.step1Form.patchValue(
+        { feePlanId: '', feePlanCode: '' },
+        { emitEvent: false }
+      );
+      this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
+      return;
+    }
+
+    this.feePlansLoading = true;
+
+    const body: any = { entiId: tenantId };
+
+    // ✅ backend expects query params, we send only programId/programCode
+    let route = `list?list=full`;
+    if (programId) route += `&programId=${encodeURIComponent(programId)}`;
+    else route += `&programCode=${encodeURIComponent(programCode)}`;
+
+    this.api.fetchData(body, 'ims/feeplan', route).subscribe({
+      next: (res: any) => {
+        this.feePlansLoading = false;
+
+        if (!res?.status) {
+          this.alert.error(
+            res?.message || res?.error || 'Failed to load fee plans'
+          );
+          this.feePlans = [];
+          return;
+        }
+
+        const arr = Array.isArray(res?.data) ? res.data : [];
+        this.feePlans = arr
+          .map((x: any) => ({
+            id: String(x.feePlanId || x.id || x._id || '').trim(),
+            name: String(
+              x.feePlanCode || x.feePlanName || x.name || 'Fee Plan'
+            ).trim(),
+            feePlanCode: x.feePlanCode ? String(x.feePlanCode).trim() : '',
+            baseInstalments: Array.isArray(x.baseInstalments)
+              ? x.baseInstalments.map((n: any) => Number(n) || 0)
+              : [],
+            feeHeads: Array.isArray(x.feeHeads)
+              ? x.feeHeads.map((h: any) => ({
+                  key: String(h.key || h.feeHeadKey || '').trim(),
+                  label: String(h.label || h.feeHeadName || '').trim(),
+                  fee: Number(h.fee || h.amount || 0),
+                  stax: Number(h.stax || h.tax || 0),
+                }))
+              : [],
+          }))
+          .filter((fp: any) => !!fp.id);
+
+        // auto pick first if nothing selected
+        const cur = String(this.step1Form.get('feePlanId')?.value || '').trim();
+        const exists = !!this.feePlans.find((p) => p.id === cur);
+
+        if (cur && !exists) {
+          this.step1Form.patchValue(
+            { feePlanId: '', feePlanCode: '' },
+            { emitEvent: false }
+          );
+          this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
+        }
+
+        const newCur = String(
+          this.step1Form.get('feePlanId')?.value || ''
+        ).trim();
+        if (!newCur && this.feePlans.length) {
+          this.step1Form.patchValue(
+            { feePlanId: this.feePlans[0].id },
+            { emitEvent: true }
+          );
+        } else {
+          this.onFeePlanChanged(newCur);
+        }
+      },
+      error: () => {
+        this.feePlansLoading = false;
+        this.feePlans = [];
+        this.alert.error('Failed to load fee plans');
+      },
+    });
+  }
+
+  public onProgramCodeChanged(programCode: any): void {
+    const code = String(programCode || '').trim();
+    if (!code) {
+      this.feePlans = [];
+      this.step1Form.patchValue(
+        { feePlanId: '', feePlanCode: '' },
+        { emitEvent: false }
+      );
+      this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
+      return;
+    }
+
+    const p =
+      this.programs.find((x) => String(x.programCode || '').trim() === code) ||
+      null;
+
+    if (p) {
+      this.step1Form.patchValue(
+        {
+          programId: p.programId,
+          programName: p.programName,
+          centerName:
+            p.centerName || this.step1Form.get('centerName')?.value || '',
+        },
+        { emitEvent: false }
+      );
+    }
+
+    this.step1Form.patchValue(
+      { feePlanId: '', feePlanCode: '' },
+      { emitEvent: false }
+    );
+    this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
+
+    // ✅ Call feeplans even if programId isn't found (fallback to programCode)
+    this.loadFeePlans();
+    this.resetWorkflowFlags();
+  }
+
+  public onProgramChanged(programId: any): void {
+    const pid = String(programId || '').trim();
+    const p = this.programs.find((x) => x.programId === pid) || null;
+
+    this.step1Form.patchValue(
+      {
+        programName: p?.programName || '',
+        programCode:
+          p?.programCode || this.step1Form.get('programCode')?.value || '',
+        centerName:
+          p?.centerName || this.step1Form.get('centerName')?.value || '',
+        feePlanId: '',
+        feePlanCode: '',
+      },
+      { emitEvent: false }
+    );
+
+    this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
+
+    // ✅ Always refresh fee plans
+    this.loadFeePlans();
+    this.resetWorkflowFlags();
+  }
+
+  private onFeePlanChanged(feePlanId: string): void {
+    const fp = this.feePlans.find((x) => x.id === feePlanId) || null;
+    this.step1Form.patchValue(
+      { feePlanCode: fp?.feePlanCode || '' },
+      { emitEvent: false }
+    );
+
     const total =
-      plan?.feeHeads?.reduce(
+      fp?.feeHeads?.reduce(
         (s, x) => s + (Number(x.fee || 0) + Number(x.stax || 0)),
         0
       ) || 0;
+
     this.step1Form.get('baseFee')?.setValue(total, { emitEvent: false });
   }
 
-  toggleDirectEnrolment(): void {
-    this.isDirectEnrolment = !!this.lookupForm.get('directEnrolment')?.value;
-  }
+  // ---------------------- Step 0 ----------------------
 
-  // ---------- step 0 ----------
-  // (1) direct enrolment: no regNo, just go next step
   proceedDirectEnrolment(): void {
     this.isDirectEnrolment = true;
     this.lookupForm.patchValue({ directEnrolment: true }, { emitEvent: false });
 
     this.portal = null;
+    this.admissionId = null;
     this.step1Form.reset();
+
     this.step1Form.patchValue({
       portalStudentId: '',
+      scholarshipTestId: '',
       regNo: '',
-      feePlanId: this.feePlans[0]?.id || '',
       testScholarshipPct: 0,
       scholarshipPct: 0,
       additionalScholarshipPct: 0,
+      phone: '',
+      parentPhone: '',
+      programId: '',
+      programName: '',
+      programCode: '',
+      centerId: '',
+      centerName: '',
+      centerCode: '',
+      studyCentre: '',
+      feePlanId: '',
+      feePlanCode: '',
     });
 
-    this.setRegNoLock(false); // allow typing if they want
-    this.setTestScholarshipLock(false); // allow typing
-    this.refreshBaseFeeFromPlan();
+    this.setRegNoLock(false);
+    this.setTestScholarshipLock(false);
+
+    this.feePlans = [];
     this.resetWorkflowFlags();
+    this.buildEmptyPayments();
+
     this.step = 1;
   }
 
-  // fetch flow (regNo optional, but if empty we block only in fetch mode)
   fetchByRegNo(): void {
-    this.toggleDirectEnrolment();
-    const regNo = String(this.lookupForm.value.regNo || '').trim();
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
 
+    const regNo = String(this.lookupForm.value.regNo || '').trim();
     if (!regNo) {
       this.alert.error(
-        'Please enter Enrolment / Reg No to fetch from portal. Or use Direct Enrolment.'
+        'Please enter Enrolment / Reg No. Or use Direct Enrolment.'
       );
       return;
     }
 
     this.loading = true;
 
-    setTimeout(() => {
-      const dummy: PortalStudentResult = {
-        portalStudentId: 'PORTAL-123',
-        regNo,
-        name: 'Student Name',
-        phone: '9000000000',
-        parentName: 'Parent Name',
-        parentPhone: '9888888888',
-        email: 'student@email.com',
-        programName: 'JEE Weekend',
-        centerName: 'Coimbatore',
-        testScholarshipPct: 20,
-      };
+    const body: any = {
+      entiId: tenantId,
+      registrationNumber: regNo,
+    };
 
-      this.portal = dummy;
+    this.api.fetchData(body, 'admi', 'portal/fetch').subscribe({
+      next: (res: any) => {
+        this.loading = false;
+        if (!res?.status) {
+          this.alert.error(res?.message || res?.error || 'Fetch failed');
+          return;
+        }
 
-      this.step1Form.reset();
-      this.step1Form.patchValue({
-        portalStudentId: dummy.portalStudentId,
-        regNo: dummy.regNo,
-        name: dummy.name,
-        phone: dummy.phone,
-        parentName: dummy.parentName,
-        parentPhone: dummy.parentPhone,
-        email: dummy.email,
-        programName: dummy.programName,
-        centerName: dummy.centerName,
-        feePlanId: this.feePlans[0]?.id || '',
-        testScholarshipPct: dummy.testScholarshipPct,
-        scholarshipPct: 0,
-        additionalScholarshipPct: 0,
-      });
+        const d = res?.data || {};
 
-      this.setRegNoLock(true);
-      this.setTestScholarshipLock(true);
-      this.refreshBaseFeeFromPlan();
+        // portal payload has only one mobile: mobileNo
+        const phone = String(d.mobileNo || d.phone || d.mobile || '').trim();
+        const parentName = String(
+          d.fatherName || d.parentName || d.guardianName || ''
+        ).trim();
 
-      this.resetWorkflowFlags();
-      this.step = 1;
+        const portal: PortalStudentResult = {
+          portalStudentId:
+            d.portalStudentId || d.portalStudentID || d.studentId || '',
+          scholarshipTestId: d.testId || d.scholarshipTestId || d._id || '',
 
-      this.loading = false;
-      this.alert.success('Fetched student details (dummy).');
-    }, 300);
+          regNo: d.regNo || d.registrationNumber || regNo,
+          registrationNumber: d.registrationNumber || regNo,
+
+          name:
+            d.name ||
+            d.studentName ||
+            `${d.firstName || ''} ${d.lastName || ''}`.trim(),
+          phone: phone,
+
+          parentName: parentName,
+          parentPhone: String(
+            d.parentPhone || d.parentMobile || phone || ''
+          ).trim(),
+
+          email: d.email || '',
+
+          programName: d.programName || '',
+          programCode: d.programCode || '',
+
+          centerName: d.centerName || '',
+          centerCode: d.centerCode || '',
+          studyCentre: d.studyCentre || '',
+
+          testScholarshipPct:
+            Number(
+              d.waiverPerInTf ?? d.testScholarshipPct ?? d.testScholarship ?? 0
+            ) || 0,
+        };
+
+        this.portal = portal;
+        this.isDirectEnrolment = false;
+        this.admissionId = null;
+
+        this.step1Form.reset();
+        this.step1Form.patchValue(
+          {
+            portalStudentId: portal.portalStudentId || '',
+            scholarshipTestId: portal.scholarshipTestId || '',
+            regNo: portal.regNo || regNo,
+
+            name: portal.name || '',
+            phone: portal.phone || '',
+            parentName: portal.parentName || '',
+            parentPhone: portal.parentPhone || portal.phone || '',
+            email: portal.email || '',
+
+            programName: portal.programName || '',
+            programCode: portal.programCode || '',
+            centerName: portal.centerName || portal.studyCentre || '',
+            centerCode: portal.centerCode || '',
+            studyCentre: portal.studyCentre || '',
+
+            testScholarshipPct: portal.testScholarshipPct || 0,
+            scholarshipPct: 0,
+            additionalScholarshipPct: 0,
+
+            // reset fee plan selection (will be loaded after mapping programId)
+            feePlanId: '',
+            feePlanCode: '',
+            baseFee: 0,
+          },
+          { emitEvent: false }
+        );
+
+        // lock portal-only fields
+        this.setRegNoLock(true);
+        this.setTestScholarshipLock(true);
+
+        // ✅ map programId from portal programCode
+        this.tryMapProgramFromPortal();
+
+        // if program couldn't be mapped, feeplan will load only after user selects program
+        // if program mapped, onProgramChanged triggers loadFeePlans
+
+        this.step = 1;
+        this.resetWorkflowFlags();
+        this.buildEmptyPayments();
+
+        this.alert.success('Fetched student details.');
+      },
+      error: () => {
+        this.loading = false;
+        this.alert.error('Fetch failed');
+      },
+    });
   }
 
   goToLookup(): void {
@@ -289,41 +679,68 @@ export class AdmissionsComponent implements OnInit {
     this.resetWorkflowFlags();
   }
 
-  // ---------- fee math ----------
-  get baseFee(): number {
+  // ---------------------- Fee previews ----------------------
+
+  get selectedPlan(): FeePlan | null {
+    const id = String(this.step1Form.get('feePlanId')?.value || '').trim();
+    return this.feePlans.find((p) => p.id === id) || null;
+  }
+
+  get feeHeadPreview(): Array<{
+    label: string;
+    fee: number;
+    stax: number;
+    total: number;
+    scholBenefits: number;
+  }> {
     const plan = this.selectedPlan;
     const heads = plan?.feeHeads || [];
-    return heads.reduce(
-      (s, h) => s + (Number(h.fee || 0) + Number(h.stax || 0)),
-      0
-    );
-  }
+    const pct = this.totalDiscountPct;
 
-  get testScholarshipPct(): number {
-    return Number(this.step1Form.getRawValue().testScholarshipPct ?? 0) || 0;
-  }
-  
-  get scholarshipPct(): number {
-    return Number(this.step1Form.value.scholarshipPct ?? 0) || 0;
-  }
-  
-  get additionalScholarshipPct(): number {
-    return Number(this.step1Form.value.additionalScholarshipPct ?? 0) || 0;
-  }
+    if (!heads.length) return [];
 
-  get totalDiscountPct(): number {
-    const t =
-      this.testScholarshipPct +
-      this.scholarshipPct +
-      this.additionalScholarshipPct;
-    return Math.max(0, Math.min(100, t));
+    return heads.map((h) => {
+      const fee = Number(h.fee || 0);
+      const stax = Number(h.stax || 0);
+
+      let outFee = fee;
+      let outStax = stax;
+      let schol = 0;
+
+      const key = String(h.key || '')
+        .trim()
+        .toLowerCase();
+      const isTuition =
+        key === 'tuition' ||
+        key === 'tuitionfee' ||
+        key === 'tuition_fee' ||
+        String(h.label || '')
+          .toLowerCase()
+          .includes('tuition');
+
+      if (isTuition && pct > 0) {
+        // Keep same tax ratio
+        const rate = fee > 0 ? stax / fee : 0;
+        outFee = Math.round(fee * (1 - pct / 100));
+        outStax = Math.round(outFee * rate);
+
+        schol = Math.max(0, fee + stax - (outFee + outStax));
+      }
+
+      return {
+        label: h.label,
+        fee: outFee,
+        stax: outStax,
+        total: outFee + outStax,
+        scholBenefits: schol,
+      };
+    });
   }
 
   get finalFee(): number {
     return this.feeHeadPreview.reduce((s, r) => s + Number(r.total || 0), 0);
   }
 
-  // (3) fee split preview for step1 (like image: show split rows)
   get feeSplitPreview(): Array<{
     label: string;
     amount: number;
@@ -351,43 +768,165 @@ export class AdmissionsComponent implements OnInit {
       type: 'NEFT' | 'CHEQUE';
     }> = [];
     rows.push({ label: 'Advance (NEFT)', amount: neftAmt, type: 'NEFT' });
-
-    rest.forEach((amt, idx) => {
-      rows.push({ label: `Cheque ${idx + 1}`, amount: amt, type: 'CHEQUE' });
-    });
-
+    rest.forEach((amt, idx) =>
+      rows.push({ label: `Cheque ${idx + 1}`, amount: amt, type: 'CHEQUE' })
+    );
     return rows;
   }
+
+  private scalePlan(
+    amounts: number[],
+    targetTotal: number,
+    baseTotal: number
+  ): number[] {
+    if (!baseTotal || targetTotal <= 0) return amounts.map(() => 0);
+
+    const raw = amounts.map((a) => Math.floor((a / baseTotal) * targetTotal));
+    let sum = raw.reduce((s, x) => s + x, 0);
+    let diff = targetTotal - sum;
+
+    let idx = raw.length - 1;
+    while (diff > 0 && raw.length) {
+      raw[idx] = raw[idx] + 1;
+      diff--;
+      idx--;
+      if (idx < 0) idx = raw.length - 1;
+    }
+    return raw;
+  }
+
+  // ---------------------- Step 1 actions ----------------------
 
   generateAcknowledgementStep1(): void {
     if (this.step1Form.invalid) {
       this.step1Form.markAllAsTouched();
-      this.alert.error(
-        'Please fill all required student details and select fee plan.'
-      );
+      this.alert.error('Please fill required fields.');
       return;
     }
-    this.alert.success(
-      'Acknowledgement provision: Fee inputs verified (dummy).'
-    );
+    this.alert.success('Acknowledgement (Provision) generated (stub).');
   }
 
   next(): void {
+    this.step1Form.markAllAsTouched();
+
+    if (this.step1Form.invalid) {
+      this.logInvalidStep1Controls();
+      this.alert.error(
+        'Some required fields are missing/invalid. Check console for details.'
+      );
+      return;
+    }
+    // ensure phone -> parentPhone sync before validation
+    const phone = String(this.step1Form.get('phone')?.value || '').trim();
+    if (phone) {
+      this.step1Form.get('parentPhone')?.setValue(phone, { emitEvent: false });
+    }
+
     if (this.step1Form.invalid) {
       this.step1Form.markAllAsTouched();
       this.alert.error('Please correct the student details.');
       return;
     }
-    this.resetWorkflowFlags();
-    this.buildPaymentsFromFinalFee(this.finalFee);
-    this.step = 2;
+
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+
+    const plan = this.selectedPlan;
+    if (!plan) {
+      this.alert.error('Please select a valid fee plan.');
+      return;
+    }
+
+    this.submitting = true;
+
+    const s1 = this.step1Form.getRawValue();
+    const sourceType = s1.portalStudentId ? 'PORTAL' : 'DIRECT';
+
+    const body: any = {
+      entiId: tenantId,
+
+      academicYear: String(s1.academicYear || '2026-2027').trim() || null,
+      sourceType,
+
+      feePlanId: String(s1.feePlanId || '').trim(),
+      feePlanCode: s1.feePlanCode || plan.feePlanCode || '',
+
+      centerName: String(s1.centerName || '').trim(),
+      centerId: s1.centerId || '',
+      centerCode: String(s1.centerCode || '').trim() || null,
+      studyCentre: String(s1.studyCentre || '').trim() || null,
+
+      programName: String(s1.programName || '').trim(),
+      programId: s1.programId || '',
+      programCode: s1.programCode || '',
+
+      registrationNumber: String(s1.regNo || '').trim() || null,
+      portalStudentId: s1.portalStudentId || null,
+      scholarshipTestId: s1.scholarshipTestId || null,
+
+      student: {
+        name: String(s1.name || '').trim(),
+        phone: String(s1.phone || '').trim(),
+        parentName: String(s1.parentName || '').trim(),
+        parentPhone: String(s1.parentPhone || s1.phone || '').trim(),
+        email: String(s1.email || '').trim() || null,
+      },
+
+      fee: {
+        baseFee: Number(s1.baseFee || 0),
+        finalFee: Number(this.finalFee || 0),
+        testScholarshipPct: Number(this.testScholarshipPct || 0),
+        scholarshipPct: Number(this.scholarshipPct || 0),
+        additionalScholarshipPct: Number(this.additionalScholarshipPct || 0),
+        totalDiscountPct: Number(this.totalDiscountPct || 0),
+        breakup: this.feeHeadPreview.map((x) => ({
+          label: x.label,
+          total: x.total,
+          scholBenefits: x.scholBenefits,
+        })),
+      },
+    };
+
+    this.api.fetchData(body, 'admi', 'create').subscribe({
+      next: (res: any) => {
+        this.submitting = false;
+        if (!res?.status) {
+          this.alert.error(
+            res?.message || res?.error || 'Failed to create admission draft'
+          );
+          return;
+        }
+
+        const adm = res?.data || {};
+        this.admissionId =
+          String(adm.admissionId || adm._id || '').trim() || null;
+
+        if (!this.admissionId) {
+          this.alert.error('Draft created but admissionId not returned.');
+          return;
+        }
+
+        this.resetWorkflowFlags();
+        this.buildPaymentsFromFinalFee(this.finalFee);
+        this.step = 2;
+        this.alert.success('Admission draft created. Proceed to payments.');
+      },
+      error: () => {
+        this.submitting = false;
+        this.alert.error('Failed to create admission draft');
+      },
+    });
   }
 
   back(): void {
     this.step = 1;
   }
 
-  // ---------- step2 arrays ----------
+  // ---------------------- Step 2 payments ----------------------
+
   get neftRefsFA(): UntypedFormArray {
     return this.step2Form.get('neftRefs') as UntypedFormArray;
   }
@@ -404,7 +943,6 @@ export class AdmissionsComponent implements OnInit {
       0
     );
   }
-
   get chequeCount(): number {
     return this.chequesFA.length;
   }
@@ -418,7 +956,7 @@ export class AdmissionsComponent implements OnInit {
   addNeftRef(): void {
     this.neftRefsFA.push(
       this.fb.group({
-        utrNo: [
+        utr: [
           '',
           [
             Validators.required,
@@ -428,6 +966,8 @@ export class AdmissionsComponent implements OnInit {
         ],
         amount: [0, [Validators.required, Validators.min(1)]],
         paidOn: [null],
+        bankName: [''],
+        referenceNote: [''],
         remarks: [''],
       })
     );
@@ -438,11 +978,17 @@ export class AdmissionsComponent implements OnInit {
     this.neftRefsFA.removeAt(i);
   }
 
-  // ---------- build payments ----------
+  private buildEmptyPayments(): void {
+    this.step2Form.get('neftAmount')?.setValue(0, { emitEvent: false });
+    this.step2Form.setControl('neftRefs', this.fb.array([]));
+    this.step2Form.setControl('cheques', this.fb.array([]));
+  }
+
   private buildPaymentsFromFinalFee(finalFee: number): void {
     const plan = this.selectedPlan;
     if (!plan?.baseInstalments?.length) {
-      this.alert.error('No fee plan configured.');
+      this.alert.error('Selected fee plan has no instalment structure.');
+      this.buildEmptyPayments();
       return;
     }
 
@@ -461,11 +1007,10 @@ export class AdmissionsComponent implements OnInit {
 
     this.step2Form.get('neftAmount')?.setValue(neftAmt, { emitEvent: false });
 
-    // NEFT refs (min 1)
     const neftFA = this.fb.array([]) as UntypedFormArray;
     neftFA.push(
       this.fb.group({
-        utrNo: [
+        utr: [
           '',
           [
             Validators.required,
@@ -475,16 +1020,13 @@ export class AdmissionsComponent implements OnInit {
         ],
         amount: [0, [Validators.required, Validators.min(1)]],
         paidOn: [null],
+        bankName: [''],
+        referenceNote: [''],
         remarks: [''],
       })
     );
     this.step2Form.setControl('neftRefs', neftFA);
 
-    // (4) Cheque table changes:
-    // - chequeDate default (today) and not editable
-    // - dueDate editable
-    // - favourOf default = ZEDSWEVEN I PRIVATE LIMITED (readonly)
-    // - add chequeNo column
     const today = this.todayISO();
     const chqFA = this.fb.array([]) as UntypedFormArray;
 
@@ -512,44 +1054,28 @@ export class AdmissionsComponent implements OnInit {
           ],
           dueDate: [null, [Validators.required]],
           mode: ['PDC' as ChequeMode, [Validators.required]],
+          bankName: [''],
           remarks: [''],
         })
       );
     }
+
     this.step2Form.setControl('cheques', chqFA);
   }
 
-  private todayISO(): string {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  private scalePlan(
-    amounts: number[],
-    targetTotal: number,
-    baseTotal: number
-  ): number[] {
-    if (!baseTotal || targetTotal <= 0) return amounts.map(() => 0);
-
-    const raw = amounts.map((a) => Math.floor((a / baseTotal) * targetTotal));
-    let sum = raw.reduce((s, x) => s + x, 0);
-    let diff = targetTotal - sum;
-
-    let idx = raw.length - 1;
-    while (diff !== 0 && idx >= 0) {
-      raw[idx] = raw[idx] + 1;
-      diff--;
-      idx--;
-      if (idx < 0) idx = raw.length - 1;
-    }
-    return raw;
-  }
-
-  // ---------- workflow ----------
   submitPayments(): void {
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+    if (!this.admissionId) {
+      this.alert.error(
+        'Admission draft not created. Go back and proceed again.'
+      );
+      return;
+    }
+
     if (this.step2Form.invalid) {
       this.step2Form.markAllAsTouched();
       this.alert.error('Please fill all required NEFT/cheque details.');
@@ -568,14 +1094,64 @@ export class AdmissionsComponent implements OnInit {
       return;
     }
 
-    this.submitting = true;
-    setTimeout(() => {
-      this.submitting = false;
-      this.submittedForAck = true;
-      this.alert.success(
-        'Payment details submitted. Now generate fee calculation.'
+    const neftRefs = (this.neftRefsFA.value || [])
+      .map((r: any) => ({
+        utr: String(r.utr || '').trim(),
+        amount: Number(r.amount || 0),
+        paidOn: r.paidOn || null,
+        bankName: String(r.bankName || '').trim() || null,
+        referenceNote: String(r.referenceNote || '').trim() || null,
+        remarks: String(r.remarks || '').trim() || null,
+      }))
+      .filter((x: any) => !!x.utr && x.amount > 0);
+
+    const cheques = (this.chequesFA.getRawValue() || [])
+      .map((r: any) => ({
+        sno: Number(r.sno || 0) || 0,
+        chequeNo: String(r.chequeNo || '').trim(),
+        chequeDate: r.chequeDate || this.todayISO(),
+        dueDate: r.dueDate || null,
+        favourOf: String(this.DEFAULT_FAVOUR_OF || '').trim(),
+        mode: (r.mode === 'CDC' ? 'CDC' : 'PDC') as ChequeMode,
+        bankName: String(r.bankName || '').trim() || null,
+        amount: Number(r.amount || 0),
+        remarks: String(r.remarks || '').trim() || null,
+      }))
+      .filter(
+        (x: any) =>
+          !!x.chequeNo &&
+          !!x.dueDate &&
+          !!x.favourOf &&
+          (x.mode === 'PDC' || x.mode === 'CDC') &&
+          x.amount > 0
       );
-    }, 300);
+
+    this.submitting = true;
+
+    const body: any = {
+      entiId: tenantId,
+      admissionId: this.admissionId,
+      neftRefs,
+      cheques,
+    };
+
+    this.api.fetchData(body, 'admi', 'payments/save').subscribe({
+      next: (res: any) => {
+        this.submitting = false;
+        if (!res?.status) {
+          this.alert.error(
+            res?.message || res?.error || 'Failed to save payments'
+          );
+          return;
+        }
+        this.submittedForAck = true;
+        this.alert.success('Payment details saved.');
+      },
+      error: () => {
+        this.submitting = false;
+        this.alert.error('Failed to save payments');
+      },
+    });
   }
 
   generateFeeCalculation(): void {
@@ -591,121 +1167,152 @@ export class AdmissionsComponent implements OnInit {
       return;
     }
     this.feeCalcGenerated = true;
-    this.alert.success('Fee calculation generated (dummy).');
+    this.alert.success('Fee calculation generated (stub).');
   }
 
   sendForApproval(): void {
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+    if (!this.admissionId) {
+      this.alert.error('Admission not available.');
+      return;
+    }
+    if (!this.submittedForAck) {
+      this.alert.error('Submit payments first.');
+      return;
+    }
     if (!this.feeCalcGenerated) {
       this.alert.error('Generate fee calculation first.');
       return;
     }
-    this.approvalSent = true;
-    this.alert.success('Sent for approval (dummy).');
+
+    this.submitting = true;
+    const body: any = { entiId: tenantId, admissionId: this.admissionId };
+
+    this.api.fetchData(body, 'admi', 'submit-approval').subscribe({
+      next: (res: any) => {
+        this.submitting = false;
+        if (!res?.status) {
+          this.alert.error(
+            res?.message || res?.error || 'Failed to send for approval'
+          );
+          return;
+        }
+        this.approvalSent = true;
+        this.alert.success('Sent for approval.');
+      },
+      error: () => {
+        this.submitting = false;
+        this.alert.error('Failed to send for approval');
+      },
+    });
   }
 
   confirmAdmission(): void {
-    if (!this.submittedForAck) {
-      this.alert.error('Please submit payment details first.');
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
       return;
     }
-    if (this.step2Form.invalid) {
-      this.step2Form.markAllAsTouched();
-      this.alert.error('Please fill all required payment details.');
+    if (!this.admissionId) {
+      this.alert.error('Admission not available.');
+      return;
+    }
+
+    if (!this.submittedForAck) {
+      this.alert.error('Submit payments first.');
       return;
     }
     if (!this.feeCalcGenerated || !this.approvalSent) {
       this.alert.error(
-        'Please generate fee calculation and send for approval before confirming.'
+        'Generate fee calculation and send for approval before confirming.'
       );
       return;
     }
 
-    const step1 = this.step1Form.getRawValue();
+    this.submitting = true;
+    const body: any = { entiId: tenantId, admissionId: this.admissionId };
 
-    const payload = {
-      student: {
-        portalStudentId: step1.portalStudentId,
-        regNo: step1.regNo,
-        name: step1.name,
-        phone: step1.phone,
-        parentName: step1.parentName,
-        parentPhone: step1.parentPhone,
-        email: step1.email,
+    this.api.fetchData(body, 'admi', 'approve').subscribe({
+      next: (res: any) => {
+        this.submitting = false;
+        if (!res?.status) {
+          this.alert.error(
+            res?.message || res?.error || 'Failed to confirm admission'
+          );
+          return;
+        }
+        this.alert.success('Admission confirmed.');
+        this.router.navigate(['app/admissions/view', this.admissionId]);
       },
-      program: {
-        programName: step1.programName,
-        centerName: step1.centerName,
+      error: () => {
+        this.submitting = false;
+        this.alert.error('Failed to confirm admission');
       },
-      fee: {
-        feePlanId: step1.feePlanId,
-        baseFee: step1.baseFee,
-        testScholarshipPct: step1.testScholarshipPct,
-        scholarshipPct: step1.scholarshipPct,
-        additionalScholarshipPct: step1.additionalScholarshipPct,
-        totalDiscountPct: this.totalDiscountPct,
-        finalFee: this.finalFee,
-      },
-      payments: {
-        neft: {
-          splitAmount: this.neftAmount,
-          refs: this.neftRefsFA.value,
-          totalEntered: this.neftTotalEntered,
-        },
-        cheques: this.chequesFA.getRawValue(),
-      },
-      workflow: {
-        feeCalcGenerated: this.feeCalcGenerated,
-        approvalSent: this.approvalSent,
-      },
-    };
-
-    console.log('ADMISSION PAYLOAD', payload);
-    this.alert.success('Admission completed successfully (dummy).');
-    this.router.navigate(['app/admissions/view/ADM-001']);
-  }
-
-  trackByIndex(i: number): number {
-    return i;
-  }
-
-  get feeHeadPreview(): Array<{
-    label: string;
-    fee: number;
-    stax: number;
-    total: number;
-    scholBenefits: number;
-  }> {
-    const plan = this.selectedPlan;
-    const heads = plan?.feeHeads || [];
-    const pct = this.totalDiscountPct; // your existing combined discount %
-    if (!heads.length) return [];
-
-    return heads.map((h) => {
-      const fee = Number(h.fee || 0);
-      const stax = Number(h.stax || 0);
-
-      // default (no discount)
-      let outFee = fee;
-      let outStax = stax;
-      let schol = 0;
-
-      // ✅ Apply discount ONLY to Tuition Fee
-      if (h.key === 'tuition' && pct > 0) {
-        const rate = fee > 0 ? stax / fee : 0; // keep same tax ratio
-        outFee = Math.round(fee * (1 - pct / 100));
-        outStax = Math.round(outFee * rate);
-        const beforeTotal = fee + stax;
-        const afterTotal = outFee + outStax;
-        schol = Math.max(0, beforeTotal - afterTotal);
-      }
-
-      return {
-        label: h.label,
-        fee: outFee,
-        stax: outStax,
-        total: outFee + outStax,
-        scholBenefits: schol,
-      };
     });
+  }
+
+  get testScholarshipPct(): number {
+    // IMPORTANT: uses getRawValue so it works even if control is disabled
+    const v = Number(this.step1Form.getRawValue().testScholarshipPct ?? 0);
+    return Number.isFinite(v) ? v : 0;
+  }
+
+  get scholarshipPct(): number {
+    const v = Number(this.step1Form.get('scholarshipPct')?.value ?? 0);
+    return Number.isFinite(v) ? v : 0;
+  }
+
+  get additionalScholarshipPct(): number {
+    const v = Number(
+      this.step1Form.get('additionalScholarshipPct')?.value ?? 0
+    );
+    return Number.isFinite(v) ? v : 0;
+  }
+
+  get totalDiscountPct(): number {
+    const t =
+      this.testScholarshipPct +
+      this.scholarshipPct +
+      this.additionalScholarshipPct;
+    return Math.max(0, Math.min(100, t));
+  }
+
+  private logInvalidStep1Controls(): void {
+    const fg = this.step1Form;
+    const invalid: Array<{
+      key: string;
+      errors: any;
+      value: any;
+      disabled: boolean;
+    }> = [];
+
+    Object.keys(fg.controls).forEach((key) => {
+      const c = fg.get(key);
+      if (!c) return;
+      if (c.invalid) {
+        invalid.push({
+          key,
+          errors: c.errors,
+          value: c instanceof Object ? (c as any).value : null,
+          disabled: c.disabled,
+        });
+      }
+    });
+
+    console.log('STEP1 INVALID CONTROLS =>', invalid);
+  }
+
+  // ---------------------- Print stubs ----------------------
+
+  printReportStep1(): void {
+    // stub
+  }
+
+  printPaymentsAck(): void {
+    // stub
   }
 }
