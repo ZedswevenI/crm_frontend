@@ -94,9 +94,13 @@
                                         <div class="fw-semibold">Student Details</div>
                                         <div class="text-muted small">
                                             <span class="me-2">Reg No:</span>
-                                            <span class="fw-medium">{{ step1Form.getRawValue().regNo || '—' }}</span>
+                                            <span class="fw-medium">{{
+                                                step1Form.getRawValue().regNo || '—'
+                                                }}</span>
                                             <button type="button" class="btn btn-link btn-sm ms-2 p-0"
-                                                (click)="goToLookup()">Change</button>
+                                                (click)="goToLookup()">
+                                                Change
+                                            </button>
                                         </div>
                                     </div>
                                     <span class="badge bg-light text-muted">Editable</span>
@@ -112,8 +116,9 @@
                                     <div class="col-md-4">
                                         <formfield label="Mobile No (Student/Parent)" [required]="true"
                                             [control]="step1Form.get('phone')" formControlName="phone"></formfield>
-                                        <div class="text-muted tiny mt-1">Same number will be saved as parent mobile
-                                            too.</div>
+                                        <div class="text-muted tiny mt-1">
+                                            Same number will be saved as parent mobile too.
+                                        </div>
                                     </div>
 
                                     <div class="col-md-4">
@@ -136,23 +141,36 @@
                                             <option value="" disabled>Select program</option>
                                             <option *ngFor="let p of programs" [value]="p.programId">
                                                 {{ p.programName }}
-                                                <ng-container *ngIf="p.programCode"> ({{ p.programCode
-                                                    }})</ng-container>
-                                                <ng-container *ngIf="p.centerName"> — {{ p.centerName }}</ng-container>
+                                                <ng-container *ngIf="p.programCode">
+                                                    ({{ p.programCode }})
+                                                </ng-container>
+                                                <ng-container *ngIf="p.centerName">
+                                                    — {{ p.centerName }}
+                                                </ng-container>
                                             </option>
                                         </select>
 
-                                        <div class="invalid-feedback d-block"
-                                            *ngIf="step1Form.get('programId')?.touched && step1Form.get('programId')?.invalid">
+                                        <div class="invalid-feedback d-block" *ngIf="
+                        step1Form.get('programId')?.touched &&
+                        step1Form.get('programId')?.invalid
+                      ">
                                             Required
                                         </div>
-                                        <div class="text-muted tiny mt-1" *ngIf="programsLoading">Loading programs…
+                                        <div class="text-muted tiny mt-1" *ngIf="programsLoading">
+                                            Loading programs…
                                         </div>
 
                                         <!-- ✅ Helpful to debug programCode mapping -->
                                         <div class="text-muted tiny mt-1" *ngIf="step1Form.getRawValue().programCode">
                                             Program Code: {{ step1Form.getRawValue().programCode }}
                                         </div>
+                                    </div>
+
+                                    <!-- ✅ Academic Year display / edit -->
+                                    <div class="col-md-4">
+                                        <formfield label="Academic Year" [control]="step1Form.get('academicYear')"
+                                            formControlName="academicYear">
+                                        </formfield>
                                     </div>
 
                                     <div class="col-md-4">
@@ -166,21 +184,32 @@
 
                                     <div class="col-md-4">
                                         <label class="form-label">Select Fee Plan</label>
-                                        <select class="form-select" formControlName="feePlanId"
-                                            [disabled]="feePlansLoading || feePlans.length===0 || !step1Form.get('programId')?.value">
+                                        <select class="form-select" formControlName="feePlanId" [disabled]="
+                        feePlansLoading ||
+                        feePlans.length === 0 ||
+                        !step1Form.get('programId')?.value
+                      ">
                                             <option value="" disabled>Select fee plan</option>
-                                            <option *ngFor="let fp of feePlans" [value]="fp.id">{{ fp.name }}</option>
+                                            <option *ngFor="let fp of feePlans" [value]="fp.id">
+                                                {{ fp.name }}
+                                            </option>
                                         </select>
 
-                                        <div class="text-muted tiny mt-1" *ngIf="feePlansLoading">Loading fee plans...
+                                        <div class="text-muted tiny mt-1" *ngIf="feePlansLoading">
+                                            Loading fee plans...
                                         </div>
-                                        <div class="text-muted tiny mt-1"
-                                            *ngIf="!feePlansLoading && step1Form.get('programId')?.value && feePlans.length===0">
+                                        <div class="text-muted tiny mt-1" *ngIf="
+                        !feePlansLoading &&
+                        step1Form.get('programId')?.value &&
+                        feePlans.length === 0
+                      ">
                                             No fee plans found for this program / academic year.
                                         </div>
 
-                                        <div class="invalid-feedback d-block"
-                                            *ngIf="step1Form.get('feePlanId')?.touched && step1Form.get('feePlanId')?.invalid">
+                                        <div class="invalid-feedback d-block" *ngIf="
+                        step1Form.get('feePlanId')?.touched &&
+                        step1Form.get('feePlanId')?.invalid
+                      ">
                                             Required
                                         </div>
                                     </div>
@@ -229,27 +258,39 @@
                                                 <th class="text-end" style="width:160px;">Fee</th>
                                                 <th class="text-end" style="width:160px;">STax</th>
                                                 <th class="text-end" style="width:160px;">Total</th>
-                                                <th class="text-end" style="width:180px;">Schol Benefits</th>
+                                                <th class="text-end" style="width:180px;">
+                                                    Schol Benefits
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr *ngFor="let r of feeHeadPreview">
                                                 <td class="fw-medium">{{ r.label }}</td>
-                                                <td class="text-end">₹{{ r.fee | number:'1.0-0' }}</td>
-                                                <td class="text-end">₹{{ r.stax | number:'1.0-0' }}</td>
-                                                <td class="text-end fw-semibold">₹{{ r.total | number:'1.0-0' }}</td>
+                                                <td class="text-end">
+                                                    ₹{{ r.fee | number: '1.0-0' }}
+                                                </td>
+                                                <td class="text-end">
+                                                    ₹{{ r.stax | number: '1.0-0' }}
+                                                </td>
+                                                <td class="text-end fw-semibold">
+                                                    ₹{{ r.total | number: '1.0-0' }}
+                                                </td>
                                                 <td class="text-end">
                                                     <span *ngIf="r.scholBenefits > 0" class="fw-semibold text-success">
-                                                        ₹{{ r.scholBenefits | number:'1.0-0' }}
+                                                        ₹{{ r.scholBenefits | number: '1.0-0' }}
                                                     </span>
-                                                    <span *ngIf="r.scholBenefits <= 0" class="text-muted">0</span>
+                                                    <span *ngIf="r.scholBenefits <= 0" class="text-muted">
+                                                        0
+                                                    </span>
                                                 </td>
                                             </tr>
                                         </tbody>
                                         <tfoot class="table-light">
                                             <tr>
                                                 <th class="text-end" colspan="3">Grand Total</th>
-                                                <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
+                                                <th class="text-end fw-bold">
+                                                    ₹{{ finalFee | number: '1.0-0' }}
+                                                </th>
                                                 <th></th>
                                             </tr>
                                         </tfoot>
@@ -264,29 +305,36 @@
                                 <div class="fw-semibold mb-2">Scholarships</div>
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label small text-muted">Scholarship (%)</label>
+                                        <label class="form-label small text-muted">
+                                            Scholarship (%)
+                                        </label>
                                         <select class="form-select" formControlName="scholarshipPct">
-                                            <option *ngFor="let d of discountOptions" [value]="d">{{ d }}%</option>
+                                            <option *ngFor="let d of discountOptions" [value]="d">
+                                                {{ d }}%
+                                            </option>
                                         </select>
                                     </div>
 
                                     <div class="col-md-3">
-                                        <label class="form-label small text-muted">Additional Scholarship (%)</label>
+                                        <label class="form-label small text-muted">
+                                            Additional Scholarship (%)
+                                        </label>
                                         <select class="form-select" formControlName="additionalScholarshipPct">
-                                            <option *ngFor="let d of discountOptions" [value]="d">{{ d }}%</option>
+                                            <option *ngFor="let d of discountOptions" [value]="d">
+                                                {{ d }}%
+                                            </option>
                                         </select>
                                     </div>
 
                                     <div class="col-md-6 d-flex align-items-end">
                                         <div class="alert alert-light small mb-0 w-100">
-                                            Final Fee = Base Fee - (Test Scholarship + Scholarship + Additional
-                                            Scholarship). Total discount capped at 100%.
+                                            Final Fee = Base Fee - (Test Scholarship + Scholarship +
+                                            Additional Scholarship). Total discount capped at 100%.
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-3">
@@ -317,7 +365,7 @@
                             <div>
                                 <div class="fw-semibold">Advance Payment (NEFT)</div>
                                 <div class="text-muted small">
-                                    One NEFT split: <b>₹{{ neftAmount | number:'1.0-0' }}</b> — add one or more refs
+                                    One NEFT split: <b>₹{{ neftAmount | number: '1.0-0' }}</b> — add one or more refs
                                     (total must not exceed split).
                                 </div>
                             </div>
@@ -346,17 +394,19 @@
                                         <td class="fw-semibold">{{ i + 1 }}</td>
 
                                         <td>
-                                            <!-- ✅ changed utrNo -> utr -->
+                                            <!-- ✅ utr -->
                                             <input class="form-control form-control-sm" placeholder="UTR Number"
-                                                formControlName="utr"
-                                                [class.is-invalid]="r.get('utr')?.touched && r.get('utr')?.invalid" />
+                                                formControlName="utr" [class.is-invalid]="
+                          r.get('utr')?.touched && r.get('utr')?.invalid
+                        " />
                                             <div class="invalid-feedback">Required</div>
                                         </td>
 
                                         <td>
                                             <input class="form-control form-control-sm" type="number"
-                                                placeholder="Amount" formControlName="amount"
-                                                [class.is-invalid]="r.get('amount')?.touched && r.get('amount')?.invalid" />
+                                                placeholder="Amount" formControlName="amount" [class.is-invalid]="
+                          r.get('amount')?.touched && r.get('amount')?.invalid
+                        " />
                                             <div class="invalid-feedback">Required</div>
                                         </td>
 
@@ -383,9 +433,10 @@
                                     <tr>
                                         <th colspan="2" class="text-end">Total Entered</th>
                                         <th colspan="4" class="fw-bold">
-                                            ₹{{ neftTotalEntered | number:'1.0-0' }}
-                                            <span class="text-muted ms-2">(Max: ₹{{ neftAmount | number:'1.0-0'
-                                                }})</span>
+                                            ₹{{ neftTotalEntered | number: '1.0-0' }}
+                                            <span class="text-muted ms-2">
+                                                (Max: ₹{{ neftAmount | number: '1.0-0' }})
+                                            </span>
                                         </th>
                                     </tr>
                                 </tfoot>
@@ -402,7 +453,9 @@
                                     Cheque Date is default; only Due Date should be entered. Payee is fixed.
                                 </div>
                             </div>
-                            <span class="badge bg-secondary-subtle text-secondary">Cheques</span>
+                            <span class="badge bg-secondary-subtle text-secondary">
+                                Cheques
+                            </span>
                         </div>
 
                         <div class="table-responsive mt-2">
@@ -427,12 +480,11 @@
 
                                         <td>
                                             <input class="form-control form-control-sm" type="date"
-                                                formControlName="chequeDate" [disabled]="true" />
+                                                formControlName="chequeDate" />
                                         </td>
 
                                         <td>
-                                            <input class="form-control form-control-sm" formControlName="favourOf"
-                                                [disabled]="true" />
+                                            <input class="form-control form-control-sm" formControlName="favourOf" />
                                         </td>
 
                                         <td>
@@ -442,15 +494,19 @@
 
                                         <td>
                                             <input class="form-control form-control-sm" placeholder="Cheque Number"
-                                                formControlName="chequeNo"
-                                                [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
+                                                formControlName="chequeNo" [class.is-invalid]="
+                          row.get('chequeNo')?.touched &&
+                          row.get('chequeNo')?.invalid
+                        " />
                                             <div class="invalid-feedback">Required</div>
                                         </td>
 
                                         <td>
                                             <input class="form-control form-control-sm" type="date"
-                                                formControlName="dueDate"
-                                                [class.is-invalid]="row.get('dueDate')?.touched && row.get('dueDate')?.invalid" />
+                                                formControlName="dueDate" [class.is-invalid]="
+                          row.get('dueDate')?.touched &&
+                          row.get('dueDate')?.invalid
+                        " />
                                             <div class="invalid-feedback">Required</div>
                                         </td>
 
@@ -472,7 +528,9 @@
                                     <tr>
                                         <th colspan="2" class="text-end">Total Cheques</th>
                                         <th class="fw-bold">{{ chequeCount }}</th>
-                                        <th colspan="5" class="fw-bold">Amount: ₹{{ chequeTotal | number:'1.0-0' }}</th>
+                                        <th colspan="5" class="fw-bold">
+                                            Amount: ₹{{ chequeTotal | number: '1.0-0' }}
+                                        </th>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -518,14 +576,16 @@
 
                     <div class="small text-muted mt-2">
                         Status:
-                        <span class="badge bg-light text-muted">Submit: {{ submittedForAck ? 'Done' : 'Pending'
-                            }}</span>
-                        <span class="badge bg-light text-muted ms-1">Fee Calc: {{ feeCalcGenerated ? 'Generated' :
-                            'Pending' }}</span>
-                        <span class="badge bg-light text-muted ms-1">Approval: {{ approvalSent ? 'Sent' : 'Pending'
-                            }}</span>
+                        <span class="badge bg-light text-muted">
+                            Submit: {{ submittedForAck ? 'Done' : 'Pending' }}
+                        </span>
+                        <span class="badge bg-light text-muted ms-1">
+                            Fee Calc: {{ feeCalcGenerated ? 'Generated' : 'Pending' }}
+                        </span>
+                        <span class="badge bg-light text-muted ms-1">
+                            Approval: {{ approvalSent ? 'Sent' : 'Pending' }}
+                        </span>
                     </div>
-
                 </form>
             </ng-container>
         </div>

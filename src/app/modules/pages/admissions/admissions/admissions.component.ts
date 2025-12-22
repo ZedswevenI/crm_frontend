@@ -35,6 +35,7 @@ interface PortalStudentResult {
   testScholarshipPct?: number; // waiverPerInTf
 
   scholarshipTestId?: string;
+  academicYear?: string; // ✅ new
 }
 
 interface ProgramItem {
@@ -48,14 +49,22 @@ interface ProgramItem {
 interface FeePlan {
   id: string;
   name: string;
-  baseInstalments: number[];
+  feePlanCode?: string;
+
+  // instalments coming from backend: feePlan.instalments[]
+  instalments: Array<{
+    seq: number;
+    label: string;
+    amount: number;
+  }>;
+
+  // fee heads from backend: feePlan.feeHeads[]
   feeHeads: Array<{
     key: string;
     label: string;
-    fee: number;
-    stax: number;
+    fee: number; // base amount
+    stax: number; // GST amount
   }>;
-  feePlanCode?: string;
 }
 
 @Component({
@@ -96,6 +105,7 @@ export class AdmissionsComponent implements OnInit {
   // admission state
   admissionId: string | null = null;
 
+  // ✅ favour of fixed as requested
   readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
 
   constructor(
@@ -296,7 +306,27 @@ export class AdmissionsComponent implements OnInit {
     const match =
       this.programs.find((p) => String(p.programCode || '').trim() === code) ||
       null;
-    if (!match) return;
+
+    // ✅ If program from portal is not created, hard-stop with alert and send back to step 0
+    if (!match) {
+      this.alert.error(
+        'Program is not created. Please create the program and retry.'
+      );
+
+      this.step1Form.patchValue(
+        {
+          programId: '',
+          programName: '',
+          programCode: this.portal.programCode || '',
+          centerId: '',
+          centerName: '',
+        },
+        { emitEvent: false }
+      );
+
+      this.step = 0;
+      return;
+    }
 
     // patch programId -> triggers onProgramChanged -> loadFeePlans
     this.step1Form.patchValue(
@@ -376,22 +406,30 @@ export class AdmissionsComponent implements OnInit {
           .map((x: any) => ({
             id: String(x.feePlanId || x.id || x._id || '').trim(),
             name: String(
-              x.feePlanCode || x.feePlanName || x.name || 'Fee Plan'
+              x.feePlanName || x.feePlanCode || x.name || 'Fee Plan'
             ).trim(),
             feePlanCode: x.feePlanCode ? String(x.feePlanCode).trim() : '',
-            baseInstalments: Array.isArray(x.baseInstalments)
-              ? x.baseInstalments.map((n: any) => Number(n) || 0)
+
+            // ✅ map instalments correctly from backend
+            instalments: Array.isArray(x.instalments)
+              ? x.instalments.map((i: any) => ({
+                  seq: Number(i.seq || 0) || 0,
+                  label: String(i.label || `Instalment ${i.seq || ''}`).trim(),
+                  amount: Number(i.amount || 0) || 0,
+                }))
               : [],
+
+            // ✅ map fee heads: amount + gstAmount
             feeHeads: Array.isArray(x.feeHeads)
               ? x.feeHeads.map((h: any) => ({
                   key: String(h.key || h.feeHeadKey || '').trim(),
                   label: String(h.label || h.feeHeadName || '').trim(),
-                  fee: Number(h.fee || h.amount || 0),
-                  stax: Number(h.stax || h.tax || 0),
+                  fee: Number(h.amount || 0), // base
+                  stax: Number(h.gstAmount || 0), // GST
                 }))
               : [],
           }))
-          .filter((fp: any) => !!fp.id);
+          .filter((fp: FeePlan) => !!fp.id);
 
         // auto pick first if nothing selected
         const cur = String(this.step1Form.get('feePlanId')?.value || '').trim();
@@ -532,6 +570,7 @@ export class AdmissionsComponent implements OnInit {
       studyCentre: '',
       feePlanId: '',
       feePlanCode: '',
+      academicYear: '',
     });
 
     this.setRegNoLock(false);
@@ -581,6 +620,9 @@ export class AdmissionsComponent implements OnInit {
         const parentName = String(
           d.fatherName || d.parentName || d.guardianName || ''
         ).trim();
+        const academicYear = String(
+          d.academicYear || d.academic_year || ''
+        ).trim();
 
         const portal: PortalStudentResult = {
           portalStudentId:
@@ -614,6 +656,8 @@ export class AdmissionsComponent implements OnInit {
             Number(
               d.waiverPerInTf ?? d.testScholarshipPct ?? d.testScholarship ?? 0
             ) || 0,
+
+          academicYear: academicYear || '',
         };
 
         this.portal = portal;
@@ -639,6 +683,8 @@ export class AdmissionsComponent implements OnInit {
             centerCode: portal.centerCode || '',
             studyCentre: portal.studyCentre || '',
 
+            academicYear: portal.academicYear || '',
+
             testScholarshipPct: portal.testScholarshipPct || 0,
             scholarshipPct: 0,
             additionalScholarshipPct: 0,
@@ -657,9 +703,6 @@ export class AdmissionsComponent implements OnInit {
 
         // ✅ map programId from portal programCode
         this.tryMapProgramFromPortal();
-
-        // if program couldn't be mapped, feeplan will load only after user selects program
-        // if program mapped, onProgramChanged triggers loadFeePlans
 
         this.step = 1;
         this.resetWorkflowFlags();
@@ -747,30 +790,42 @@ export class AdmissionsComponent implements OnInit {
     type: 'NEFT' | 'CHEQUE';
   }> {
     const plan = this.selectedPlan;
-    if (!plan?.baseInstalments?.length) return [];
+    const instals = plan?.instalments || [];
+    if (!instals.length) return [];
 
-    const baseTotal = plan.baseInstalments.reduce(
-      (s, x) => s + (Number(x) || 0),
+    // base instalment amounts from backend
+    const baseAmounts = instals.map((i) => Number(i.amount) || 0);
+    const baseTotal = baseAmounts.reduce(
+      (s: number, x: number) => s + (Number(x) || 0),
       0
     );
-    const scaled = this.scalePlan(
-      plan.baseInstalments.map((x) => Number(x) || 0),
-      this.finalFee,
-      baseTotal
-    );
 
-    const neftAmt = (scaled[0] || 0) + (scaled[1] || 0);
-    const rest = scaled.slice(2);
+    const scaled = this.scalePlan(baseAmounts, this.finalFee, baseTotal);
 
     const rows: Array<{
       label: string;
       amount: number;
       type: 'NEFT' | 'CHEQUE';
     }> = [];
-    rows.push({ label: 'Advance (NEFT)', amount: neftAmt, type: 'NEFT' });
-    rest.forEach((amt, idx) =>
-      rows.push({ label: `Cheque ${idx + 1}`, amount: amt, type: 'CHEQUE' })
-    );
+
+    // 1st instalment → NEFT
+    if (scaled.length) {
+      rows.push({
+        label: instals[0]?.label || 'Advance (NEFT)',
+        amount: scaled[0] || 0,
+        type: 'NEFT',
+      });
+    }
+
+    // Remaining instalments → Cheques
+    for (let i = 1; i < scaled.length; i++) {
+      rows.push({
+        label: instals[i]?.label || `Cheque ${i}`,
+        amount: scaled[i] || 0,
+        type: 'CHEQUE',
+      });
+    }
+
     return rows;
   }
 
@@ -848,7 +903,8 @@ export class AdmissionsComponent implements OnInit {
     const body: any = {
       entiId: tenantId,
 
-      academicYear: String(s1.academicYear || '2026-2027').trim() || null,
+      // ✅ no hard-coded default academic year
+      academicYear: String(s1.academicYear || '').trim() || null,
       sourceType,
 
       feePlanId: String(s1.feePlanId || '').trim(),
@@ -986,27 +1042,32 @@ export class AdmissionsComponent implements OnInit {
 
   private buildPaymentsFromFinalFee(finalFee: number): void {
     const plan = this.selectedPlan;
-    if (!plan?.baseInstalments?.length) {
+
+    // ✅ get base instalment amounts from backend instalments
+    const baseAmounts = (plan?.instalments || []).map(
+      (i) => Number(i.amount) || 0
+    );
+
+    if (!baseAmounts.length) {
       this.alert.error('Selected fee plan has no instalment structure.');
       this.buildEmptyPayments();
       return;
     }
 
-    const baseTotal = plan.baseInstalments.reduce(
-      (s, x) => s + (Number(x) || 0),
+    const baseTotal = baseAmounts.reduce(
+      (s: number, x: number) => s + (Number(x) || 0),
       0
     );
-    const scaled = this.scalePlan(
-      plan.baseInstalments.map((x) => Number(x) || 0),
-      finalFee,
-      baseTotal
-    );
+    const scaled = this.scalePlan(baseAmounts, finalFee, baseTotal);
 
-    const neftAmt = (scaled[0] || 0) + (scaled[1] || 0);
-    const chequeAmounts = scaled.slice(2);
+    // ✅ your requirement: 1 NEFT + remaining as PDC
+    const neftAmt = scaled[0] || 0;
+    const chequeAmounts = scaled.slice(1); // 2nd..nth instalments
 
+    // Set NEFT split
     this.step2Form.get('neftAmount')?.setValue(neftAmt, { emitEvent: false });
 
+    // NEFT refs (1 row by default, user can add more)
     const neftFA = this.fb.array([]) as UntypedFormArray;
     neftFA.push(
       this.fb.group({
@@ -1018,7 +1079,7 @@ export class AdmissionsComponent implements OnInit {
             Validators.maxLength(40),
           ],
         ],
-        amount: [0, [Validators.required, Validators.min(1)]],
+        amount: [neftAmt, [Validators.required, Validators.min(1)]],
         paidOn: [null],
         bankName: [''],
         referenceNote: [''],
@@ -1027,11 +1088,12 @@ export class AdmissionsComponent implements OnInit {
     );
     this.step2Form.setControl('neftRefs', neftFA);
 
+    // Cheque rows (PDC/CDC) – one per remaining instalment
     const today = this.todayISO();
     const chqFA = this.fb.array([]) as UntypedFormArray;
 
-    for (let i = 0; i < chequeAmounts.length; i++) {
-      const sno = i + 1;
+    chequeAmounts.forEach((amt, idx) => {
+      const sno = idx + 1;
       chqFA.push(
         this.fb.group({
           sno: [sno],
@@ -1041,7 +1103,7 @@ export class AdmissionsComponent implements OnInit {
             [Validators.required],
           ],
           amount: [
-            { value: chequeAmounts[i], disabled: true },
+            { value: amt, disabled: true },
             [Validators.required, Validators.min(1)],
           ],
           chequeNo: [
@@ -1058,7 +1120,7 @@ export class AdmissionsComponent implements OnInit {
           remarks: [''],
         })
       );
-    }
+    });
 
     this.step2Form.setControl('cheques', chqFA);
   }
@@ -1090,6 +1152,16 @@ export class AdmissionsComponent implements OnInit {
     if (entered > this.neftAmount) {
       this.alert.error(
         `NEFT total (₹${entered}) cannot exceed NEFT split (₹${this.neftAmount}).`
+      );
+      return;
+    }
+
+    // ✅ Ensure NEFT + cheques total equals final fee
+    const totalPaid = entered + this.chequeTotal;
+    const totalDue = Math.round(this.finalFee || 0);
+    if (totalDue > 0 && Math.round(totalPaid) !== totalDue) {
+      this.alert.error(
+        `Total of NEFT and cheques (₹${totalPaid}) must match final fee (₹${totalDue}).`
       );
       return;
     }

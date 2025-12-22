@@ -1,5 +1,4 @@
 <div class="admission-view-page">
-
     <div class="card shadow-sm border-0 mb-3">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-start flex-wrap gap-2">
             <div>
@@ -8,10 +7,10 @@
                     Admission ID: <b>{{ admissionId }}</b>
                     <span class="mx-2">•</span>
                     Status:
-                    <span class="badge" [class.bg-success]="admission.status==='confirmed'"
-                        [class.bg-warning]="admission.status==='submitted'"
-                        [class.bg-secondary]="admission.status==='draft'"
-                        [class.bg-danger]="admission.status==='cancelled'">
+                    <span class="badge" [class.bg-success]="admission.status === 'confirmed'"
+                        [class.bg-warning]="admission.status === 'submitted'"
+                        [class.bg-secondary]="admission.status === 'draft'"
+                        [class.bg-danger]="admission.status === 'cancelled'">
                         {{ admission.status || '—' }}
                     </span>
                 </div>
@@ -34,7 +33,6 @@
         </div>
 
         <div class="card-body" *ngIf="!loading; else loadingTpl">
-
             <!-- Student + Academic mapping -->
             <div class="row g-3">
                 <div class="col-lg-6">
@@ -67,7 +65,6 @@
                                 <div class="value">{{ admission.student.parentPhone }}</div>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
@@ -93,7 +90,6 @@
                                 <div class="value">{{ admission.academics.className || '—' }}</div>
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -122,9 +118,9 @@
                     <div class="col-md-2">
                         <div class="label">Result</div>
                         <div class="value">
-                            <span class="badge" [class.bg-success]="admission.test.result==='pass'"
-                                [class.bg-danger]="admission.test.result==='fail'"
-                                [class.bg-secondary]="!admission.test.result || admission.test.result==='pending'">
+                            <span class="badge" [class.bg-success]="admission.test.result === 'pass'"
+                                [class.bg-danger]="admission.test.result === 'fail'"
+                                [class.bg-secondary]="!admission.test.result || admission.test.result === 'pending'">
                                 {{ admission.test.result || 'pending' }}
                             </span>
                         </div>
@@ -136,7 +132,7 @@
                 </div>
             </div>
 
-            <!-- Fee plan & fee heads -->
+            <!-- Fee plan & breakup -->
             <div class="border rounded-3 p-3 mt-3">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                     <div>
@@ -146,13 +142,20 @@
                             <span class="mx-2">•</span>
                             {{ admission.fee.feePlanName }}
                             <span class="mx-2">•</span>
-                            Discount (only Tuition Fee): <b>{{ admission.fee.discountPctTotal }}%</b>
+                            Base Fee:
+                            <b>₹{{ admission.fee.baseFee | number: '1.0-0' }}</b>
+                            <span class="mx-2">•</span>
+                            Total Scholarship:
+                            <b>{{ admission.fee.totalDiscountPct }}%</b>
+                            <span class="mx-2">•</span>
+                            (Test: {{ admission.fee.testScholarshipPct }}%,
+                            Additional: {{ admission.fee.additionalScholarshipPct }}%)
                         </div>
                     </div>
 
                     <div class="text-end">
                         <div class="text-muted small">Final Fee</div>
-                        <div class="fs-5 fw-bold text-saffron">₹{{ finalFee | number:'1.0-0' }}</div>
+                        <div class="fs-5 fw-bold text-saffron">₹{{ finalFee | number: '1.0-0' }}</div>
                     </div>
                 </div>
 
@@ -161,21 +164,17 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Fee Head</th>
-                                <th class="text-end" style="width:160px;">Fee</th>
-                                <th class="text-end" style="width:160px;">STax</th>
-                                <th class="text-end" style="width:160px;">Total</th>
-                                <th class="text-end" style="width:180px;">Schol Benefits</th>
+                                <th class="text-end" style="width:160px;">Amount</th>
+                                <th class="text-end" style="width:200px;">Schol Benefits</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr *ngFor="let r of feeHeadPreview">
                                 <td class="fw-medium">{{ r.label }}</td>
-                                <td class="text-end">₹{{ r.fee | number:'1.0-0' }}</td>
-                                <td class="text-end">₹{{ r.stax | number:'1.0-0' }}</td>
-                                <td class="text-end fw-semibold">₹{{ r.total | number:'1.0-0' }}</td>
+                                <td class="text-end">₹{{ r.total | number: '1.0-0' }}</td>
                                 <td class="text-end">
                                     <span *ngIf="r.scholBenefits > 0" class="fw-semibold text-success">
-                                        ₹{{ r.scholBenefits | number:'1.0-0' }}
+                                        ₹{{ r.scholBenefits | number: '1.0-0' }}
                                     </span>
                                     <span *ngIf="r.scholBenefits <= 0" class="text-muted">0</span>
                                 </td>
@@ -183,8 +182,8 @@
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
-                                <th class="text-end" colspan="3">Grand Total</th>
-                                <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
+                                <th class="text-end">Grand Total</th>
+                                <th class="text-end fw-bold">₹{{ finalFee | number: '1.0-0' }}</th>
                                 <th></th>
                             </tr>
                         </tfoot>
@@ -200,12 +199,17 @@
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <div class="fw-semibold">NEFT</div>
-                                <div class="text-muted small">Split Amount: <b>₹{{ admission.payments.neftSplitAmount |
-                                        number:'1.0-0' }}</b></div>
+                                <div class="text-muted small">
+                                    Split Amount:
+                                    <b>₹{{ admission.payments.neftSplitAmount | number: '1.0-0' }}</b>
+                                    <span class="mx-1">•</span>
+                                    Total Entered:
+                                    <b>₹{{ admission.payments.neftTotalEntered | number: '1.0-0' }}</b>
+                                </div>
                             </div>
                             <div class="text-end">
-                                <div class="text-muted small">Total Paid</div>
-                                <div class="fw-bold">₹{{ neftTotal | number:'1.0-0' }}</div>
+                                <div class="text-muted small">Total Paid (from NEFT)</div>
+                                <div class="fw-bold">₹{{ neftTotal | number: '1.0-0' }}</div>
                             </div>
                         </div>
 
@@ -224,14 +228,16 @@
                                     <tr *ngFor="let n of admission.payments.neftRefs; let i = index">
                                         <td class="fw-semibold">{{ i + 1 }}</td>
                                         <td>{{ n.utrNo }}</td>
-                                        <td class="text-end">₹{{ n.amount | number:'1.0-0' }}</td>
+                                        <td class="text-end">₹{{ n.amount | number: '1.0-0' }}</td>
                                         <td>{{ n.paidOn || '—' }}</td>
                                         <td>{{ n.remarks || '—' }}</td>
+                                    </tr>
+                                    <tr *ngIf="!admission.payments.neftRefs.length">
+                                        <td colspan="5" class="text-center text-muted small">No NEFT entries</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
-
                     </div>
                 </div>
 
@@ -242,12 +248,22 @@
                             <div>
                                 <div class="fw-semibold">PDC / CDC</div>
                                 <div class="text-muted small">
-                                    Total Cheques: <b>{{ chequeCount }}</b>
+                                    Total Cheques:
+                                    <b>{{ chequeCount }}</b>
+                                    <span class="mx-1">•</span>
+                                    Pending:
+                                    <b>{{ admission.payments.chequeSummary.pendingCount }}</b>
+                                    <span class="mx-1">•</span>
+                                    Cleared:
+                                    <b>{{ admission.payments.chequeSummary.clearedCount }}</b>
+                                    <span class="mx-1">•</span>
+                                    Bounced:
+                                    <b>{{ admission.payments.chequeSummary.bouncedCount }}</b>
                                 </div>
                             </div>
                             <div class="text-end">
                                 <div class="text-muted small">Total Amount</div>
-                                <div class="fw-bold">₹{{ chequeTotal | number:'1.0-0' }}</div>
+                                <div class="fw-bold">₹{{ chequeTotal | number: '1.0-0' }}</div>
                             </div>
                         </div>
 
@@ -268,30 +284,31 @@
                                 <tbody>
                                     <tr *ngFor="let c of admission.payments.cheques">
                                         <td class="fw-semibold">{{ c.sno }}</td>
-                                        <td>{{ c.chequeDate }}</td>
-                                        <td>{{ c.dueDate }}</td>
-                                        <td>{{ c.favourOf }}</td>
-                                        <td class="text-end">₹{{ c.amount | number:'1.0-0' }}</td>
-                                        <td>{{ c.chequeNo }}</td>
-                                        <td>{{ c.mode }}</td>
+                                        <td>{{ c.chequeDate || '—' }}</td>
+                                        <td>{{ c.dueDate || '—' }}</td>
+                                        <td>{{ c.favourOf || '—' }}</td>
+                                        <td class="text-end">₹{{ c.amount | number: '1.0-0' }}</td>
+                                        <td>{{ c.chequeNo || '—' }}</td>
+                                        <td>{{ c.mode || '—' }}</td>
                                         <td>
-                                            <span class="badge" [class.bg-secondary]="c.status==='pending'"
-                                                [class.bg-info]="c.status==='deposited'"
-                                                [class.bg-success]="c.status==='cleared'"
-                                                [class.bg-danger]="c.status==='bounced'"
-                                                [class.bg-warning]="c.status==='cancelled'">
+                                            <span class="badge" [class.bg-secondary]="c.status === 'pending'"
+                                                [class.bg-info]="c.status === 'deposited'"
+                                                [class.bg-success]="c.status === 'cleared'"
+                                                [class.bg-danger]="c.status === 'bounced'"
+                                                [class.bg-warning]="c.status === 'cancelled'">
                                                 {{ c.status }}
                                             </span>
                                         </td>
                                     </tr>
+                                    <tr *ngIf="!admission.payments.cheques.length">
+                                        <td colspan="8" class="text-center text-muted small">No cheque entries</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
-
                     </div>
                 </div>
             </div>
-
         </div>
 
         <ng-template #loadingTpl>
@@ -299,6 +316,5 @@
                 <div class="text-muted small">Loading admission…</div>
             </div>
         </ng-template>
-
     </div>
 </div>

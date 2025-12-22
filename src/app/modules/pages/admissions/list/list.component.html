@@ -17,7 +17,30 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="admissions" [actions]="actions">
+
+            <!-- 🔍 Search by Reg No (query -> registrationNumber) -->
+            <div class="row g-2 mb-2">
+                <div class="col-12 col-sm-6 col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input #regInput type="text" class="form-control" placeholder="Search by Registration No"
+                            [value]="searchRegNo" (keyup.enter)="onSearch(regInput.value)" />
+                        <button class="btn btn-outline-secondary" type="button" (click)="onSearch(regInput.value)">
+                            Search
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" *ngIf="searchRegNo"
+                            (click)="clearSearch(regInput)">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- List Table -->
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="admissions" [actions]="actions"
+                [loading]="loading">
             </list-table>
         </div>
     </div>
