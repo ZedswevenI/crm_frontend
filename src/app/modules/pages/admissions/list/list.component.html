@@ -1,5 +1,4 @@
 <div class="admission-page">
-
     <!-- List Card (Batch Master style) -->
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
@@ -17,7 +16,6 @@
         </div>
 
         <div class="card-body pt-0">
-
             <!-- 🔍 Search by Reg No (query -> registrationNumber) -->
             <div class="row g-2 mb-2">
                 <div class="col-12 col-sm-6 col-md-4">
@@ -38,11 +36,32 @@
                 </div>
             </div>
 
+            <!-- <div class="row g-2 mb-2">
+                <div class="col-12 col-sm-6 col-md-4">
+                    <div class="position-relative app-table-search">
+
+            <img src="assets/icons/searchicon.svg" alt="search" width="20" height="20"
+                class="position-absolute app-table-search-icon" />
+
+
+            <input #regInput type="text" class="form-control app-table-search-input"
+                placeholder="Search by Registration No..." [value]="searchRegNo" [disabled]="loading"
+                (keyup.enter)="onSearch(regInput.value)" />
+
+
+            <button *ngIf="searchRegNo" type="button"
+                class="btn btn-link position-absolute app-table-search-clear text-muted px-0"
+                (click)="clearSearch(regInput)" aria-label="Clear search">
+                <i class="fa fa-clear"></i>
+            </button>
+        </div>
+    </div>
+</div> -->
+
             <!-- List Table -->
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="admissions" [actions]="actions"
-                [loading]="loading">
+            <list-table [autoFitChars]="true" [showsearch]="false" [columns]="columns" [data]="admissions"
+                [actions]="actions" [loading]="loading">
             </list-table>
         </div>
     </div>
-
 </div>

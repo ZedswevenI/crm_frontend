@@ -1,0 +1,25 @@
+.app-table-search {
+  min-height: 2.4rem;
+}
+
+.app-table-search-input {
+  padding-left: 2.2rem; // space for icon
+  padding-right: 2rem; // space for clear button
+  border-radius: 999px; // pill shape
+  font-size: 0.875rem;
+}
+
+.app-table-search-icon {
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.app-table-search-clear {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+}

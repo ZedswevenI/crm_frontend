@@ -18,6 +18,12 @@
                 <span class="step-pill" [class.active]="step === 2">2</span>
             </div>
         </div>
+        <div *ngIf="(alert$ | async) as msg" class="alert alert-{{ msg.type }} alert-dismissible fade show mb-3"
+            role="alert">
+            {{ msg.text }}
+            <button type="button" class="btn-close" aria-label="Close" (click)="clearAlert()"></button>
+        </div>
+
 
         <div class="card-body pt-2">
             <!-- STEP 0 -->
@@ -26,16 +32,12 @@
                     <div class="col-lg-7">
                         <div class="border rounded-3 p-3">
                             <div class="fw-semibold mb-1">Choose how you want to enrol the student</div>
-                            <div class="text-muted small mb-3">
-                                <b>Option A:</b> Fetch from portal using Enrolment / Reg No<br />
-                                <b>Option B:</b> Direct enrolment (enter student details manually)
-                            </div>
 
                             <!-- OPTION A: FETCH -->
                             <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
-                                <div class="fw-semibold">Option A — Fetch from Portal</div>
+                                <div class="fw-semibold">For People Who Completed Scholarship Completed</div>
                                 <div class="text-muted small mb-2">
-                                    If you have the Enrolment/Reg No, you can fetch and auto-fill details.
+                                    You Need to have the Enrolment/Reg No, to proceed with the admission.
                                 </div>
 
                                 <form [formGroup]="lookupForm" (ngSubmit)="fetchByRegNo()">
@@ -48,9 +50,10 @@
                                         </div>
 
                                         <div class="col-md-5">
-                                            <button class="btn btn-saffron w-100" type="submit" [disabled]="loading">
+                                            <button class="btn btn-saffron w-100 mb-4" type="submit"
+                                                [disabled]="loading">
                                                 <i class="fa-solid fa-cloud-arrow-down me-1"></i>
-                                                Fetch & Continue
+                                                Get Registration Info
                                             </button>
                                         </div>
                                     </div>
@@ -59,9 +62,9 @@
 
                             <!-- OPTION B: DIRECT -->
                             <div class="border rounded-3 p-3">
-                                <div class="fw-semibold">Option B — Direct Enrolment</div>
+                                <div class="fw-semibold">Direct Enrolment</div>
                                 <div class="text-muted small mb-2">
-                                    If you don’t have an enrolment number, proceed to Step 1 and enter details manually.
+                                    If you don’t have an enrolment number.
                                 </div>
 
                                 <button class="btn btn-outline-primary w-100" type="button"
@@ -246,7 +249,7 @@
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-secondary"
                                         (click)="printReportStep1()">
-                                        Print Report
+                                        Print Fee Calculcation Sheet
                                     </button>
                                 </div>
 
@@ -337,17 +340,39 @@
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-end gap-2 mt-3">
-                        <button class="btn btn-outline-primary" type="button" (click)="generateAcknowledgementStep1()">
-                            <i class="fa-solid fa-file-circle-check me-1"></i>
-                            Acknowledgement (Provision)
+                    <!-- <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-primary" (click)="printReportStep1()">
+                            <i class="fa-solid fa-calculator me-1"></i>
+                            Generate Fee Calculation
                         </button>
 
                         <button class="btn btn-saffron" type="button" (click)="next()">
                             Proceed to Payments
                             <i class="fa-solid fa-arrow-right-long ms-1"></i>
                         </button>
+                    </div> -->
+
+                    <div class="d-flex justify-content-between align-items-center gap-2 mt-3">
+                        <!-- Cancel (left) -->
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
+                            <i class="fa-solid fa-xmark me-1"></i>
+                            Cancel
+                        </button>
+
+                        <!-- Actions (right) -->
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-primary" (click)="printReportStep1()">
+                                <i class="fa-solid fa-calculator me-1"></i>
+                                Generate Fee Calculation
+                            </button>
+
+                            <button class="btn btn-saffron" type="button" (click)="next()">
+                                Proceed to Payments
+                                <i class="fa-solid fa-arrow-right-long ms-1"></i>
+                            </button>
+                        </div>
                     </div>
+
                 </form>
             </ng-container>
 
@@ -555,9 +580,10 @@
 
                         <div class="d-flex gap-2 flex-wrap justify-content-end admission-footer-actions"
                             *ngIf="submittedForAck">
-                            <button type="button" class="btn btn-outline-primary" (click)="generateFeeCalculation()">
-                                <i class="fa-solid fa-calculator me-1"></i>
-                                Generate Fee Calculation
+                            <button class="btn btn-outline-primary" type="button"
+                                (click)="generateAcknowledgementStep2()">
+                                <i class="fa-solid fa-file-circle-check me-1"></i>
+                                Acknowledgement (Provision)
                             </button>
 
                             <button type="button" class="btn btn-outline-success" [disabled]="!feeCalcGenerated"

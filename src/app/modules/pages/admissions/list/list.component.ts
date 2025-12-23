@@ -38,13 +38,13 @@ export class ListComponent implements OnInit {
       color: '#2563EB',
       callback: (row: any) => this.view(row.id),
     },
-    {
-      type: 'icon',
-      icon: 'fa-regular fa-pen-to-square',
-      tooltip: 'Edit',
-      color: '#6B7280',
-      callback: (row: any) => this.edit(row.id),
-    },
+    // {
+    //   type: 'icon',
+    //   icon: 'fa-regular fa-pen-to-square',
+    //   tooltip: 'Edit',
+    //   color: '#6B7280',
+    //   callback: (row: any) => this.edit(row.id),
+    // },
   ];
 
   constructor(
@@ -105,7 +105,7 @@ export class ListComponent implements OnInit {
             '',
 
           // student display name
-          name: a.studentName || a.name || '',
+          name: a.student.name || '',
 
           programName: a.programName || '',
           centerName: a.centerName || '',

@@ -710,9 +710,10 @@ export class AdmissionsComponent implements OnInit {
 
         this.alert.success('Fetched student details.');
       },
-      error: () => {
+      error: (err) => {
+        console.log(err);
         this.loading = false;
-        this.alert.error('Fetch failed');
+        this.alert.error(`${err.error.message}`);
       },
     });
   }
@@ -852,13 +853,21 @@ export class AdmissionsComponent implements OnInit {
 
   // ---------------------- Step 1 actions ----------------------
 
-  generateAcknowledgementStep1(): void {
-    if (this.step1Form.invalid) {
-      this.step1Form.markAllAsTouched();
-      this.alert.error('Please fill required fields.');
+  generateAcknowledgementStep2(): void {
+    if (!this.submittedForAck) {
+      this.alert.error('Please submit payment details first.');
       return;
     }
-    this.alert.success('Acknowledgement (Provision) generated (stub).');
+    if (this.step2Form.invalid) {
+      this.step2Form.markAllAsTouched();
+      this.alert.error(
+        'Fill required NEFT/cheque details before generating fee calculation.'
+      );
+      return;
+    }
+    this.feeCalcGenerated = true;
+    this.alert.success('Fee calculation generated (stub).');
+    this.printPaymentsAck();
   }
 
   next(): void {
@@ -1226,22 +1235,6 @@ export class AdmissionsComponent implements OnInit {
     });
   }
 
-  generateFeeCalculation(): void {
-    if (!this.submittedForAck) {
-      this.alert.error('Please submit payment details first.');
-      return;
-    }
-    if (this.step2Form.invalid) {
-      this.step2Form.markAllAsTouched();
-      this.alert.error(
-        'Fill required NEFT/cheque details before generating fee calculation.'
-      );
-      return;
-    }
-    this.feeCalcGenerated = true;
-    this.alert.success('Fee calculation generated (stub).');
-  }
-
   sendForApproval(): void {
     const tenantId = this.pickTenantId();
     if (!tenantId) {
@@ -1378,13 +1371,550 @@ export class AdmissionsComponent implements OnInit {
     console.log('STEP1 INVALID CONTROLS =>', invalid);
   }
 
-  // ---------------------- Print stubs ----------------------
-
-  printReportStep1(): void {
-    // stub
+  /** Simple HTML escape */
+  private esc(v: any): string {
+    const s = String(v ?? '');
+    const map: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+    return s.replace(/[&<>"']/g, (c) => map[c] || c);
   }
 
+  /** Generic print window with basic styles */
+  private openPrintWindow(title: string, bodyHtml: string): void {
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) {
+      this.alert.error('Popup blocked. Please allow popups to print.');
+      return;
+    }
+
+    const fullHtml = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${this.esc(title)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 11px;
+      margin: 16px;
+      color: #111827;
+    }
+    .page {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #111827;
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+    }
+    .title-main {
+      font-size: 18px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .subtitle {
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .meta {
+      text-align: right;
+      font-size: 10px;
+    }
+    .section {
+      margin-top: 10px;
+    }
+    .section-title {
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 11px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 2px;
+      margin-bottom: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 3px 4px;
+      vertical-align: top;
+    }
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
+    }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .small { font-size: 10px; }
+    .tiny { font-size: 9px; }
+    .mt-1 { margin-top: 4px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .note-list {
+      margin: 4px 0 0 16px;
+      padding: 0;
+      font-size: 10px;
+    }
+    .note-list li { margin-bottom: 2px; }
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 32% 68%;
+      border: 1px solid #e5e7eb;
+      border-collapse: collapse;
+    }
+    .kv-grid > div {
+      border-bottom: 1px solid #e5e7eb;
+      border-right: 1px solid #e5e7eb;
+      padding: 3px 4px;
+    }
+    .kv-grid > div:nth-child(2n) {
+      border-right: none;
+    }
+    .kv-label {
+      background: #f9fafb;
+      font-weight: 600;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body onload="window.print();">
+  ${bodyHtml}
+</body>
+</html>`;
+
+    win.document.open();
+    win.document.write(fullHtml);
+    win.document.close();
+  }
+
+  /** Build Fee Calculation Sheet for STEP 1 (using form + preview data) */
+  private buildFeeCalcHtmlStep1(): string {
+    const s1 = this.step1Form.getRawValue();
+    const plan = this.selectedPlan;
+    const today = new Date();
+
+    if (this.step1Form.invalid || !plan) {
+      return '<p>Step 1 details are incomplete. Please fill all required fields and select a fee plan.</p>';
+    }
+
+    const heads = this.feeHeadPreview;
+    const baseFee = Number(s1.baseFee || 0);
+    const finalFee = this.finalFee || 0;
+    const testSch = this.testScholarshipPct;
+    const schl = this.scholarshipPct;
+    const addSchl = this.additionalScholarshipPct;
+    const totalDisc = this.totalDiscountPct;
+
+    const scholTotal = heads.reduce(
+      (s, r) => s + Number(r.scholBenefits || 0),
+      0
+    );
+
+    const feeRows = heads
+      .map(
+        (r) => `
+      <tr>
+        <td>${this.esc(r.label)}</td>
+        <td class="text-right">${Number(r.fee || 0).toLocaleString(
+          'en-IN'
+        )}</td>
+        <td class="text-right">${Number(r.stax || 0).toLocaleString(
+          'en-IN'
+        )}</td>
+        <td class="text-right">${Number(r.total || 0).toLocaleString(
+          'en-IN'
+        )}</td>
+        <td class="text-right">${Number(r.scholBenefits || 0).toLocaleString(
+          'en-IN'
+        )}</td>
+      </tr>`
+      )
+      .join('');
+
+    return `
+      <div class="page">
+        <div class="header-row">
+          <div>
+            <div class="title-main">FEE CALCULATION SHEET</div>
+            <div class="subtitle">Current Status : Please check the details carefully and sign.</div>
+          </div>
+          <div class="meta">
+            <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
+            <div><b>Prepared On :</b> ${today.toLocaleString('en-IN')}</div>
+          </div>
+        </div>
+
+        <!-- Student & Program -->
+        <div class="section">
+          <div class="section-title">Student and Program Details</div>
+          <div class="kv-grid">
+            <div class="kv-label">Name of the Student</div>
+            <div>${this.esc(s1.name || '')}</div>
+
+            <div class="kv-label">Registration / Reg No</div>
+            <div>${this.esc(s1.regNo || '')}</div>
+
+            <div class="kv-label">Academic Year</div>
+            <div>${this.esc(s1.academicYear || '')}</div>
+
+            <div class="kv-label">Mobile (Student / Parent)</div>
+            <div>${this.esc(s1.phone || '')}</div>
+
+            <div class="kv-label">Program</div>
+            <div>${this.esc(s1.programName || '')}</div>
+
+            <div class="kv-label">Fee Plan</div>
+            <div>${this.esc(
+              plan.feePlanCode || s1.feePlanCode || plan.name || ''
+            )}</div>
+
+            <div class="kv-label">Study Centre</div>
+            <div>${this.esc(s1.centerName || '')}</div>
+          </div>
+        </div>
+
+        <!-- Scholarship summary -->
+        <div class="section">
+          <div class="section-title">Scholarship Details</div>
+          <table>
+            <tbody>
+              <tr>
+                <td>Base Fee (before discounts)</td>
+                <td class="text-right">₹ ${baseFee.toLocaleString('en-IN')}</td>
+              </tr>
+              <tr>
+                <td>Test Scholarship (%)</td>
+                <td class="text-right">${testSch.toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <td>Scholarship (%)</td>
+                <td class="text-right">${schl.toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <td>Additional Scholarship (%)</td>
+                <td class="text-right">${addSchl.toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <td><b>Total Discount (%)</b></td>
+                <td class="text-right"><b>${totalDisc.toFixed(2)}%</b></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Fee heads table -->
+        <div class="section">
+          <div class="section-title">Fee Plan Breakup</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Fee Head</th>
+                <th class="text-right">Fee</th>
+                <th class="text-right">STax</th>
+                <th class="text-right">Total</th>
+                <th class="text-right">Schol Benefits</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                feeRows ||
+                '<tr><td colspan="5">No fee heads available.</td></tr>'
+              }
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="3" class="text-right">Grand Total</th>
+                <th class="text-right">₹ ${finalFee.toLocaleString(
+                  'en-IN'
+                )}</th>
+                <th class="text-right">₹ ${scholTotal.toLocaleString(
+                  'en-IN'
+                )}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- NEFT static section like reference sheet -->
+        <div class="section small">
+          <div class="section-title">Details for NEFT Transfer</div>
+          <table>
+            <tbody>
+              <tr>
+                <td>Account Number</td>
+                <td>XXXXXXXXXXXX</td>
+              </tr>
+              <tr>
+                <td>IFSC Code</td>
+                <td>XXXX0000XXX</td>
+              </tr>
+              <tr>
+                <td>Bank Name</td>
+                <td>Your Bank Name Here</td>
+              </tr>
+              <tr>
+                <td>Beneficiary Name</td>
+                <td>${this.esc(this.DEFAULT_FAVOUR_OF)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="tiny mt-2">
+            For office use only – kindly verify student name, registration number, program, study centre,
+            fee plan and all instrument details before approving this sheet.
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** STEP 1 – Fee Calculation Sheet print */
+  printReportStep1(): void {
+    if (this.step !== 1) {
+      this.alert.error('Fee calculation can be printed from Step 1 only.');
+      return;
+    }
+    this.step1Form.markAllAsTouched();
+    if (this.step1Form.invalid) {
+      this.alert.error('Please fill the required student and fee details.');
+      return;
+    }
+    if (!this.selectedPlan || !this.feeHeadPreview.length) {
+      this.alert.error('Please select a valid fee plan to preview fees.');
+      return;
+    }
+
+    const html = this.buildFeeCalcHtmlStep1();
+    this.openPrintWindow('Fee Calculation Sheet', html);
+  }
+
+  /** Build Acknowledgement / Enrolment Report for STEP 2 */
+  private buildPaymentsAckHtmlStep2(): string {
+    const s1 = this.step1Form.getRawValue();
+    const plan = this.selectedPlan;
+    const today = new Date();
+
+    const nefts = (this.neftRefsFA.getRawValue() || []) as any[];
+    const cheques = (this.chequesFA.getRawValue() || []) as any[];
+
+    const finalFee = this.finalFee || 0;
+
+    const paymentRows: string[] = [];
+    let sno = 1;
+
+    nefts.forEach((n: any) => {
+      const amount = Number(n.amount || 0);
+      if (!amount) return;
+      paymentRows.push(`
+        <tr>
+          <td class="text-center">${sno++}</td>
+          <td>NEFT</td>
+          <td>${this.esc(
+            n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : ''
+          )}</td>
+          <td>${this.esc(n.utr || '')}</td>
+          <td>${this.esc(n.bankName || '')}</td>
+          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+        </tr>
+      `);
+    });
+
+    cheques.forEach((c: any) => {
+      const amount = Number(c.amount || 0);
+      if (!amount) return;
+      paymentRows.push(`
+        <tr>
+          <td class="text-center">${sno++}</td>
+          <td>${this.esc(c.mode || 'PDC')}</td>
+          <td>${this.esc(
+            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : ''
+          )}</td>
+          <td>${this.esc(c.chequeNo || '')}</td>
+          <td>${this.esc(c.bankName || '')}</td>
+          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+        </tr>
+      `);
+    });
+
+    const totalPaid = this.neftTotalEntered + this.chequeTotal;
+
+    return `
+      <div class="page">
+        <div class="header-row">
+          <div>
+            <div class="title-main">ENROLMENT REPORT</div>
+            <div class="subtitle">Acknowledgement of Fee & Instruments (Draft)</div>
+          </div>
+          <div class="meta">
+            <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
+            ${
+              this.admissionId
+                ? `<div><b>Admission ID :</b> ${this.esc(
+                    this.admissionId
+                  )}</div>`
+                : ''
+            }
+          </div>
+        </div>
+
+        <!-- Part 1: Student / Program / Study Centre -->
+        <div class="section">
+          <div class="section-title">Student, Program and Study Centre Details (Part 1)</div>
+          <table>
+            <tbody>
+              <tr>
+                <td>Registration No.</td>
+                <td>${this.esc(s1.regNo || '')}</td>
+                <td>Admission ID</td>
+                <td>${this.esc(this.admissionId || '')}</td>
+              </tr>
+              <tr>
+                <td>Student Name</td>
+                <td>${this.esc(s1.name || '')}</td>
+                <td>Enrollment Date</td>
+                <td>${today.toLocaleDateString('en-IN')}</td>
+              </tr>
+              <tr>
+                <td>Student Mobile</td>
+                <td>${this.esc(s1.phone || '')}</td>
+                <td>Parent Name</td>
+                <td>${this.esc(s1.parentName || '')}</td>
+              </tr>
+              <tr>
+                <td>Email ID</td>
+                <td>${this.esc(s1.email || '')}</td>
+                <td>Academic Year</td>
+                <td>${this.esc(s1.academicYear || '')}</td>
+              </tr>
+              <tr>
+                <td>Program</td>
+                <td colspan="3">${this.esc(s1.programName || '')}</td>
+              </tr>
+              <tr>
+                <td>Study Centre</td>
+                <td>${this.esc(s1.centerName || '')}</td>
+                <td>Fee Plan</td>
+                <td>${this.esc(
+                  plan?.feePlanCode || s1.feePlanCode || plan?.name || ''
+                )}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Part 2 + 3: Course Fee & Payment Schedule -->
+        <div class="section">
+          <div class="section-title">Details of Course Fee & Payment Schedule</div>
+
+          <table>
+            <thead>
+              <tr>
+                <th colspan="2">Particulars of Fee</th>
+                <th style="width:120px;">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="2">Final Course Fee (after scholarships)</td>
+                <td class="text-right">${finalFee.toLocaleString('en-IN')}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="mt-2 small"><b>Payment Schedule (Part 3)</b></div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px;" class="text-center">S.No</th>
+                <th style="width:70px;">Mode</th>
+                <th style="width:110px;">Dated</th>
+                <th>DD/Chq/UTR No</th>
+                <th>Bank</th>
+                <th style="width:120px;" class="text-right">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                paymentRows.length
+                  ? paymentRows.join('')
+                  : '<tr><td colspan="6" class="text-center">No payment details captured.</td></tr>'
+              }
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="5" class="text-right">Total payments captured</th>
+                <th class="text-right">₹ ${totalPaid.toLocaleString(
+                  'en-IN'
+                )}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Important notes -->
+        <div class="section small">
+          <div class="section-title">Important</div>
+          <ul class="note-list">
+            <li>Cheques / DDs are subject to realisation.</li>
+            <li>
+              This acknowledgement is generated from the admission screen. Please verify student,
+              program, fee plan and instrument details before final approval.
+            </li>
+            <li>
+              In case of any mismatch between this sheet and the core system, the system records
+              will be treated as final.
+            </li>
+          </ul>
+        </div>
+      </div>
+    `;
+  }
+
+  /** STEP 2 – Acknowledgement / Enrolment Report print */
   printPaymentsAck(): void {
-    // stub
+    if (this.step !== 2) {
+      this.alert.error('Acknowledgement can be printed from Step 2 only.');
+      return;
+    }
+    if (!this.submittedForAck) {
+      this.alert.error(
+        'Please submit payment details before printing acknowledgement.'
+      );
+      return;
+    }
+    if (this.step2Form.invalid) {
+      this.step2Form.markAllAsTouched();
+      this.alert.error('Please correct NEFT / cheque details before printing.');
+      return;
+    }
+
+    const html = this.buildPaymentsAckHtmlStep2();
+    this.openPrintWindow('Enrolment Report', html);
+  }
+
+  // === Alert bindings for template ===
+  get alert$() {
+    return this.alert.alert$;
+  }
+
+  clearAlert(): void {
+    this.alert.clear();
+  }
+  cancel(): void {
+    // navigate back to admissions list
+    this.router.navigate(['/app/admissions']);
   }
 }
