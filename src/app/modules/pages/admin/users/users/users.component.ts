@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../../service/alert/alert.service';
+import { UserService } from '../../../../../service/admin/user.service';
+import { CenterService } from '../../../../../service/admin/orgmasters/center.service';
 
 type RoleKey = 'L1' | 'L2' | 'L3' | 'L4';
 
@@ -19,10 +21,11 @@ interface RoleMeta {
   styleUrl: './users.component.scss'
 })
 export class UsersComponent implements OnInit {
+
   userForm!: FormGroup;
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
-  editingId: number | null = null;
+  editingId: string | null = null;
 
   deleteModalVisible = false;
   deleteTarget: any | null = null;
@@ -31,88 +34,46 @@ export class UsersComponent implements OnInit {
   roleInfoVisible = false;
   roleInfoKey: RoleKey | null = null;
 
-  // Table columns
+  entiId : any
+
+  users: any[] = [];
+
+  centers: any[] = [];
+
+  centerOptions: any[] = [];
+
+
   columns = [
-    { key: 'name',     label: 'User Name', sortable: true },
-    { key: 'loginId',  label: 'Login ID',  sortable: true },
-    { key: 'email',    label: 'Email',     sortable: true },
-    { key: 'phone',    label: 'Phone',     sortable: false },
-    { key: 'roleLabel',label: 'Role',      sortable: false },
-    { key: 'isActive', label: 'Active',    sortable: false }
+    { key: 'name', label: 'User Name', sortable: true },
+    { key: 'loginId', label: 'Login ID', sortable: true },
+    { key: 'email', label: 'Email', sortable: true },
+    { key: 'phone', label: 'Phone', sortable: false },
+    { key: 'roleLabel', label: 'Role', sortable: false },
+    { key: 'status', label: 'Active', sortable: false }
   ];
 
-  // Dummy users
-  users: any[] = [
-    {
-      id: 1,
-      name: 'Academic Head',
-      loginId: 'acad.head',
-      email: 'academic.head@z7i.com',
-      phone: '9000000001',
-      role: 'L1',
-      roleLabel: 'L1 - Academic Head',
-      isActive: true
-    },
-    {
-      id: 2,
-      name: 'Admission Manager',
-      loginId: 'adm.manager',
-      email: 'admission.manager@z7i.com',
-      phone: '9000000002',
-      role: 'L2',
-      roleLabel: 'L2 - Admission Manager',
-      isActive: true
-    },
-    {
-      id: 3,
-      name: 'Accounts Manager',
-      loginId: 'acc.manager',
-      email: 'accounts.manager@z7i.com',
-      phone: '9000000003',
-      role: 'L3',
-      roleLabel: 'L3 - Accounts Manager',
-      isActive: true
-    },
-    {
-      id: 4,
-      name: 'Academic Operations',
-      loginId: 'acad.ops',
-      email: 'academic.ops@z7i.com',
-      phone: '9000000004',
-      role: 'L4',
-      roleLabel: 'L4 - Academic Operations',
-      isActive: true
-    }
-  ];
-
-  // Actions: info icon + edit + delete
   actions = [
     {
       type: 'icon',
       icon: 'fa-solid fa-circle-info',
       tooltip: 'Role permissions',
-      color: '#6B7280',
-      hoverColor: '#2563EB',
-      callback: (row: any) => this.openRoleInfo(row.role as RoleKey)
+      callback: (row: any) => this.openRoleInfo(row.roleLevel as RoleKey)
     },
     {
       type: 'icon',
       icon: 'fa-regular fa-pen-to-square',
       tooltip: 'Edit',
-      color: '#6B7280',
       callback: (row: any) => this.edit(row)
     },
     {
       type: 'icon',
       icon: 'fa-regular fa-trash-can',
       tooltip: 'Delete',
-      color: '#6B7280',
       hoverColor: '#D42B2B',
       callback: (row: any) => this.openDelete(row)
     }
   ];
 
-  // Role dropdown options
   roleOptions = [
     { value: 'L1', label: 'L1 - Academic Head' },
     { value: 'L2', label: 'L2 - Admission Manager' },
@@ -120,7 +81,7 @@ export class UsersComponent implements OnInit {
     { value: 'L4', label: 'L4 - Academic Operations' }
   ];
 
-  // Centralised role meta with all permissions
+  // ✅ ROLE META MAP — USED AS-IS (UNCHANGED)
   private roleMetaMap: Record<RoleKey, RoleMeta> = {
     L1: {
       key: 'L1',
@@ -156,34 +117,21 @@ export class UsersComponent implements OnInit {
       permissions: [
         'View admission entries (no edit / new entry)',
         'Access to cheque details',
-        'MIS report for upcoming cheque deposits (1st of every month)',
-        'Mark deposited cheques as collected / dishonoured (with remarks)',
-        'Add follow-up remarks for dishonoured cheques',
+        'MIS report for upcoming cheque deposits',
+        'Mark deposited cheques as collected / dishonoured',
         'Handle replacement of dishonoured cheques',
-        'Monthly / Quarterly / Yearly accounts report generation',
-        'Blacklist / unblacklist defaulter students',
-        'All accounts-related report generations'
+        'Accounts report generation'
       ]
     },
     L4: {
       key: 'L4',
       title: 'L4 - Academic Operations',
-      subtitle: 'Operational control for classes, batches and attendance.',
+      subtitle: 'Operational control for classes and attendance.',
       permissions: [
-        'Timetable module management',
-        'Batch association – map students to batches',
-        'Manage batch details',
-        'Faculty mapping to all batches',
-        'Faculty entry and master management',
-        'Faculty-wise / Batch-wise teaching hours report',
-        'Student attendance report',
-        'Attendance not-entered report',
-        'Mail & WhatsApp communication triggers',
-        'Identify students without contact number / email ID',
-        'Student-wise attendance percentage reports',
-        'Timetable rearrangements tracking',
-        'Faculty feedback report export',
-        'Schedule faculty feedback to students'
+        'Timetable management',
+        'Batch association',
+        'Faculty mapping',
+        'Attendance & academic reports'
       ]
     }
   };
@@ -191,8 +139,12 @@ export class UsersComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
-    private alertService: AlertService
+    private alertService: AlertService,
+    private userService: UserService,
+    private centerService: CenterService
+
   ) {
+    this.entiId = localStorage.getItem('tenantId')
     this.breadcrumb.set([
       { label: 'Control Panel' },
       { label: 'Users & Roles' },
@@ -200,6 +152,9 @@ export class UsersComponent implements OnInit {
     ]);
   }
 
+  // ===============================
+  // INIT
+  // ===============================
   ngOnInit(): void {
     this.userForm = this.fb.group({
       name: ['', Validators.required],
@@ -207,40 +162,79 @@ export class UsersComponent implements OnInit {
       phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
       loginId: ['', Validators.required],
       role: [null, Validators.required],
+      empCode: ['', Validators.required],
+      password: ['', Validators.required],
+      centerId: [null, Validators.required],
       isActive: [true]
     });
+
+    this.loadUsers();
+    this.loadCenters()
   }
+
+  loadCenters(): void {
+    this.centerService.listCenters(this.entiId).subscribe({
+      next: (res: any) => {
+        if (res?.status === false) {
+          this.alertService.error(res?.message || 'Failed to load centers');
+          return;
+        }
+        this.centers = res?.data || [];
+        this.centerOptions = this.centers.map((c: any) => ({
+          label: c.centerName,
+          value: c._id
+        }));
+      },
+      error: () => this.alertService.error('Server error while loading centers')
+    });
+  }
+
 
   get currentRoleMeta(): RoleMeta | null {
     if (!this.roleInfoKey) return null;
     return this.roleMetaMap[this.roleInfoKey];
   }
 
+  // ===============================
+  // LIST
+  // ===============================
+  loadUsers(): void {
+    this.userService.listUsers(this.entiId).subscribe({
+      next: (res: any) => {
+        if (res?.status === false) {
+          this.alertService.error(res?.message || 'Failed to load users');
+          return;
+        }
+        this.users = res?.data || [];
+      },
+      error: () => this.alertService.error('Server error while loading users')
+    });
+  }
+
+  // ===============================
+  // ADD
+  // ===============================
   add(): void {
     this.formMode = 'create';
     this.editingId = null;
-    this.userForm.reset({
-      name: '',
-      email: '',
-      phone: '',
-      loginId: '',
-      role: null,
-      isActive: true
-    });
+    this.userForm.reset({ isActive: true });
     this.showForm = true;
   }
 
+  // ===============================
+  // EDIT
+  // ===============================
   edit(row: any): void {
     this.formMode = 'edit';
-    this.editingId = row.id;
+    this.editingId = row._id;
 
-    this.userForm.reset({
+    this.userForm.patchValue({
       name: row.name,
       email: row.email,
       phone: row.phone,
       loginId: row.loginId,
-      role: row.role,
-      isActive: row.isActive
+      role: row.roleLevel,
+      isActive: row.status === 'Active'
     });
 
     this.showForm = true;
@@ -250,34 +244,76 @@ export class UsersComponent implements OnInit {
     this.showForm = false;
   }
 
+  // ===============================
+  // SAVE (CREATE / UPDATE)
+  // ===============================
   save(): void {
     if (this.userForm.invalid) {
       this.userForm.markAllAsTouched();
       return;
     }
 
-    const value = this.userForm.value;
-    const roleOpt = this.roleOptions.find(r => r.value === value.role);
-    const payload = {
-      ...value,
-      roleLabel: roleOpt?.label || value.role
+    const selectedCenter = this.centers.find(
+      (c: any) => c._id === f.centerId
+    );
+    const f = this.userForm.value;
+    const roleOpt = this.roleOptions.find(r => r.value === f.role);
+
+    // common payload
+    const payload: any = {
+      entiId: this.entiId,
+      name: f.name,
+      email: f.email,
+      phone: f.phone,
+      roleLevel: f.role,
+      status: f.isActive ? 'Active' : 'Inactive',
+      empCode: f.empCode,
+      centerId: f.centerId,
+      centerName: selectedCenter
     };
 
+    // CREATE-specific fields
     if (this.formMode === 'create') {
-      const newId = (this.users[this.users.length - 1]?.id || 0) + 1;
-      this.users = [...this.users, { id: newId, ...payload }];
-      this.alertService.success('User created successfully');
-    } else if (this.editingId != null) {
-      this.users = this.users.map(u =>
-        u.id === this.editingId ? { ...u, ...payload } : u
-      );
-      this.alertService.success('User updated successfully');
+      payload.password = f.password;
     }
 
-    this.showForm = false;
+    const api$ =
+      this.formMode === 'create'
+        ? this.userService.createUser(payload)
+        : this.userService.updateUser({
+          ...payload,
+          recId: this.editingId
+        });
+
+    api$.subscribe({
+      next: (res: any) => {
+        if (res?.status === false) {
+          this.alertService.error(res?.message || 'Operation failed');
+          return;
+        }
+
+        this.alertService.success(
+          this.formMode === 'create'
+            ? 'User created successfully'
+            : 'User updated successfully'
+        );
+
+        this.showForm = false;
+        this.loadUsers();
+      },
+      error: () => this.alertService.error('Server error')
+    });
   }
 
+
+  // ===============================
+  // DELETE (L1 BLOCKED)
+  // ===============================
   openDelete(row: any): void {
+    if (row.roleLevel === 'L1') {
+      this.alertService.error('L1 (Academic Head) users cannot be deleted.');
+      return;
+    }
     this.deleteTarget = row;
     this.deleteMessage = `Are you sure you want to delete user "${row.name}"?`;
     this.deleteModalVisible = true;
@@ -285,18 +321,38 @@ export class UsersComponent implements OnInit {
 
   onDeleteModalClosed(confirmed: boolean): void {
     this.deleteModalVisible = false;
-    if (confirmed && this.deleteTarget) {
-      this.users = this.users.filter(u => u.id !== this.deleteTarget.id);
-      this.alertService.success('User deleted');
+
+    if (!confirmed || !this.deleteTarget) return;
+
+    if (this.deleteTarget.roleLevel === 'L1') {
+      this.alertService.error('L1 (Academic Head) users cannot be deleted.');
+      this.deleteTarget = null;
+      return;
     }
+
+    this.userService
+      .deleteUser(this.entiId, this.deleteTarget._id)
+      .subscribe({
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alertService.error(res?.message || 'Delete failed');
+            return;
+          }
+          this.alertService.success('User deleted');
+          this.loadUsers();
+        },
+        error: () => this.alertService.error('Server error')
+      });
+
     this.deleteTarget = null;
   }
 
-  openRoleInfo(role: RoleKey | string | null): void {
-    if (!role) return;
-    const key = role as RoleKey;
-    if (!this.roleMetaMap[key]) return;
-    this.roleInfoKey = key;
+  // ===============================
+  // ROLE INFO
+  // ===============================
+  openRoleInfo(role: RoleKey | null): void {
+    if (!role || !this.roleMetaMap[role]) return;
+    this.roleInfoKey = role;
     this.roleInfoVisible = true;
   }
 

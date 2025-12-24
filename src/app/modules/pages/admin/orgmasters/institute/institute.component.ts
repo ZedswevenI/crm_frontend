@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../../service/alert/alert.service';
+import { InstituteService } from '../../../../../service/admin/orgmasters/institution.service';
 
 @Component({
   selector: 'app-institute',
@@ -10,28 +11,21 @@ import { AlertService } from '../../../../../service/alert/alert.service';
   styleUrl: './institute.component.scss'
 })
 export class InstituteComponent implements OnInit {
+
   instituteForm!: FormGroup;
   showForm = false;
 
-  // Single institute info object (instead of data[])
-  instituteInfo: any = {
-    name: 'Z7i Institute',
-    code: 'Z7I-HO',
-    city: 'Coimbatore',
-    state: 'Tamil Nadu',
-    pincode: '641002',
-    addressLine1: '123, Avinashi Road',
-    addressLine2: 'Near XYZ Signal',
-    contactEmail: 'info@z7iinstitute.com',
-    phone: '9876543210',
-    isActive: true
-  };
+  entiId : any;
+
+  instituteInfo: any = {};
 
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
-    private alertService: AlertService
+    private alertService: AlertService,
+    private instituteService: InstituteService
   ) {
+    this.entiId = localStorage.getItem('tenantId')
     this.breadcrumb.set([
       { label: 'Control Panel' },
       { label: 'Masters' },
@@ -39,44 +33,62 @@ export class InstituteComponent implements OnInit {
     ]);
   }
 
+  // =========================
+  // INIT
+  // =========================
   ngOnInit(): void {
     this.instituteForm = this.fb.group({
-      name: [this.instituteInfo.name, Validators.required],
-      code: [this.instituteInfo.code, Validators.required],
-      city: [this.instituteInfo.city, Validators.required],
-      state: [this.instituteInfo.state, Validators.required],
-      pincode: [
-        this.instituteInfo.pincode,
-        [Validators.required, Validators.pattern(/^\d{6}$/)]
-      ],
-      addressLine1: [this.instituteInfo.addressLine1, Validators.required],
-      addressLine2: [this.instituteInfo.addressLine2],
-      contactEmail: [
-        this.instituteInfo.contactEmail,
-        [Validators.required, Validators.email]
-      ],
-      phone: [
-        this.instituteInfo.phone,
-        [Validators.required, Validators.pattern(/^\d{10}$/)]
-      ],
-      isActive: [this.instituteInfo.isActive]
+      name: ['', Validators.required],
+      code: ['', Validators.required],
+      city: ['', Validators.required],
+      state: ['', Validators.required],
+      pincode: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
+      addressLine1: ['', Validators.required],
+      addressLine2: [''],
+      contactEmail: ['', [Validators.required, Validators.email]],
+      phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+      isActive: [true]
+    });
+
+    this.loadInstitute();
+  }
+
+  // =========================
+  // VIEW
+  // =========================
+  loadInstitute(): void {
+    this.instituteService.viewInstitute(this.entiId).subscribe({
+      next: (res: any) => {
+        if (res?.status === false) {
+          this.alertService.error(res?.message || 'Failed to load institute');
+          return;
+        }
+
+        const d = res.data;
+
+        // Map API → UI object
+        this.instituteInfo = {
+          name: d.tenantName,
+          code: d.tenantCode,
+          city: d.entCity,
+          state: d.entState,
+          pincode: d.entZip,
+          addressLine1: d.entAddress1,
+          addressLine2: d.entAddress2,
+          contactEmail: d.email,
+          phone: d.phone,
+          isActive: d.status === 'Active'
+        };
+      },
+      error: () => this.alertService.error('Server error while loading institute')
     });
   }
 
+  // =========================
+  // OPEN EDIT
+  // =========================
   openEdit(): void {
-    // Ensure form is synced with current info
-    this.instituteForm.reset({
-      name: this.instituteInfo.name,
-      code: this.instituteInfo.code,
-      city: this.instituteInfo.city,
-      state: this.instituteInfo.state,
-      pincode: this.instituteInfo.pincode,
-      addressLine1: this.instituteInfo.addressLine1,
-      addressLine2: this.instituteInfo.addressLine2,
-      contactEmail: this.instituteInfo.contactEmail,
-      phone: this.instituteInfo.phone,
-      isActive: this.instituteInfo.isActive
-    });
+    this.instituteForm.patchValue(this.instituteInfo);
     this.showForm = true;
   }
 
@@ -84,21 +96,42 @@ export class InstituteComponent implements OnInit {
     this.showForm = false;
   }
 
+  // =========================
+  // UPDATE
+  // =========================
   save(): void {
     if (this.instituteForm.invalid) {
       this.instituteForm.markAllAsTouched();
       return;
     }
 
-    const value = this.instituteForm.value;
+    const f = this.instituteForm.value;
 
-    // Update single institute info
-    this.instituteInfo = {
-      ...this.instituteInfo,
-      ...value
+    const payload = {
+      entiId: this.entiId,
+      tenantName: f.name,
+      tenantCode: f.code,
+      contactName: f.contactEmail, // backend expects contactName
+      Address1: f.addressLine1,
+      Address2: f.addressLine2,
+      City: f.city,
+      State: f.state,
+      entZip: f.pincode,
+      status: f.isActive ? 'Active' : 'Inactive'
     };
 
-    this.alertService.success('Institute information updated successfully');
-    this.showForm = false;
+    this.instituteService.updateInstitute(payload).subscribe({
+      next: (res: any) => {
+        if (res?.status === false) {
+          this.alertService.error(res?.message || 'Update failed');
+          return;
+        }
+
+        this.alertService.success('Institute information updated successfully');
+        this.showForm = false;
+        this.loadInstitute();
+      },
+      error: () => this.alertService.error('Server error while updating institute')
+    });
   }
 }

@@ -63,12 +63,34 @@
                             </formfield>
                         </div>
 
+                        <!-- Employee Code (Create only) -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <formfield label="Employee Code" [required]="true" [disabled]="true"
+                                [control]="userForm.get('empCode')" formControlName="empCode" placeholder="EMP-0004">
+                            </formfield>
+                        </div>
+
+                        <!-- Password (Create only) -->
+                        <div class="col-12 col-sm-6 col-lg-4" *ngIf="formMode === 'create'">
+                            <formfield label="Password" [required]="true" [control]="userForm.get('password')"
+                                formControlName="password" inputType="password" placeholder="Enter password">
+                            </formfield>
+                        </div>
+
                         <!-- Login / role -->
                         <div class="col-md-4">
                             <formfield label="Login ID" [required]="true" [control]="userForm.get('loginId')"
                                 formControlName="loginId" placeholder="arun.kumar">
                             </formfield>
                         </div>
+                        <!-- Center -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <selectbox label="Center" [required]="true" [options]="centerOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="userForm.get('centerId')"
+                                formControlName="centerId">
+                            </selectbox>
+                        </div>
+
 
                         <div class="col-md-4">
                             <selectbox label="Role Level" [required]="true" [options]="roleOptions"
@@ -86,6 +108,9 @@
                             <checkbox label="Active" [control]="userForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
+
+
+
                     </div>
 
                     <!-- Modal footer actions -->

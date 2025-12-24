@@ -13,8 +13,36 @@ export class CommonapiService {
 
   constructor(private http: HttpClient) {}
 
-  fetchData(payload: any, module: any, endpoint: any): Observable<any> {
-    return this.http.post(`${environment.baseURL}/${module}/${endpoint}`, payload);
+  // =========================
+  // GENERIC POST (existing)
+  // =========================
+  fetchData(payload: any, module: string, endpoint: string): Observable<any> {
+    return this.http
+      .post(`${environment.baseURL}/${module}/${endpoint}`, payload, {
+        headers: this.headers
+      });
+  }
+
+  // =========================
+  // GENERIC GET (NEW)
+  // =========================
+  getData(module: string, endpoint: string, params?: any): Observable<any> {
+    return this.http
+      .get(`${environment.baseURL}/${module}/${endpoint}`, {
+        headers: this.headers,
+        params
+      });
+  }
+
+  // =========================
+  // FILE DOWNLOAD (existing)
+  // =========================
+  downloadByUrl(payload: any, module: string, endpoint: string): Observable<Blob> {
+    return this.http.post(
+      `${environment.baseURL}/${module}/${endpoint}`,
+      payload,
+      { responseType: 'blob' }
+    );
   }
 
   //Error Handling
