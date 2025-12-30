@@ -253,10 +253,13 @@ export class UsersComponent implements OnInit {
       return;
     }
 
-    const selectedCenter = this.centers.find(
-      (c: any) => c._id === f.centerId
-    );
+    console.log("Centeres ",this.centers);
+    
     const f = this.userForm.value;
+    
+    const selectedCenter = this.centers.find(
+      (c: any) => c.centerId === f.centerId
+    );
     const roleOpt = this.roleOptions.find(r => r.value === f.role);
 
     // common payload

@@ -34,7 +34,6 @@ import { TaginputComponent } from './elements/taginput/taginput.component';
     SelectboxComponent,
     TabledataComponent,
     TogglebuttonComponent,
-
     DescriptionComponent,
     ImportfilesComponent,
     ReadonlyComponent,
@@ -42,7 +41,7 @@ import { TaginputComponent } from './elements/taginput/taginput.component';
     CommondeleteComponent,
     EditableComponent,
     AlertComponent,
-    BredcrumpComponent,
+    BredcrumpComponent
   ],
   imports: [
     CommonModule, 

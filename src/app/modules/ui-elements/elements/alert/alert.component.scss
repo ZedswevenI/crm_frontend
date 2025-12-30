@@ -1,3 +1,81 @@
-.alert {
-  transition: opacity 0.3s;
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  min-width: 320px;
+  max-width: 420px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  animation: slideIn 0.3s ease-out;
+
+  &.success {
+    background: linear-gradient(135deg, #28a745, #20c997);
+  }
+
+  &.danger {
+    background: linear-gradient(135deg, #dc3545, #ff6b6b);
+  }
+
+  &.warning {
+    background: linear-gradient(135deg, #ffc107, #ff9f1c);
+    color: #222;
+  }
+}
+
+.icon {
+  font-size: 18px;
+  margin-right: 12px;
+}
+
+.message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.6);
+  animation: progress linear forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
 }
