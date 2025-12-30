@@ -2,10 +2,12 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
 export interface AlertMessage {
+  id?: number;
   type: 'success' | 'danger' | 'warning';
   text: string;
   timeout?: number;
 }
+
 
 @Injectable({
   providedIn: 'root'
@@ -16,8 +18,15 @@ export class AlertService {
   alert$ = this._alert$.asObservable();
   private showing = false;
 
-  show(type: 'success' | 'danger' | 'warning', text: string, timeout: number = 4000) {
-    this.queue.push({ type, text, timeout });
+  private counter = 0;
+
+  show(type: 'success' | 'danger' | 'warning', text: string, timeout: number = 3000) {
+    this.queue.push({
+      id: ++this.counter,
+      type,
+      text,
+      timeout
+    });
     this.processQueue();
   }
 
@@ -31,7 +40,7 @@ export class AlertService {
       this.clear();
       this.showing = false;
       this.processQueue();
-    }, alert.timeout ?? 4000);
+    }, alert.timeout ?? 2000);
   }
 
   success(text: string, timeout?: number) {

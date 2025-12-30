@@ -44,44 +44,82 @@
             <div class="app-modal-body">
                 <form [formGroup]="centerForm" (ngSubmit)="save()">
                     <div class="row g-3">
-                        <div class="col-md-4">
+
+                        <!-- Row 1 -->
+                        <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="Center Name" [required]="true" [control]="centerForm.get('name')"
-                                formControlName="name" placeholder="Gandhipuram Center">
+                                formControlName="name">
                             </formfield>
                         </div>
 
-                        <div class="col-md-3">
+                        <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="Code" [required]="true" [control]="centerForm.get('code')"
-                                formControlName="code" placeholder="CT-GDP">
+                                formControlName="code">
                             </formfield>
                         </div>
 
-                        <div class="col-md-5">
-                            <selectbox label="Institute" [required]="true" [options]="instituteOptions"
-                                [optionLabel]="'label'" [optionValue]="'value'"
-                                [control]="centerForm.get('instituteId')" formControlName="instituteId">
-                            </selectbox>
-                        </div>
-
-                        <div class="col-md-4">
+                        <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="City" [required]="true" [control]="centerForm.get('city')"
-                                formControlName="city" placeholder="City">
+                                formControlName="city">
                             </formfield>
                         </div>
 
-                        <div class="col-md-4">
+                        <!-- Row 2 -->
+                        <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="State" [required]="true" [control]="centerForm.get('state')"
-                                formControlName="state" placeholder="State">
+                                formControlName="state">
                             </formfield>
                         </div>
 
-                        <div class="col-md-3 d-flex align-items-center">
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <formfield label="Phone" [required]="true" [control]="centerForm.get('phone')"
+                                formControlName="phone" inputType="tel" pattern="[0-9]*" maxlength="10"
+                                placeholder="Enter phone number">
+                            </formfield>
+
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-lg-4 d-flex align-items-center">
                             <checkbox label="Active" [control]="centerForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
+
+                        <!-- Row 3 -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <formfield label="Contact Person" [required]="true"
+                                [control]="centerForm.get('contactName')" formControlName="contactName">
+                            </formfield>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <formfield label="Area"  [required]="true" [control]="centerForm.get('area')" formControlName="area">
+                            </formfield>
+                        </div>
+
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <formfield label="Pincode" [required]="true" [control]="centerForm.get('pincode')"
+                                formControlName="pincode" inputType="text" pattern="[0-9]*" maxlength="6"
+                                placeholder="Enter pincode">
+                            </formfield>
+
+                        </div>
+
+                        <!-- Row 4 (Address – wider fields) -->
+                        <div class="col-12 col-lg-6">
+                            <formfield label="Address Line 1"  [required]="true" [control]="centerForm.get('address1')"
+                                formControlName="address1">
+                            </formfield>
+                        </div>
+
+                        <div class="col-12 col-lg-6">
+                            <formfield label="Address Line 2"  [required]="true" [control]="centerForm.get('address2')"
+                                formControlName="address2">
+                            </formfield>
+                        </div>
+
                     </div>
 
-                    <!-- Modal footer actions -->
+                    <!-- Footer -->
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
                             Cancel
@@ -92,6 +130,8 @@
                     </div>
                 </form>
             </div>
+
+
 
         </div>
     </div>
