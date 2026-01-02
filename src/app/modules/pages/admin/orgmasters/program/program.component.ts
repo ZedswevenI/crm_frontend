@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../../service/alert/alert.service';
+import { ProgramService } from '../../../../../service/admin/orgmasters/program.service';
 
 @Component({
   selector: 'app-program',
@@ -10,88 +11,42 @@ import { AlertService } from '../../../../../service/alert/alert.service';
   styleUrl: './program.component.scss'
 })
 export class ProgramComponent implements OnInit {
+
   programForm!: FormGroup;
+
+  totalRecords = 10;
+
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
-  editingId: number | null = null;
+  editingRecId: string | null = null;
 
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
 
-  // Table columns now aligned closer to CCD format
+  entiId: any;
+
+  // ✅ YOUR COLUMN CONFIG (UNCHANGED)
   columns = [
-    { key: 'name',          label: 'Program Name',  sortable: true },
-    { key: 'code',          label: 'Code',          sortable: true },
-    { key: 'stream',        label: 'Stream',        sortable: true },
-    { key: 'forStudents',   label: 'For Students',  sortable: false },
-    { key: 'academicYear',  label: 'Acad. Year',    sortable: true },
-    { key: 'classVenue',    label: 'Venue',         sortable: false },
-    { key: 'hoursPerWeek',  label: 'Hrs/Week',      sortable: false },
-    { key: 'isActive',      label: 'Active',        sortable: false }
-  ];
-
-  // Sample data shaped like the shared Excel CCD format
-  programData: any[] = [
-    {
-      id: 1,
-      name: 'Arise - One Year Foundation Program',
-      code: 'C6053, M6053, U6053',
-      stream: 'Foundation',
-      duration: '1 Year',
-      academicYear: '2026-27',
-      forStudents: 'Class 5 (Going to 6th)',
-      version: 'Special Sunday',
-      classVenue: 'Suguna School, Gandhipuram',
-      hoursPerWeek: 6,
-      classTimings: '9:30 AM to 4:30 PM',
-      commencementDate: '28-06-2026',
-      isActive: true
-    },
-    {
-      id: 2,
-      name: 'Prodigy - 2 Year Classroom Program',
-      code: 'C7053, M7053, U7053',
-      stream: 'JEE',
-      duration: '2 Years',
-      academicYear: '2026-27',
-      forStudents: 'Class 6 (Going to 7th)',
-      version: 'Special Sunday',
-      classVenue: 'Suguna School, Gandhipuram',
-      hoursPerWeek: 6,
-      classTimings: '9:30 AM to 4:30 PM',
-      commencementDate: '28-06-2026',
-      isActive: true
-    }
-  ];
-
-  actions = [
-    {
-      type: 'icon',
-      icon: 'fa-regular fa-pen-to-square',
-      tooltip: 'Edit',
-      color: '#6B7280',
-      callback: (row: any) => this.edit(row)
-    },
-    {
-      type: 'icon',
-      icon: 'fa-regular fa-trash-can',
-      tooltip: 'Delete',
-      color: '#6B7280',
-      hoverColor: '#D42B2B',
-      callback: (row: any) => this.openDelete(row)
-    }
+    { key: 'name', label: 'Program Name', sortable: true },
+    { key: 'code', label: 'Code', sortable: true },
+    { key: 'stream', label: 'Stream', sortable: true },
+    { key: 'forStudents', label: 'For Students', sortable: false },
+    { key: 'academicYear', label: 'Acad. Year', sortable: true },
+    { key: 'classVenue', label: 'Venue', sortable: false },
+    { key: 'hoursPerWeek', label: 'Hrs/Week', sortable: false },
+    { key: 'isActive', label: 'Active', sortable: false }
   ];
 
   streamOptions = [
-    { label: 'JEE',        value: 'JEE' },
-    { label: 'NEET',       value: 'NEET' },
+    { label: 'JEE', value: 'JEE' },
+    { label: 'NEET', value: 'NEET' },
     { label: 'Foundation', value: 'Foundation' }
   ];
 
   durationOptions = [
-    { label: '2 Years',      value: '2 Years' },
-    { label: '1 Year',       value: '1 Year' },
+    { label: '2 Years', value: '2 Years' },
+    { label: '1 Year', value: '1 Year' },
     { label: 'Crash Course', value: 'Crash Course' }
   ];
 
@@ -102,19 +57,40 @@ export class ProgramComponent implements OnInit {
   ];
 
   studentBandOptions = [
-    { label: 'Class 5 (Going to 6th)', value: 'Class 5 (Going to 6th)' },
-    { label: 'Class 6 (Going to 7th)', value: 'Class 6 (Going to 7th)' },
-    { label: 'Class 7 (Going to 8th)', value: 'Class 7 (Going to 8th)' },
-    { label: 'Class 8 (Going to 9th)', value: 'Class 8 (Going to 9th)' },
-    { label: 'Class 9 (Going to 10th)', value: 'Class 9 (Going to 10th)' },
-    { label: 'Class 10 (Going to 11th)', value: 'Class 10 (Going to 11th)' }
+    { label: 'Class 5', value: 'Class 5th' },
+    { label: 'Class 6', value: 'Class 6th' },
+    { label: 'Class 7', value: 'Class 7th' },
+    { label: 'Class 8', value: 'Class 8th' },
+    { label: 'Class 9', value: 'Class 9th' },
+    { label: 'Class 10', value: 'Class 10th' },
+    { label: 'Class 11', value: 'Class 11th' }
+  ];
+
+
+  programData: any[] = [];
+
+  actions = [
+    {
+      type: 'icon',
+      icon: 'fa-regular fa-pen-to-square',
+      tooltip: 'Edit',
+      callback: (row: any) => this.edit(row)
+    },
+    {
+      type: 'icon',
+      icon: 'fa-regular fa-trash-can',
+      tooltip: 'Delete',
+      callback: (row: any) => this.openDelete(row)
+    }
   ];
 
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
-    private alertService: AlertService
+    private alert: AlertService,
+    private programService: ProgramService
   ) {
+    this.entiId = localStorage.getItem('tenantId')
     this.breadcrumb.set([
       { label: 'Control Panel' },
       { label: 'Masters' },
@@ -123,11 +99,16 @@ export class ProgramComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.initForm();
+  }
+
+  // ---------------- FORM ----------------
+  initForm() {
     this.programForm = this.fb.group({
       name: ['', Validators.required],
       code: ['', Validators.required],
-      stream: [null, Validators.required],
-      duration: [null, Validators.required],
+      stream: ['', Validators.required],
+      duration: [null, Validators.required],   // ✅ FIXED
       academicYear: ['', Validators.required],
       forStudents: ['', Validators.required],
       version: ['', Validators.required],
@@ -142,91 +123,176 @@ export class ProgramComponent implements OnInit {
     });
   }
 
-  add(): void {
+  // ---------------- LIST ----------------
+  loadPrograms(event?: { page: number; pageSize: number; search?: string, sortKey?: string; sortDirection?: 'asc' | 'desc' }) {
+
+
+    // console.log("Events ",event);
+
+    this.programService.listPrograms(this.entiId, event?.page, event?.pageSize).subscribe({
+      next: (res: any) => {
+        this.totalRecords = res.count;
+        this.programData = (res?.data || []).map((p: any) => {
+          const option = p.options?.[0] || {};
+
+          return {
+            recId: p._id,
+
+            // ✅ table keys
+            name: p.programName,
+            code: p.programCodes?.join(', '),
+            stream: p.stream || '-',
+            forStudents: `Class ${p.studyingClass}`,
+            academicYear: p.academicYear,
+            classVenue: option.classVenue,
+            hoursPerWeek: option.hrsPerWeek,
+            isActive: p.status === 'Active',
+
+            // keep full row for edit
+            _raw: p
+          };
+        });
+      }
+    });
+  }
+
+  // ---------------- ADD ----------------
+  add() {
     this.formMode = 'create';
-    this.editingId = null;
-    this.programForm.reset({
-      name: '',
-      code: '',
-      stream: null,
-      duration: null,
-      academicYear: '',
-      forStudents: '',
-      version: '',
-      classVenue: '',
-      hoursPerWeek: null,
-      classTimings: '',
-      commencementDate: '',
-      isActive: true
-    });
+    this.editingRecId = null;
+    this.programForm.reset({ isActive: true });
     this.showForm = true;
   }
 
-  edit(row: any): void {
+  // ---------------- EDIT ----------------
+  edit(row: any) {
+    const p = row._raw;
+    const option = p.options?.[0] || {};
+
+    console.log("Edited val ", `Class ${p.studyingClass} (Going to ${p.goingToClass})`);
+
+
     this.formMode = 'edit';
-    this.editingId = row.id;
+    this.editingRecId = p._id;
 
-    // row already has all keys used in the form
-    this.programForm.reset({
-      name: row.name,
-      code: row.code,
-      stream: row.stream,
+    this.programForm.patchValue({
+      name: p.programName,
+      code: p.programCodes?.join(', '),
+      stream: p.stream,
+      academicYear: p.academicYear,
       duration: row.duration,
-      academicYear: row.academicYear,
-      forStudents: row.forStudents,
-      version: row.version,
-      classVenue: row.classVenue,
-      hoursPerWeek: row.hoursPerWeek,
-      classTimings: row.classTimings,
-      commencementDate: row.commencementDate,
-      isActive: row.isActive
+      forStudents: `Class ${p.studyingClass}`,
+      version: option.version,
+      classVenue: option.classVenue,
+      hoursPerWeek: option.hrsPerWeek,
+      classTimings: option.classTimings,
+      commencementDate: option.commencementDate?.substring(0, 10),
+      isActive: p.status === 'Active'
     });
 
     this.showForm = true;
   }
 
-  cancel(): void {
-    this.showForm = false;
-  }
-
-  save(): void {
+  // ---------------- SAVE ----------------
+  save() {
     if (this.programForm.invalid) {
       this.programForm.markAllAsTouched();
+      this.alert.error('Please fill all required fields');
       return;
     }
 
-    const value = this.programForm.value;
+    const payload = this.buildPayload(
+      this.programForm.value,
+      this.editingRecId || ''
+    );
 
-    if (this.formMode === 'create') {
-      const newId = (this.programData[this.programData.length - 1]?.id || 0) + 1;
-      this.programData = [...this.programData, { id: newId, ...value }];
-      this.alertService.success('Program created successfully');
-    } else if (this.editingId != null) {
-      this.programData = this.programData.map((p) =>
-        p.id === this.editingId ? { ...p, ...value } : p
-      );
-      this.alertService.success('Program updated successfully');
-    }
+    const apiCall =
+      this.formMode === 'create'
+        ? this.programService.createProgram(payload)
+        : this.programService.updateProgram(payload);
 
-    this.showForm = false;
+    console.log("New data", payload);
+
+
+    apiCall.subscribe({
+      next: () => {
+        this.alert.success(
+          this.formMode === 'create'
+            ? 'Program created successfully'
+            : 'Program updated successfully'
+        );
+        this.showForm = false;
+        this.loadPrograms();
+      },
+      error: () => this.alert.error('Operation failed')
+    });
   }
 
-  openDelete(row: any): void {
+  // ---------------- DELETE ----------------
+  openDelete(row: any) {
     this.deleteTarget = row;
-    this.deleteMessage = `Are you sure you want to delete program "${row.name}"?`;
+    this.deleteMessage = `Are you sure you want to delete "${row.name}"?`;
     this.deleteModalVisible = true;
   }
 
-  onDeleteModalClosed(confirmed: boolean): void {
+  onDeleteModalClosed(confirmed: boolean) {
     this.deleteModalVisible = false;
 
-    if (confirmed && this.deleteTarget) {
-      this.programData = this.programData.filter(
-        (p) => p.id !== this.deleteTarget.id
-      );
-      this.alertService.success('Program deleted');
-    }
+    if (!confirmed || !this.deleteTarget) return;
+
+    console.log("deeted ", this.deleteTarget);
+
+    this.programService
+      .deleteProgram(this.entiId, this.deleteTarget.recId)
+      .subscribe({
+        next: () => {
+          this.alert.success('Program deleted successfully');
+          this.loadPrograms();
+        },
+        error: () => this.alert.error('Delete failed')
+      });
 
     this.deleteTarget = null;
   }
+
+  cancel() {
+    this.showForm = false;
+  }
+
+  // ---------------- PAYLOAD BUILDER ----------------
+  private buildPayload(form: any, recId?: string) {
+    const match = form.forStudents?.match(/Class\s(\d+).*?(\d+)/);
+
+    return {
+      entiId: this.entiId,
+      ...(recId && { recId }),
+      academicYear: form.academicYear,
+      studyingClass: match ? `${match[1]}` : null,
+      goingToClass: match ? `${match[2]}` : null,
+      programName: form.name,
+      programCodes: form.code
+        .split(',')
+        .map((c: string) => c.trim())
+        .filter(Boolean),
+      stream: form.stream,
+      duration: form.duration,
+      options: [
+        {
+          version: form.version,
+          classVenue: form.classVenue,
+          hrsPerWeek: Number(form.hoursPerWeek),
+          classTimings: form.classTimings,
+          commencementDate: form.commencementDate
+            ? new Date(form.commencementDate).toISOString()
+            : null,
+          commencementNote: null,
+          status: form.isActive ? 'Active' : 'Inactive',
+        }
+      ],
+
+      status: form.isActive ? 'Active' : 'Inactive'
+    };
+  }
+
+
 }

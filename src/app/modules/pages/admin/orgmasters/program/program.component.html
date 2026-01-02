@@ -16,7 +16,7 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="programData" [actions]="actions">
+            <list-table [autoFitChars]="true" (requestData)="loadPrograms($event)" [columns]="columns" [totalRecords]="totalRecords" [data]="programData" [actions]="actions" [showpageoptions]="true">
             </list-table>
         </div>
     </div>
@@ -59,10 +59,10 @@
                         </div>
 
                         <div class="col-md-2">
-                            <selectbox label="Stream" [required]="true" [options]="streamOptions"
-                                [optionLabel]="'label'" [optionValue]="'value'" [control]="programForm.get('stream')"
+                            <selectbox label="Stream" [options]="streamOptions" optionLabel="label" optionValue="value"
                                 formControlName="stream">
                             </selectbox>
+
                         </div>
 
                         <div class="col-md-3">
@@ -116,10 +116,13 @@
 
                         <!-- Row 4: Start date & active -->
                         <div class="col-md-4">
+
                             <formfield label="Commencement Date" [required]="true"
                                 [control]="programForm.get('commencementDate')" formControlName="commencementDate"
-                                placeholder="28-06-2026">
+                                type="date">
                             </formfield>
+
+
                         </div>
 
                         <div class="col-md-3 d-flex align-items-center">
