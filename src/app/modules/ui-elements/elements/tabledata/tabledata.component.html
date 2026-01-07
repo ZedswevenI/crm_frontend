@@ -78,7 +78,7 @@
               </ng-template>
             </td>
 
-            <td class="px-4 py-3 text-center" *ngIf="showaction">
+            <td class="px-4 py-3 fw-semibold text-center action-col" *ngIf="showaction">
               <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
                 <ng-container *ngFor="let action of actions">
                   <button *ngIf="action.type === 'icon'" type="button" class="btn btn-sm app-table-icon-btn"
@@ -92,7 +92,7 @@
           </tr>
 
           <!-- Empty state -->
-          <tr *ngIf="(pagedData?.length ?? 0) === 0">
+          <tr *ngIf="(pagedData.length) === 0">
             <td [attr.colspan]="columns.length + (showaction ? 2 : 1)" class="text-center py-4 text-muted">
               No data found
             </td>

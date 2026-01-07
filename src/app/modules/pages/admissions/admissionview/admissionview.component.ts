@@ -108,8 +108,8 @@ interface AdmissionViewModel {
 export class AdmissionviewComponent implements OnInit {
   admissionId = '';
   loading = true;
-
   admission!: AdmissionViewModel;
+  readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
 
   constructor(
     private route: ActivatedRoute,
@@ -464,6 +464,16 @@ export class AdmissionviewComponent implements OnInit {
               body { margin: 0; }
               .page { border: none; }
             }
+            .brand {
+              display: flex;
+              gap: 10px;
+              align-items: center;
+            }
+            .brand img {
+              height: 42px;
+              width: auto;
+              object-fit: contain;
+            }
           </style>
         </head>
         <body>
@@ -521,6 +531,9 @@ export class AdmissionviewComponent implements OnInit {
 
     return `
       <div class="page">
+      <div class="brand">
+              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+            </div>
         <div class="header-row">
           <div>
             <div class="title-main">Fee Calculation Sheet</div>
@@ -677,7 +690,10 @@ export class AdmissionviewComponent implements OnInit {
 
     return `
       <div class="page">
-        <div class="header-row">
+        <div class="brand">
+              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+            </div>
+        <div class="header-row">            
           <div>
             <div class="title-main">Enrolment Report / Fee Acknowledgement</div>
             <div class="subtitle">Provisional Admission Confirmation</div>
@@ -870,7 +886,8 @@ export class AdmissionviewComponent implements OnInit {
 
     // You can move these to config if needed
     const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
-    const headOfficeAddress = '13/1 Maharaja Avenue extension, Kalapatti Main Rd, beside Suguna pip school, GKD Nagar, Nehru Nagar West, Coimbatore, Tamil Nadu 641014'; // TODO: replace with real office address
+    const headOfficeAddress =
+      '13/1 Maharaja Avenue extension, Kalapatti Main Rd, beside Suguna pip school, GKD Nagar, Nehru Nagar West, Coimbatore, Tamil Nadu 641014'; // TODO: replace with real office address
     const centreAddress = ac.centreName || 'Study Centre';
 
     const studentName = this.esc(s.name || '');
@@ -945,6 +962,9 @@ export class AdmissionviewComponent implements OnInit {
 
     return `
       <div class="page">
+      <div class="brand">
+              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+            </div>
         <!-- Header -->
         <div class="header-row">
           <div>

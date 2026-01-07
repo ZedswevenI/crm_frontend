@@ -1,9 +1,7 @@
-/* Reuse main table look */
 .app-table.app-viewtable {
   font-size: 0.9rem;
 }
 
-/* Top control: page size */
 .app-table-page-size {
   height: 44px;
   padding-inline: 12px 32px;
@@ -12,18 +10,16 @@
   border-color: #e5e7eb;
 
   &:focus {
-    box-shadow: 0 0 0 2px rgba(244, 123, 32, 0.12); // saffron glow
+    box-shadow: 0 0 0 2px rgba(244, 123, 32, 0.12);
     border-color: var(--z7i-saffron);
   }
 }
 
-/* Wrapper */
 .app-table-wrapper {
   border: 1px solid #e5e7eb;
   background-color: #ffffff;
 }
 
-/* Loader Overlay */
 .table-overlay {
   position: absolute;
   inset: 0;
@@ -34,7 +30,6 @@
   justify-content: center;
 }
 
-/* Table structure */
 .app-table-grid {
   border-collapse: separate;
   border-spacing: 0;
@@ -54,9 +49,10 @@
     &.sno-col {
       width: 80px;
     }
-
     &.action-col {
-      width: 130px;
+      width: auto;
+      min-width: 220px;
+      max-width: 380px;
     }
   }
 }
@@ -167,4 +163,22 @@
       justify-content: center;
     }
   }
+}
+
+.app-table-row td:last-child {
+  white-space: normal;
+}
+
+/* UPDATED: zebra rows */
+.app-table-row:nth-child(odd) td {
+  background-color: #ffffff;
+}
+
+.app-table-row:nth-child(even) td {
+  background-color: #fff9e6; // light yellow
+}
+
+/* keep hover working */
+.app-table-row:hover td {
+  background-color: #f9fafb !important;
 }

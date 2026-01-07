@@ -2,7 +2,6 @@
   font-size: 0.9rem;
 }
 
-/* Top controls */
 .app-table-search {
   width: 368px;
   max-width: 100%;
@@ -16,7 +15,7 @@
   font-size: 0.9rem;
 
   &:focus {
-    box-shadow: 0 0 0 2px rgba(244, 123, 32, 0.12); // saffron glow
+    box-shadow: 0 0 0 2px rgba(244, 123, 32, 0.12);
     border-color: var(--z7i-saffron);
   }
 }
@@ -66,13 +65,11 @@
   }
 }
 
-/* Table wrapper */
 .app-table-wrapper {
   border: 1px solid #e5e7eb;
   background-color: #ffffff;
 }
 
-/* Loading overlay */
 .table-overlay {
   position: absolute;
   inset: 0;
@@ -83,7 +80,6 @@
   justify-content: center;
 }
 
-/* Table proper */
 .app-table-grid {
   border-collapse: separate;
   border-spacing: 0;
@@ -92,7 +88,6 @@
 .table-header {
   background-color: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
-
   th {
     font-size: 0.78rem;
     text-transform: uppercase;
@@ -105,7 +100,9 @@
     }
 
     &.action-col {
-      width: 130px;
+      width: auto;
+      min-width: 75px;
+      max-width: 250px;
     }
   }
 }
@@ -123,7 +120,6 @@
   }
 }
 
-/* Cell truncation + expansion */
 .truncate-cell {
   display: inline-block;
   max-width: 240px;
@@ -133,7 +129,6 @@
   vertical-align: middle;
 }
 
-/* Action buttons */
 .app-table-icon-btn {
   border-radius: 999px;
   border: none;
@@ -141,24 +136,20 @@
   width: 32px;
   height: 32px;
   padding: 0;
-
   i {
     font-size: 1rem;
   }
-
   &:hover {
     background-color: #f3f4f6;
   }
 }
 
-/* Expanded row */
 .row-expander td {
   border-top: none !important;
   border-bottom: 1px solid #e5e7eb;
   font-size: 0.9rem;
 }
 
-/* Pagination */
 .app-table-pagination {
   border: 1px solid #e5e7eb;
   border-top: none;
@@ -174,11 +165,9 @@
   align-items: center;
   gap: 0.4rem;
   padding-inline: 0.5rem;
-
   img {
     opacity: 0.8;
   }
-
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
@@ -195,11 +184,9 @@
   height: 36px;
   border: none;
   background-color: transparent;
-
   &.pagination-active {
     background-color: var(--z7i-saffron);
     color: #ffffff;
-
     span {
       color: #ffffff !important;
     }
@@ -210,28 +197,39 @@
   }
 }
 
-/* Responsive tweaks */
 @media (max-width: 768px) {
   .app-table-search {
     width: 100%;
   }
-
   .app-table-page-size,
   .app-table-filter-btn {
     width: 100%;
   }
-
   .app-table-pagination {
     flex-direction: column;
     gap: 0.5rem;
     align-items: stretch;
-
     .app-table-page-link {
       justify-content: center;
     }
-
     > div {
       justify-content: center;
     }
   }
+}
+
+.app-table-row td:last-child {
+  white-space: normal;
+}
+
+.app-table-row:nth-child(odd) td {
+  background-color: #ffffff;
+}
+
+.app-table-row:nth-child(even) td {
+  background-color: #fff9e6;
+}
+
+.app-table-row:hover td {
+  background-color: #f9fafb !important;
 }

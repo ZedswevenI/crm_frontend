@@ -16,26 +16,19 @@ interface PortalStudentResult {
   portalStudentId?: string;
   regNo?: string;
   registrationNumber?: string;
-
   name?: string;
   phone?: string;
-
   parentName?: string;
   parentPhone?: string;
-
   email?: string;
-
   programName?: string;
   programCode?: string;
-
-  centerName?: string; // may not come
-  centerCode?: string; // comes
-  studyCentre?: string; // comes
-
-  testScholarshipPct?: number; // waiverPerInTf
-
+  centerName?: string;
+  centerCode?: string;
+  studyCentre?: string;
+  testScholarshipPct?: number;
   scholarshipTestId?: string;
-  academicYear?: string; // ✅ new
+  academicYear?: string;
 }
 
 interface ProgramItem {
@@ -50,21 +43,24 @@ interface FeePlan {
   id: string;
   name: string;
   feePlanCode?: string;
-
-  // instalments coming from backend: feePlan.instalments[]
   instalments: Array<{
     seq: number;
     label: string;
     amount: number;
+    dueDate?: string | null;
   }>;
-
-  // fee heads from backend: feePlan.feeHeads[]
   feeHeads: Array<{
     key: string;
     label: string;
-    fee: number; // base amount
-    stax: number; // GST amount
+    fee: number;
+    stax: number;
   }>;
+}
+
+interface CenterItem {
+  centerId: string;
+  centerName: string;
+  centerCode?: string;
 }
 
 @Component({
@@ -75,39 +71,27 @@ interface FeePlan {
 })
 export class AdmissionsComponent implements OnInit {
   step: 0 | 1 | 2 = 0;
-
   discountOptions = Array.from({ length: 21 }, (_, i) => i * 5);
-
   lookupForm!: UntypedFormGroup;
   step1Form!: UntypedFormGroup;
   step2Form!: UntypedFormGroup;
-
   loading = false;
-
   submittedForAck = false;
   submitting = false;
-
   feeCalcGenerated = false;
   approvalSent = false;
-
-  // Direct enrolment toggle
   isDirectEnrolment = false;
-
-  // fetched portal data
   portal: PortalStudentResult | null = null;
-
-  // loaded from backend
   programs: ProgramItem[] = [];
   feePlans: FeePlan[] = [];
   programsLoading = false;
   feePlansLoading = false;
-
-  // admission state
   admissionId: string | null = null;
-
-  // ✅ favour of fixed as requested
+  centers: CenterItem[] = [];
+  centersLoading = false;
+  academicYearOptions: string[] = [];
   readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
-
+  readonly PRINT_LOGO_URL = 'assets/logo.png';
   constructor(
     private fb: UntypedFormBuilder,
     private alert: AlertService,
@@ -123,52 +107,36 @@ export class AdmissionsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Step 0
     this.lookupForm = this.fb.group({
       regNo: [''],
       directEnrolment: [false],
     });
 
-    // Step 1
     this.step1Form = this.fb.group({
-      academicYear: [''],
+      academicYear: ['', Validators.required],
       portalStudentId: [''],
       scholarshipTestId: [''],
-
       regNo: [{ value: '', disabled: true }],
-
       name: ['', Validators.required],
-
-      // ✅ single mobile field (used for parentPhone internally)
       phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-
       parentName: ['', Validators.required],
-
-      // ✅ keep parentPhone for backend payload but do NOT show in UI
       parentPhone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-
       email: ['', [Validators.email]],
-
       programId: ['', Validators.required],
       programName: ['', Validators.required],
       programCode: [''],
-
-      centerId: [''],
-      centerName: ['', Validators.required],
+      centerId: ['', Validators.required],
+      centerName: [''],
       centerCode: [''],
       studyCentre: [''],
-
       feePlanId: ['', Validators.required],
       feePlanCode: [''],
-
       baseFee: [{ value: 0, disabled: true }],
-
       testScholarshipPct: [{ value: 0, disabled: true }],
       scholarshipPct: [0, [Validators.min(0), Validators.max(100)]],
       additionalScholarshipPct: [0, [Validators.min(0), Validators.max(100)]],
     });
 
-    // ✅ Sync parentPhone = phone always
     this.step1Form.get('phone')?.valueChanges.subscribe((v) => {
       const phone = String(v || '').trim();
       const cur = String(this.step1Form.get('parentPhone')?.value || '').trim();
@@ -179,7 +147,6 @@ export class AdmissionsComponent implements OnInit {
       }
     });
 
-    // Step 2
     this.step2Form = this.fb.group({
       neftAmount: [{ value: 0, disabled: true }],
       neftRefs: this.fb.array([]),
@@ -187,21 +154,19 @@ export class AdmissionsComponent implements OnInit {
     });
 
     this.loadPrograms();
-
+    this.loadCenters();
+    this.buildAcademicYearOptions();
     this.step1Form.get('programId')?.valueChanges.subscribe((pid) => {
       this.onProgramChanged(String(pid || '').trim());
     });
-
     this.step1Form.get('academicYear')?.valueChanges.subscribe(() => {
       this.loadFeePlans();
       this.resetWorkflowFlags();
     });
-
     this.step1Form.get('feePlanId')?.valueChanges.subscribe((id) => {
       this.onFeePlanChanged(String(id || '').trim());
       this.resetWorkflowFlags();
     });
-
     this.step1Form
       .get('scholarshipPct')
       ?.valueChanges.subscribe(() => this.resetWorkflowFlags());
@@ -211,7 +176,6 @@ export class AdmissionsComponent implements OnInit {
     this.step1Form
       .get('testScholarshipPct')
       ?.valueChanges.subscribe(() => this.resetWorkflowFlags());
-
     this.buildEmptyPayments();
   }
 
@@ -220,6 +184,72 @@ export class AdmissionsComponent implements OnInit {
       (localStorage.getItem('entiId') || '').trim() ||
       (localStorage.getItem('tenantId') || '').trim();
     return entiId;
+  }
+
+  private buildAcademicYearOptions(): void {
+    const base = new Date().getFullYear();
+    this.academicYearOptions = [1, 2, 3, 4].map((n) => `${base} - ${base + n}`);
+    const cur = String(this.step1Form.get('academicYear')?.value || '').trim();
+    if (!cur) {
+      this.step1Form.patchValue(
+        { academicYear: this.academicYearOptions[0] },
+        { emitEvent: true }
+      );
+    }
+  }
+
+  private loadCenters(): void {
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+    this.centersLoading = true;
+    const body: any = { entiId: tenantId };
+    this.api.fetchData(body, 'ims/center', 'list?list=full').subscribe({
+      next: (res: any) => {
+        this.centersLoading = false;
+
+        if (!res?.status) {
+          this.alert.error(
+            res?.message || res?.error || 'Failed to load centers'
+          );
+          this.centers = [];
+          return;
+        }
+        const arr = Array.isArray(res?.data) ? res.data : [];
+        this.centers = arr
+          .map((x: any) => ({
+            centerId: String(x.centerId || x._id || x.id || '').trim(),
+            centerName: String(x.centerName || x.name || '').trim(),
+            centerCode: x.centerCode ? String(x.centerCode).trim() : '',
+          }))
+          .filter((c: CenterItem) => !!c.centerId && !!c.centerName);
+        const cur = String(this.step1Form.get('centerId')?.value || '').trim();
+        if (!cur && this.centers.length === 1) {
+          this.onCenterChanged(this.centers[0].centerId);
+        }
+      },
+      error: () => {
+        this.centersLoading = false;
+        this.centers = [];
+        this.alert.error('Failed to load centers');
+      },
+    });
+  }
+
+  public onCenterChanged(centerId: any): void {
+    const id = String(centerId || '').trim();
+    const c = this.centers.find((x) => x.centerId === id) || null;
+    this.step1Form.patchValue(
+      {
+        centerId: id,
+        centerName: c?.centerName || '',
+        centerCode: c?.centerCode || '',
+      },
+      { emitEvent: false }
+    );
+    this.resetWorkflowFlags();
   }
 
   private resetWorkflowFlags(): void {
@@ -252,18 +282,14 @@ export class AdmissionsComponent implements OnInit {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  // ---------------------- Masters loading ----------------------
-
   private loadPrograms(): void {
     const tenantId = this.pickTenantId();
     if (!tenantId) {
       this.alert.error('tenantId (entiId) is missing. Please login again.');
       return;
     }
-
     this.programsLoading = true;
     const body: any = { entiId: tenantId };
-
     this.api.fetchData(body, 'ims/program', 'list?list=full').subscribe({
       next: (res: any) => {
         this.programsLoading = false;
@@ -274,20 +300,35 @@ export class AdmissionsComponent implements OnInit {
           this.programs = [];
           return;
         }
-
         const arr = Array.isArray(res?.data) ? res.data : [];
         this.programs = arr
-          .map((x: any) => ({
-            programId: String(x.programId || x._id || ''),
-            programName: String(x.programName || x.name || ''),
-            programCode: x.programCode ? String(x.programCode) : '',
-            centerId: x.centerId ? String(x.centerId) : '',
-            centerName: x.centerName ? String(x.centerName) : '',
-          }))
+          .map((x: any) => {
+            const programId = String(x.programId || x._id || x.id || '').trim();
+            const programName = String(x.programName || x.name || '').trim();
+            const programCode = String(
+              x.programCode ??
+                x.code ??
+                x.program_code ??
+                x.programCodeText ??
+                x.programShortCode ??
+                ''
+            ).trim();
+            return {
+              programId,
+              programName,
+              programCode,
+              centerId: x.centerId ? String(x.centerId).trim() : '',
+              centerName: x.centerName ? String(x.centerName).trim() : '',
+            };
+          })
           .filter((p: ProgramItem) => !!p.programId && !!p.programName);
-
-        // ✅ if portal already fetched, map programId now
-        this.tryMapProgramFromPortal();
+        if (
+          this.portal ||
+          this.pendingPortalProgramCode ||
+          this.pendingPortalProgramName
+        ) {
+          this.tryMapProgramFromPortal();
+        }
       },
       error: () => {
         this.programsLoading = false;
@@ -297,62 +338,121 @@ export class AdmissionsComponent implements OnInit {
     });
   }
 
-  private tryMapProgramFromPortal(): void {
-    if (!this.portal) return;
+  private pendingPortalProgramCode: string | null = null;
+  private pendingPortalProgramName: string | null = null;
 
-    const code = String(this.portal.programCode || '').trim();
+  private normCode(v: any): string {
+    return String(v ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '');
+  }
+
+  private mapProgramByCode(programCodeRaw: any): void {
+    const code = this.normCode(programCodeRaw);
     if (!code) return;
-
+    if (this.programsLoading || !this.programs || this.programs.length === 0) {
+      this.pendingPortalProgramCode = code;
+      return;
+    }
     const match =
-      this.programs.find((p) => String(p.programCode || '').trim() === code) ||
-      null;
-
-    // ✅ If program from portal is not created, hard-stop with alert and send back to step 0
+      this.programs.find((p) => this.normCode(p.programCode) === code) || null;
     if (!match) {
       this.alert.error(
         'Program is not created. Please create the program and retry.'
       );
+      this.step1Form.patchValue(
+        {
+          programId: '',
+          programName: '',
+          programCode: String(programCodeRaw || '').trim(),
+          feePlanId: '',
+          feePlanCode: '',
+        },
+        { emitEvent: false }
+      );
+      this.feePlans = [];
+      this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
+      this.step = 0;
+      return;
+    }
+    this.applyProgramSelection(match);
+  }
 
+  private applyProgramSelection(p: ProgramItem | null): void {
+    if (!p) return;
+    this.step1Form
+      .get('programId')
+      ?.setValue(p.programId, { emitEvent: false });
+    this.step1Form.patchValue(
+      {
+        programName: p.programName || '',
+        programCode: p.programCode || '',
+      },
+      { emitEvent: false }
+    );
+    this.onProgramChanged(p.programId);
+  }
+
+  private norm(v: any): string {
+    return String(v ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '')
+      .replace(/[-_/]/g, '');
+  }
+
+  private tryMapProgramFromPortal(): void {
+    if (!this.portal) return;
+    const portalCode = this.norm(this.portal.programCode);
+    const portalName = this.norm(this.portal.programName);
+    if (this.programsLoading || !this.programs.length) {
+      this.pendingPortalProgramCode = portalCode || null;
+      this.pendingPortalProgramName = portalName || null;
+      return;
+    }
+    let match = portalCode
+      ? this.programs.find((p) => this.norm(p.programCode) === portalCode) ??
+        null
+      : null;
+    if (!match && portalName) {
+      match =
+        this.programs.find((p) => this.norm(p.programName) === portalName) ??
+        null;
+    }
+    if (!match) {
+      this.alert.error(
+        `Program not found in master. Portal ProgramCode="${
+          this.portal.programCode || ''
+        }", ProgramName="${this.portal.programName || ''}".`
+      );
       this.step1Form.patchValue(
         {
           programId: '',
           programName: '',
           programCode: this.portal.programCode || '',
-          centerId: '',
-          centerName: '',
+          feePlanId: '',
+          feePlanCode: '',
         },
         { emitEvent: false }
       );
-
-      this.step = 0;
+      this.feePlans = [];
+      this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
       return;
     }
-
-    // patch programId -> triggers onProgramChanged -> loadFeePlans
     this.step1Form.patchValue(
       {
         programId: match.programId,
+        programName: match.programName,
+        programCode:
+          match.programCode && match.programCode.trim()
+            ? match.programCode
+            : this.portal?.programCode || '',
       },
       { emitEvent: true }
     );
-
-    // also patch center/program info from program master (more reliable)
-    this.step1Form.patchValue(
-      {
-        programName:
-          match.programName || this.step1Form.value.programName || '',
-        programCode:
-          match.programCode || this.step1Form.value.programCode || '',
-        centerId: match.centerId || '',
-        centerName:
-          String(match.centerName || '').trim() ||
-          String(this.portal.studyCentre || '').trim() ||
-          String(this.portal.centerCode || '').trim() ||
-          String(this.step1Form.value.centerName || '').trim() ||
-          '',
-      },
-      { emitEvent: false }
-    );
+    this.pendingPortalProgramCode = null;
+    this.pendingPortalProgramName = null;
   }
 
   private loadFeePlans(): void {
@@ -361,15 +461,12 @@ export class AdmissionsComponent implements OnInit {
       this.alert.error('tenantId (entiId) is missing. Please login again.');
       return;
     }
-
     const programId = String(
       this.step1Form.get('programId')?.value || ''
     ).trim();
     const programCode = String(
       this.step1Form.get('programCode')?.value || ''
     ).trim();
-
-    // ✅ ONLY require programId OR programCode
     if (!programId && !programCode) {
       this.feePlans = [];
       this.step1Form.patchValue(
@@ -379,20 +476,14 @@ export class AdmissionsComponent implements OnInit {
       this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
       return;
     }
-
     this.feePlansLoading = true;
-
     const body: any = { entiId: tenantId };
-
-    // ✅ backend expects query params, we send only programId/programCode
     let route = `list?list=full`;
     if (programId) route += `&programId=${encodeURIComponent(programId)}`;
     else route += `&programCode=${encodeURIComponent(programCode)}`;
-
     this.api.fetchData(body, 'ims/feeplan', route).subscribe({
       next: (res: any) => {
         this.feePlansLoading = false;
-
         if (!res?.status) {
           this.alert.error(
             res?.message || res?.error || 'Failed to load fee plans'
@@ -400,7 +491,6 @@ export class AdmissionsComponent implements OnInit {
           this.feePlans = [];
           return;
         }
-
         const arr = Array.isArray(res?.data) ? res.data : [];
         this.feePlans = arr
           .map((x: any) => ({
@@ -409,32 +499,26 @@ export class AdmissionsComponent implements OnInit {
               x.feePlanName || x.feePlanCode || x.name || 'Fee Plan'
             ).trim(),
             feePlanCode: x.feePlanCode ? String(x.feePlanCode).trim() : '',
-
-            // ✅ map instalments correctly from backend
             instalments: Array.isArray(x.instalments)
               ? x.instalments.map((i: any) => ({
                   seq: Number(i.seq || 0) || 0,
                   label: String(i.label || `Instalment ${i.seq || ''}`).trim(),
                   amount: Number(i.amount || 0) || 0,
+                  dueDate: String(i.label).trim(),
                 }))
               : [],
-
-            // ✅ map fee heads: amount + gstAmount
             feeHeads: Array.isArray(x.feeHeads)
               ? x.feeHeads.map((h: any) => ({
                   key: String(h.key || h.feeHeadKey || '').trim(),
                   label: String(h.label || h.feeHeadName || '').trim(),
-                  fee: Number(h.amount || 0), // base
-                  stax: Number(h.gstAmount || 0), // GST
+                  fee: Number(h.amount || 0),
+                  stax: Number(h.gstAmount || 0),
                 }))
               : [],
           }))
           .filter((fp: FeePlan) => !!fp.id);
-
-        // auto pick first if nothing selected
         const cur = String(this.step1Form.get('feePlanId')?.value || '').trim();
         const exists = !!this.feePlans.find((p) => p.id === cur);
-
         if (cur && !exists) {
           this.step1Form.patchValue(
             { feePlanId: '', feePlanCode: '' },
@@ -442,7 +526,6 @@ export class AdmissionsComponent implements OnInit {
           );
           this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
         }
-
         const newCur = String(
           this.step1Form.get('feePlanId')?.value || ''
         ).trim();
@@ -474,11 +557,9 @@ export class AdmissionsComponent implements OnInit {
       this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
       return;
     }
-
     const p =
       this.programs.find((x) => String(x.programCode || '').trim() === code) ||
       null;
-
     if (p) {
       this.step1Form.patchValue(
         {
@@ -490,14 +571,11 @@ export class AdmissionsComponent implements OnInit {
         { emitEvent: false }
       );
     }
-
     this.step1Form.patchValue(
       { feePlanId: '', feePlanCode: '' },
       { emitEvent: false }
     );
     this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
-
-    // ✅ Call feeplans even if programId isn't found (fallback to programCode)
     this.loadFeePlans();
     this.resetWorkflowFlags();
   }
@@ -505,23 +583,16 @@ export class AdmissionsComponent implements OnInit {
   public onProgramChanged(programId: any): void {
     const pid = String(programId || '').trim();
     const p = this.programs.find((x) => x.programId === pid) || null;
-
     this.step1Form.patchValue(
       {
         programName: p?.programName || '',
-        programCode:
-          p?.programCode || this.step1Form.get('programCode')?.value || '',
-        centerName:
-          p?.centerName || this.step1Form.get('centerName')?.value || '',
+        programCode: p?.programCode || '',
         feePlanId: '',
         feePlanCode: '',
       },
       { emitEvent: false }
     );
-
     this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
-
-    // ✅ Always refresh fee plans
     this.loadFeePlans();
     this.resetWorkflowFlags();
   }
@@ -542,16 +613,12 @@ export class AdmissionsComponent implements OnInit {
     this.step1Form.get('baseFee')?.setValue(total, { emitEvent: false });
   }
 
-  // ---------------------- Step 0 ----------------------
-
   proceedDirectEnrolment(): void {
     this.isDirectEnrolment = true;
     this.lookupForm.patchValue({ directEnrolment: true }, { emitEvent: false });
-
     this.portal = null;
     this.admissionId = null;
     this.step1Form.reset();
-
     this.step1Form.patchValue({
       portalStudentId: '',
       scholarshipTestId: '',
@@ -572,14 +639,10 @@ export class AdmissionsComponent implements OnInit {
       feePlanCode: '',
       academicYear: '',
     });
-
     this.setRegNoLock(false);
-    this.setTestScholarshipLock(false);
-
     this.feePlans = [];
     this.resetWorkflowFlags();
     this.buildEmptyPayments();
-
     this.step = 1;
   }
 
@@ -589,7 +652,6 @@ export class AdmissionsComponent implements OnInit {
       this.alert.error('tenantId (entiId) is missing. Please login again.');
       return;
     }
-
     const regNo = String(this.lookupForm.value.regNo || '').trim();
     if (!regNo) {
       this.alert.error(
@@ -597,14 +659,11 @@ export class AdmissionsComponent implements OnInit {
       );
       return;
     }
-
     this.loading = true;
-
     const body: any = {
       entiId: tenantId,
       registrationNumber: regNo,
     };
-
     this.api.fetchData(body, 'admi', 'portal/fetch').subscribe({
       next: (res: any) => {
         this.loading = false;
@@ -612,10 +671,7 @@ export class AdmissionsComponent implements OnInit {
           this.alert.error(res?.message || res?.error || 'Fetch failed');
           return;
         }
-
         const d = res?.data || {};
-
-        // portal payload has only one mobile: mobileNo
         const phone = String(d.mobileNo || d.phone || d.mobile || '').trim();
         const parentName = String(
           d.fatherName || d.parentName || d.guardianName || ''
@@ -623,35 +679,27 @@ export class AdmissionsComponent implements OnInit {
         const academicYear = String(
           d.academicYear || d.academic_year || ''
         ).trim();
-
         const portal: PortalStudentResult = {
           portalStudentId:
             d.portalStudentId || d.portalStudentID || d.studentId || '',
           scholarshipTestId: d.testId || d.scholarshipTestId || d._id || '',
-
           regNo: d.regNo || d.registrationNumber || regNo,
           registrationNumber: d.registrationNumber || regNo,
-
           name:
             d.name ||
             d.studentName ||
             `${d.firstName || ''} ${d.lastName || ''}`.trim(),
           phone: phone,
-
           parentName: parentName,
           parentPhone: String(
             d.parentPhone || d.parentMobile || phone || ''
           ).trim(),
-
           email: d.email || '',
-
           programName: d.programName || '',
           programCode: d.programCode || '',
-
           centerName: d.centerName || '',
           centerCode: d.centerCode || '',
           studyCentre: d.studyCentre || '',
-
           testScholarshipPct:
             Number(
               d.waiverPerInTf ?? d.testScholarshipPct ?? d.testScholarship ?? 0
@@ -659,55 +707,41 @@ export class AdmissionsComponent implements OnInit {
 
           academicYear: academicYear || '',
         };
-
         this.portal = portal;
         this.isDirectEnrolment = false;
         this.admissionId = null;
-
         this.step1Form.reset();
         this.step1Form.patchValue(
           {
             portalStudentId: portal.portalStudentId || '',
             scholarshipTestId: portal.scholarshipTestId || '',
             regNo: portal.regNo || regNo,
-
             name: portal.name || '',
             phone: portal.phone || '',
             parentName: portal.parentName || '',
             parentPhone: portal.parentPhone || portal.phone || '',
             email: portal.email || '',
-
-            programName: portal.programName || '',
+            programName: '',
             programCode: portal.programCode || '',
             centerName: portal.centerName || portal.studyCentre || '',
             centerCode: portal.centerCode || '',
             studyCentre: portal.studyCentre || '',
-
             academicYear: portal.academicYear || '',
-
             testScholarshipPct: portal.testScholarshipPct || 0,
             scholarshipPct: 0,
             additionalScholarshipPct: 0,
-
-            // reset fee plan selection (will be loaded after mapping programId)
             feePlanId: '',
             feePlanCode: '',
             baseFee: 0,
           },
           { emitEvent: false }
         );
-
-        // lock portal-only fields
         this.setRegNoLock(true);
         this.setTestScholarshipLock(true);
-
-        // ✅ map programId from portal programCode
         this.tryMapProgramFromPortal();
-
         this.step = 1;
         this.resetWorkflowFlags();
         this.buildEmptyPayments();
-
         this.alert.success('Fetched student details.');
       },
       error: (err) => {
@@ -723,8 +757,6 @@ export class AdmissionsComponent implements OnInit {
     this.resetWorkflowFlags();
   }
 
-  // ---------------------- Fee previews ----------------------
-
   get selectedPlan(): FeePlan | null {
     const id = String(this.step1Form.get('feePlanId')?.value || '').trim();
     return this.feePlans.find((p) => p.id === id) || null;
@@ -739,18 +771,25 @@ export class AdmissionsComponent implements OnInit {
   }> {
     const plan = this.selectedPlan;
     const heads = plan?.feeHeads || [];
-    const pct = this.totalDiscountPct;
-
     if (!heads.length) return [];
-
+    const testPct = this.testScholarshipPct || 0;
+    const schlPct = this.scholarshipPct || 0;
+    const addPct = this.additionalScholarshipPct || 0;
+    const clamp = (v: number) => Math.max(0, Math.min(100, Number(v || 0)));
+    const p1 = clamp(testPct);
+    const p2 = clamp(schlPct);
+    const p3 = clamp(addPct);
+    const applyPct = (amount: number, pct: number) => {
+      const out = Math.round(amount * (1 - pct / 100));
+      return out < 0 ? 0 : out;
+    };
     return heads.map((h) => {
-      const fee = Number(h.fee || 0);
-      const stax = Number(h.stax || 0);
-
-      let outFee = fee;
-      let outStax = stax;
-      let schol = 0;
-
+      const fee0 = Number(h.fee || 0);
+      const tax0 = Number(h.stax || 0);
+      const rate = fee0 > 0 ? tax0 / fee0 : 0;
+      let outFee = fee0;
+      let outTax = tax0;
+      let scholBenefits = 0;
       const key = String(h.key || '')
         .trim()
         .toLowerCase();
@@ -761,22 +800,23 @@ export class AdmissionsComponent implements OnInit {
         String(h.label || '')
           .toLowerCase()
           .includes('tuition');
-
-      if (isTuition && pct > 0) {
-        // Keep same tax ratio
-        const rate = fee > 0 ? stax / fee : 0;
-        outFee = Math.round(fee * (1 - pct / 100));
-        outStax = Math.round(outFee * rate);
-
-        schol = Math.max(0, fee + stax - (outFee + outStax));
+      if (isTuition) {
+        const fee1 = applyPct(outFee, p1);
+        const tax1 = Math.round(fee1 * rate);
+        const fee2 = applyPct(fee1, p2);
+        const tax2 = Math.round(fee2 * rate);
+        const fee3 = applyPct(fee2, p3);
+        const tax3 = Math.round(fee3 * rate);
+        outFee = fee3;
+        outTax = tax3;
+        scholBenefits = Math.max(0, fee0 + tax0 - (outFee + outTax));
       }
-
       return {
         label: h.label,
         fee: outFee,
-        stax: outStax,
-        total: outFee + outStax,
-        scholBenefits: schol,
+        stax: outTax,
+        total: outFee + outTax,
+        scholBenefits,
       };
     });
   }
@@ -793,23 +833,17 @@ export class AdmissionsComponent implements OnInit {
     const plan = this.selectedPlan;
     const instals = plan?.instalments || [];
     if (!instals.length) return [];
-
-    // base instalment amounts from backend
     const baseAmounts = instals.map((i) => Number(i.amount) || 0);
     const baseTotal = baseAmounts.reduce(
       (s: number, x: number) => s + (Number(x) || 0),
       0
     );
-
     const scaled = this.scalePlan(baseAmounts, this.finalFee, baseTotal);
-
     const rows: Array<{
       label: string;
       amount: number;
       type: 'NEFT' | 'CHEQUE';
     }> = [];
-
-    // 1st instalment → NEFT
     if (scaled.length) {
       rows.push({
         label: instals[0]?.label || 'Advance (NEFT)',
@@ -817,8 +851,6 @@ export class AdmissionsComponent implements OnInit {
         type: 'NEFT',
       });
     }
-
-    // Remaining instalments → Cheques
     for (let i = 1; i < scaled.length; i++) {
       rows.push({
         label: instals[i]?.label || `Cheque ${i}`,
@@ -851,8 +883,6 @@ export class AdmissionsComponent implements OnInit {
     return raw;
   }
 
-  // ---------------------- Step 1 actions ----------------------
-
   generateAcknowledgementStep2(): void {
     if (!this.submittedForAck) {
       this.alert.error('Please submit payment details first.');
@@ -872,7 +902,6 @@ export class AdmissionsComponent implements OnInit {
 
   next(): void {
     this.step1Form.markAllAsTouched();
-
     if (this.step1Form.invalid) {
       this.logInvalidStep1Controls();
       this.alert.error(
@@ -880,58 +909,44 @@ export class AdmissionsComponent implements OnInit {
       );
       return;
     }
-    // ensure phone -> parentPhone sync before validation
     const phone = String(this.step1Form.get('phone')?.value || '').trim();
     if (phone) {
       this.step1Form.get('parentPhone')?.setValue(phone, { emitEvent: false });
     }
-
     if (this.step1Form.invalid) {
       this.step1Form.markAllAsTouched();
       this.alert.error('Please correct the student details.');
       return;
     }
-
     const tenantId = this.pickTenantId();
     if (!tenantId) {
       this.alert.error('tenantId (entiId) is missing. Please login again.');
       return;
     }
-
     const plan = this.selectedPlan;
     if (!plan) {
       this.alert.error('Please select a valid fee plan.');
       return;
     }
-
     this.submitting = true;
-
     const s1 = this.step1Form.getRawValue();
     const sourceType = s1.portalStudentId ? 'PORTAL' : 'DIRECT';
-
     const body: any = {
       entiId: tenantId,
-
-      // ✅ no hard-coded default academic year
       academicYear: String(s1.academicYear || '').trim() || null,
       sourceType,
-
       feePlanId: String(s1.feePlanId || '').trim(),
       feePlanCode: s1.feePlanCode || plan.feePlanCode || '',
-
       centerName: String(s1.centerName || '').trim(),
       centerId: s1.centerId || '',
       centerCode: String(s1.centerCode || '').trim() || null,
       studyCentre: String(s1.studyCentre || '').trim() || null,
-
       programName: String(s1.programName || '').trim(),
       programId: s1.programId || '',
       programCode: s1.programCode || '',
-
       registrationNumber: String(s1.regNo || '').trim() || null,
       portalStudentId: s1.portalStudentId || null,
       scholarshipTestId: s1.scholarshipTestId || null,
-
       student: {
         name: String(s1.name || '').trim(),
         phone: String(s1.phone || '').trim(),
@@ -939,7 +954,6 @@ export class AdmissionsComponent implements OnInit {
         parentPhone: String(s1.parentPhone || s1.phone || '').trim(),
         email: String(s1.email || '').trim() || null,
       },
-
       fee: {
         baseFee: Number(s1.baseFee || 0),
         finalFee: Number(this.finalFee || 0),
@@ -954,7 +968,6 @@ export class AdmissionsComponent implements OnInit {
         })),
       },
     };
-
     this.api.fetchData(body, 'admi', 'create').subscribe({
       next: (res: any) => {
         this.submitting = false;
@@ -964,16 +977,13 @@ export class AdmissionsComponent implements OnInit {
           );
           return;
         }
-
         const adm = res?.data || {};
         this.admissionId =
           String(adm.admissionId || adm._id || '').trim() || null;
-
         if (!this.admissionId) {
           this.alert.error('Draft created but admissionId not returned.');
           return;
         }
-
         this.resetWorkflowFlags();
         this.buildPaymentsFromFinalFee(this.finalFee);
         this.step = 2;
@@ -990,11 +1000,10 @@ export class AdmissionsComponent implements OnInit {
     this.step = 1;
   }
 
-  // ---------------------- Step 2 payments ----------------------
-
   get neftRefsFA(): UntypedFormArray {
     return this.step2Form.get('neftRefs') as UntypedFormArray;
   }
+
   get chequesFA(): UntypedFormArray {
     return this.step2Form.get('cheques') as UntypedFormArray;
   }
@@ -1002,15 +1011,18 @@ export class AdmissionsComponent implements OnInit {
   get neftAmount(): number {
     return Number(this.step2Form.getRawValue().neftAmount ?? 0) || 0;
   }
+
   get neftTotalEntered(): number {
     return (this.neftRefsFA.value || []).reduce(
       (s: number, r: any) => s + (Number(r.amount) || 0),
       0
     );
   }
+
   get chequeCount(): number {
     return this.chequesFA.length;
   }
+
   get chequeTotal(): number {
     return (this.chequesFA.getRawValue() || []).reduce(
       (s: number, r: any) => s + (Number(r.amount) || 0),
@@ -1051,32 +1063,23 @@ export class AdmissionsComponent implements OnInit {
 
   private buildPaymentsFromFinalFee(finalFee: number): void {
     const plan = this.selectedPlan;
-
-    // ✅ get base instalment amounts from backend instalments
+    console.log('plan ', plan);
     const baseAmounts = (plan?.instalments || []).map(
       (i) => Number(i.amount) || 0
     );
-
     if (!baseAmounts.length) {
       this.alert.error('Selected fee plan has no instalment structure.');
       this.buildEmptyPayments();
       return;
     }
-
     const baseTotal = baseAmounts.reduce(
       (s: number, x: number) => s + (Number(x) || 0),
       0
     );
     const scaled = this.scalePlan(baseAmounts, finalFee, baseTotal);
-
-    // ✅ your requirement: 1 NEFT + remaining as PDC
     const neftAmt = scaled[0] || 0;
-    const chequeAmounts = scaled.slice(1); // 2nd..nth instalments
-
-    // Set NEFT split
+    const chequeAmounts = scaled.slice(1);
     this.step2Form.get('neftAmount')?.setValue(neftAmt, { emitEvent: false });
-
-    // NEFT refs (1 row by default, user can add more)
     const neftFA = this.fb.array([]) as UntypedFormArray;
     neftFA.push(
       this.fb.group({
@@ -1096,17 +1099,22 @@ export class AdmissionsComponent implements OnInit {
       })
     );
     this.step2Form.setControl('neftRefs', neftFA);
-
-    // Cheque rows (PDC/CDC) – one per remaining instalment
     const today = this.todayISO();
     const chqFA = this.fb.array([]) as UntypedFormArray;
-
+    const instals = (plan?.instalments || []).slice(1);
     chequeAmounts.forEach((amt, idx) => {
       const sno = idx + 1;
+      const dueFromPlan = this.toDateInputISO(
+        instals[idx]?.dueDate ? String(instals[idx].dueDate) : null
+      );
+      console.log(idx, dueFromPlan);
       chqFA.push(
         this.fb.group({
           sno: [sno],
-          chequeDate: [{ value: today, disabled: true }, [Validators.required]],
+          chequeDate: [
+            { value: dueFromPlan, disabled: true },
+            [Validators.required],
+          ],
           favourOf: [
             { value: this.DEFAULT_FAVOUR_OF, disabled: true },
             [Validators.required],
@@ -1129,9 +1137,19 @@ export class AdmissionsComponent implements OnInit {
           remarks: [''],
         })
       );
+      console.log(chqFA);
     });
-
     this.step2Form.setControl('cheques', chqFA);
+  }
+
+  get totalCollected(): number {
+    return (this.neftTotalEntered || 0) + (this.chequeTotal || 0);
+  }
+
+  get balanceAmount(): number {
+    const due = Math.round(this.finalFee || 0);
+    const paid = Math.round(this.totalCollected || 0);
+    return Math.max(0, due - paid);
   }
 
   submitPayments(): void {
@@ -1146,13 +1164,11 @@ export class AdmissionsComponent implements OnInit {
       );
       return;
     }
-
     if (this.step2Form.invalid) {
       this.step2Form.markAllAsTouched();
       this.alert.error('Please fill all required NEFT/cheque details.');
       return;
     }
-
     const entered = this.neftTotalEntered;
     if (entered <= 0) {
       this.alert.error('Please add at least one NEFT reference amount.');
@@ -1164,8 +1180,6 @@ export class AdmissionsComponent implements OnInit {
       );
       return;
     }
-
-    // ✅ Ensure NEFT + cheques total equals final fee
     const totalPaid = entered + this.chequeTotal;
     const totalDue = Math.round(this.finalFee || 0);
     if (totalDue > 0 && Math.round(totalPaid) !== totalDue) {
@@ -1174,7 +1188,6 @@ export class AdmissionsComponent implements OnInit {
       );
       return;
     }
-
     const neftRefs = (this.neftRefsFA.value || [])
       .map((r: any) => ({
         utr: String(r.utr || '').trim(),
@@ -1185,7 +1198,6 @@ export class AdmissionsComponent implements OnInit {
         remarks: String(r.remarks || '').trim() || null,
       }))
       .filter((x: any) => !!x.utr && x.amount > 0);
-
     const cheques = (this.chequesFA.getRawValue() || [])
       .map((r: any) => ({
         sno: Number(r.sno || 0) || 0,
@@ -1206,16 +1218,13 @@ export class AdmissionsComponent implements OnInit {
           (x.mode === 'PDC' || x.mode === 'CDC') &&
           x.amount > 0
       );
-
     this.submitting = true;
-
     const body: any = {
       entiId: tenantId,
       admissionId: this.admissionId,
       neftRefs,
       cheques,
     };
-
     this.api.fetchData(body, 'admi', 'payments/save').subscribe({
       next: (res: any) => {
         this.submitting = false;
@@ -1233,6 +1242,29 @@ export class AdmissionsComponent implements OnInit {
         this.alert.error('Failed to save payments');
       },
     });
+  }
+
+  private toDateInputISO(v: any): string | null {
+    if (!v) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(v).trim())) return String(v).trim();
+    const s = String(v).trim();
+    const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})T/);
+    if (isoMatch?.[1]) return isoMatch[1];
+    const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dm) {
+      const dd = dm[1].padStart(2, '0');
+      const mm = dm[2].padStart(2, '0');
+      const yyyy = dm[3];
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    return null;
   }
 
   sendForApproval(): void {
@@ -1253,10 +1285,8 @@ export class AdmissionsComponent implements OnInit {
       this.alert.error('Generate fee calculation first.');
       return;
     }
-
     this.submitting = true;
     const body: any = { entiId: tenantId, admissionId: this.admissionId };
-
     this.api.fetchData(body, 'admi', 'submit-approval').subscribe({
       next: (res: any) => {
         this.submitting = false;
@@ -1297,10 +1327,8 @@ export class AdmissionsComponent implements OnInit {
       );
       return;
     }
-
     this.submitting = true;
     const body: any = { entiId: tenantId, admissionId: this.admissionId };
-
     this.api.fetchData(body, 'admi', 'approve').subscribe({
       next: (res: any) => {
         this.submitting = false;
@@ -1321,7 +1349,6 @@ export class AdmissionsComponent implements OnInit {
   }
 
   get testScholarshipPct(): number {
-    // IMPORTANT: uses getRawValue so it works even if control is disabled
     const v = Number(this.step1Form.getRawValue().testScholarshipPct ?? 0);
     return Number.isFinite(v) ? v : 0;
   }
@@ -1339,11 +1366,12 @@ export class AdmissionsComponent implements OnInit {
   }
 
   get totalDiscountPct(): number {
-    const t =
-      this.testScholarshipPct +
-      this.scholarshipPct +
-      this.additionalScholarshipPct;
-    return Math.max(0, Math.min(100, t));
+    const a = Math.max(0, Math.min(100, this.testScholarshipPct || 0)) / 100;
+    const b = Math.max(0, Math.min(100, this.scholarshipPct || 0)) / 100;
+    const c =
+      Math.max(0, Math.min(100, this.additionalScholarshipPct || 0)) / 100;
+    const eff = 1 - (1 - a) * (1 - b) * (1 - c);
+    return Math.round(eff * 10000) / 100;
   }
 
   private logInvalidStep1Controls(): void {
@@ -1367,11 +1395,9 @@ export class AdmissionsComponent implements OnInit {
         });
       }
     });
-
     console.log('STEP1 INVALID CONTROLS =>', invalid);
   }
 
-  /** Simple HTML escape */
   private esc(v: any): string {
     const s = String(v ?? '');
     const map: Record<string, string> = {
@@ -1384,7 +1410,6 @@ export class AdmissionsComponent implements OnInit {
     return s.replace(/[&<>"']/g, (c) => map[c] || c);
   }
 
-  /** Generic print window with basic styles */
   private openPrintWindow(title: string, bodyHtml: string): void {
     const win = window.open('', '_blank', 'width=900,height=700');
     if (!win) {
@@ -1393,124 +1418,130 @@ export class AdmissionsComponent implements OnInit {
     }
 
     const fullHtml = `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>${this.esc(title)}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 11px;
-      margin: 16px;
-      color: #111827;
-    }
-    .page {
-      width: 100%;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 2px solid #111827;
-      padding-bottom: 4px;
-      margin-bottom: 8px;
-    }
-    .title-main {
-      font-size: 18px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .subtitle {
-      font-size: 11px;
-      margin-top: 2px;
-    }
-    .meta {
-      text-align: right;
-      font-size: 10px;
-    }
-    .section {
-      margin-top: 10px;
-    }
-    .section-title {
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 11px;
-      border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 2px;
-      margin-bottom: 4px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 4px;
-    }
-    th, td {
-      border: 1px solid #e5e7eb;
-      padding: 3px 4px;
-      vertical-align: top;
-    }
-    th {
-      background: #f3f4f6;
-      font-weight: 600;
-    }
-    .text-right { text-align: right; }
-    .text-center { text-align: center; }
-    .small { font-size: 10px; }
-    .tiny { font-size: 9px; }
-    .mt-1 { margin-top: 4px; }
-    .mt-2 { margin-top: 8px; }
-    .mt-3 { margin-top: 12px; }
-    .note-list {
-      margin: 4px 0 0 16px;
-      padding: 0;
-      font-size: 10px;
-    }
-    .note-list li { margin-bottom: 2px; }
-    .kv-grid {
-      display: grid;
-      grid-template-columns: 32% 68%;
-      border: 1px solid #e5e7eb;
-      border-collapse: collapse;
-    }
-    .kv-grid > div {
-      border-bottom: 1px solid #e5e7eb;
-      border-right: 1px solid #e5e7eb;
-      padding: 3px 4px;
-    }
-    .kv-grid > div:nth-child(2n) {
-      border-right: none;
-    }
-    .kv-label {
-      background: #f9fafb;
-      font-weight: 600;
-      font-size: 10px;
-    }
-  </style>
-</head>
-<body onload="window.print();">
-  ${bodyHtml}
-</body>
-</html>`;
-
+    <html>
+    <head>
+    <meta charset="utf-8" />
+    <title>${this.esc(title)}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 11px;
+        margin: 16px;
+        color: #111827;
+      }
+      .page {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid #111827;
+        padding-bottom: 4px;
+        margin-bottom: 8px;
+      }
+      .title-main {
+        font-size: 18px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .subtitle {
+        font-size: 11px;
+        margin-top: 2px;
+      }
+      .meta {
+        text-align: right;
+        font-size: 10px;
+      }
+      .section {
+        margin-top: 10px;
+      }
+      .section-title {
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 11px;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 2px;
+        margin-bottom: 4px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 4px;
+      }
+      th, td {
+        border: 1px solid #e5e7eb;
+        padding: 3px 4px;
+        vertical-align: top;
+      }
+      th {
+        background: #f3f4f6;
+        font-weight: 600;
+      }
+      .text-right { text-align: right; }
+      .text-center { text-align: center; }
+      .small { font-size: 10px; }
+      .tiny { font-size: 9px; }
+      .mt-1 { margin-top: 4px; }
+      .mt-2 { margin-top: 8px; }
+      .mt-3 { margin-top: 12px; }
+      .note-list {
+        margin: 4px 0 0 16px;
+        padding: 0;
+        font-size: 10px;
+      }
+      .note-list li { margin-bottom: 2px; }
+      .kv-grid {
+        display: grid;
+        grid-template-columns: 32% 68%;
+        border: 1px solid #e5e7eb;
+        border-collapse: collapse;
+      }
+      .kv-grid > div {
+        border-bottom: 1px solid #e5e7eb;
+        border-right: 1px solid #e5e7eb;
+        padding: 3px 4px;
+      }
+      .kv-grid > div:nth-child(2n) {
+        border-right: none;
+      }
+      .kv-label {
+        background: #f9fafb;
+        font-weight: 600;
+        font-size: 10px;
+      }
+        .brand {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .brand img {
+        height: 42px;
+        width: auto;
+        object-fit: contain;
+      }
+    </style>
+    </head>
+    <body onload="window.print();">
+      ${bodyHtml}
+    </body>
+    </html>`;
     win.document.open();
     win.document.write(fullHtml);
     win.document.close();
   }
 
-  /** Build Fee Calculation Sheet for STEP 1 (using form + preview data) */
   private buildFeeCalcHtmlStep1(): string {
     const s1 = this.step1Form.getRawValue();
     const plan = this.selectedPlan;
     const today = new Date();
-
     if (this.step1Form.invalid || !plan) {
       return '<p>Step 1 details are incomplete. Please fill all required fields and select a fee plan.</p>';
     }
-
     const heads = this.feeHeadPreview;
     const baseFee = Number(s1.baseFee || 0);
     const finalFee = this.finalFee || 0;
@@ -1518,12 +1549,10 @@ export class AdmissionsComponent implements OnInit {
     const schl = this.scholarshipPct;
     const addSchl = this.additionalScholarshipPct;
     const totalDisc = this.totalDiscountPct;
-
     const scholTotal = heads.reduce(
       (s, r) => s + Number(r.scholBenefits || 0),
       0
     );
-
     const feeRows = heads
       .map(
         (r) => `
@@ -1547,8 +1576,10 @@ export class AdmissionsComponent implements OnInit {
 
     return `
       <div class="page">
+      <div class="brand">
+              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+            </div>
         <div class="header-row">
-          <div>
             <div class="title-main">FEE CALCULATION SHEET</div>
             <div class="subtitle">Current Status : Please check the details carefully and sign.</div>
           </div>
@@ -1564,29 +1595,22 @@ export class AdmissionsComponent implements OnInit {
           <div class="kv-grid">
             <div class="kv-label">Name of the Student</div>
             <div>${this.esc(s1.name || '')}</div>
-
             <div class="kv-label">Registration / Reg No</div>
             <div>${this.esc(s1.regNo || '')}</div>
-
             <div class="kv-label">Academic Year</div>
             <div>${this.esc(s1.academicYear || '')}</div>
-
             <div class="kv-label">Mobile (Student / Parent)</div>
             <div>${this.esc(s1.phone || '')}</div>
-
             <div class="kv-label">Program</div>
             <div>${this.esc(s1.programName || '')}</div>
-
             <div class="kv-label">Fee Plan</div>
             <div>${this.esc(
               plan.feePlanCode || s1.feePlanCode || plan.name || ''
             )}</div>
-
             <div class="kv-label">Study Centre</div>
             <div>${this.esc(s1.centerName || '')}</div>
           </div>
         </div>
-
         <!-- Scholarship summary -->
         <div class="section">
           <div class="section-title">Scholarship Details</div>
@@ -1615,7 +1639,6 @@ export class AdmissionsComponent implements OnInit {
             </tbody>
           </table>
         </div>
-
         <!-- Fee heads table -->
         <div class="section">
           <div class="section-title">Fee Plan Breakup</div>
@@ -1648,7 +1671,6 @@ export class AdmissionsComponent implements OnInit {
             </tfoot>
           </table>
         </div>
-
         <!-- NEFT static section like reference sheet -->
         <div class="section small">
           <div class="section-title">Details for NEFT Transfer</div>
@@ -1681,7 +1703,6 @@ export class AdmissionsComponent implements OnInit {
     `;
   }
 
-  /** STEP 1 – Fee Calculation Sheet print */
   printReportStep1(): void {
     if (this.step !== 1) {
       this.alert.error('Fee calculation can be printed from Step 1 only.');
@@ -1696,25 +1717,19 @@ export class AdmissionsComponent implements OnInit {
       this.alert.error('Please select a valid fee plan to preview fees.');
       return;
     }
-
     const html = this.buildFeeCalcHtmlStep1();
     this.openPrintWindow('Fee Calculation Sheet', html);
   }
 
-  /** Build Acknowledgement / Enrolment Report for STEP 2 */
   private buildPaymentsAckHtmlStep2(): string {
     const s1 = this.step1Form.getRawValue();
     const plan = this.selectedPlan;
     const today = new Date();
-
     const nefts = (this.neftRefsFA.getRawValue() || []) as any[];
     const cheques = (this.chequesFA.getRawValue() || []) as any[];
-
     const finalFee = this.finalFee || 0;
-
     const paymentRows: string[] = [];
     let sno = 1;
-
     nefts.forEach((n: any) => {
       const amount = Number(n.amount || 0);
       if (!amount) return;
@@ -1731,7 +1746,6 @@ export class AdmissionsComponent implements OnInit {
         </tr>
       `);
     });
-
     cheques.forEach((c: any) => {
       const amount = Number(c.amount || 0);
       if (!amount) return;
@@ -1748,11 +1762,12 @@ export class AdmissionsComponent implements OnInit {
         </tr>
       `);
     });
-
     const totalPaid = this.neftTotalEntered + this.chequeTotal;
-
     return `
       <div class="page">
+        <div class="brand">
+              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+        </div>
         <div class="header-row">
           <div>
             <div class="title-main">ENROLMENT REPORT</div>
@@ -1769,7 +1784,6 @@ export class AdmissionsComponent implements OnInit {
             }
           </div>
         </div>
-
         <!-- Part 1: Student / Program / Study Centre -->
         <div class="section">
           <div class="section-title">Student, Program and Study Centre Details (Part 1)</div>
@@ -1814,11 +1828,9 @@ export class AdmissionsComponent implements OnInit {
             </tbody>
           </table>
         </div>
-
         <!-- Part 2 + 3: Course Fee & Payment Schedule -->
         <div class="section">
           <div class="section-title">Details of Course Fee & Payment Schedule</div>
-
           <table>
             <thead>
               <tr>
@@ -1833,7 +1845,6 @@ export class AdmissionsComponent implements OnInit {
               </tr>
             </tbody>
           </table>
-
           <div class="mt-2 small"><b>Payment Schedule (Part 3)</b></div>
           <table>
             <thead>
@@ -1863,7 +1874,6 @@ export class AdmissionsComponent implements OnInit {
             </tfoot>
           </table>
         </div>
-
         <!-- Important notes -->
         <div class="section small">
           <div class="section-title">Important</div>
@@ -1883,7 +1893,6 @@ export class AdmissionsComponent implements OnInit {
     `;
   }
 
-  /** STEP 2 – Acknowledgement / Enrolment Report print */
   printPaymentsAck(): void {
     if (this.step !== 2) {
       this.alert.error('Acknowledgement can be printed from Step 2 only.');
@@ -1905,7 +1914,6 @@ export class AdmissionsComponent implements OnInit {
     this.openPrintWindow('Enrolment Report', html);
   }
 
-  // === Alert bindings for template ===
   get alert$() {
     return this.alert.alert$;
   }
@@ -1913,8 +1921,8 @@ export class AdmissionsComponent implements OnInit {
   clearAlert(): void {
     this.alert.clear();
   }
+
   cancel(): void {
-    // navigate back to admissions list
     this.router.navigate(['/app/admissions']);
   }
 }

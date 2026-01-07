@@ -7,7 +7,6 @@ import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChange
   styleUrl: './list-table.component.scss'
 })
 export class ListTableComponent {
-// Table details
   @Input() columns: { key: string; label: string; sortable: boolean; date?: boolean; maxWidthPx?: number }[] = [];
   @Input() data: any[] = [];
   @Input() actions: any[] = [];
@@ -18,15 +17,12 @@ export class ListTableComponent {
   @Input() loading: boolean = false;
   @Input() showpageoptions: boolean = true;
   @Input() showsearch: boolean = true;
-
   @Input() autoFitChars = false;
   @Input() baseCharWidth = 8;
   @Input() minChars = 12;
   @Input() hardMaxChars = 30;
-
   @ViewChild('tableWrap', { static: false }) tableWrap?: ElementRef<HTMLDivElement>;
   private containerWidth = 0;
-
   @Output() requestData = new EventEmitter<{
     page: number;
     pageSize: number;
@@ -34,18 +30,14 @@ export class ListTableComponent {
     sortKey?: string;
     sortDirection?: 'asc' | 'desc';
   }>();
-
   paginationItems: Array<{ page: number | '...'; isActive?: boolean }> = [];
   @Output() filterClicked = new EventEmitter<void>();
-
-  // pagination options
   currentPage = 1;
   pageSize = 5;
   sortKey: string = '';
   sortDirection: 'asc' | 'desc' = 'asc';
   searchText = '';
   filteredData: any[] = [];
-
   get totalPages(): number {
     return Math.ceil(this.totalRecords / this.pageSize) || 1;
   }
@@ -77,13 +69,10 @@ export class ListTableComponent {
     if (!row || !key) return '--';
     const parts = key.split('.');
     let curr: any = row;
-
     for (const part of parts) {
       if (curr == null) return '--';
-
       if (Array.isArray(curr)) {
         const mapped = curr.map((item) => (item != null ? item[part] : undefined)).filter((v) => v !== undefined && v !== null);
-
         if (mapped.length === 0) return '--';
         curr = mapped;
       } else {
@@ -153,22 +142,18 @@ export class ListTableComponent {
     const total = this.totalPages || 1;
     const current = this.currentPage || 1;
     const pages: Array<number | '...'> = [];
-
     const push = (p: number | '...') => pages.push(p);
-
     if (total <= 7) {
       for (let p = 1; p <= total; p++) push(p);
     } else {
       const showLeft = Math.max(2, current - 1);
       const showRight = Math.min(total - 1, current + 1);
-
       push(1);
       if (showLeft > 2) push('...');
       for (let p = showLeft; p <= showRight; p++) push(p);
       if (showRight < total - 1) push('...');
       push(total);
     }
-
     this.paginationItems = pages.map((p) => ({
       page: p,
       isActive: p === current
@@ -205,7 +190,6 @@ export class ListTableComponent {
     if (v === null || v === undefined) return '--';
     if (typeof v === 'string') return v;
     if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-    // Fallback for objects/arrays (your getCellValue already flattens most cases)
     try {
       return JSON.stringify(v);
     } catch {
@@ -215,38 +199,28 @@ export class ListTableComponent {
 
   private getMaxChars(col?: any): number {
     if (!this.autoFitChars || !this.containerWidth) return this.hardMaxChars;
-
-    // Rough auto-fit: divide available width by number of visible data columns
-    const fixedCols = 1 + (this.showaction ? 1 : 0); // S.NO + optional ACTION
+    const fixedCols = 1 + (this.showaction ? 1 : 0);
     const numDataCols = Math.max(1, (this.columns?.length || 1) + fixedCols);
-    const paddingGuard = 64; // safety px for paddings/scrollbar
+    const paddingGuard = 64;
     const perColPx = Math.max(80, Math.floor((this.containerWidth - paddingGuard) / numDataCols));
-
     const approxChars = Math.floor(perColPx / this.baseCharWidth);
     return Math.max(this.minChars, Math.min(this.hardMaxChars, approxChars));
   }
 
-  // --- New state for the inline expander ---
   expanded: { rowIndex: number; colKey: string; value: string } | null = null;
   private collapseTimer: any = null;
-
-  // How many columns to span in the expander row
   get fullColSpan(): number {
-    // S.NO (1) + data columns + ACTION (optional 1)
     return 1 + (this.columns?.length || 0) + (this.showaction ? 1 : 0);
   }
 
-  // Resolve a column label by key (for the little “label:” above content)
   columnLabel(key: string): string {
     const c = (this.columns || []).find((col) => col.key === key);
     return c?.label || key;
   }
 
-  // Only expand when we would show a tooltip (i.e., content is long)
   maybeExpand(rowIndex: number, colKey: string, value: any, col?: any) {
     const text = this.stringify(value);
-    if (!this.needsTooltip(text, col)) return; // short text → no expander
-    // Cancel any pending collapse so we don't flicker
+    if (!this.needsTooltip(text, col)) return;
     if (this.collapseTimer) {
       clearTimeout(this.collapseTimer);
       this.collapseTimer = null;
@@ -254,7 +228,6 @@ export class ListTableComponent {
     this.expanded = { rowIndex, colKey, value: text };
   }
 
-  // Gentle close to allow moving mouse into expander area
   scheduleCollapse(delayMs: number = 180) {
     if (this.collapseTimer) clearTimeout(this.collapseTimer);
     this.collapseTimer = setTimeout(() => {
@@ -263,7 +236,6 @@ export class ListTableComponent {
     }, delayMs);
   }
 
-  // If you want the expander to stay open while hovering over it:
   onExpanderEnter() {
     if (this.collapseTimer) {
       clearTimeout(this.collapseTimer);
