@@ -1,0 +1,340 @@
+<div class="feeplan-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Fee Plan Master</h5>
+                <p class="mb-0 text-muted small">
+                    Configure fee heads, GST, instalments and fee plan totals.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Excel</span>
+                </button>
+
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Fee Plan</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" (requestData)="loadFeePlans($event)" [columns]="columns"
+                [totalRecords]="totalRecords" [data]="feePlanData" [actions]="actions" [showpageoptions]="true">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal" style="max-width: 1100px;">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        {{ formMode === 'create' ? 'Create Fee Plan' : 'Edit Fee Plan' }}
+                    </h6>
+                    <span class="text-muted small">
+                        Define fee heads and instalments. Totals auto calculated.
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="feePlanForm" (ngSubmit)="save()">
+
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <selectbox label="Academic Year" [required]="true" [options]="academicYearOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'"
+                                [control]="feePlanForm.get('academicYear')" formControlName="academicYear">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Program Code" [required]="true" [control]="feePlanForm.get('programCode')"
+                                formControlName="programCode" placeholder="1110">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Fee Plan Name (feeplancode)" [required]="true"
+                                [control]="feePlanForm.get('feePlanName')" formControlName="feePlanName"
+                                placeholder="1110_Base Fee_Plan">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-2 d-flex align-items-center">
+                            <checkbox label="Active" [control]="feePlanForm.get('isActive')" formControlName="isActive">
+                            </checkbox>
+                        </div>
+                    </div>
+
+                    <!-- Fee Heads -->
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0 fw-semibold">Fee Heads</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" (click)="addFeeHead()">
+                                <i class="fa-solid fa-plus me-1"></i>Add Fee Head
+                            </button>
+                        </div>
+
+                        <div class="table-responsive border rounded">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:120px;">Key</th>
+                                        <th>Label</th>
+                                        <th style="width:140px;">Base Amount</th>
+                                        <th style="width:120px;">GST %</th>
+                                        <th style="width:150px;">GST Amount</th>
+                                        <th style="width:160px;">Total Amount</th>
+                                        <th style="width:140px;">Discount</th>
+                                        <th style="width:60px;"></th>
+                                    </tr>
+                                </thead>
+
+                                <tbody formArrayName="feeHeads">
+                                    <tr *ngFor="let fg of feeHeads.controls; let i = index" [formGroupName]="i">
+                                        <td>
+                                            <input class="form-control form-control-sm" formControlName="key"
+                                                placeholder="TF" (blur)="onFeeHeadKeyBlur(i)" />
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm" formControlName="label"
+                                                placeholder="Tuition Fee" />
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm text-end" type="number"
+                                                formControlName="amount" (input)="recalcTotals()" />
+                                        </td>
+
+                                        <td>
+                                            <input class="form-control form-control-sm text-end" type="number"
+                                                formControlName="gstPercent" (input)="recalcTotals()" />
+                                        </td>
+
+                                        <td class="text-end">
+                                            ₹{{ fg.get('gstAmount')?.value | number:'1.2-2' }}
+                                        </td>
+
+                                        <td class="text-end fw-semibold">
+                                            ₹{{ fg.get('totalAmount')?.value | number:'1.2-2' }}
+                                        </td>
+
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input"
+                                                formControlName="discountAllowed" (change)="onDiscountToggle(i)" />
+                                        </td>
+
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                (click)="removeFeeHead(i)">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <tr *ngIf="feeHeads.length === 0">
+                                        <td colspan="8" class="text-center text-muted py-3">
+                                            No fee heads added
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Instalments -->
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0 fw-semibold">Instalments</h6>
+                            <button type="button" class="btn btn-sm btn-outline-primary" (click)="addInstalment()">
+                                <i class="fa-solid fa-plus me-1"></i>Add Instalment
+                            </button>
+                        </div>
+
+                        <div class="table-responsive border rounded">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:90px;">Seq</th>
+                                        <th>Label</th>
+                                        <th style="width:200px;">Amount (must match Total Fee)</th>
+                                        <th style="width:60px;"></th>
+                                    </tr>
+                                </thead>
+
+                                <tbody formArrayName="instalments">
+                                    <tr *ngFor="let fg of instalments.controls; let i = index" [formGroupName]="i">
+                                        <td>
+                                            <input class="form-control form-control-sm text-end" type="number"
+                                                formControlName="seq" />
+                                        </td>
+                                        <td>
+                                            <input class="form-control form-control-sm" formControlName="label"
+                                                placeholder="On Admission / 10/01/2026" />
+                                        </td>
+                                        <td>
+                                            <input class="form-control form-control-sm text-end" type="number"
+                                                formControlName="amount" (input)="recalcTotals()" />
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                (click)="removeInstalment(i)">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <tr *ngIf="instalments.length === 0">
+                                        <td colspan="4" class="text-center text-muted py-3">
+                                            No instalments added
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Totals -->
+                    <div class="row g-3 mt-4">
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted">Total Base Fee</div>
+                                <div class="h6 mb-0 fw-semibold">₹{{ totalBaseFee | number:'1.2-2' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted">Total GST</div>
+                                <div class="h6 mb-0 fw-semibold">₹{{ totalGST | number:'1.2-2' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted">Total Fee</div>
+                                <div class="h6 mb-0 fw-semibold">₹{{ totalFee | number:'1.2-2' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div *ngIf="instalmentMismatch" class="alert alert-warning mt-3 py-2 small">
+                        Instalment total (₹{{ instalmentSum | number:'1.2-2' }}) must match Total Fee (₹{{ totalFee |
+                        number:'1.2-2' }}).
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+                        <button type="submit" class="btn btn-primary"
+                            [disabled]="feePlanForm.invalid || feeHeads.length === 0 || instalments.length === 0 || instalmentMismatch">
+                            {{ formMode === 'create' ? 'Save Fee Plan' : 'Update Fee Plan' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="app-modal-backdrop" *ngIf="showImport">
+        <div class="app-modal" style="max-width: 980px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Import Fee Plans (Excel)</h6>
+                    <span class="text-muted small">Upload your fee sheet and import as grouped fee plans.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-4">
+                        <selectbox label="Academic Year" [required]="true" [options]="academicYearOptions"
+                            [optionLabel]="'label'" [optionValue]="'value'" [control]="importAcademicYearCtrl"
+                            [formControl]="importAcademicYearCtrl">
+                        </selectbox>
+                        <div class="form-text">Import requires academicYear.</div>
+                    </div>
+
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Excel File</label>
+                        <input type="file" class="form-control" accept=".xlsx,.xls"
+                            (change)="onExcelSelected($event)" />
+                        <div class="form-text" *ngIf="importFileName">Selected: {{ importFileName }}</div>
+                    </div>
+
+                    <div class="col-md-3 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-primary" (click)="downloadSampleExcel()">
+                            <i class="fa-solid fa-download me-1"></i>Sample
+                        </button>
+                        <button type="button" class="btn btn-primary" (click)="confirmImport()"
+                            [disabled]="!importPreviewRows.length || importHasInvalidRows || !importAcademicYearCtrl.value">
+                            Import
+                        </button>
+                    </div>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="small text-muted mb-2">
+                    Rows: <span class="fw-semibold">{{ importPreviewRows.length }}</span>
+                    <span class="ms-2" *ngIf="importHasInvalidRows">
+                        | Invalid: <span class="fw-semibold text-danger">{{ importInvalidCount }}</span>
+                    </span>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:60px;">#</th>
+                                <th>feeplancode</th>
+                                <th>programcode</th>
+                                <th>feehead</th>
+                                <th class="text-end">amount</th>
+                                <th class="text-end">strate</th>
+                                <th>insdate</th>
+                                <th style="width:220px;">Row Validation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let r of importPreviewRows; let i = index" [class.table-danger]="!r._valid">
+                                <td>{{ r._rowNo }}</td>
+                                <td>{{ r.feeplancode }}</td>
+                                <td>{{ r.programcode }}</td>
+                                <td>{{ r.feehead }}</td>
+                                <td class="text-end">{{ r.amount }}</td>
+                                <td class="text-end">{{ r.strate }}</td>
+                                <td>{{ r.insdate }}</td>
+                                <td>
+                                    <span *ngIf="r._valid" class="badge bg-success">OK</span>
+                                    <span *ngIf="!r._valid" class="badge bg-danger">{{ r._errors?.join(', ') }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
+                    Fix invalid rows in Excel and upload again. Import is disabled until all rows are valid.
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation -->
+    <delete [title]="'Delete Fee Plan'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+
+</div>

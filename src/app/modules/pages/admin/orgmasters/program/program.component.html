@@ -1,22 +1,27 @@
 <div class="program-page">
-
-    <!-- List Card -->
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-1 fw-semibold">Program Master</h5>
                 <p class="mb-0 text-muted small">
-                    Configure JEE / NEET / Foundation programs with class, venue and batch details.
+                    Configure JEE / NEET / Foundation programs with class, duration and version.
                 </p>
             </div>
-            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
-                <i class="fa-solid fa-plus"></i>
-                <span>Add Program</span>
-            </button>
-        </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Programs</span>
+                </button>
 
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Program</span>
+                </button>
+            </div>
+        </div>
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" (requestData)="loadPrograms($event)" [columns]="columns" [totalRecords]="totalRecords" [data]="programData" [actions]="actions" [showpageoptions]="true">
+            <list-table [autoFitChars]="true" (requestData)="loadPrograms($event)" [columns]="columns"
+                [totalRecords]="totalRecords" [data]="programData" [actions]="actions" [showpageoptions]="true">
             </list-table>
         </div>
     </div>
@@ -24,8 +29,6 @@
     <!-- Create / Edit Modal -->
     <div class="app-modal-backdrop" *ngIf="showForm">
         <div class="app-modal">
-
-            <!-- Modal header -->
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">
@@ -33,106 +36,52 @@
                     </h6>
                     <span class="text-muted small">
                         {{ formMode === 'create'
-                        ? 'Add a new program with CCD-style details.'
-                        : 'Update program configuration details.' }}
+                        ? 'Add a new program'
+                        : 'Update program details' }}
                     </span>
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
             </div>
-
-            <!-- Modal body -->
             <div class="app-modal-body">
                 <form [formGroup]="programForm" (ngSubmit)="save()">
                     <div class="row g-3">
-
-                        <!-- Row 1: Core program info -->
-                        <div class="col-md-4">
+                        <div class="col-md-5">
                             <formfield label="Program Name" [required]="true" [control]="programForm.get('name')"
-                                formControlName="name" placeholder="Arise - One Year Foundation">
+                                formControlName="name" placeholder="ARISE - One Year Foundation">
                             </formfield>
                         </div>
-
                         <div class="col-md-3">
-                            <formfield label="Program Code" [required]="true" [control]="programForm.get('code')"
+                            <formfield label="Program Code (CSV)" [required]="true" [control]="programForm.get('code')"
                                 formControlName="code" placeholder="C6053, M6053, U6053">
                             </formfield>
                         </div>
-
                         <div class="col-md-2">
-                            <selectbox label="Stream" [options]="streamOptions" optionLabel="label" optionValue="value"
-                                formControlName="stream">
+                            <selectbox label="Stream" [required]="true" [options]="streamOptions" optionLabel="label"
+                                optionValue="value" [control]="programForm.get('stream')" formControlName="stream">
                             </selectbox>
-
                         </div>
-
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <selectbox label="Duration Type" [required]="true" [options]="durationOptions"
                                 [optionLabel]="'label'" [optionValue]="'value'" [control]="programForm.get('duration')"
                                 formControlName="duration">
                             </selectbox>
                         </div>
-
-                        <!-- Row 2: Academic year & class band -->
-                        <div class="col-md-3">
-                            <selectbox label="Academic Year" [required]="true" [options]="academicYearOptions"
-                                [optionLabel]="'label'" [optionValue]="'value'"
-                                [control]="programForm.get('academicYear')" formControlName="academicYear">
-                            </selectbox>
-                        </div>
-
-                        <div class="col-md-5">
-                            <selectbox label="For Students (Studying In)" [required]="true"
-                                [options]="studentBandOptions" [optionLabel]="'label'" [optionValue]="'value'"
-                                [control]="programForm.get('forStudents')" formControlName="forStudents">
-                            </selectbox>
-                        </div>
-
                         <div class="col-md-4">
+                            <selectbox label="Eligible To Class" [required]="true" [options]="studentBandOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'"
+                                [control]="programForm.get('eligibleToClass')" formControlName="eligibleToClass">
+                            </selectbox>
+                        </div>
+                        <div class="col-md-5">
                             <formfield label="Version" [required]="true" [control]="programForm.get('version')"
                                 formControlName="version" placeholder="Special Sunday / Regular">
                             </formfield>
                         </div>
-
-                        <!-- Row 3: Venue & schedule -->
-                        <div class="col-md-6">
-                            <formfield label="Class Venue" [required]="true" [control]="programForm.get('classVenue')"
-                                formControlName="classVenue" placeholder="Suguna School, Gandhipuram">
-                            </formfield>
-                        </div>
-
-                        <div class="col-md-2">
-                            <formfield label="Hrs per Week" [required]="true"
-                                [control]="programForm.get('hoursPerWeek')" formControlName="hoursPerWeek"
-                                placeholder="6">
-                            </formfield>
-                        </div>
-
-                        <div class="col-md-4">
-                            <formfield label="Class Timings" [required]="true"
-                                [control]="programForm.get('classTimings')" formControlName="classTimings"
-                                placeholder="9:30 AM to 4:30 PM">
-                            </formfield>
-                        </div>
-
-                        <!-- Row 4: Start date & active -->
-                        <div class="col-md-4">
-
-                            <formfield label="Commencement Date" [required]="true"
-                                [control]="programForm.get('commencementDate')" formControlName="commencementDate"
-                                type="date">
-                            </formfield>
-
-
-                        </div>
-
                         <div class="col-md-3 d-flex align-items-center">
                             <checkbox label="Active" [control]="programForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
-
                     </div>
-
-                    <!-- Modal footer actions -->
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
                             Cancel
@@ -143,13 +92,120 @@
                     </div>
                 </form>
             </div>
-
         </div>
     </div>
 
+    <!-- Import Modal -->
+    <div class="app-modal-backdrop" *ngIf="showImport">
+        <div class="app-modal" style="max-width: 980px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Import Programs (Excel)</h6>
+                    <span class="text-muted small">Upload Excel and import programs in bulk.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+            </div>
+            <div class="app-modal-body">
+                <div class="alert alert-info py-2 small mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <div class="fw-semibold mb-1">Required columns in Excel:</div>
+                            <div class="text-muted">
+                                <span class="me-2">Program Name</span> |
+                                <span class="mx-2">Eligible Class</span> |
+                                <span class="mx-2">Program Code</span> |
+                                <span class="mx-2">Target</span> |
+                                <span class="mx-2">Duration</span> |
+                                <span class="mx-2">Program Version</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()">
+                            <i class="fa-solid fa-download me-1"></i>
+                            Download Sample Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Import Mode</label>
+                        <select class="form-select" [(ngModel)]="importMode" [ngModelOptions]="{standalone:true}">
+                            <option value="insert">Insert (skip duplicates)</option>
+                            <option value="upsert">Upsert (insert/update)</option>
+                        </select>
+                        <div class="form-text">
+                            Upsert uses: tenantId + eligibleToClass + programName + version
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Excel File</label>
+                        <input type="file" class="form-control" accept=".xlsx,.xls"
+                            (change)="onExcelSelected($event)" />
+                        <div class="form-text" *ngIf="importFileName">Selected: {{ importFileName }}</div>
+                    </div>
+                    <div class="col-md-3 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
+                            [disabled]="!importPreviewRows.length">
+                            Reset
+                        </button>
+                        <button type="button" class="btn btn-primary" (click)="confirmImport()"
+                            [disabled]="!importPreviewRows.length || importHasInvalidRows">
+                            Import Now
+                        </button>
+                    </div>
+                </div>
+                <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">
+                        Rows: <span class="fw-semibold">{{ importPreviewRows.length }}</span>
+                        <span class="ms-2" *ngIf="importHasInvalidRows">
+                            | Invalid: <span class="fw-semibold text-danger">{{ importInvalidCount }}</span>
+                        </span>
+                    </div>
+                </div>
+                <!-- Preview Table -->
+                <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:60px;">#</th>
+                                <th>Program Name</th>
+                                <th>Eligible Class</th>
+                                <th>Program Code</th>
+                                <th>Target</th>
+                                <th>Duration</th>
+                                <th>Version</th>
+                                <th style="width:120px;">Status</th>
+                                <th style="width:220px;">Row Validation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let r of importPreviewRows; let i = index" [class.table-danger]="!r._valid">
+                                <td>{{ r._rowNo }}</td>
+                                <td>{{ r.programName }}</td>
+                                <td>{{ r.eligibleToClass }}</td>
+                                <td>{{ r.programCodes }}</td>
+                                <td>{{ r.target || '-' }}</td>
+                                <td>{{ r.duration || '-' }}</td>
+                                <td>{{ r.version }}</td>
+                                <td>{{ r.status }}</td>
+                                <td>
+                                    <span *ngIf="r._valid" class="badge bg-success">OK</span>
+                                    <span *ngIf="!r._valid" class="badge bg-danger">
+                                        {{ r._errors?.join(', ') }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
+                    Fix invalid rows in Excel and upload again. Import is disabled until all rows are valid.
+                </div>
+            </div>
+
+        </div>
+    </div>
     <!-- Delete Confirmation -->
     <delete [title]="'Delete Program'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
         (closed)="onDeleteModalClosed($event)">
     </delete>
-
 </div>
