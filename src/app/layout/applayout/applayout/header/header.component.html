@@ -15,11 +15,7 @@
 
     <!-- Nav + user section -->
     <div class="collapse navbar-collapse justify-content-between" id="mainNavbar">
-
-      <!-- LEFT: Menus -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
-        <!-- Dashboard -->
         <li class="nav-item">
           <a class="nav-link" routerLink="/app/dashboard" routerLinkActive="active"
             [routerLinkActiveOptions]="{ exact: true }">
@@ -27,7 +23,6 @@
           </a>
         </li>
 
-        <!-- Admissions & Fees -->
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
             Admissions & Fees
@@ -84,7 +79,7 @@
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" routerLink="/app/students" routerLinkActive="active">Students</a></li>
             <li><a class="dropdown-item" routerLink="/app/batches" routerLinkActive="active">Batches</a></li>
-            <li><a class="dropdown-item" routerLink="/app/enrollment" routerLinkActive="active">Enrollment</a></li>
+            <!-- <li><a class="dropdown-item" routerLink="/app/enrollment" routerLinkActive="active">Enrollment</a></li> -->
             <li><a class="dropdown-item" routerLink="/app/faculty-assignment" routerLinkActive="active">Faculty
                 Assignment</a></li>
           </ul>
@@ -93,13 +88,13 @@
         <!-- Timetable & Classes -->
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
-            Timetable & Classes
+            Timetable
           </a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" routerLink="/app/timetable" routerLinkActive="active">Timetable</a></li>
-            <li><a class="dropdown-item" routerLink="/app/classes" routerLinkActive="active">Class Management</a></li>
-            <li><a class="dropdown-item" routerLink="/app/classes/rearranged-report" routerLinkActive="active">Class
-                Rearranged Report</a></li>
+            <!-- <li><a class="dropdown-item" routerLink="/app/classes" routerLinkActive="active">Class Management</a></li> -->
+            <!-- <li><a class="dropdown-item" routerLink="/app/classes/rearranged-report" routerLinkActive="active">Class
+                Rearranged Report</a></li> -->
           </ul>
         </li>
 
