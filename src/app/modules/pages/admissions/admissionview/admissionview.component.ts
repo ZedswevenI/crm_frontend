@@ -42,11 +42,10 @@ interface ChequeRow {
 
 interface AdmissionViewModel {
   admissionId: string;
+  admissionNo: string;
   status: AdmissionStatus;
-
   createdAt: string;
   updatedAt?: string | null;
-
   student: {
     name: string;
     regNo?: string | null;
@@ -55,14 +54,12 @@ interface AdmissionViewModel {
     parentPhone: string;
     email?: string | null;
   };
-
   academics: {
     centreName: string;
     programName: string;
     batchName?: string | null;
     className?: string | null;
   };
-
   test: {
     testDate?: string | null;
     testName?: string | null;
@@ -71,7 +68,6 @@ interface AdmissionViewModel {
     result?: 'pass' | 'fail' | 'pending' | null;
     remarks?: string | null;
   };
-
   fee: {
     feePlanCode: string;
     feePlanName: string;
@@ -83,7 +79,6 @@ interface AdmissionViewModel {
     totalDiscountPct: number;
     breakup: FeeBreakupRow[];
   };
-
   payments: {
     neftSplitAmount: number;
     neftTotalEntered: number;
@@ -107,10 +102,10 @@ interface AdmissionViewModel {
 })
 export class AdmissionviewComponent implements OnInit {
   admissionId = '';
+  admissionNo = '';
   loading = true;
   admission!: AdmissionViewModel;
   readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
-
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -125,7 +120,6 @@ export class AdmissionviewComponent implements OnInit {
     ]);
   }
 
-  // ---------------- lifecycle ----------------
   ngOnInit(): void {
     this.admissionId = String(
       this.route.snapshot.paramMap.get('id') || ''
@@ -139,47 +133,35 @@ export class AdmissionviewComponent implements OnInit {
     this.loadAdmission();
   }
 
-  // ---------------- computed props ----------------
   get feeHeadPreview(): FeeBreakupRow[] {
     return this.admission?.fee?.breakup || [];
   }
 
   get finalFee(): number {
-    // from backend directly
     return this.admission?.fee?.finalFee || 0;
   }
 
   get chequeCount(): number {
     const summaryCount = this.admission?.payments?.chequeSummary?.totalCheques;
-
-    // if summary value is a valid number, use it
     if (typeof summaryCount === 'number' && !isNaN(summaryCount)) {
       return summaryCount;
     }
-
-    // else fallback to list length
     const list = this.admission?.payments?.cheques || [];
     return list.length || 0;
   }
 
   get chequeTotal(): number {
     const summaryTotal = this.admission?.payments?.chequeSummary?.totalAmount;
-
-    // if summary value is a valid number, use it
     if (typeof summaryTotal === 'number' && !isNaN(summaryTotal)) {
       return summaryTotal;
     }
-
-    // else compute from cheques array
     const cheques = this.admission?.payments?.cheques || [];
     if (!cheques.length) return 0;
-
     return cheques.reduce((s: number, c: ChequeRow) => {
       return s + (Number(c.amount || 0) || 0);
     }, 0);
   }
 
-  // ---------------- API integration (CommonapiService) ----------------
   private pickTenantId(): string {
     const t1 = (localStorage.getItem('entiId') || '').trim();
     const t2 = (localStorage.getItem('tenantId') || '').trim();
@@ -193,19 +175,14 @@ export class AdmissionviewComponent implements OnInit {
       this.router.navigate(['/auth/login']);
       return;
     }
-
     const body: any = {
       admissionId: this.admissionId,
-      entiId: tenantId, // pickTenantId on backend reads entiId / tenantId
+      entiId: tenantId,
     };
-
     this.loading = true;
-
     this.api.fetchData(body, 'admi', 'view').subscribe({
       next: (resp: any) => {
         this.loading = false;
-
-        // controller returns: { status, data: { admission, payments } }
         if (!resp?.status || !resp?.data?.admission) {
           this.alert.error(
             resp?.message || resp?.error || 'Admission not found'
@@ -213,12 +190,10 @@ export class AdmissionviewComponent implements OnInit {
           this.router.navigate(['/app/admissions']);
           return;
         }
-
         const admission = resp.data.admission;
         const payments = Array.isArray(resp.data.payments)
           ? resp.data.payments
           : [];
-
         this.admission = this.mapApiToView(admission, payments);
       },
       error: (err: any) => {
@@ -231,31 +206,23 @@ export class AdmissionviewComponent implements OnInit {
   }
 
   private mapApiToView(adm: any, payments: any[]): AdmissionViewModel {
+    this.admissionNo = adm.admissionNo;
     const feeBreakupRaw = Array.isArray(adm?.fee?.breakup)
       ? adm.fee.breakup
       : [];
-
     const breakup: FeeBreakupRow[] = feeBreakupRaw.map((h: any) => ({
       label: String(h.label || '').trim(),
-
-      // what is actually charged after scholarship
       total: Number(
         h.total ??
-          h.amount ?? // in case backend sends amount
+          h.amount ??
           0
       ),
-
-      // benefit in rupees
       scholBenefits: Number(h.scholBenefits ?? 0),
-
-      // optional raw fee + tax if backend has them
       fee: Number(h.fee ?? h.base ?? 0),
       stax: Number(h.stax ?? h.taxAmount ?? h.gstAmount ?? 0),
     }));
-
     const neftSplitAmount = Number(adm?.payments?.neft?.splitAmount || 0);
     const neftTotalEntered = Number(adm?.payments?.neft?.totalEntered || 0);
-
     const chequeSummaryRaw = adm?.payments?.chequeSummary || {};
     const chequeSummary = {
       totalCheques: Number(chequeSummaryRaw.totalCheques || 0),
@@ -264,7 +231,6 @@ export class AdmissionviewComponent implements OnInit {
       clearedCount: Number(chequeSummaryRaw.clearedCount || 0),
       bouncedCount: Number(chequeSummaryRaw.bouncedCount || 0),
     };
-
     const neftRefs: NefRef[] = (payments || [])
       .filter((p: any) => String(p.paymentType || '').toUpperCase() === 'NEFT')
       .map((p: any) => ({
@@ -273,7 +239,6 @@ export class AdmissionviewComponent implements OnInit {
         paidOn: p.neft?.paidOn || null,
         remarks: p.remarks || null,
       }));
-
     const chequeRows: ChequeRow[] = (payments || [])
       .filter(
         (p: any) => String(p.paymentType || '').toUpperCase() === 'CHEQUE'
@@ -289,14 +254,12 @@ export class AdmissionviewComponent implements OnInit {
         status: this.mapPaymentStatus(p.status),
         remarks: p.remarks || null,
       }));
-
     return {
       admissionId: String(adm.admissionId || ''),
+      admissionNo: String(adm.admissionNo || ''),
       status: this.mapStageToStatus(adm?.workflow?.stage, adm?.status),
-
       createdAt: adm.createdAt || '',
       updatedAt: adm.updatedAt || null,
-
       student: {
         name: adm.student?.name || '',
         regNo: adm.registrationNumber || null,
@@ -305,14 +268,12 @@ export class AdmissionviewComponent implements OnInit {
         parentPhone: adm.student?.parentPhone || '',
         email: adm.student?.email || null,
       },
-
       academics: {
         centreName: adm.centerName || '',
         programName: adm.programName || '',
         batchName: adm.batchName || null,
         className: adm.classLabel || adm.student?.className || null,
       },
-
       test: {
         testDate: adm.test?.testDate || null,
         testName: adm.test?.resultCategory || null,
@@ -325,7 +286,6 @@ export class AdmissionviewComponent implements OnInit {
         result: this.mapTestResult(adm.test),
         remarks: null,
       },
-
       fee: {
         feePlanCode: adm.feePlanCode || '—',
         feePlanName: adm.programName || '',
@@ -339,7 +299,6 @@ export class AdmissionviewComponent implements OnInit {
         totalDiscountPct: Number(adm.fee?.totalDiscountPct || 0),
         breakup,
       },
-
       payments: {
         neftSplitAmount,
         neftTotalEntered,
@@ -356,9 +315,7 @@ export class AdmissionviewComponent implements OnInit {
   ): AdmissionStatus {
     const stage = String(stageRaw || '').toUpperCase();
     const stat = String(statusRaw || '').toUpperCase();
-
     if (stat === 'INACTIVE') return 'cancelled';
-
     switch (stage) {
       case 'CONFIRMED':
         return 'confirmed';
@@ -399,17 +356,13 @@ export class AdmissionviewComponent implements OnInit {
     return 'fail';
   }
 
-  // ---------- actions ----------
-  // ---------- computed helpers already present above ----------
   get neftTotal(): number {
     return (this.admission?.payments?.neftRefs || []).reduce(
       (s, n) => s + Number(n.amount || 0),
       0
     );
   }
-  // ---------- print actions (hook points) ----------
 
-  /** Simple HTML escape to avoid breaking the print HTML */
   private esc(v: any): string {
     const s = String(v ?? '');
     return s
@@ -420,14 +373,12 @@ export class AdmissionviewComponent implements OnInit {
       .replace(/'/g, '&#39;');
   }
 
-  /** Common print window helper */
   private openPrintWindow(title: string, innerHtml: string): void {
     const w = window.open('', '_blank', 'width=900,height=800');
     if (!w) {
       console.error('Popup blocked – cannot open print window.');
       return;
     }
-
     const doc = w.document;
     doc.open();
     doc.write(`
@@ -482,22 +433,18 @@ export class AdmissionviewComponent implements OnInit {
       </html>
     `);
     doc.close();
-
-    // Give the browser a moment to render before printing
     setTimeout(() => {
       w.focus();
       w.print();
     }, 300);
   }
 
-  /** Build HTML for the Fee Calculation Sheet (based on your sample PDF) */
   private buildFeeCalculationHtml(): string {
     const a = this.admission;
     if (!a) {
       console.error('No admission loaded');
       return '<p>No data available</p>';
     }
-
     const today = new Date();
     const feeRows = this.feeHeadPreview || [];
     const feeTotal = this.finalFee || 0;
@@ -505,7 +452,6 @@ export class AdmissionviewComponent implements OnInit {
       (s, r) => s + Number(r.scholBenefits || 0),
       0
     );
-
     const feeRowsHtml = feeRows
       .map(
         (r, idx) => `
@@ -528,7 +474,6 @@ export class AdmissionviewComponent implements OnInit {
       `
       )
       .join('');
-
     return `
       <div class="page">
       <div class="brand">
@@ -575,7 +520,6 @@ export class AdmissionviewComponent implements OnInit {
             <div>${this.esc(a.academics.className || '')}</div>
           </div>
         </div>
-
         <!-- Fee heads -->
         <div class="section">
           <div class="section-title">Fee Breakup (after scholarships)</div>
@@ -639,16 +583,13 @@ export class AdmissionviewComponent implements OnInit {
     `;
   }
 
-  /** Build HTML for Fee Acknowledgement (Enrolment Report style) */
   private buildFeeAcknowledgementHtml(): string {
     const a = this.admission;
     if (!a) {
       console.error('No admission loaded');
       return '<p>No data available</p>';
     }
-
     const today = new Date();
-
     const neftRowsHtml = (a.payments.neftRefs || [])
       .map(
         (n, idx) => `
@@ -666,7 +607,6 @@ export class AdmissionviewComponent implements OnInit {
       `
       )
       .join('');
-
     const chequeRowsHtml = (a.payments.cheques || [])
       .map(
         (c, idx) => `
@@ -685,9 +625,7 @@ export class AdmissionviewComponent implements OnInit {
       `
       )
       .join('');
-
     const feeTotal = this.finalFee || 0;
-
     return `
       <div class="page">
         <div class="brand">
@@ -847,8 +785,6 @@ export class AdmissionviewComponent implements OnInit {
     `;
   }
 
-  // ---------- public print API called from HTML buttons ----------
-
   printFeeAcknowledgement(): void {
     const html = this.buildFeeAcknowledgementHtml();
     this.openPrintWindow('Fee Acknowledgement', html);
@@ -868,28 +804,21 @@ export class AdmissionviewComponent implements OnInit {
     this.router.navigate(['/app/admissions']);
   }
 
-  /** Build HTML for Enrolment Contract (FIITJEE-style layout) */
   private buildContractHtml(): string {
     const a = this.admission;
     if (!a) {
       console.error('No admission loaded');
       return '<p>No data available</p>';
     }
-
     const today = new Date();
-
-    // Casts so we can safely read optional fields without TS errors
     const s: any = a.student || {};
     const ac: any = a.academics || {};
     const fee: any = a.fee || {};
     const anyAdm: any = a;
-
-    // You can move these to config if needed
     const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
     const headOfficeAddress =
       '13/1 Maharaja Avenue extension, Kalapatti Main Rd, beside Suguna pip school, GKD Nagar, Nehru Nagar West, Coimbatore, Tamil Nadu 641014'; // TODO: replace with real office address
     const centreAddress = ac.centreName || 'Study Centre';
-
     const studentName = this.esc(s.name || '');
     const parentName = this.esc(s.parentName || '');
     const studentDob = this.esc(s.dob || '');
@@ -909,14 +838,12 @@ export class AdmissionviewComponent implements OnInit {
     const programDuration = this.esc(ac.duration || '');
     const courseCommencement = this.esc(ac.courseStart || ac.startMonth || '');
     const gstin = this.esc(ac.gstin || '________________');
-
     const feePlanText = `${this.esc(fee.feePlanCode || '')} ${
       fee.feePlanName ? ' - ' + this.esc(fee.feePlanName) : ''
     }`;
     const baseFee = Number(fee.baseFee || 0);
     const finalFee = this.finalFee || Number(fee.finalFee || 0);
     const totalDiscountPct = Number(fee.totalDiscountPct || 0);
-
     const neftRowsHtml = (a.payments.neftRefs || [])
       .map(
         (n: any, idx: number) => `
@@ -934,7 +861,6 @@ export class AdmissionviewComponent implements OnInit {
       `
       )
       .join('');
-
     const chequeRowsHtml = (a.payments.cheques || [])
       .map(
         (c: any, idx: number) => `
@@ -954,7 +880,6 @@ export class AdmissionviewComponent implements OnInit {
       `
       )
       .join('');
-
     const paymentTableBody =
       neftRowsHtml || chequeRowsHtml
         ? neftRowsHtml + chequeRowsHtml
@@ -983,7 +908,6 @@ export class AdmissionviewComponent implements OnInit {
             }
           </div>
         </div>
-
         <div class="section small">
           This contract is between <b>${providerName}</b>, having its registered / head office at
           <b>${this.esc(headOfficeAddress)}</b>, and
@@ -991,14 +915,12 @@ export class AdmissionviewComponent implements OnInit {
           for enrolment into the below mentioned classroom / coaching program, for the
           duration indicated and as per the terms listed in this document.
         </div>
-
         <!-- 1. STUDENT / PROGRAM DETAILS -->
         <div class="section">
           <div class="section-title">1. STUDENT / PROGRAM DETAILS</div>
           <div class="small">
             The details of the Student’s enrolment, program, fee and other relevant information are as follows:
           </div>
-
           <table>
             <tbody>
               <tr>
@@ -1087,7 +1009,6 @@ export class AdmissionviewComponent implements OnInit {
             </tbody>
           </table>
         </div>
-
         <!-- 2. COURSE FEE, SCHOLARSHIPS / WAIVERS AND PAYMENT SCHEDULE -->
         <div class="section">
           <div class="section-title">
@@ -1097,7 +1018,6 @@ export class AdmissionviewComponent implements OnInit {
             The details of fee plan, scholarship / waivers and instalment schedule for the chosen program are
             summarised below:
           </div>
-
           <table>
             <tbody>
               <tr>
@@ -1118,7 +1038,6 @@ export class AdmissionviewComponent implements OnInit {
               </tr>
             </tbody>
           </table>
-
           <div class="mt-2 small">
             <b>Payment Schedule (as per current records)</b>
           </div>
@@ -1137,7 +1056,6 @@ export class AdmissionviewComponent implements OnInit {
             </tbody>
           </table>
         </div>
-
         <!-- 3. MISCELLANEOUS TERMS & CONDITIONS -->
         <div class="section small">
           <div class="section-title">3. MISCELLANEOUS TERMS AND CONDITIONS</div>
@@ -1178,7 +1096,6 @@ export class AdmissionviewComponent implements OnInit {
             institute from time to time.
           </p>
         </div>
-
         <!-- Signatures -->
         <div class="section mt-4 small">
           <table style="border:none; width:100%; margin-top:24px;">

@@ -2,17 +2,9 @@
     <div class="card shadow-sm border-0 mb-3">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-start flex-wrap gap-2">
             <div>
-                <h5 class="mb-1 fw-semibold">Admission View</h5>
+                <h5 class="mb-1 fw-semibold">{{admission.student.name}}</h5>
                 <div class="text-muted small">
-                    Admission ID: <b>{{ admissionId }}</b>
-                    <span class="mx-2">•</span>
-                    Status:
-                    <span class="badge" [class.bg-success]="admission.status === 'confirmed'"
-                        [class.bg-warning]="admission.status === 'submitted'"
-                        [class.bg-secondary]="admission.status === 'draft'"
-                        [class.bg-danger]="admission.status === 'cancelled'">
-                        {{ admission.status || '—' }}
-                    </span>
+                    Admission No.: <b>{{ admissionNo }}</b>
                 </div>
             </div>
 
@@ -33,12 +25,10 @@
         </div>
 
         <div class="card-body" *ngIf="!loading; else loadingTpl">
-            <!-- Student + Academic mapping -->
             <div class="row g-3">
                 <div class="col-lg-6">
                     <div class="border rounded-3 p-3 h-100">
                         <div class="fw-semibold mb-2">Student Information</div>
-
                         <div class="row g-2">
                             <div class="col-md-6">
                                 <div class="label">Student Name</div>
@@ -67,7 +57,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="col-lg-6">
                     <div class="border rounded-3 p-3 h-100">
                         <div class="fw-semibold mb-2">Program / Batch / Class</div>
@@ -93,11 +82,8 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Test details -->
             <div class="border rounded-3 p-3 mt-3">
                 <div class="fw-semibold mb-2">Test & Result</div>
-
                 <div class="row g-2">
                     <div class="col-md-3">
                         <div class="label">Test Date</div>
@@ -125,14 +111,8 @@
                             </span>
                         </div>
                     </div>
-                    <div class="col-12">
-                        <div class="label">Remarks</div>
-                        <div class="value">{{ admission.test.remarks || '—' }}</div>
-                    </div>
                 </div>
             </div>
-
-            <!-- Fee plan & breakup -->
             <div class="border rounded-3 p-3 mt-3">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                     <div>
@@ -152,13 +132,11 @@
                             Additional: {{ admission.fee.additionalScholarshipPct }}%)
                         </div>
                     </div>
-
                     <div class="text-end">
                         <div class="text-muted small">Final Fee</div>
                         <div class="fs-5 fw-bold text-saffron">₹{{ finalFee | number: '1.0-0' }}</div>
                     </div>
                 </div>
-
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0">
                         <thead class="table-light">
@@ -190,10 +168,7 @@
                     </table>
                 </div>
             </div>
-
-            <!-- Payments -->
             <div class="row g-3 mt-1">
-                <!-- NEFT -->
                 <div class="col-lg-6">
                     <div class="border rounded-3 p-3 h-100">
                         <div class="d-flex justify-content-between align-items-start">
@@ -212,7 +187,6 @@
                                 <div class="fw-bold">₹{{ neftTotal | number: '1.0-0' }}</div>
                             </div>
                         </div>
-
                         <div class="table-responsive mt-2">
                             <table class="table table-sm mb-0">
                                 <thead class="table-light">
@@ -240,8 +214,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Cheques -->
                 <div class="col-lg-6">
                     <div class="border rounded-3 p-3 h-100">
                         <div class="d-flex justify-content-between align-items-start">
@@ -266,7 +238,6 @@
                                 <div class="fw-bold">₹{{ chequeTotal | number: '1.0-0' }}</div>
                             </div>
                         </div>
-
                         <div class="table-responsive mt-2">
                             <table class="table table-sm mb-0">
                                 <thead class="table-light">
@@ -310,7 +281,6 @@
                 </div>
             </div>
         </div>
-
         <ng-template #loadingTpl>
             <div class="card-body">
                 <div class="text-muted small">Loading admission…</div>

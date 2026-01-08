@@ -71,6 +71,7 @@ interface CenterItem {
 })
 export class AdmissionsComponent implements OnInit {
   step: 0 | 1 | 2 = 0;
+  directMode: 'NONE' | 'NO_TEST' | 'WITH_TEST' = 'NONE';
   discountOptions = Array.from({ length: 21 }, (_, i) => i * 5);
   lookupForm!: UntypedFormGroup;
   step1Form!: UntypedFormGroup;
@@ -90,8 +91,9 @@ export class AdmissionsComponent implements OnInit {
   centers: CenterItem[] = [];
   centersLoading = false;
   academicYearOptions: string[] = [];
+  testInfo = {};
   readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
-  readonly PRINT_LOGO_URL = 'assets/logo.png';
+  readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
   constructor(
     private fb: UntypedFormBuilder,
     private alert: AlertService,
@@ -109,7 +111,6 @@ export class AdmissionsComponent implements OnInit {
   ngOnInit(): void {
     this.lookupForm = this.fb.group({
       regNo: [''],
-      directEnrolment: [false],
     });
 
     this.step1Form = this.fb.group({
@@ -177,6 +178,208 @@ export class AdmissionsComponent implements OnInit {
       .get('testScholarshipPct')
       ?.valueChanges.subscribe(() => this.resetWorkflowFlags());
     this.buildEmptyPayments();
+  }
+
+  onDirectModeChange(mode: 'NO_TEST' | 'WITH_TEST', ev: any): void {
+    const checked = !!ev?.target?.checked;
+    if (!checked) {
+      if (this.directMode === mode) this.directMode = 'NONE';
+      return;
+    }
+    this.directMode = mode;
+    if (mode === 'NO_TEST') {
+      this.lookupForm.patchValue({ regNo: '' }, { emitEvent: false });
+    }
+  }
+
+  private uuidv4(): string {
+    const c: any = (window as any).crypto;
+    if (c?.randomUUID) return c.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+      const r = (Math.random() * 16) | 0;
+      const v = ch === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  startDirectEnrolmentNoTest(): void {
+    if (this.directMode !== 'NO_TEST') {
+      this.alert.error('Please select "Direct Enrollment without Test data".');
+      return;
+    }
+    const newReg = this.uuidv4();
+    this.isDirectEnrolment = true;
+    this.portal = null;
+    this.admissionId = null;
+    this.step1Form.reset();
+    this.step1Form.patchValue(
+      {
+        portalStudentId: '',
+        scholarshipTestId: '',
+        regNo: newReg,
+        testScholarshipPct: 0,
+        scholarshipPct: 0,
+        additionalScholarshipPct: 0,
+        phone: '',
+        parentPhone: '',
+        programId: '',
+        programName: '',
+        programCode: '',
+        centerId: '',
+        centerName: '',
+        centerCode: '',
+        studyCentre: '',
+        feePlanId: '',
+        feePlanCode: '',
+        academicYear: this.step1Form.get('academicYear')?.value || '',
+      },
+      { emitEvent: false }
+    );
+    this.testInfo = {
+      testDate: null,
+      testCity: null,
+      testCentre: null,
+      centerCode: null,
+      resultCategory: null,
+      paper1Total: null,
+      paper2Total: null,
+      gtotal: null,
+      normalizedScore: null,
+      normalizedPercentage: null,
+      normalizedRank: null,
+      programOffered1: null,
+      programOffered2: null,
+      waiverPerInTf: null,
+      studyCentre: null,
+    };
+    this.setRegNoLock(true);
+    this.setTestScholarshipLock(true);
+    this.feePlans = [];
+    this.resetWorkflowFlags();
+    this.buildEmptyPayments();
+    this.step = 1;
+
+    this.alert.success('Direct enrolment started (RegNo auto generated).');
+  }
+
+  fetchByRegNoDirectWithTest(): void {
+    if (this.directMode !== 'WITH_TEST') {
+      this.alert.error('Please select "Direct Enrollment with Test".');
+      return;
+    }
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+    const regNo = String(this.lookupForm.value.regNo || '').trim();
+    if (!regNo) {
+      this.alert.error('Please enter Enrolment / Reg No.');
+      return;
+    }
+    this.loading = true;
+    const body: any = { entiId: tenantId, registrationNumber: regNo };
+    this.api.fetchData(body, 'admi', 'portal/fetch').subscribe({
+      next: (res: any) => {
+        this.loading = false;
+        if (!res?.status) {
+          this.alert.error(res?.message || res?.error || 'Fetch failed');
+          return;
+        }
+        const d = res?.data || {};
+        const phone = String(d.mobileNo || d.phone || d.mobile || '').trim();
+        const parentName = String(
+          d.fatherName || d.parentName || d.guardianName || ''
+        ).trim();
+        const academicYear = String(
+          d.academicYear || d.academic_year || ''
+        ).trim();
+        const portal: PortalStudentResult = {
+          portalStudentId:
+            d.portalStudentId || d.portalStudentID || d.studentId || '',
+          scholarshipTestId: '',
+          regNo: d.regNo || d.registrationNumber || regNo,
+          registrationNumber: d.registrationNumber || regNo,
+          name:
+            d.name ||
+            d.studentName ||
+            `${d.firstName || ''} ${d.lastName || ''}`.trim(),
+          phone,
+          parentName,
+          parentPhone: String(
+            d.parentPhone || d.parentMobile || phone || ''
+          ).trim(),
+          email: d.email || '',
+          programName: d.programName || '',
+          programCode: d.programCode || '',
+          centerName: d.centerName || '',
+          centerCode: d.centerCode || '',
+          studyCentre: d.studyCentre || '',
+          testScholarshipPct: 0,
+          academicYear: academicYear || '',
+        };
+        this.portal = portal;
+        this.isDirectEnrolment = true;
+        this.admissionId = null;
+        this.step1Form.reset();
+        this.step1Form.patchValue(
+          {
+            portalStudentId: portal.portalStudentId || '',
+            scholarshipTestId: '',
+            regNo: portal.regNo || regNo,
+            name: portal.name || '',
+            phone: portal.phone || '',
+            parentName: portal.parentName || '',
+            parentPhone: portal.parentPhone || portal.phone || '',
+            email: portal.email || '',
+            programName: '',
+            programCode: portal.programCode || '',
+            centerName: portal.centerName || portal.studyCentre || '',
+            centerCode: portal.centerCode || '',
+            studyCentre: portal.studyCentre || '',
+            academicYear: portal.academicYear || '',
+            testScholarshipPct: 0,
+            scholarshipPct: 0,
+            additionalScholarshipPct: 0,
+            feePlanId: '',
+            feePlanCode: '',
+            baseFee: 0,
+          },
+          { emitEvent: false }
+        );
+        this.testInfo = {
+          testDate: d.testDate,
+          testCity: d.testCity,
+          testCentre: d.testCentre,
+          centerCode: d.centerCode,
+          resultCategory: d.resultCategory,
+          paper1Total: d.paper1Total,
+          paper2Total: d.paper2Total,
+          gtotal: d.gtotal,
+          normalizedScore: d.normalizedScore,
+          normalizedPercentage: d.normalizedPercentage,
+          normalizedRank: d.normalizedRank,
+          programOffered1: d.programOffered1,
+          programOffered2: d.programOffered2,
+          waiverPerInTf: d.waiverPerInTf,
+          studyCentre: d.studyCentre,
+        };
+        this.setRegNoLock(true);
+        this.setTestScholarshipLock(true);
+        this.tryMapProgramFromPortal();
+        this.step = 1;
+        this.resetWorkflowFlags();
+        this.buildEmptyPayments();
+
+        this.alert.success(
+          'Student details fetched (test scholarship ignored).'
+        );
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error(`${err?.error?.message || 'Fetch failed'}`);
+      },
+    });
   }
 
   private pickTenantId(): string {
@@ -305,14 +508,7 @@ export class AdmissionsComponent implements OnInit {
           .map((x: any) => {
             const programId = String(x.programId || x._id || x.id || '').trim();
             const programName = String(x.programName || x.name || '').trim();
-            const programCode = String(
-              x.programCode ??
-                x.code ??
-                x.program_code ??
-                x.programCodeText ??
-                x.programShortCode ??
-                ''
-            ).trim();
+            const programCode = String(x.programCodes).trim();
             return {
               programId,
               programName,
@@ -504,7 +700,7 @@ export class AdmissionsComponent implements OnInit {
                   seq: Number(i.seq || 0) || 0,
                   label: String(i.label || `Instalment ${i.seq || ''}`).trim(),
                   amount: Number(i.amount || 0) || 0,
-                  dueDate: String(i.label).trim(),
+                  dueDate: i.label ? String(i.label).trim() : null,
                 }))
               : [],
             feeHeads: Array.isArray(x.feeHeads)
@@ -736,6 +932,23 @@ export class AdmissionsComponent implements OnInit {
           },
           { emitEvent: false }
         );
+        this.testInfo = {
+          testDate: d.testDate,
+          testCity: d.testCity,
+          testCentre: d.testCentre,
+          centerCode: d.centerCode,
+          resultCategory: d.resultCategory,
+          paper1Total: d.paper1Total,
+          paper2Total: d.paper2Total,
+          gtotal: d.gtotal,
+          normalizedScore: d.normalizedScore,
+          normalizedPercentage: d.normalizedPercentage,
+          normalizedRank: d.normalizedRank,
+          programOffered1: d.programOffered1,
+          programOffered2: d.programOffered2,
+          waiverPerInTf: d.waiverPerInTf,
+          studyCentre: d.studyCentre,
+        };
         this.setRegNoLock(true);
         this.setTestScholarshipLock(true);
         this.tryMapProgramFromPortal();
@@ -946,7 +1159,8 @@ export class AdmissionsComponent implements OnInit {
       programCode: s1.programCode || '',
       registrationNumber: String(s1.regNo || '').trim() || null,
       portalStudentId: s1.portalStudentId || null,
-      scholarshipTestId: s1.scholarshipTestId || null,
+      scholarshipTestId:
+        this.directMode === 'WITH_TEST' ? null : s1.scholarshipTestId || null,
       student: {
         name: String(s1.name || '').trim(),
         phone: String(s1.phone || '').trim(),
@@ -957,7 +1171,10 @@ export class AdmissionsComponent implements OnInit {
       fee: {
         baseFee: Number(s1.baseFee || 0),
         finalFee: Number(this.finalFee || 0),
-        testScholarshipPct: Number(this.testScholarshipPct || 0),
+        testScholarshipPct:
+          this.directMode === 'WITH_TEST'
+            ? 0
+            : Number(this.testScholarshipPct || 0),
         scholarshipPct: Number(this.scholarshipPct || 0),
         additionalScholarshipPct: Number(this.additionalScholarshipPct || 0),
         totalDiscountPct: Number(this.totalDiscountPct || 0),
@@ -967,6 +1184,7 @@ export class AdmissionsComponent implements OnInit {
           scholBenefits: x.scholBenefits,
         })),
       },
+      test: this.testInfo,
     };
     this.api.fetchData(body, 'admi', 'create').subscribe({
       next: (res: any) => {

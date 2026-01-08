@@ -23,6 +23,7 @@ export class ListComponent implements OnInit {
   columns = [
     { key: 'regNo', label: 'Reg No', sortable: true },
     { key: 'name', label: 'Student', sortable: true },
+    { key: 'admissionNo', label: 'Admission No', sortable: true },
     { key: 'programName', label: 'Program', sortable: true },
     { key: 'centerName', label: 'Centre', sortable: true },
     { key: 'finalFee', label: 'Final Fee', sortable: true },
@@ -38,13 +39,6 @@ export class ListComponent implements OnInit {
       color: '#2563EB',
       callback: (row: any) => this.view(row.id),
     },
-    // {
-    //   type: 'icon',
-    //   icon: 'fa-regular fa-pen-to-square',
-    //   tooltip: 'Edit',
-    //   color: '#6B7280',
-    //   callback: (row: any) => this.edit(row.id),
-    // },
   ];
 
   constructor(
@@ -57,61 +51,43 @@ export class ListComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // initial load without filter
     this.loadAdmissions();
   }
 
-  // 🔄 API call using CommonapiService, registrationNumber in query
   private loadAdmissions(regNo?: string): void {
     this.loading = true;
-
-    const body: any = { "entiId": localStorage.getItem('tenantId')}; // entiId / tenantId picked from interceptor / CommonapiService
-
+    const body: any = { "entiId": localStorage.getItem('tenantId')};
     const search = (regNo ?? this.searchRegNo ?? '').trim();
     let route = 'list?page=1&limit=25';
-
     if (search) {
       this.searchRegNo = search;
       route += `&registrationNumber=${encodeURIComponent(search)}`;
     }
-
     this.api.fetchData(body, 'admi', route).subscribe({
       next: (res: any) => {
         this.loading = false;
-
         if (!res?.status) {
           this.alert.error(res?.message || 'Failed to load admissions');
           this.admissions = [];
           return;
         }
-
-        // backend may return: { data, page, count } OR { data: { items: [] } }
         const raw =
           Array.isArray(res.data) ?
             res.data :
             res.data?.items || res.data?.rows || [];
-
         const list = Array.isArray(raw) ? raw : [];
-
         this.admissions = list.map((a: any) => ({
-          // id used for view/edit routing
           id: a.admissionId || a._id || a.id,
-
-          // registrationNumber (for list & search)
           regNo:
             a.registrationNumber ||
             a.studentRegNo ||
             a.regNo ||
             '',
-
-          // student display name
+          admissionNo: a.admissionNo,
           name: a.student.name || '',
-
           programName: a.programName || '',
           centerName: a.centerName || '',
-
           finalFee: a.finalFee ?? a.totalFee ?? 0,
-
           status: (a.status || a.admissionStatus || 'draft') as AdmissionStatus,
         }));
       },
@@ -123,13 +99,11 @@ export class ListComponent implements OnInit {
     });
   }
 
-  // 🔍 search handler (called from HTML)
   onSearch(value: string): void {
     this.searchRegNo = (value || '').trim();
     this.loadAdmissions(this.searchRegNo);
   }
 
-  // ⏹ clear search + reload all
   clearSearch(input: HTMLInputElement): void {
     this.searchRegNo = '';
     if (input) {
@@ -149,7 +123,6 @@ export class ListComponent implements OnInit {
 
   edit(id: string): void {
     if (!id) return;
-    // later you can route to edit page when flow is ready
     console.log('edit', id);
   }
 }

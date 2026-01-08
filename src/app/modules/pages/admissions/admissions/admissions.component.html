@@ -4,12 +4,11 @@
             <div>
                 <h5 class="mb-1 fw-semibold">New Admission</h5>
                 <p class="mb-0 text-muted small">
-                    Fetch by Enrolment/Reg No or Direct enrolment → select fee plan →
-                    apply scholarships → NEFT + Cheques → fee calculation → approval →
+                    Get Student Informatino by Reg No or Direct enrolment → select fee plan →
+                    apply scholarships → complete payment → fee calculation → approval →
                     confirm.
                 </p>
             </div>
-
             <div class="stepper d-flex align-items-center gap-2">
                 <span class="step-pill" [class.active]="step === 0">0</span>
                 <span class="step-line"></span>
@@ -36,7 +35,7 @@
                                     For People Who Completed Scholarship Completed
                                 </div>
                                 <div class="text-muted small mb-2">
-                                    You Need to have the Enrolment/Reg No, to proceed with the
+                                    You Need to have the Reg No, to proceed with the
                                     admission.
                                 </div>
                                 <form [formGroup]="lookupForm" (ngSubmit)="fetchByRegNo()">
@@ -45,9 +44,6 @@
                                             <label class="form-label small text-muted">Enrolment / Reg No</label>
                                             <input class="form-control" formControlName="regNo"
                                                 placeholder="Enter any number/text" />
-                                            <div class="text-muted tiny mt-1">
-                                                No strict validation for now.
-                                            </div>
                                         </div>
                                         <div class="col-md-5">
                                             <button class="btn btn-saffron w-100 mb-4" type="submit"
@@ -64,18 +60,63 @@
                                 <div class="text-muted small mb-2">
                                     If you don’t have an enrolment number.
                                 </div>
-                                <button class="btn btn-outline-primary w-100" type="button"
-                                    (click)="proceedDirectEnrolment()">
-                                    <i class="fa-solid fa-pen-to-square me-1"></i>
-                                    Start Direct Enrolment
-                                </button>
+                                <div class="text-muted small mb-2">
+                                    Choose how you want to proceed without/with test details.
+                                </div>
+                                <div class="d-flex flex-column gap-2 mb-3">
+                                    <label class="form-check">
+                                        <input class="form-check-input" type="checkbox"
+                                            [checked]="directMode === 'NO_TEST'"
+                                            (change)="onDirectModeChange('NO_TEST', $event)">
+                                        <span class="form-check-label fw-semibold">
+                                            Direct Enrollment without Test data
+                                        </span>
+                                    </label>
+                                    <label class="form-check">
+                                        <input class="form-check-input" type="checkbox"
+                                            [checked]="directMode === 'WITH_TEST'"
+                                            (change)="onDirectModeChange('WITH_TEST', $event)">
+                                        <span class="form-check-label fw-semibold">
+                                            Direct Enrollment with Test
+                                        </span>
+                                    </label>
+                                </div>
+                                <div *ngIf="directMode === 'WITH_TEST'"
+                                    class="border rounded-3 p-3 mb-3 bg-light-subtle">
+                                    <div class="fw-semibold mb-1">Enter Registration Number</div>
+                                    <div class="text-muted small mb-2">
+                                        Student details will be fetched, but <b>test scholarship will NOT be
+                                            applied</b>.
+                                    </div>
+                                    <form [formGroup]="lookupForm" (ngSubmit)="fetchByRegNoDirectWithTest()">
+                                        <div class="row g-2 align-items-end">
+                                            <div class="col-md-7">
+                                                <label class="form-label small text-muted">Enrolment / Reg No</label>
+                                                <input class="form-control" formControlName="regNo"
+                                                    placeholder="Enter any number/text" />
+                                            </div>
+                                            <div class="col-md-5">
+                                                <button class="btn btn-saffron w-100 mb-4" type="submit"
+                                                    [disabled]="loading">
+                                                    <i class="fa-solid fa-cloud-arrow-down me-1"></i>
+                                                    Fetch Student
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-primary w-100" type="button"
+                                        (click)="startDirectEnrolmentNoTest()" [disabled]="directMode !== 'NO_TEST'">
+                                        <i class="fa-solid fa-pen-to-square me-1"></i>
+                                        Start Direct Enrolment
+                                    </button>
+                                </div>
+
+                                <div class="text-muted tiny mt-2">
+                                    Tip: Select a mode above. Only one can be active at a time.
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-5">
-                        <div class="alert alert-light small mb-0">
-                            <b>Flow:</b> Step 0 → Step 1 (Fee Plan + Scholarships) → Step 2
-                            (NEFT + Cheques) → Fee Calculation → Approval → Confirm.
                         </div>
                     </div>
                 </div>
@@ -123,7 +164,6 @@
                                             [control]="step1Form.get('parentName')" formControlName="parentName">
                                         </formfield>
                                     </div>
-                                    <!-- Program -->
                                     <div class="col-md-4">
                                         <label class="form-label">Program</label>
                                         <select class="form-select" formControlName="programId"
@@ -132,12 +172,9 @@
                       ">
                                             <option value="" disabled>Select program</option>
                                             <option *ngFor="let p of programs" [value]="p.programId">
-                                                {{ p.programName }}
-                                                <ng-container *ngIf="p.programCode">({{ p.programCode }})</ng-container>
-                                                <ng-container *ngIf="p.centerName">— {{ p.centerName }}</ng-container>
+                                                {{ p.programCode }} - {{ p.programName }}
                                             </option>
                                         </select>
-
                                         <div class="invalid-feedback d-block" *ngIf="
                         step1Form.get('programId')?.touched &&
                         step1Form.get('programId')?.invalid
@@ -149,8 +186,6 @@
                                             Loading programs…
                                         </div>
                                     </div>
-
-                                    <!-- Program Code (readonly) -->
                                     <div class="col-md-4">
                                         <formfield label="Program Code" [control]="step1Form.get('programCode')"
                                             formControlName="programCode" readonly="'true'">
@@ -160,7 +195,6 @@
                                             Auto-filled from portal / selected program.
                                         </div>
                                     </div>
-
                                     <div class="col-md-4">
                                         <label class="form-label">Academic Year</label>
                                         <select class="form-select" formControlName="academicYear">
@@ -189,14 +223,12 @@
                                                 <ng-container *ngIf="c.centerCode">({{ c.centerCode }})</ng-container>
                                             </option>
                                         </select>
-
                                         <div class="invalid-feedback d-block" *ngIf="
                         step1Form.get('centerId')?.touched &&
                         step1Form.get('centerId')?.invalid
                       ">
                                             Required
                                         </div>
-
                                         <div class="text-muted tiny mt-1" *ngIf="centersLoading">
                                             Loading centres…
                                         </div>
@@ -206,7 +238,6 @@
                                             Center Code: {{ step1Form.getRawValue().centerCode }}
                                         </div>
                                     </div>
-
                                     <div class="col-md-4">
                                         <label class="form-label">Select Fee Plan</label>
                                         <select class="form-select" formControlName="feePlanId" [disabled]="
@@ -220,7 +251,6 @@
                                                 {{ fp.name }}
                                             </option>
                                         </select>
-
                                         <div class="text-muted tiny mt-1" *ngIf="feePlansLoading">
                                             Loading fee plans...
                                         </div>
@@ -231,7 +261,6 @@
                       ">
                                             No fee plans found for this program / academic year.
                                         </div>
-
                                         <div class="invalid-feedback d-block" *ngIf="
                         step1Form.get('feePlanId')?.touched &&
                         step1Form.get('feePlanId')?.invalid
@@ -239,19 +268,16 @@
                                             Required
                                         </div>
                                     </div>
-
                                     <div class="col-md-4">
                                         <formfield label="Base Fee" [control]="step1Form.get('baseFee')"
                                             formControlName="baseFee"></formfield>
                                     </div>
-
                                     <div class="col-md-4">
                                         <formfield label="Test Scholarship (%)"
                                             [control]="step1Form.get('testScholarshipPct')"
                                             formControlName="testScholarshipPct"></formfield>
                                     </div>
                                 </div>
-
                                 <div class="text-muted tiny mt-2">
                                     Test Scholarship is fetched from portal (fetch mode). In
                                     direct enrolment you can type it manually.
