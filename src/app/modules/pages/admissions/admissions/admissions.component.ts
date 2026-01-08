@@ -136,6 +136,9 @@ export class AdmissionsComponent implements OnInit {
       testScholarshipPct: [{ value: 0, disabled: true }],
       scholarshipPct: [0, [Validators.min(0), Validators.max(100)]],
       additionalScholarshipPct: [0, [Validators.min(0), Validators.max(100)]],
+      schoolOverallPct: [null],
+      schoolCorePct: [null],
+      schoolRemarks: [''],
     });
 
     this.step1Form.get('phone')?.valueChanges.subscribe((v) => {
@@ -370,7 +373,6 @@ export class AdmissionsComponent implements OnInit {
         this.step = 1;
         this.resetWorkflowFlags();
         this.buildEmptyPayments();
-
         this.alert.success(
           'Student details fetched (test scholarship ignored).'
         );
@@ -864,6 +866,7 @@ export class AdmissionsComponent implements OnInit {
       next: (res: any) => {
         this.loading = false;
         if (!res?.status) {
+          console.log('this is the error block received');
           this.alert.error(res?.message || res?.error || 'Fetch failed');
           return;
         }
@@ -936,6 +939,7 @@ export class AdmissionsComponent implements OnInit {
           testDate: d.testDate,
           testCity: d.testCity,
           testCentre: d.testCentre,
+          testName: d.testName,
           centerCode: d.centerCode,
           resultCategory: d.resultCategory,
           paper1Total: d.paper1Total,
@@ -960,9 +964,29 @@ export class AdmissionsComponent implements OnInit {
       error: (err) => {
         console.log(err);
         this.loading = false;
-        this.alert.error(`${err.error.message}`);
+        if (this.handleAdmissionAlreadyExists(err?.error)) return;
+        this.alert.error(err?.error?.message || err?.message || 'Fetch failed');
       },
     });
+  }
+
+  private handleAdmissionAlreadyExists(payload: any): boolean {
+    const admissionId = String(payload?.data?.admissionId || '').trim();
+    const admissionNo = String(payload?.data?.admissionNo || '').trim();
+    const msgRaw = String(payload?.message || '').trim();
+    const looksLikeExists =
+      !!admissionId &&
+      (msgRaw.toLowerCase().includes('already exists') ||
+        msgRaw.toLowerCase().includes('admission'));
+
+    if (!looksLikeExists) return false;
+    const msg = admissionNo
+      ? `Admission already exists (Admission No: ${admissionNo}).`
+      : `Admission already exists for this registration number.`;
+    this.alert.error(msg);
+
+    this.router.navigate(['app/admissions/view', admissionId]);
+    return true;
   }
 
   goToLookup(): void {
@@ -1080,20 +1104,33 @@ export class AdmissionsComponent implements OnInit {
     targetTotal: number,
     baseTotal: number
   ): number[] {
-    if (!baseTotal || targetTotal <= 0) return amounts.map(() => 0);
-
-    const raw = amounts.map((a) => Math.floor((a / baseTotal) * targetTotal));
-    let sum = raw.reduce((s, x) => s + x, 0);
-    let diff = targetTotal - sum;
-
-    let idx = raw.length - 1;
-    while (diff > 0 && raw.length) {
-      raw[idx] = raw[idx] + 1;
+    const target = this.roundRupee(targetTotal); // <-- key
+    if (!baseTotal || target <= 0) return amounts.map(() => 0);
+    const raw = amounts.map((a) => (Number(a || 0) / baseTotal) * target);
+    const rounded = raw.map((x) => {
+      const base = Math.floor(x);
+      const frac = x - base;
+      return frac >= 0.5 ? base + 1 : base;
+    });
+    let sum = rounded.reduce((s, x) => s + x, 0);
+    let diff = target - sum;
+    let idx = rounded.length - 1;
+    while (diff > 0 && rounded.length) {
+      rounded[idx] = rounded[idx] + 1;
       diff--;
       idx--;
-      if (idx < 0) idx = raw.length - 1;
+      if (idx < 0) idx = rounded.length - 1;
     }
-    return raw;
+    idx = rounded.length - 1;
+    while (diff < 0 && rounded.length) {
+      if (rounded[idx] > 0) {
+        rounded[idx] = rounded[idx] - 1;
+        diff++;
+      }
+      idx--;
+      if (idx < 0) idx = rounded.length - 1;
+    }
+    return rounded;
   }
 
   generateAcknowledgementStep2(): void {
@@ -1184,6 +1221,11 @@ export class AdmissionsComponent implements OnInit {
           scholBenefits: x.scholBenefits,
         })),
       },
+      schoolMarks: {
+        overallPct: s1.schoolOverallPct,
+        coreSubjectPct: s1.schoolCorePct,
+        remarks: String(s1.schoolRemarks || '').trim() || null,
+      },
       test: this.testInfo,
     };
     this.api.fetchData(body, 'admi', 'create').subscribe({
@@ -1203,7 +1245,8 @@ export class AdmissionsComponent implements OnInit {
           return;
         }
         this.resetWorkflowFlags();
-        this.buildPaymentsFromFinalFee(this.finalFee);
+        const dueRupee = this.roundRupee(this.finalFee);
+        this.buildPaymentsFromFinalFee(dueRupee);
         this.step = 2;
         this.alert.success('Admission draft created. Proceed to payments.');
       },
@@ -1277,6 +1320,17 @@ export class AdmissionsComponent implements OnInit {
     this.step2Form.get('neftAmount')?.setValue(0, { emitEvent: false });
     this.step2Form.setControl('neftRefs', this.fb.array([]));
     this.step2Form.setControl('cheques', this.fb.array([]));
+  }
+
+  private roundRupee(v: any): number {
+    const n = Number(v || 0);
+    if (!Number.isFinite(n)) return 0;
+    const sign = n < 0 ? -1 : 1;
+    const abs = Math.abs(n);
+    const base = Math.floor(abs);
+    const frac = abs - base;
+    const rounded = frac >= 0.5 ? base + 1 : base;
+    return sign * rounded;
   }
 
   private buildPaymentsFromFinalFee(finalFee: number): void {
@@ -1399,7 +1453,7 @@ export class AdmissionsComponent implements OnInit {
       return;
     }
     const totalPaid = entered + this.chequeTotal;
-    const totalDue = Math.round(this.finalFee || 0);
+    const totalDue = this.roundRupee(this.finalFee || 0);
     if (totalDue > 0 && Math.round(totalPaid) !== totalDue) {
       this.alert.error(
         `Total of NEFT and cheques (₹${totalPaid}) must match final fee (₹${totalDue}).`
@@ -1473,14 +1527,14 @@ export class AdmissionsComponent implements OnInit {
       const dd = dm[1].padStart(2, '0');
       const mm = dm[2].padStart(2, '0');
       const yyyy = dm[3];
-      return `${yyyy}-${mm}-${dd}`;
+      return `${dd}-${mm}-${yyyy}`;
     }
     const d = new Date(s);
     if (!isNaN(d.getTime())) {
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
+      return `${dd}-${mm}-${yyyy}`;
     }
     return null;
   }
@@ -1732,15 +1786,19 @@ export class AdmissionsComponent implements OnInit {
         font-weight: 600;
         font-size: 10px;
       }
-        .brand {
+      .brand {
         display: flex;
-        gap: 10px;
+        justify-content: center;
         align-items: center;
+        width: 100%;
+        gap: 10px;
+        margin-bottom: 8px;
       }
       .brand img {
         height: 42px;
         width: auto;
         object-fit: contain;
+        display: block;
       }
     </style>
     </head>

@@ -2,13 +2,29 @@
     <div class="card shadow-sm border-0 mb-3">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-start flex-wrap gap-2">
             <div>
-                <h5 class="mb-1 fw-semibold">{{admission.student.name}}</h5>
+                <h5 class="mb-1 fw-semibold">{{ admission.student.name }}</h5>
                 <div class="text-muted small">
                     Admission No.: <b>{{ admissionNo }}</b>
                 </div>
             </div>
 
             <div class="d-flex gap-2 flex-wrap">
+                <button *ngIf="isDraftOrRejected" class="btn btn-outline-success btn-sm"
+                    (click)="showPaymentsEditor = true">
+                    <i class="fa-solid fa-money-check-dollar me-1"></i> Edit Payments
+                </button>
+                <button *ngIf="isRejected" class="btn btn-outline-warning btn-sm" (click)="showEditAdmission = true">
+                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit Admission
+                </button>
+                <button *ngIf="isPaymentsSubmitted" class="btn btn-saffron btn-sm" (click)="sendForApproval()">
+                    <i class="fa-solid fa-paper-plane me-1"></i> Send for Approval
+                </button>
+                <button *ngIf="isApprovalSent" class="btn btn-success btn-sm" (click)="approve()">
+                    <i class="fa-solid fa-circle-check me-1"></i> Approve
+                </button>
+                <button *ngIf="isApprovalSent" class="btn btn-danger btn-sm" (click)="openRejectModal()">
+                    <i class="fa-solid fa-circle-xmark me-1"></i> Reject
+                </button>
                 <button class="btn btn-outline-primary btn-sm" (click)="printContract()">
                     <i class="fa-solid fa-print me-1"></i> Contract
                 </button>
@@ -36,7 +52,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="label">Enrolment / Reg No</div>
-                                <div class="value">{{ admission.student.regNo || '—' }}</div>
+                                <div class="value">{{ admission.student.regNo || "—" }}</div>
                             </div>
                             <div class="col-md-6">
                                 <div class="label">Student Mobile</div>
@@ -44,7 +60,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="label">Email</div>
-                                <div class="value">{{ admission.student.email || '—' }}</div>
+                                <div class="value">{{ admission.student.email || "—" }}</div>
                             </div>
                             <div class="col-md-6">
                                 <div class="label">Parent Name</div>
@@ -72,11 +88,15 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="label">Batch</div>
-                                <div class="value">{{ admission.academics.batchName || '—' }}</div>
+                                <div class="value">
+                                    {{ admission.academics.batchName || "—" }}
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="label">Class</div>
-                                <div class="value">{{ admission.academics.className || '—' }}</div>
+                                <div class="value">
+                                    {{ admission.academics.className || "—" }}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -87,27 +107,28 @@
                 <div class="row g-2">
                     <div class="col-md-3">
                         <div class="label">Test Date</div>
-                        <div class="value">{{ admission.test.testDate || '—' }}</div>
+                        <div class="value">{{ admission.test.testDate || "—" }}</div>
                     </div>
                     <div class="col-md-3">
                         <div class="label">Test Name</div>
-                        <div class="value">{{ admission.test.testName || '—' }}</div>
+                        <div class="value">{{ admission.test.testName || "—" }}</div>
                     </div>
                     <div class="col-md-2">
                         <div class="label">Score</div>
-                        <div class="value">{{ admission.test.score ?? '—' }}</div>
+                        <div class="value">{{ admission.test.score ?? "—" }}</div>
                     </div>
                     <div class="col-md-2">
                         <div class="label">Percentile</div>
-                        <div class="value">{{ admission.test.percentile ?? '—' }}</div>
+                        <div class="value">{{ admission.test.percentile ?? "—" }}</div>
                     </div>
                     <div class="col-md-2">
                         <div class="label">Result</div>
                         <div class="value">
                             <span class="badge" [class.bg-success]="admission.test.result === 'pass'"
-                                [class.bg-danger]="admission.test.result === 'fail'"
-                                [class.bg-secondary]="!admission.test.result || admission.test.result === 'pending'">
-                                {{ admission.test.result || 'pending' }}
+                                [class.bg-danger]="admission.test.result === 'fail'" [class.bg-secondary]="
+                  !admission.test.result || admission.test.result === 'pending'
+                ">
+                                {{ admission.test.result || "pending" }}
                             </span>
                         </div>
                     </div>
@@ -123,18 +144,20 @@
                             {{ admission.fee.feePlanName }}
                             <span class="mx-2">•</span>
                             Base Fee:
-                            <b>₹{{ admission.fee.baseFee | number: '1.0-0' }}</b>
+                            <b>₹{{ admission.fee.baseFee | number : "1.0-0" }}</b>
                             <span class="mx-2">•</span>
                             Total Scholarship:
                             <b>{{ admission.fee.totalDiscountPct }}%</b>
                             <span class="mx-2">•</span>
-                            (Test: {{ admission.fee.testScholarshipPct }}%,
-                            Additional: {{ admission.fee.additionalScholarshipPct }}%)
+                            (Test: {{ admission.fee.testScholarshipPct }}%, Additional:
+                            {{ admission.fee.additionalScholarshipPct }}%)
                         </div>
                     </div>
                     <div class="text-end">
                         <div class="text-muted small">Final Fee</div>
-                        <div class="fs-5 fw-bold text-saffron">₹{{ finalFee | number: '1.0-0' }}</div>
+                        <div class="fs-5 fw-bold text-saffron">
+                            ₹{{ finalFee | number : "1.0-0" }}
+                        </div>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -142,17 +165,17 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Fee Head</th>
-                                <th class="text-end" style="width:160px;">Amount</th>
-                                <th class="text-end" style="width:200px;">Schol Benefits</th>
+                                <th class="text-end" style="width: 160px">Amount</th>
+                                <th class="text-end" style="width: 200px">Schol Benefits</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr *ngFor="let r of feeHeadPreview">
                                 <td class="fw-medium">{{ r.label }}</td>
-                                <td class="text-end">₹{{ r.total | number: '1.0-0' }}</td>
+                                <td class="text-end">₹{{ r.total | number : "1.0-0" }}</td>
                                 <td class="text-end">
                                     <span *ngIf="r.scholBenefits > 0" class="fw-semibold text-success">
-                                        ₹{{ r.scholBenefits | number: '1.0-0' }}
+                                        ₹{{ r.scholBenefits | number : "1.0-0" }}
                                     </span>
                                     <span *ngIf="r.scholBenefits <= 0" class="text-muted">0</span>
                                 </td>
@@ -161,7 +184,9 @@
                         <tfoot class="table-light">
                             <tr>
                                 <th class="text-end">Grand Total</th>
-                                <th class="text-end fw-bold">₹{{ finalFee | number: '1.0-0' }}</th>
+                                <th class="text-end fw-bold">
+                                    ₹{{ finalFee | number : "1.0-0" }}
+                                </th>
                                 <th></th>
                             </tr>
                         </tfoot>
@@ -176,25 +201,29 @@
                                 <div class="fw-semibold">NEFT</div>
                                 <div class="text-muted small">
                                     Split Amount:
-                                    <b>₹{{ admission.payments.neftSplitAmount | number: '1.0-0' }}</b>
+                                    <b>₹{{
+                                        admission.payments.neftSplitAmount | number : "1.0-0"
+                                        }}</b>
                                     <span class="mx-1">•</span>
                                     Total Entered:
-                                    <b>₹{{ admission.payments.neftTotalEntered | number: '1.0-0' }}</b>
+                                    <b>₹{{
+                                        admission.payments.neftTotalEntered | number : "1.0-0"
+                                        }}</b>
                                 </div>
                             </div>
                             <div class="text-end">
                                 <div class="text-muted small">Total Paid (from NEFT)</div>
-                                <div class="fw-bold">₹{{ neftTotal | number: '1.0-0' }}</div>
+                                <div class="fw-bold">₹{{ neftTotal | number : "1.0-0" }}</div>
                             </div>
                         </div>
                         <div class="table-responsive mt-2">
                             <table class="table table-sm mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width:60px;">#</th>
+                                        <th style="width: 60px">#</th>
                                         <th>UTR No</th>
-                                        <th class="text-end" style="width:140px;">Amount</th>
-                                        <th style="width:140px;">Paid On</th>
+                                        <th class="text-end" style="width: 140px">Amount</th>
+                                        <th style="width: 140px">Paid On</th>
                                         <th>Remarks</th>
                                     </tr>
                                 </thead>
@@ -202,12 +231,14 @@
                                     <tr *ngFor="let n of admission.payments.neftRefs; let i = index">
                                         <td class="fw-semibold">{{ i + 1 }}</td>
                                         <td>{{ n.utrNo }}</td>
-                                        <td class="text-end">₹{{ n.amount | number: '1.0-0' }}</td>
-                                        <td>{{ n.paidOn || '—' }}</td>
-                                        <td>{{ n.remarks || '—' }}</td>
+                                        <td class="text-end">₹{{ n.amount | number : "1.0-0" }}</td>
+                                        <td>{{ n.paidOn || "—" }}</td>
+                                        <td>{{ n.remarks || "—" }}</td>
                                     </tr>
                                     <tr *ngIf="!admission.payments.neftRefs.length">
-                                        <td colspan="5" class="text-center text-muted small">No NEFT entries</td>
+                                        <td colspan="5" class="text-center text-muted small">
+                                            No NEFT entries
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -235,32 +266,32 @@
                             </div>
                             <div class="text-end">
                                 <div class="text-muted small">Total Amount</div>
-                                <div class="fw-bold">₹{{ chequeTotal | number: '1.0-0' }}</div>
+                                <div class="fw-bold">₹{{ chequeTotal | number : "1.0-0" }}</div>
                             </div>
                         </div>
                         <div class="table-responsive mt-2">
                             <table class="table table-sm mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width:60px;">Sno</th>
-                                        <th style="width:120px;">Cheque Date</th>
-                                        <th style="width:120px;">Due Date</th>
+                                        <th style="width: 60px">Sno</th>
+                                        <th style="width: 120px">Cheque Date</th>
+                                        <th style="width: 120px">Due Date</th>
                                         <th>Favour of</th>
-                                        <th class="text-end" style="width:120px;">Amount</th>
-                                        <th style="width:120px;">Cheque No</th>
-                                        <th style="width:90px;">Mode</th>
-                                        <th style="width:110px;">Status</th>
+                                        <th class="text-end" style="width: 120px">Amount</th>
+                                        <th style="width: 120px">Cheque No</th>
+                                        <th style="width: 90px">Mode</th>
+                                        <th style="width: 110px">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr *ngFor="let c of admission.payments.cheques">
                                         <td class="fw-semibold">{{ c.sno }}</td>
-                                        <td>{{ c.chequeDate || '—' }}</td>
-                                        <td>{{ c.dueDate || '—' }}</td>
-                                        <td>{{ c.favourOf || '—' }}</td>
-                                        <td class="text-end">₹{{ c.amount | number: '1.0-0' }}</td>
-                                        <td>{{ c.chequeNo || '—' }}</td>
-                                        <td>{{ c.mode || '—' }}</td>
+                                        <td>{{ c.chequeDate || "—" }}</td>
+                                        <td>{{ c.dueDate || "—" }}</td>
+                                        <td>{{ c.favourOf || "—" }}</td>
+                                        <td class="text-end">₹{{ c.amount | number : "1.0-0" }}</td>
+                                        <td>{{ c.chequeNo || "—" }}</td>
+                                        <td>{{ c.mode || "—" }}</td>
                                         <td>
                                             <span class="badge" [class.bg-secondary]="c.status === 'pending'"
                                                 [class.bg-info]="c.status === 'deposited'"
@@ -272,7 +303,9 @@
                                         </td>
                                     </tr>
                                     <tr *ngIf="!admission.payments.cheques.length">
-                                        <td colspan="8" class="text-center text-muted small">No cheque entries</td>
+                                        <td colspan="8" class="text-center text-muted small">
+                                            No cheque entries
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -288,3 +321,39 @@
         </ng-template>
     </div>
 </div>
+
+<!-- Inline panels -->
+<div class="mt-3" *ngIf="showEditAdmission">
+    <app-admission-edit [admission]="admission" (cancel)="showEditAdmission=false" (saved)="onAdmissionEdited()">
+    </app-admission-edit>
+</div>
+
+<div class="mt-3" *ngIf="showPaymentsEditor">
+    <app-admissionpayments-editor [admissionId]="admissionId" [finalFee]="finalFee" [existingPayments]="rawPayments"
+        (cancel)="showPaymentsEditor=false" (saved)="onPaymentsSaved()">
+    </app-admissionpayments-editor>
+</div>
+
+<!-- Reject Modal (Bootstrap) -->
+<div class="modal fade" tabindex="-1" [class.show]="rejectModalOpen"
+    [style.display]="rejectModalOpen ? 'block' : 'none'">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reject Admission</h5>
+                <button type="button" class="btn-close" (click)="closeRejectModal()"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Remarks <span class="text-danger">*</span></label>
+                <textarea class="form-control" rows="4" [(ngModel)]="rejectReason"
+                    placeholder="Enter rejection remarks..."></textarea>
+                <div class="text-muted small mt-1">Remarks is mandatory.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" (click)="closeRejectModal()">Cancel</button>
+                <button class="btn btn-danger" (click)="rejectNow()">Reject</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show" *ngIf="rejectModalOpen"></div>

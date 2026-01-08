@@ -1,0 +1,131 @@
+<div class="card shadow-sm border-0" [formGroup]="form">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="mb-0 fw-semibold">Edit Payments</h6>
+            <div class="text-muted small">Update NEFT / Cheque schedule and save.</div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" type="button" (click)="close()">Cancel</button>
+            <button class="btn btn-saffron btn-sm" type="button" [disabled]="loading" (click)="save()">
+                <span *ngIf="!loading">Save Payments</span>
+                <span *ngIf="loading">Saving...</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <!-- NEFT -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">NEFT Entries</div>
+            <button class="btn btn-outline-primary btn-sm" type="button" (click)="addNeft()">
+                <i class="fa-solid fa-plus me-1"></i>Add NEFT
+            </button>
+        </div>
+
+        <div class="table-responsive" formArrayName="neftRefs">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:50px;">#</th>
+                        <th>UTR</th>
+                        <th class="text-end" style="width:140px;">Amount</th>
+                        <th style="width:160px;">Paid On</th>
+                        <th>Bank</th>
+                        <th style="width:70px;"></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr *ngFor="let g of neftGroups; let i = index" [formGroup]="g">
+                        <td class="fw-semibold">{{ i + 1 }}</td>
+
+                        <td>
+                            <input class="form-control form-control-sm" formControlName="utr" placeholder="UTR No" />
+                        </td>
+
+                        <td>
+                            <input type="number" class="form-control form-control-sm text-end"
+                                formControlName="amount" />
+                        </td>
+
+                        <td>
+                            <input type="date" class="form-control form-control-sm" formControlName="paidOn" />
+                        </td>
+
+                        <td>
+                            <input class="form-control form-control-sm" formControlName="bankName" placeholder="Bank" />
+                        </td>
+
+                        <td class="text-end">
+                            <button class="btn btn-outline-danger btn-sm" type="button" (click)="removeNeft(i)"
+                                [disabled]="neftFA.length <= 1">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+
+                    <tr *ngIf="!neftGroups.length">
+                        <td colspan="6" class="text-center text-muted small">No NEFT entries</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- CHEQUES -->
+        <div class="fw-semibold mt-3 mb-2">Cheque Schedule</div>
+
+        <div class="table-responsive" formArrayName="cheques">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:60px;">Sno</th>
+                        <th style="width:140px;">Cheque Date</th>
+                        <th style="width:140px;">Due Date</th>
+                        <th>Favour Of</th>
+                        <th class="text-end" style="width:130px;">Amount</th>
+                        <th style="width:150px;">Cheque No</th>
+                        <th style="width:100px;">Mode</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr *ngFor="let g of chequeGroups; let i = index" [formGroup]="g">
+                        <td class="fw-semibold">{{ g.get('sno')?.value }}</td>
+
+                        <!-- these are disabled in form group (so no disabled attr needed) -->
+                        <td>
+                            <input class="form-control form-control-sm" formControlName="chequeDate" />
+                        </td>
+
+                        <td>
+                            <input type="date" class="form-control form-control-sm" formControlName="dueDate" />
+                        </td>
+
+                        <td>
+                            <input class="form-control form-control-sm" formControlName="favourOf" />
+                        </td>
+
+                        <td>
+                            <input class="form-control form-control-sm text-end" formControlName="amount" />
+                        </td>
+
+                        <td>
+                            <input class="form-control form-control-sm" formControlName="chequeNo" />
+                        </td>
+
+                        <td>
+                            <select class="form-select form-select-sm" formControlName="mode">
+                                <option value="PDC">PDC</option>
+                                <option value="CDC">CDC</option>
+                            </select>
+                        </td>
+                    </tr>
+
+                    <tr *ngIf="!chequeGroups.length">
+                        <td colspan="7" class="text-center text-muted small">No cheque schedule available</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -276,11 +276,39 @@
                                         <formfield label="Test Scholarship (%)"
                                             [control]="step1Form.get('testScholarshipPct')"
                                             formControlName="testScholarshipPct"></formfield>
+
                                     </div>
-                                </div>
-                                <div class="text-muted tiny mt-2">
-                                    Test Scholarship is fetched from portal (fetch mode). In
-                                    direct enrolment you can type it manually.
+                                    <div class="col-md-4">
+                                        <div class="text-muted tiny mt-4">
+                                            Test Scholarship is fetched from portal. In
+                                            direct enrolment you can type it manually.
+                                        </div>
+                                    </div>
+                                    <div class="fw-semibold">Scholarships</div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small text-muted">
+                                            Scholarship (%)
+                                        </label>
+                                        <select class="form-select" formControlName="scholarshipPct">
+                                            <option *ngFor="let d of discountOptions" [value]="d">
+                                                {{ d }}%
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small text-muted">
+                                            Additional Scholarship (%)
+                                        </label>
+                                        <select class="form-select" formControlName="additionalScholarshipPct">
+                                            <option *ngFor="let d of discountOptions" [value]="d">
+                                                {{ d }}%
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <!-- <div class="alert alert-light small mb-0 w-100">
+                                        Final Fee = Base Fee - (Test Scholarship + Scholarship +
+                                        Additional Scholarship). Total discount capped at 100%.
+                                    </div> -->
                                 </div>
                             </div>
                         </div>
@@ -308,7 +336,7 @@
                                                 <th class="text-end" style="width: 160px">STax</th>
                                                 <th class="text-end" style="width: 160px">Total</th>
                                                 <th class="text-end" style="width: 180px">
-                                                    Schol Benefits
+                                                    Scholarship Benefits
                                                 </th>
                                             </tr>
                                         </thead>
@@ -349,35 +377,23 @@
                         </div>
                         <div class="col-12">
                             <div class="border rounded-3 p-3">
-                                <div class="fw-semibold mb-2">Scholarships</div>
+                                <div class="fw-semibold mb-2">School Marks </div>
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label small text-muted">
-                                            Scholarship (%)
-                                        </label>
-                                        <select class="form-select" formControlName="scholarshipPct">
-                                            <option *ngFor="let d of discountOptions" [value]="d">
-                                                {{ d }}%
-                                            </option>
-                                        </select>
+                                        <label class="form-label small text-muted">Overall %</label>
+                                        <input type="number" class="form-control" formControlName="schoolOverallPct"
+                                            placeholder="eg. 92" />
                                     </div>
 
                                     <div class="col-md-3">
-                                        <label class="form-label small text-muted">
-                                            Additional Scholarship (%)
-                                        </label>
-                                        <select class="form-select" formControlName="additionalScholarshipPct">
-                                            <option *ngFor="let d of discountOptions" [value]="d">
-                                                {{ d }}%
-                                            </option>
-                                        </select>
+                                        <label class="form-label small text-muted">Core Subjects %</label>
+                                        <input type="number" class="form-control" formControlName="schoolCorePct"
+                                            placeholder="eg. 90" />
                                     </div>
-
-                                    <div class="col-md-6 d-flex align-items-end">
-                                        <div class="alert alert-light small mb-0 w-100">
-                                            Final Fee = Base Fee - (Test Scholarship + Scholarship +
-                                            Additional Scholarship). Total discount capped at 100%.
-                                        </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted">Remarks</label>
+                                        <input class="form-control" formControlName="schoolRemarks"
+                                            placeholder="optional" />
                                     </div>
                                 </div>
                             </div>
@@ -494,10 +510,10 @@
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
                                 <div class="fw-semibold">Cheques</div>
-                                <div class="text-muted small">
-                                    Cheque Date is default; only Due Date should be entered. Payee
+                                <!-- <div class="text-muted small">
+                                    Due Date is default; only Cheque Date should be entered. Payee
                                     is fixed.
-                                </div>
+                                </div> -->
                             </div>
                             <span class="badge bg-secondary-subtle text-secondary">
                                 Cheques
@@ -508,11 +524,11 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th style="width: 70px">Sno</th>
-                                        <th style="width: 150px">Cheque Date</th>
+                                        <th style="width: 160px">Due Date</th>
                                         <th style="width: 260px">Favour of</th>
                                         <th style="width: 150px">Amount (₹)</th>
                                         <th style="width: 170px">Cheque No</th>
-                                        <th style="width: 160px">Due Date</th>
+                                        <th style="width: 150px">Cheque Date</th>
                                         <th style="width: 140px">Mode</th>
                                         <th>Remarks</th>
                                     </tr>
@@ -526,8 +542,8 @@
                                         <td class="fw-semibold">{{ row.get("sno")?.value }}</td>
 
                                         <td>
-                                            <input class="form-control form-control-sm" type="date"
-                                                formControlName="chequeDate" />
+                                            <input class="form-control form-control-sm" type="text"
+                                                placeholder="DD-MM-YYYY" formControlName="chequeDate" />
                                         </td>
 
                                         <td>

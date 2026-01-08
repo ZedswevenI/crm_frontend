@@ -92,6 +92,7 @@ interface AdmissionViewModel {
     };
     cheques: ChequeRow[];
   };
+  workflowStage?: string | null;
 }
 
 @Component({
@@ -105,6 +106,12 @@ export class AdmissionviewComponent implements OnInit {
   admissionNo = '';
   loading = true;
   admission!: AdmissionViewModel;
+  rawPayments: any[] = [];
+  showPaymentsEditor = false;
+  showEditAdmission = false;
+  rejectModalOpen = false;
+  rejectReason = '';
+  actionBusy = false;
   readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
   constructor(
     private route: ActivatedRoute,
@@ -194,6 +201,7 @@ export class AdmissionviewComponent implements OnInit {
         const payments = Array.isArray(resp.data.payments)
           ? resp.data.payments
           : [];
+        this.rawPayments = payments;
         this.admission = this.mapApiToView(admission, payments);
       },
       error: (err: any) => {
@@ -212,11 +220,7 @@ export class AdmissionviewComponent implements OnInit {
       : [];
     const breakup: FeeBreakupRow[] = feeBreakupRaw.map((h: any) => ({
       label: String(h.label || '').trim(),
-      total: Number(
-        h.total ??
-          h.amount ??
-          0
-      ),
+      total: Number(h.total ?? h.amount ?? 0),
       scholBenefits: Number(h.scholBenefits ?? 0),
       fee: Number(h.fee ?? h.base ?? 0),
       stax: Number(h.stax ?? h.taxAmount ?? h.gstAmount ?? 0),
@@ -255,6 +259,7 @@ export class AdmissionviewComponent implements OnInit {
         remarks: p.remarks || null,
       }));
     return {
+      workflowStage: String(adm?.workflow?.stage || ''),
       admissionId: String(adm.admissionId || ''),
       admissionNo: String(adm.admissionNo || ''),
       status: this.mapStageToStatus(adm?.workflow?.stage, adm?.status),
@@ -363,6 +368,140 @@ export class AdmissionviewComponent implements OnInit {
     );
   }
 
+  get workflowStage(): string {
+    return String(this.admission?.workflowStage || '').toUpperCase();
+  }
+
+  get isDraftOrRejected(): boolean {
+    return ['DRAFT', 'REJECTED'].includes(this.workflowStage);
+  }
+
+  get isRejected(): boolean {
+    return this.workflowStage === 'REJECTED';
+  }
+
+  get isApprovalSent(): boolean {
+    return this.workflowStage === 'APPROVAL_SENT';
+  }
+
+  get isPaymentsSubmitted(): boolean {
+    return this.workflowStage === 'PAYMENTS_SUBMITTED';
+  }
+
+  private pickUserId(): string {
+    return String(localStorage.getItem('userId') || '').trim();
+  }
+
+  sendForApproval(): void {
+    if (this.actionBusy) return;
+    const tenantId = this.pickTenantId();
+    const userId = this.pickUserId();
+    if (!tenantId || !userId) {
+      this.alert.error('tenantId/userId missing. Please login again.');
+      return;
+    }
+    this.actionBusy = true;
+    const body = { entiId: tenantId, userId, admissionId: this.admissionId };
+    this.api.fetchData(body, 'admi', 'submitforapproval').subscribe({
+      next: (resp: any) => {
+        this.actionBusy = false;
+        if (!resp?.status)
+          return this.alert.error(
+            resp?.message || 'Failed to send for approval'
+          );
+        this.alert.success('Sent for approval');
+        this.loadAdmission();
+      },
+      error: () => {
+        this.actionBusy = false;
+        this.alert.error('Failed to send for approval');
+      },
+    });
+  }
+
+  approve(): void {
+    if (this.actionBusy) return;
+    const tenantId = this.pickTenantId();
+    const userId = this.pickUserId();
+    if (!tenantId || !userId) {
+      this.alert.error('tenantId/userId missing. Please login again.');
+      return;
+    }
+    this.actionBusy = true;
+    const body = { entiId: tenantId, userId, admissionId: this.admissionId };
+    this.api.fetchData(body, 'admi', 'approve').subscribe({
+      next: (resp: any) => {
+        this.actionBusy = false;
+        if (!resp?.status)
+          return this.alert.error(resp?.message || 'Approval failed');
+        this.alert.success('Admission approved');
+        this.loadAdmission();
+      },
+      error: () => {
+        this.actionBusy = false;
+        this.alert.error('Approval failed');
+      },
+    });
+  }
+
+  openRejectModal(): void {
+    this.rejectReason = '';
+    this.rejectModalOpen = true;
+  }
+
+  closeRejectModal(): void {
+    this.rejectModalOpen = false;
+    this.rejectReason = '';
+  }
+
+  rejectNow(): void {
+    const reason = (this.rejectReason || '').trim();
+    if (!reason) {
+      this.alert.warning('Please enter remarks to reject');
+      return;
+    }
+    if (this.actionBusy) return;
+    const tenantId = this.pickTenantId();
+    const userId = this.pickUserId();
+    if (!tenantId || !userId) {
+      this.alert.error('tenantId/userId missing. Please login again.');
+      return;
+    }
+    this.actionBusy = true;
+    const body = {
+      entiId: tenantId,
+      userId,
+      admissionId: this.admissionId,
+      reason,
+    };
+    this.api.fetchData(body, 'admi', 'reject').subscribe({
+      next: (resp: any) => {
+        this.actionBusy = false;
+        if (!resp?.status)
+          return this.alert.error(resp?.message || 'Reject failed');
+        this.alert.success('Admission rejected');
+        this.closeRejectModal();
+        this.loadAdmission();
+      },
+      error: () => {
+        this.actionBusy = false;
+        this.alert.error('Reject failed');
+      },
+    });
+  }
+
+  onPaymentsSaved(): void {
+    this.showPaymentsEditor = false;
+    this.alert.success('Payments updated');
+    this.loadAdmission();
+  }
+
+  onAdmissionEdited(): void {
+    this.showEditAdmission = false;
+    this.alert.success('Admission updated');
+    this.loadAdmission();
+  }
+
   private esc(v: any): string {
     const s = String(v ?? '');
     return s
@@ -417,13 +556,17 @@ export class AdmissionviewComponent implements OnInit {
             }
             .brand {
               display: flex;
-              gap: 10px;
+              justify-content: center;
               align-items: center;
+              width: 100%;
+              gap: 10px;
+              margin-bottom: 8px;
             }
             .brand img {
               height: 42px;
               width: auto;
               object-fit: contain;
+              display: block;
             }
           </style>
         </head>
@@ -494,7 +637,6 @@ export class AdmissionviewComponent implements OnInit {
             <div><b>Date:</b> ${today.toLocaleDateString('en-IN')}</div>
           </div>
         </div>
-
         <!-- Student & academic block -->
         <div class="section">
           <div class="section-title">Student & Academic Details</div>
@@ -503,17 +645,14 @@ export class AdmissionviewComponent implements OnInit {
             <div>${this.esc(a.student.name)}</div>
             <div class="kv-label">Student Mobile</div>
             <div>${this.esc(a.student.phone)}</div>
-
             <div class="kv-label">Parent Name</div>
             <div>${this.esc(a.student.parentName)}</div>
             <div class="kv-label">Parent Mobile</div>
             <div>${this.esc(a.student.parentPhone)}</div>
-
             <div class="kv-label">Programme</div>
             <div>${this.esc(a.academics.programName)}</div>
             <div class="kv-label">Centre</div>
             <div>${this.esc(a.academics.centreName)}</div>
-
             <div class="kv-label">Batch</div>
             <div>${this.esc(a.academics.batchName || '')}</div>
             <div class="kv-label">Class / Timing</div>
@@ -571,7 +710,6 @@ export class AdmissionviewComponent implements OnInit {
     )}</div>
           </div>
         </div>
-
         <div class="section mt-4 small">
           <b>For Office Use:</b>
           <p class="small">

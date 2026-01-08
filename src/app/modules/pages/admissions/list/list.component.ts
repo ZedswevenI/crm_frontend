@@ -4,7 +4,13 @@ import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.servic
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 import { AlertService } from '../../../../service/alert/alert.service';
 
-type AdmissionStatus = 'draft' | 'submitted' | 'ack_generated' | 'approval_sent' | 'confirmed';
+type AdmissionStatus =
+  | 'draft'
+  | 'submitted'
+  | 'ack_generated'
+  | 'approval_sent'
+  | 'confirmed';
+type ListStatusFilter = 'all' | 'approved' | 'rejected' | 'waiting';
 
 @Component({
   selector: 'app-list',
@@ -15,11 +21,8 @@ type AdmissionStatus = 'draft' | 'submitted' | 'ack_generated' | 'approval_sent'
 export class ListComponent implements OnInit {
   admissions: any[] = [];
   loading = false;
-
-  // search text for registrationNumber (query param)
   searchRegNo = '';
-
-  // ✅ list-table columns
+  statusFilter: ListStatusFilter = 'all';
   columns = [
     { key: 'regNo', label: 'Reg No', sortable: true },
     { key: 'name', label: 'Student', sortable: true },
@@ -29,8 +32,6 @@ export class ListComponent implements OnInit {
     { key: 'finalFee', label: 'Final Fee', sortable: true },
     { key: 'status', label: 'Status', sortable: false },
   ];
-
-  // ✅ actions like your batch screen
   actions = [
     {
       type: 'icon',
@@ -54,14 +55,22 @@ export class ListComponent implements OnInit {
     this.loadAdmissions();
   }
 
+  onStatusChange(): void {
+    this.loadAdmissions();
+  }
+
   private loadAdmissions(regNo?: string): void {
     this.loading = true;
-    const body: any = { "entiId": localStorage.getItem('tenantId')};
+    const body: any = { entiId: localStorage.getItem('tenantId') };
     const search = (regNo ?? this.searchRegNo ?? '').trim();
-    let route = 'list?page=1&limit=25';
+    let route = 'list?page=1&limit=5';
+    if (this.statusFilter && this.statusFilter !== 'all') {
+      route += `&status=${encodeURIComponent(this.statusFilter)}`;
+    } else {
+    }
     if (search) {
       this.searchRegNo = search;
-      route += `&registrationNumber=${encodeURIComponent(search)}`;
+      route += `&search=${encodeURIComponent(search)}`;
     }
     this.api.fetchData(body, 'admi', route).subscribe({
       next: (res: any) => {
@@ -71,24 +80,24 @@ export class ListComponent implements OnInit {
           this.admissions = [];
           return;
         }
-        const raw =
-          Array.isArray(res.data) ?
-            res.data :
-            res.data?.items || res.data?.rows || [];
+        const raw = Array.isArray(res.data)
+          ? res.data
+          : res.data?.rows || res.data?.items || res.data?.rows || [];
         const list = Array.isArray(raw) ? raw : [];
         this.admissions = list.map((a: any) => ({
           id: a.admissionId || a._id || a.id,
-          regNo:
-            a.registrationNumber ||
-            a.studentRegNo ||
-            a.regNo ||
-            '',
+          regNo: a.registrationNumber || a.studentRegNo || a.regNo || '',
           admissionNo: a.admissionNo,
-          name: a.student.name || '',
+          name: a?.student?.name || '',
           programName: a.programName || '',
           centerName: a.centerName || '',
-          finalFee: a.finalFee ?? a.totalFee ?? 0,
-          status: (a.status || a.admissionStatus || 'draft') as AdmissionStatus,
+          finalFee: a.fee.finalFee ?? 0,
+          status: this.mapDisplayStatus(
+            (a?.workflow?.stage ||
+              a.status ||
+              a.admissionStatus ||
+              'draft') as AdmissionStatus
+          ),
         }));
       },
       error: (err) => {
@@ -99,6 +108,15 @@ export class ListComponent implements OnInit {
     });
   }
 
+  private mapDisplayStatus(stage: string): string {
+    const s = String(stage || '').toLowerCase();
+    if (s === 'confirmed') return 'Approved';
+    if (s === 'approval_sent') return 'Waiting for Approval';
+    if (s === 'ack_generated' || s === 'submitted') return 'Created';
+    if (!s) return 'Draft';
+    return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   onSearch(value: string): void {
     this.searchRegNo = (value || '').trim();
     this.loadAdmissions(this.searchRegNo);
@@ -106,9 +124,7 @@ export class ListComponent implements OnInit {
 
   clearSearch(input: HTMLInputElement): void {
     this.searchRegNo = '';
-    if (input) {
-      input.value = '';
-    }
+    if (input) input.value = '';
     this.loadAdmissions('');
   }
 

@@ -11,9 +11,11 @@ import { AdmissionviewComponent } from './admissionview/admissionview.component'
 import { AdmissionreportsComponent } from './admissionreports/admissionreports.component';
 import { AdmissioncommunicationComponent } from './admissioncommunication/admissioncommunication.component';
 import { AdmissionfeecalComponent } from './admissionfeecal/admissionfeecal.component';
+import { AdmissionpaymentsEditorComponent } from './admissionpayments-editor/admissionpayments-editor.component';
+import { AdmissionEditComponent } from './admission-edit/admission-edit.component';
 
 @NgModule({
-  declarations: [AdmissionsComponent, ListComponent, AdmissionviewComponent, AdmissionreportsComponent, AdmissioncommunicationComponent, AdmissionfeecalComponent],
+  declarations: [AdmissionsComponent, ListComponent, AdmissionviewComponent, AdmissionreportsComponent, AdmissioncommunicationComponent, AdmissionfeecalComponent, AdmissionpaymentsEditorComponent, AdmissionEditComponent],
   imports: [CommonModule, AdmissionsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })
 export class AdmissionsModule {}
