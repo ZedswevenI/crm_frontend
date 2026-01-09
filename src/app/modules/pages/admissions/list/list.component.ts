@@ -22,14 +22,15 @@ export class ListComponent implements OnInit {
   admissions: any[] = [];
   loading = false;
   searchRegNo = '';
+  totalRecords=0;
   statusFilter: ListStatusFilter = 'all';
   columns = [
-    { key: 'regNo', label: 'Reg No', sortable: true },
-    { key: 'name', label: 'Student', sortable: true },
-    { key: 'admissionNo', label: 'Admission No', sortable: true },
-    { key: 'programName', label: 'Program', sortable: true },
-    { key: 'centerName', label: 'Centre', sortable: true },
-    { key: 'finalFee', label: 'Final Fee', sortable: true },
+    { key: 'regNo', label: 'Reg No', sortable: false },
+    { key: 'name', label: 'Student', sortable: false },
+    { key: 'admissionNo', label: 'Admission No', sortable: false },
+    { key: 'programName', label: 'Program', sortable: false },
+    { key: 'centerName', label: 'Centre', sortable: false },
+    { key: 'finalFee', label: 'Final Fee', sortable: false },
     { key: 'status', label: 'Status', sortable: false },
   ];
   actions = [
@@ -80,6 +81,7 @@ export class ListComponent implements OnInit {
           this.admissions = [];
           return;
         }
+        this.totalRecords = res.data.total
         const raw = Array.isArray(res.data)
           ? res.data
           : res.data?.rows || res.data?.items || res.data?.rows || [];

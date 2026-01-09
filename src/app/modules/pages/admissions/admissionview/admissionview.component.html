@@ -9,34 +9,45 @@
             </div>
 
             <div class="d-flex gap-2 flex-wrap">
-                <button *ngIf="isDraftOrRejected" class="btn btn-outline-success btn-sm" (click)="goToPaymentsEdit()">
+                <button *ngIf="isDraftOrRejected" class="btn btn-outline-saffron btn-sm" (click)="goToPaymentsEdit()">
                     <i class="fa-solid fa-money-check-dollar me-1"></i> Edit Payments
                 </button>
+
                 <button *ngIf="isRejected" class="btn btn-outline-warning btn-sm" (click)="goToAdmissionEdit()">
                     <i class="fa-solid fa-pen-to-square me-1"></i> Edit Admission
                 </button>
+
+                <!-- ✅ NO CHANGE HERE -->
                 <button *ngIf="isPaymentsSubmitted" class="btn btn-saffron btn-sm" (click)="sendForApproval()">
                     <i class="fa-solid fa-paper-plane me-1"></i> Send for Approval
                 </button>
-                <button *ngIf="isApprovalSent" class="btn btn-success btn-sm" (click)="approve()">
+
+                <button *ngIf="isApprovalSent && canApproveReject" class="btn btn-approve btn-sm" (click)="approve()">
                     <i class="fa-solid fa-circle-check me-1"></i> Approve
                 </button>
-                <button *ngIf="isApprovalSent" class="btn btn-danger btn-sm" (click)="openRejectModal()">
+
+                <button *ngIf="isApprovalSent && canApproveReject" class="btn btn-reject btn-sm"
+                    (click)="openRejectModal()">
                     <i class="fa-solid fa-circle-xmark me-1"></i> Reject
                 </button>
-                <button class="btn btn-outline-primary btn-sm" *ngIf="isApproved" (click)="printContract()">
-                    <i class="fa-solid fa-print me-1"></i> Contract
+
+                <button class="btn btn-print btn-sm" *ngIf="isApproved" (click)="printContract()">
+                    <i class="fa-solid fa-file-signature me-1"></i> Contract
                 </button>
-                <button class="btn btn-outline-primary btn-sm" *ngIf="isSubmittedOrApproved"
-                    (click)="printFeeAcknowledgement()">
-                    <i class="fa-solid fa-print me-1"></i> Fee Acknowledgement
+
+                <button class="btn btn-print btn-sm" *ngIf="isSubmittedOrApproved" (click)="printFeeAcknowledgement()">
+                    <i class="fa-solid fa-receipt me-1"></i> Fee Acknowledgement
                 </button>
-                <button class="btn btn-outline-primary btn-sm" (click)="printFeeCalculation()">
-                    <i class="fa-solid fa-print me-1"></i> Fee Calculation
+
+                <button class="btn btn-print-outline btn-sm" (click)="printFeeCalculation()">
+                    <i class="fa-solid fa-calculator me-1"></i> Fee Calculation
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" (click)="goBack()">
+
+                <button class="btn btn-back btn-sm" (click)="goBack()">
                     <i class="fa-solid fa-arrow-left me-1"></i> Back
                 </button>
+
+
             </div>
         </div>
 

@@ -1424,6 +1424,11 @@ export class AdmissionsComponent implements OnInit {
     return Math.max(0, due - paid);
   }
 
+  get isL1(): boolean {
+    const role = (localStorage.getItem('userRole') || '').trim().toUpperCase();
+    return role === 'L1';
+  }
+
   submitPayments(): void {
     const tenantId = this.pickTenantId();
     if (!tenantId) {
@@ -1800,6 +1805,15 @@ export class AdmissionsComponent implements OnInit {
         object-fit: contain;
         display: block;
       }
+      .print-header { margin-bottom: 10px; border-bottom: 2px solid #111827; padding-bottom: 8px; }
+      .brand-center { display:flex; justify-content:center; align-items:center; margin-bottom: 6px; }
+      .brand-center img { height: 46px; width:auto; object-fit:contain; display:block; }
+      .title-wrap { text-align: center; }
+      .meta-row { margin-top: 6px; display:flex; justify-content: space-between; font-size: 10px; }
+      .sign-row { margin-top: 18px; display:flex; justify-content: flex-end; }
+      .sign-box { width: 220px; text-align: center; }
+      .sign-line { height: 24px; }
+      .sign-label { margin-top: 4px; font-size: 14px; font-weight: 600; }
     </style>
     </head>
     <body onload="window.print();">
@@ -1819,164 +1833,156 @@ export class AdmissionsComponent implements OnInit {
       return '<p>Step 1 details are incomplete. Please fill all required fields and select a fee plan.</p>';
     }
     const heads = this.feeHeadPreview;
-    const baseFee = Number(s1.baseFee || 0);
     const finalFee = this.finalFee || 0;
     const testSch = this.testScholarshipPct;
     const schl = this.scholarshipPct;
     const addSchl = this.additionalScholarshipPct;
-    const totalDisc = this.totalDiscountPct;
     const scholTotal = heads.reduce(
       (s, r) => s + Number(r.scholBenefits || 0),
       0
     );
-    const feeRows = heads
-      .map(
-        (r) => `
-      <tr>
-        <td>${this.esc(r.label)}</td>
-        <td class="text-right">${Number(r.fee || 0).toLocaleString(
-          'en-IN'
-        )}</td>
-        <td class="text-right">${Number(r.stax || 0).toLocaleString(
-          'en-IN'
-        )}</td>
-        <td class="text-right">${Number(r.total || 0).toLocaleString(
-          'en-IN'
-        )}</td>
-        <td class="text-right">${Number(r.scholBenefits || 0).toLocaleString(
-          'en-IN'
-        )}</td>
-      </tr>`
-      )
-      .join('');
-
     return `
-      <div class="page">
-      <div class="brand">
-              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
-            </div>
-        <div class="header-row">
-            <div class="title-main">FEE CALCULATION SHEET</div>
-            <div class="subtitle">Current Status : Please check the details carefully and sign.</div>
-          </div>
-          <div class="meta">
-            <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
-            <div><b>Prepared On :</b> ${today.toLocaleString('en-IN')}</div>
-          </div>
+    <div class="page">
+      <!-- Header with centered logo -->
+      <div class="print-header">
+        <div class="brand-center">
+          <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
         </div>
-
-        <!-- Student & Program -->
-        <div class="section">
-          <div class="section-title">Student and Program Details</div>
-          <div class="kv-grid">
-            <div class="kv-label">Name of the Student</div>
-            <div>${this.esc(s1.name || '')}</div>
-            <div class="kv-label">Registration / Reg No</div>
-            <div>${this.esc(s1.regNo || '')}</div>
-            <div class="kv-label">Academic Year</div>
-            <div>${this.esc(s1.academicYear || '')}</div>
-            <div class="kv-label">Mobile (Student / Parent)</div>
-            <div>${this.esc(s1.phone || '')}</div>
-            <div class="kv-label">Program</div>
-            <div>${this.esc(s1.programName || '')}</div>
-            <div class="kv-label">Fee Plan</div>
-            <div>${this.esc(
-              plan.feePlanCode || s1.feePlanCode || plan.name || ''
-            )}</div>
-            <div class="kv-label">Study Centre</div>
-            <div>${this.esc(s1.centerName || '')}</div>
-          </div>
+        <div class="title-wrap">
+          <div class="title-main">FEE CALCULATION SHEET</div>
+          <div class="subtitle">Current Status : Please check the details carefully and sign.</div>
         </div>
-        <!-- Scholarship summary -->
-        <div class="section">
-          <div class="section-title">Scholarship Details</div>
-          <table>
-            <tbody>
-              <tr>
-                <td>Base Fee (before discounts)</td>
-                <td class="text-right">₹ ${baseFee.toLocaleString('en-IN')}</td>
-              </tr>
-              <tr>
-                <td>Test Scholarship (%)</td>
-                <td class="text-right">${testSch.toFixed(2)}%</td>
-              </tr>
-              <tr>
-                <td>Scholarship (%)</td>
-                <td class="text-right">${schl.toFixed(2)}%</td>
-              </tr>
-              <tr>
-                <td>Additional Scholarship (%)</td>
-                <td class="text-right">${addSchl.toFixed(2)}%</td>
-              </tr>
-              <tr>
-                <td><b>Total Discount (%)</b></td>
-                <td class="text-right"><b>${totalDisc.toFixed(2)}%</b></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <!-- Fee heads table -->
-        <div class="section">
-          <div class="section-title">Fee Plan Breakup</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Fee Head</th>
-                <th class="text-right">Fee</th>
-                <th class="text-right">STax</th>
-                <th class="text-right">Total</th>
-                <th class="text-right">Schol Benefits</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${
-                feeRows ||
-                '<tr><td colspan="5">No fee heads available.</td></tr>'
-              }
-            </tbody>
-            <tfoot>
-              <tr>
-                <th colspan="3" class="text-right">Grand Total</th>
-                <th class="text-right">₹ ${finalFee.toLocaleString(
-                  'en-IN'
-                )}</th>
-                <th class="text-right">₹ ${scholTotal.toLocaleString(
-                  'en-IN'
-                )}</th>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <!-- NEFT static section like reference sheet -->
-        <div class="section small">
-          <div class="section-title">Details for NEFT Transfer</div>
-          <table>
-            <tbody>
-              <tr>
-                <td>Account Number</td>
-                <td>XXXXXXXXXXXX</td>
-              </tr>
-              <tr>
-                <td>IFSC Code</td>
-                <td>XXXX0000XXX</td>
-              </tr>
-              <tr>
-                <td>Bank Name</td>
-                <td>Your Bank Name Here</td>
-              </tr>
-              <tr>
-                <td>Beneficiary Name</td>
-                <td>${this.esc(this.DEFAULT_FAVOUR_OF)}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="tiny mt-2">
-            For office use only – kindly verify student name, registration number, program, study centre,
-            fee plan and all instrument details before approving this sheet.
-          </div>
+        <div class="meta-row">
+          <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
+          <div><b>Prepared On :</b> ${today.toLocaleString('en-IN')}</div>
         </div>
       </div>
-    `;
+      <!-- Student & Program -->
+      <div class="section">
+        <div class="section-title">Student and Program Details</div>
+        <div class="kv-grid">
+          <div class="kv-label">Name of the Student</div>
+          <div>${this.esc(s1.name || '')}</div>
+          <div class="kv-label">Registration / Reg No</div>
+          <div>${this.esc(s1.regNo || '')}</div>
+          <div class="kv-label">Academic Year</div>
+          <div>${this.esc(s1.academicYear || '')}</div>
+          <div class="kv-label">Mobile (Student / Parent)</div>
+          <div>${this.esc(s1.phone || '')}</div>
+          <div class="kv-label">Program</div>
+          <div>${this.esc(s1.programName || '')}</div>
+          <div class="kv-label">Fee Plan</div>
+          <div>${this.esc(
+            plan.feePlanCode || s1.feePlanCode || plan.name || ''
+          )}</div>
+          <div class="kv-label">Study Centre</div>
+          <div>${this.esc(s1.centerName || '')}</div>
+        </div>
+      </div>
+      <!-- Scholarship summary (removed Base Fee + Total Discount) -->
+      <div class="section">
+        <div class="section-title">Scholarship Details</div>
+        <table>
+          <tbody>
+            <tr>
+              <td>Test Scholarship (%)</td>
+              <td class="text-right">${Number(testSch || 0).toFixed(2)}%</td>
+            </tr>
+            <tr>
+              <td>Scholarship (%)</td>
+              <td class="text-right">${Number(schl || 0).toFixed(2)}%</td>
+            </tr>
+            <tr>
+              <td>Additional Scholarship (%)</td>
+              <td class="text-right">${Number(addSchl || 0).toFixed(2)}%</td>
+            </tr>
+            <tr>
+              <td><b>Total Scholarship Benefits</b></td>
+              <td class="text-right"><b>₹ ${scholTotal.toLocaleString(
+                'en-IN'
+              )}</b></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Final fee summary (instead of breakup) -->
+      <div class="section">
+        <div class="section-title">Final Fee Summary</div>
+        <table>
+          <tbody>
+            <tr>
+              <td><b>Final Fee (After Scholarships)</b></td>
+              <td class="text-right"><b>₹ ${finalFee.toLocaleString(
+                'en-IN'
+              )}</b></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Instalment Breakup -->
+      <div class="section">
+        <div class="section-title">Fee Instalment Breakup</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px;" class="text-center">S.No</th>
+              <th>Instalment</th>
+              <th style="width:140px;">Due Date</th>
+              <th style="width:90px;" class="text-center">Mode</th>
+              <th style="width:140px;" class="text-right">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${this.buildInstallmentBreakupForStep1()}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="4" class="text-right">Total</th>
+              <th class="text-right">₹ ${(this.finalFee || 0).toLocaleString(
+                'en-IN'
+              )}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <!-- Signature bottom-right -->
+      <div class="sign-row">
+        <div class="sign-box">
+          <div class="sign-line"></div>
+          <div class="sign-label">ENROLLMENT MANAGER</div>
+        </div>
+      </div>
+    </div>
+  `;
+  }
+
+  private buildInstallmentBreakupForStep1(): string {
+    const plan = this.selectedPlan;
+    const instals = plan?.instalments || [];
+    if (!instals.length) {
+      return `<tr><td colspan="4" class="text-center">No instalment structure available.</td></tr>`;
+    }
+    const baseAmounts = instals.map((i) => Number(i.amount) || 0);
+    const baseTotal = baseAmounts.reduce((s, x) => s + (Number(x) || 0), 0);
+    const scaled = this.scalePlan(baseAmounts, this.finalFee || 0, baseTotal);
+    return instals
+      .map((i, idx) => {
+        const label = String(i.label || `Instalment ${idx + 1}`).trim();
+        const due = this.toDateInputISO(i.dueDate) || '';
+        const amount = Number(scaled[idx] || 0);
+
+        const mode = idx === 0 ? 'NEFT' : 'CHEQUE';
+        return `
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${this.esc(label)}</td>
+          <td>${this.esc(due)}</td>
+          <td class="text-center">${mode}</td>
+          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+        </tr>
+      `;
+      })
+      .join('');
   }
 
   printReportStep1(): void {
@@ -2004,169 +2010,190 @@ export class AdmissionsComponent implements OnInit {
     const nefts = (this.neftRefsFA.getRawValue() || []) as any[];
     const cheques = (this.chequesFA.getRawValue() || []) as any[];
     const finalFee = this.finalFee || 0;
+    const testSch = this.testScholarshipPct || 0;
+    const schl = this.scholarshipPct || 0;
+    const addSchl = this.additionalScholarshipPct || 0;
+    const totalDisc = this.totalDiscountPct || 0;
     const paymentRows: string[] = [];
     let sno = 1;
     nefts.forEach((n: any) => {
       const amount = Number(n.amount || 0);
       if (!amount) return;
       paymentRows.push(`
-        <tr>
-          <td class="text-center">${sno++}</td>
-          <td>NEFT</td>
-          <td>${this.esc(
-            n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : ''
-          )}</td>
-          <td>${this.esc(n.utr || '')}</td>
-          <td>${this.esc(n.bankName || '')}</td>
-          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
-        </tr>
-      `);
+      <tr>
+        <td class="text-center">${sno++}</td>
+        <td>NEFT</td>
+        <td>${this.esc(
+          n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : ''
+        )}</td>
+        <td>${this.esc(n.utr || '')}</td>
+        <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+      </tr>
+    `);
     });
     cheques.forEach((c: any) => {
       const amount = Number(c.amount || 0);
       if (!amount) return;
       paymentRows.push(`
-        <tr>
-          <td class="text-center">${sno++}</td>
-          <td>${this.esc(c.mode || 'PDC')}</td>
-          <td>${this.esc(
-            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : ''
-          )}</td>
-          <td>${this.esc(c.chequeNo || '')}</td>
-          <td>${this.esc(c.bankName || '')}</td>
-          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
-        </tr>
-      `);
+      <tr>
+        <td class="text-center">${sno++}</td>
+        <td>${this.esc(c.mode || 'PDC')}</td>
+        <td>${this.esc(
+          c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : ''
+        )}</td>
+        <td>${this.esc(c.chequeNo || '')}</td>
+        <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+      </tr>
+    `);
     });
-    const totalPaid = this.neftTotalEntered + this.chequeTotal;
+    const totalPaid = (this.neftTotalEntered || 0) + (this.chequeTotal || 0);
     return `
-      <div class="page">
-        <div class="brand">
-              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+    <div class="page">
+      <div class="brand">
+        <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+      </div>
+      <div class="header-row">
+        <div>
+          <div class="title-main">ACKNOWLEDGEMENT</div>
+          <div class="subtitle">Provisional Admission Confirmation</div>
         </div>
-        <div class="header-row">
-          <div>
-            <div class="title-main">ENROLMENT REPORT</div>
-            <div class="subtitle">Acknowledgement of Fee & Instruments (Draft)</div>
-          </div>
-          <div class="meta">
-            <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
-            ${
-              this.admissionId
-                ? `<div><b>Admission ID :</b> ${this.esc(
-                    this.admissionId
-                  )}</div>`
-                : ''
-            }
-          </div>
-        </div>
-        <!-- Part 1: Student / Program / Study Centre -->
-        <div class="section">
-          <div class="section-title">Student, Program and Study Centre Details (Part 1)</div>
-          <table>
-            <tbody>
-              <tr>
-                <td>Registration No.</td>
-                <td>${this.esc(s1.regNo || '')}</td>
-                <td>Admission ID</td>
-                <td>${this.esc(this.admissionId || '')}</td>
-              </tr>
-              <tr>
-                <td>Student Name</td>
-                <td>${this.esc(s1.name || '')}</td>
-                <td>Enrollment Date</td>
-                <td>${today.toLocaleDateString('en-IN')}</td>
-              </tr>
-              <tr>
-                <td>Student Mobile</td>
-                <td>${this.esc(s1.phone || '')}</td>
-                <td>Parent Name</td>
-                <td>${this.esc(s1.parentName || '')}</td>
-              </tr>
-              <tr>
-                <td>Email ID</td>
-                <td>${this.esc(s1.email || '')}</td>
-                <td>Academic Year</td>
-                <td>${this.esc(s1.academicYear || '')}</td>
-              </tr>
-              <tr>
-                <td>Program</td>
-                <td colspan="3">${this.esc(s1.programName || '')}</td>
-              </tr>
-              <tr>
-                <td>Study Centre</td>
-                <td>${this.esc(s1.centerName || '')}</td>
-                <td>Fee Plan</td>
-                <td>${this.esc(
-                  plan?.feePlanCode || s1.feePlanCode || plan?.name || ''
-                )}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <!-- Part 2 + 3: Course Fee & Payment Schedule -->
-        <div class="section">
-          <div class="section-title">Details of Course Fee & Payment Schedule</div>
-          <table>
-            <thead>
-              <tr>
-                <th colspan="2">Particulars of Fee</th>
-                <th style="width:120px;">Amount (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colspan="2">Final Course Fee (after scholarships)</td>
-                <td class="text-right">${finalFee.toLocaleString('en-IN')}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="mt-2 small"><b>Payment Schedule (Part 3)</b></div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width:40px;" class="text-center">S.No</th>
-                <th style="width:70px;">Mode</th>
-                <th style="width:110px;">Dated</th>
-                <th>DD/Chq/UTR No</th>
-                <th>Bank</th>
-                <th style="width:120px;" class="text-right">Amount (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${
-                paymentRows.length
-                  ? paymentRows.join('')
-                  : '<tr><td colspan="6" class="text-center">No payment details captured.</td></tr>'
-              }
-            </tbody>
-            <tfoot>
-              <tr>
-                <th colspan="5" class="text-right">Total payments captured</th>
-                <th class="text-right">₹ ${totalPaid.toLocaleString(
-                  'en-IN'
-                )}</th>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-        <!-- Important notes -->
-        <div class="section small">
-          <div class="section-title">Important</div>
-          <ul class="note-list">
-            <li>Cheques / DDs are subject to realisation.</li>
-            <li>
-              This acknowledgement is generated from the admission screen. Please verify student,
-              program, fee plan and instrument details before final approval.
-            </li>
-            <li>
-              In case of any mismatch between this sheet and the core system, the system records
-              will be treated as final.
-            </li>
-          </ul>
+        <div class="meta">
+          <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
         </div>
       </div>
-    `;
+      <!-- Part 1 -->
+      <div class="section">
+        <div class="section-title">Student, Program and Study Centre Details (Part 1)</div>
+        <table>
+          <tbody>
+            <tr>
+              <td>Registration No.</td>
+              <td>${this.esc(s1.regNo || '')}</td>
+            </tr>
+            <tr>
+              <td>Student Name</td>
+              <td>${this.esc(s1.name || '')}</td>
+              <td>Enrollment Date</td>
+              <td>${today.toLocaleDateString('en-IN')}</td>
+            </tr>
+            <tr>
+              <td>Student Mobile</td>
+              <td>${this.esc(s1.phone || '')}</td>
+              <td>Parent Name</td>
+              <td>${this.esc(s1.parentName || '')}</td>
+            </tr>
+            <tr>
+              <td>Email ID</td>
+              <td>${this.esc(s1.email || '')}</td>
+              <td>Academic Year</td>
+              <td>${this.esc(s1.academicYear || '')}</td>
+            </tr>
+            <tr>
+              <td>Program</td>
+              <td colspan="3">${this.esc(s1.programName || '')}</td>
+            </tr>
+            <tr>
+              <td>Study Centre</td>
+              <td>${this.esc(s1.centerName || '')}</td>
+              <td>Fee Plan</td>
+              <td>${this.esc(
+                plan?.feePlanCode || s1.feePlanCode || plan?.name || ''
+              )}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Scholarship Details (NEW) -->
+      <div class="section">
+        <div class="section-title">Scholarship Details</div>
+        <table>
+          <tbody>
+            <tr>
+              <td>Test Scholarship (%)</td>
+              <td class="text-right">${Number(testSch).toFixed(2)}%</td>
+            </tr>
+            <tr>
+              <td>Scholarship (%)</td>
+              <td class="text-right">${Number(schl).toFixed(2)}%</td>
+            </tr>
+            <tr>
+              <td>Additional Scholarship (%)</td>
+              <td class="text-right">${Number(addSchl).toFixed(2)}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Part 2 + 3 -->
+      <div class="section">
+        <div class="section-title">Details of Course Fee & Payment Schedule</div>
+        <table>
+          <thead>
+            <tr>
+              <th colspan="2">Particulars of Fee</th>
+              <th style="width:120px;">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="2">Final Course Fee (after scholarships)</td>
+              <td class="text-right">${finalFee.toLocaleString('en-IN')}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="mt-2 small"><b>Payment Schedule (Part 3)</b></div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px;" class="text-center">S.No</th>
+              <th style="width:70px;">Mode</th>
+              <th style="width:110px;">Dated</th>
+              <th>Cheque/DD/UTR No.</th>
+              <th style="width:120px;" class="text-right">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              paymentRows.length
+                ? paymentRows.join('')
+                : '<tr><td colspan="6" class="text-center">No payment details captured.</td></tr>'
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="4" class="text-right">Total payments captured</th>
+              <th class="text-right">₹ ${totalPaid.toLocaleString('en-IN')}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <!-- Important + Signature row (NEW) -->
+      <div class="section small">
+        <div class="section-title">Important</div>
+        <div style="display:flex; gap:12px; align-items:flex-start;">
+          <div style="flex:1;">
+            <ul class="note-list">
+              <li>Cheques / DDs are subject to realisation.</li>
+              <li>
+                This acknowledgement is generated from the admission screen. Please verify student,
+                program, fee plan and instrument details before final approval.
+              </li>
+              <li>
+                In case of any mismatch between this sheet and the core system, the system records
+                will be treated as final.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <br>
+      <div style="width:240px; text-align:right;">
+        <div style="height:55px; border-bottom:1px solid #111827;"></div>
+        <div class="tiny" style="margin-top:15px;">
+          Authorized Signatory<br/>
+        </div>
+      </div>
+    </div>
+  `;
   }
 
   printPaymentsAck(): void {

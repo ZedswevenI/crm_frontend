@@ -417,16 +417,29 @@ export class AdmissionviewComponent implements OnInit {
   get isSubmittedOrApproved(): boolean {
     return (
       this.workflowStage === 'SUBMITTED_FOR_APPROVAL' ||
-      this.workflowStage === 'APPROVED' || this.workflowStage === 'CONFIRMED'
+      this.workflowStage === 'APPROVED' ||
+      this.workflowStage === 'PAYMENTS_SUBMITTED' ||
+      this.workflowStage === 'CONFIRMED' ||
+      this.workflowStage === 'APPROVAL_SENT'
     );
   }
 
   get isApproved(): boolean {
-    return this.workflowStage === 'APPROVED' || this.workflowStage === 'CONFIRMED';
+    return (
+      this.workflowStage === 'APPROVED' || this.workflowStage === 'CONFIRMED'
+    );
   }
 
   get isDraft(): boolean {
     return this.workflowStage === 'DRAFT';
+  }
+
+  get userRole(): string {
+    return (localStorage.getItem('userRole') || '').trim().toUpperCase();
+  }
+
+  get canApproveReject(): boolean {
+    return this.userRole === 'L1';
   }
 
   sendForApproval(): void {
@@ -456,6 +469,10 @@ export class AdmissionviewComponent implements OnInit {
   }
 
   approve(): void {
+    if (!this.canApproveReject) {
+      this.alert.error('You are not authorized to approve.');
+      return;
+    }
     if (this.actionBusy) return;
     const tenantId = localStorage.getItem('tenantId');
     if (!tenantId) {
@@ -480,6 +497,10 @@ export class AdmissionviewComponent implements OnInit {
   }
 
   openRejectModal(): void {
+    if (!this.canApproveReject) {
+      this.alert.error('You are not authorized to reject.');
+      return;
+    }
     this.rejectReason = '';
     this.rejectModalOpen = true;
   }
@@ -545,6 +566,76 @@ export class AdmissionviewComponent implements OnInit {
       .replace(/'/g, '&#39;');
   }
 
+  // private openPrintWindow(title: string, innerHtml: string): void {
+  //   const w = window.open('', '_blank', 'width=900,height=800');
+  //   if (!w) {
+  //     console.error('Popup blocked – cannot open print window.');
+  //     return;
+  //   }
+  //   const doc = w.document;
+  //   doc.open();
+  //   doc.write(`
+  //     <!DOCTYPE html>
+  //     <html>
+  //       <head>
+  //         <meta charset="utf-8" />
+  //         <title>${this.esc(title)}</title>
+  //         <style>
+  //           * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  //           body { margin: 16px; font-size: 12px; color: #111827; }
+  //           .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 16mm 18mm; border: 1px solid #e5e7eb; }
+  //           h1, h2, h3, h4 { margin: 0; }
+  //           .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  //           .title-main { font-size: 18px; font-weight: 700; text-transform: uppercase; }
+  //           .subtitle { font-size: 12px; font-weight: 600; }
+  //           .meta { font-size: 11px; text-align: right; }
+  //           .section { margin-top: 12px; }
+  //           .section-title { font-size: 12px; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
+  //           .kv-grid { display: grid; grid-template-columns: 120px 1fr 120px 1fr; gap: 2px 8px; font-size: 11px; }
+  //           .kv-label { font-weight: 600; }
+  //           table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 11px; }
+  //           th, td { border: 1px solid #e5e7eb; padding: 4px 6px; vertical-align: top; }
+  //           th { background: #f3f4f6; font-weight: 600; text-align: left; }
+  //           tfoot td { font-weight: 600; }
+  //           .text-right { text-align: right; }
+  //           .text-center { text-align: center; }
+  //           .mt-4 { margin-top: 16px; }
+  //           .mt-2 { margin-top: 8px; }
+  //           .small { font-size: 10px; }
+  //           .note-list { font-size: 10px; margin: 4px 0 0 16px; padding: 0; }
+  //           .note-list li { margin-bottom: 2px; }
+  //           @media print {
+  //             body { margin: 0; }
+  //             .page { border: none; }
+  //           }
+  //           .brand {
+  //             display: flex;
+  //             justify-content: center;
+  //             align-items: center;
+  //             width: 100%;
+  //             gap: 10px;
+  //             margin-bottom: 8px;
+  //           }
+  //           .brand img {
+  //             height: 42px;
+  //             width: auto;
+  //             object-fit: contain;
+  //             display: block;
+  //           }
+  //         </style>
+  //       </head>
+  //       <body>
+  //         ${innerHtml}
+  //       </body>
+  //     </html>
+  //   `);
+  //   doc.close();
+  //   setTimeout(() => {
+  //     w.focus();
+  //     w.print();
+  //   }, 300);
+  // }
+
   private openPrintWindow(title: string, innerHtml: string): void {
     const w = window.open('', '_blank', 'width=900,height=800');
     if (!w) {
@@ -560,195 +651,523 @@ export class AdmissionviewComponent implements OnInit {
           <meta charset="utf-8" />
           <title>${this.esc(title)}</title>
           <style>
-            * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-            body { margin: 16px; font-size: 12px; color: #111827; }
-            .page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 16mm 18mm; border: 1px solid #e5e7eb; }
-            h1, h2, h3, h4 { margin: 0; }
-            .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-            .title-main { font-size: 18px; font-weight: 700; text-transform: uppercase; }
-            .subtitle { font-size: 12px; font-weight: 600; }
-            .meta { font-size: 11px; text-align: right; }
-            .section { margin-top: 12px; }
-            .section-title { font-size: 12px; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; }
-            .kv-grid { display: grid; grid-template-columns: 120px 1fr 120px 1fr; gap: 2px 8px; font-size: 11px; }
-            .kv-label { font-weight: 600; }
-            table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 11px; }
-            th, td { border: 1px solid #e5e7eb; padding: 4px 6px; vertical-align: top; }
-            th { background: #f3f4f6; font-weight: 600; text-align: left; }
-            tfoot td { font-weight: 600; }
+            * { box-sizing: border-box; }
+            body {
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+              font-size: 11px;
+              margin: 16px;
+              color: #111827;
+            }
+            .page {
+              width: 100%;
+              max-width: 800px;
+              margin: 0 auto;
+            }
+
+            /* header variants */
+            .print-header { margin-bottom: 10px; border-bottom: 2px solid #111827; padding-bottom: 8px; }
+            .brand-center { display:flex; justify-content:center; align-items:center; margin-bottom: 6px; }
+            .brand-center img { height: 46px; width:auto; object-fit:contain; display:block; }
+            .title-wrap { text-align: center; }
+            .meta-row { margin-top: 6px; display:flex; justify-content: space-between; font-size: 10px; }
+
+            .header-row {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2px solid #111827;
+              padding-bottom: 4px;
+              margin-bottom: 8px;
+            }
+            .title-main {
+              font-size: 18px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+            }
+            .subtitle { font-size: 11px; margin-top: 2px; }
+            .meta { text-align: right; font-size: 10px; }
+
+            .section { margin-top: 10px; }
+            .section-title {
+              font-weight: 700;
+              text-transform: uppercase;
+              font-size: 11px;
+              border-bottom: 1px solid #e5e7eb;
+              padding-bottom: 2px;
+              margin-bottom: 4px;
+            }
+
+            table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+            th, td { border: 1px solid #e5e7eb; padding: 3px 4px; vertical-align: top; }
+            th { background: #f3f4f6; font-weight: 600; }
+
             .text-right { text-align: right; }
             .text-center { text-align: center; }
-            .mt-4 { margin-top: 16px; }
-            .mt-2 { margin-top: 8px; }
             .small { font-size: 10px; }
-            .note-list { font-size: 10px; margin: 4px 0 0 16px; padding: 0; }
+            .tiny { font-size: 9px; }
+            .mt-1 { margin-top: 4px; }
+            .mt-2 { margin-top: 8px; }
+            .mt-3 { margin-top: 12px; }
+
+            .note-list { margin: 4px 0 0 16px; padding: 0; font-size: 10px; }
             .note-list li { margin-bottom: 2px; }
-            @media print {
-              body { margin: 0; }
-              .page { border: none; }
+
+            /* kv grid like step1 */
+            .kv-grid {
+              display: grid;
+              grid-template-columns: 32% 68%;
+              border: 1px solid #e5e7eb;
+              border-collapse: collapse;
+              font-size: 11px;
             }
+            .kv-grid > div {
+              border-bottom: 1px solid #e5e7eb;
+              border-right: 1px solid #e5e7eb;
+              padding: 3px 4px;
+            }
+            .kv-grid > div:nth-child(2n) { border-right: none; }
+            .kv-label { background: #f9fafb; font-weight: 600; font-size: 10px; }
+
+            /* brand */
             .brand {
               display: flex;
               justify-content: center;
               align-items: center;
               width: 100%;
-              gap: 10px;
               margin-bottom: 8px;
             }
-            .brand img {
-              height: 42px;
-              width: auto;
-              object-fit: contain;
-              display: block;
+            .brand img { height: 42px; width: auto; object-fit: contain; display: block; }
+
+            /* signature helpers */
+            .sign-row { margin-top: 18px; display:flex; justify-content: flex-end; }
+            .sign-box { width: 240px; text-align: center; }
+            .sign-line { height: 55px; border-bottom: 1px solid #111827; }
+            .sign-label { margin-top: 6px; font-size: 12px; font-weight: 600; }
+
+            @media print {
+              body { margin: 0; }
             }
           </style>
         </head>
-        <body>
+        <body onload="window.print();">
           ${innerHtml}
         </body>
       </html>
     `);
     doc.close();
-    setTimeout(() => {
-      w.focus();
-      w.print();
-    }, 300);
   }
 
-  private buildFeeCalculationHtml(): string {
-    const a = this.admission;
-    if (!a) {
-      console.error('No admission loaded');
-      return '<p>No data available</p>';
+  private roundRupee(v: any): number {
+    const n = Number(v || 0);
+    if (!Number.isFinite(n)) return 0;
+    const sign = n < 0 ? -1 : 1;
+    const abs = Math.abs(n);
+    const base = Math.floor(abs);
+    const frac = abs - base;
+    const rounded = frac >= 0.5 ? base + 1 : base;
+    return sign * rounded;
+  }
+
+  private scalePlan(
+    amounts: number[],
+    targetTotal: number,
+    baseTotal: number
+  ): number[] {
+    const target = this.roundRupee(targetTotal);
+    if (!baseTotal || target <= 0) return amounts.map(() => 0);
+
+    const raw = amounts.map((a) => (Number(a || 0) / baseTotal) * target);
+    const rounded = raw.map((x) => {
+      const base = Math.floor(x);
+      const frac = x - base;
+      return frac >= 0.5 ? base + 1 : base;
+    });
+
+    let sum = rounded.reduce((s, x) => s + x, 0);
+    let diff = target - sum;
+
+    let idx = rounded.length - 1;
+    while (diff > 0 && rounded.length) {
+      rounded[idx] = rounded[idx] + 1;
+      diff--;
+      idx--;
+      if (idx < 0) idx = rounded.length - 1;
     }
-    const today = new Date();
-    const feeRows = this.feeHeadPreview || [];
-    const feeTotal = this.finalFee || 0;
-    const scholTotal = feeRows.reduce(
-      (s, r) => s + Number(r.scholBenefits || 0),
-      0
-    );
-    const feeRowsHtml = feeRows
-      .map(
-        (r, idx) => `
+    idx = rounded.length - 1;
+    while (diff < 0 && rounded.length) {
+      if (rounded[idx] > 0) {
+        rounded[idx] = rounded[idx] - 1;
+        diff++;
+      }
+      idx--;
+      if (idx < 0) idx = rounded.length - 1;
+    }
+    return rounded;
+  }
+
+  private toDateInputISO(v: any): string | null {
+    if (!v) return null;
+    const s = String(v).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})T/);
+    if (isoMatch?.[1]) return isoMatch[1];
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    return null;
+  }
+
+  private buildInstallmentBreakupFromAdmission(): string {
+    const a = this.admission;
+    const instals = (a as any)?.fee?.instalments || []; // if backend gives; else fallback below
+    // If your view API doesn't return instalments, we will derive from payment schedule:
+    // NEFT rows + cheques rows (works 100% with existing data)
+    const nefts = a?.payments?.neftRefs || [];
+    const cheques = a?.payments?.cheques || [];
+
+    // If instalments are available from API, use them (scaled):
+    if (Array.isArray(instals) && instals.length) {
+      const baseAmounts = instals.map((i: any) => Number(i.amount) || 0);
+      const baseTotal = baseAmounts.reduce((s: number, x: number) => s + x, 0);
+      const scaled = this.scalePlan(baseAmounts, this.finalFee || 0, baseTotal);
+
+      return instals
+        .map((i: any, idx: number) => {
+          const label = String(i.label || `Instalment ${idx + 1}`).trim();
+          const due = this.toDateInputISO(i.dueDate) || '';
+          const amount = Number(scaled[idx] || 0);
+          const mode = idx === 0 ? 'NEFT' : 'CHEQUE';
+          return `
+            <tr>
+              <td class="text-center">${idx + 1}</td>
+              <td>${this.esc(label)}</td>
+              <td>${this.esc(due)}</td>
+              <td class="text-center">${mode}</td>
+              <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+            </tr>
+          `;
+        })
+        .join('');
+    }
+
+    // Fallback: derive from payments captured
+    let sno = 1;
+    const rows: string[] = [];
+
+    // NEFT as first installment (sum of NEFT entries)
+    const neftTotal = nefts.reduce((s, n) => s + Number(n.amount || 0), 0);
+    rows.push(`
+      <tr>
+        <td class="text-center">${sno++}</td>
+        <td>Advance (NEFT)</td>
+        <td>${this.esc(
+          nefts?.[0]?.paidOn
+            ? new Date(nefts[0].paidOn).toLocaleDateString('en-IN')
+            : ''
+        )}</td>
+        <td class="text-center">NEFT</td>
+        <td class="text-right">${Number(neftTotal || 0).toLocaleString(
+          'en-IN'
+        )}</td>
+      </tr>
+    `);
+
+    // Cheques as remaining installments
+    cheques.forEach((c, idx) => {
+      rows.push(`
         <tr>
-          <td class="text-center">${idx + 1}</td>
-          <td>${this.esc(r.label)}</td>
-          <td class="text-right">${Number(r.fee || 0).toLocaleString(
-            'en-IN'
+          <td class="text-center">${sno++}</td>
+          <td>Cheque ${idx + 1}</td>
+          <td>${this.esc(
+            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : ''
           )}</td>
-          <td class="text-right">${Number(r.stax || 0).toLocaleString(
-            'en-IN'
-          )}</td>
-          <td class="text-right">${Number(r.total || 0).toLocaleString(
-            'en-IN'
-          )}</td>
-          <td class="text-right">${Number(r.scholBenefits || 0).toLocaleString(
+          <td class="text-center">CHEQUE</td>
+          <td class="text-right">${Number(c.amount || 0).toLocaleString(
             'en-IN'
           )}</td>
         </tr>
-      `
-      )
-      .join('');
+      `);
+    });
+
+    return rows.join('');
+  }
+
+  // private buildFeeCalculationHtml(): string {
+  //   const a = this.admission;
+  //   if (!a) {
+  //     console.error('No admission loaded');
+  //     return '<p>No data available</p>';
+  //   }
+  //   const today = new Date();
+  //   const feeRows = this.feeHeadPreview || [];
+  //   const feeTotal = this.finalFee || 0;
+  //   const scholTotal = feeRows.reduce(
+  //     (s, r) => s + Number(r.scholBenefits || 0),
+  //     0
+  //   );
+  //   const feeRowsHtml = feeRows
+  //     .map(
+  //       (r, idx) => `
+  //       <tr>
+  //         <td class="text-center">${idx + 1}</td>
+  //         <td>${this.esc(r.label)}</td>
+  //         <td class="text-right">${Number(r.fee || 0).toLocaleString(
+  //           'en-IN'
+  //         )}</td>
+  //         <td class="text-right">${Number(r.stax || 0).toLocaleString(
+  //           'en-IN'
+  //         )}</td>
+  //         <td class="text-right">${Number(r.total || 0).toLocaleString(
+  //           'en-IN'
+  //         )}</td>
+  //         <td class="text-right">${Number(r.scholBenefits || 0).toLocaleString(
+  //           'en-IN'
+  //         )}</td>
+  //       </tr>
+  //     `
+  //     )
+  //     .join('');
+  //   return `
+  //     <div class="page">
+  //     <div class="brand">
+  //             <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+  //           </div>
+  //       <div class="header-row">
+  //         <div>
+  //           <div class="title-main">Fee Calculation Sheet</div>
+  //           <div class="subtitle">For Enrolment / Admission</div>
+  //         </div>
+  //         <div class="meta">
+  //           <div><b>Admission ID:</b> ${this.esc(a.admissionId)}</div>
+  //           ${
+  //             a.student?.regNo
+  //               ? `<div><b>Reg No:</b> ${this.esc(a.student.regNo)}</div>`
+  //               : ''
+  //           }
+  //           <div><b>Date:</b> ${today.toLocaleDateString('en-IN')}</div>
+  //         </div>
+  //       </div>
+  //       <!-- Student & academic block -->
+  //       <div class="section">
+  //         <div class="section-title">Student & Academic Details</div>
+  //         <div class="kv-grid">
+  //           <div class="kv-label">Student Name</div>
+  //           <div>${this.esc(a.student.name)}</div>
+  //           <div class="kv-label">Student Mobile</div>
+  //           <div>${this.esc(a.student.phone)}</div>
+  //           <div class="kv-label">Parent Name</div>
+  //           <div>${this.esc(a.student.parentName)}</div>
+  //           <div class="kv-label">Parent Mobile</div>
+  //           <div>${this.esc(a.student.parentPhone)}</div>
+  //           <div class="kv-label">Programme</div>
+  //           <div>${this.esc(a.academics.programName)}</div>
+  //           <div class="kv-label">Centre</div>
+  //           <div>${this.esc(a.academics.centreName)}</div>
+  //           <div class="kv-label">Batch</div>
+  //           <div>${this.esc(a.academics.batchName || '')}</div>
+  //           <div class="kv-label">Class / Timing</div>
+  //           <div>${this.esc(a.academics.className || '')}</div>
+  //         </div>
+  //       </div>
+  //       <!-- Fee heads -->
+  //       <div class="section">
+  //         <div class="section-title">Fee Breakup (after scholarships)</div>
+  //         <table>
+  //           <thead>
+  //             <tr>
+  //               <th style="width:40px" class="text-center">#</th>
+  //               <th>Fee Head</th>
+  //               <th class="text-right">Fee (₹)</th>
+  //               <th class="text-right">Tax (₹)</th>
+  //               <th class="text-right">Total (₹)</th>
+  //               <th class="text-right">Scholarship Benefit (₹)</th>
+  //             </tr>
+  //           </thead>
+  //           <tbody>
+  //             ${feeRowsHtml || '<tr><td colspan="6">No fee heads</td></tr>'}
+  //           </tbody>
+  //           <tfoot>
+  //             <tr>
+  //               <td colspan="4" class="text-right">Grand Total</td>
+  //               <td class="text-right">${feeTotal.toLocaleString('en-IN')}</td>
+  //               <td class="text-right">${scholTotal.toLocaleString(
+  //                 'en-IN'
+  //               )}</td>
+  //             </tr>
+  //           </tfoot>
+  //         </table>
+
+  //         <div class="mt-2 small">
+  //           <b>Overall Discount % (Test + Scholarship + Additional):</b>
+  //           ${Number(a.fee.totalDiscountPct || 0).toFixed(2)}%
+  //         </div>
+  //       </div>
+
+  //       <!-- Payment schedule summary (from payments) -->
+  //       <div class="section mt-4">
+  //         <div class="section-title">Payment Schedule Summary</div>
+  //         <div class="kv-grid">
+  //           <div class="kv-label">NEFT Total</div>
+  //           <div>₹ ${this.neftTotal.toLocaleString('en-IN')}</div>
+  //           <div class="kv-label">Cheques Total</div>
+  //           <div>₹ ${this.chequeTotal.toLocaleString('en-IN')}</div>
+
+  //           <div class="kv-label">Total Payable</div>
+  //           <div>₹ ${feeTotal.toLocaleString('en-IN')}</div>
+  //           <div class="kv-label">Plan Code</div>
+  //           <div>${this.esc(a.fee.feePlanCode)} – ${this.esc(
+  //     a.fee.feePlanName
+  //   )}</div>
+  //         </div>
+  //       </div>
+  //       <div class="section mt-4 small">
+  //         <b>For Office Use:</b>
+  //         <p class="small">
+  //           This sheet is generated from the system based on the selected fee plan and scholarship
+  //           entries. Please verify details before handing over to the parent/student.
+  //         </p>
+  //       </div>
+  //     </div>
+  //   `;
+  // }
+
+  private buildFeeCalculationHtml(): string {
+    const a = this.admission;
+    if (!a) return '<p>No data available</p>';
+
+    const today = new Date();
+    const finalFee = this.finalFee || 0;
+
+    const testSch = Number(a.fee?.testScholarshipPct || 0);
+    const schl = Number(a.fee?.scholarshipPct || 0);
+    const addSchl = Number(a.fee?.additionalScholarshipPct || 0);
+
+    const scholTotal = (a.fee?.breakup || []).reduce(
+      (s: number, r: any) => s + Number(r.scholBenefits || 0),
+      0
+    );
+
     return `
       <div class="page">
-      <div class="brand">
-              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
-            </div>
-        <div class="header-row">
-          <div>
-            <div class="title-main">Fee Calculation Sheet</div>
-            <div class="subtitle">For Enrolment / Admission</div>
+        <div class="print-header">
+          <div class="brand-center">
+            <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
           </div>
-          <div class="meta">
-            <div><b>Admission ID:</b> ${this.esc(a.admissionId)}</div>
-            ${
-              a.student?.regNo
-                ? `<div><b>Reg No:</b> ${this.esc(a.student.regNo)}</div>`
-                : ''
-            }
-            <div><b>Date:</b> ${today.toLocaleDateString('en-IN')}</div>
+          <div class="title-wrap">
+            <div class="title-main">FEE CALCULATION SHEET</div>
+            <div class="subtitle">Current Status : Please check the details carefully and sign.</div>
+          </div>
+          <div class="meta-row">
+            <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
+            <div><b>Prepared On :</b> ${today.toLocaleString('en-IN')}</div>
           </div>
         </div>
-        <!-- Student & academic block -->
+
         <div class="section">
-          <div class="section-title">Student & Academic Details</div>
+          <div class="section-title">Student and Program Details</div>
           <div class="kv-grid">
-            <div class="kv-label">Student Name</div>
-            <div>${this.esc(a.student.name)}</div>
+            <div class="kv-label">Name of the Student</div>
+            <div>${this.esc(a.student?.name || '')}</div>
+
+            <div class="kv-label">Registration / Reg No</div>
+            <div>${this.esc(a.student?.regNo || '')}</div>
+
             <div class="kv-label">Student Mobile</div>
-            <div>${this.esc(a.student.phone)}</div>
+            <div>${this.esc(a.student?.phone || '')}</div>
+
             <div class="kv-label">Parent Name</div>
-            <div>${this.esc(a.student.parentName)}</div>
-            <div class="kv-label">Parent Mobile</div>
-            <div>${this.esc(a.student.parentPhone)}</div>
-            <div class="kv-label">Programme</div>
-            <div>${this.esc(a.academics.programName)}</div>
-            <div class="kv-label">Centre</div>
-            <div>${this.esc(a.academics.centreName)}</div>
-            <div class="kv-label">Batch</div>
-            <div>${this.esc(a.academics.batchName || '')}</div>
-            <div class="kv-label">Class / Timing</div>
-            <div>${this.esc(a.academics.className || '')}</div>
+            <div>${this.esc(a.student?.parentName || '')}</div>
+
+            <div class="kv-label">Academic Year</div>
+            <div>${this.esc((a as any)?.academicYear || '')}</div>
+
+            <div class="kv-label">Program</div>
+            <div>${this.esc(a.academics?.programName || '')}</div>
+
+            <div class="kv-label">Fee Plan</div>
+            <div>${this.esc(a.fee?.feePlanCode || '')}</div>
+
+            <div class="kv-label">Study Centre</div>
+            <div>${this.esc(a.academics?.centreName || '')}</div>
           </div>
         </div>
-        <!-- Fee heads -->
+
         <div class="section">
-          <div class="section-title">Fee Breakup (after scholarships)</div>
+          <div class="section-title">Scholarship Details</div>
+          <table>
+            <tbody>
+              <tr>
+                <td>Test Scholarship (%)</td>
+                <td class="text-right">${testSch.toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <td>Scholarship (%)</td>
+                <td class="text-right">${schl.toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <td>Additional Scholarship (%)</td>
+                <td class="text-right">${addSchl.toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <td><b>Total Scholarship Benefits</b></td>
+                <td class="text-right"><b>₹ ${Number(
+                  scholTotal || 0
+                ).toLocaleString('en-IN')}</b></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Final Fee Summary</div>
+          <table>
+            <tbody>
+              <tr>
+                <td><b>Final Fee (After Scholarships)</b></td>
+                <td class="text-right"><b>₹ ${finalFee.toLocaleString(
+                  'en-IN'
+                )}</b></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Fee Instalment Breakup</div>
           <table>
             <thead>
               <tr>
-                <th style="width:40px" class="text-center">#</th>
-                <th>Fee Head</th>
-                <th class="text-right">Fee (₹)</th>
-                <th class="text-right">Tax (₹)</th>
-                <th class="text-right">Total (₹)</th>
-                <th class="text-right">Scholarship Benefit (₹)</th>
+                <th style="width:40px;" class="text-center">S.No</th>
+                <th>Instalment</th>
+                <th style="width:140px;">Due Date</th>
+                <th style="width:90px;" class="text-center">Mode</th>
+                <th style="width:140px;" class="text-right">Amount (₹)</th>
               </tr>
             </thead>
             <tbody>
-              ${feeRowsHtml || '<tr><td colspan="6">No fee heads</td></tr>'}
+              ${this.buildInstallmentBreakupFromAdmission()}
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="4" class="text-right">Grand Total</td>
-                <td class="text-right">${feeTotal.toLocaleString('en-IN')}</td>
-                <td class="text-right">${scholTotal.toLocaleString(
+                <th colspan="4" class="text-right">Total</th>
+                <th class="text-right">₹ ${finalFee.toLocaleString(
                   'en-IN'
-                )}</td>
+                )}</th>
               </tr>
             </tfoot>
           </table>
-
-          <div class="mt-2 small">
-            <b>Overall Discount % (Test + Scholarship + Additional):</b>
-            ${Number(a.fee.totalDiscountPct || 0).toFixed(2)}%
-          </div>
         </div>
 
-        <!-- Payment schedule summary (from payments) -->
-        <div class="section mt-4">
-          <div class="section-title">Payment Schedule Summary</div>
-          <div class="kv-grid">
-            <div class="kv-label">NEFT Total</div>
-            <div>₹ ${this.neftTotal.toLocaleString('en-IN')}</div>
-            <div class="kv-label">Cheques Total</div>
-            <div>₹ ${this.chequeTotal.toLocaleString('en-IN')}</div>
-
-            <div class="kv-label">Total Payable</div>
-            <div>₹ ${feeTotal.toLocaleString('en-IN')}</div>
-            <div class="kv-label">Plan Code</div>
-            <div>${this.esc(a.fee.feePlanCode)} – ${this.esc(
-      a.fee.feePlanName
-    )}</div>
+        <div class="sign-row">
+          <div class="sign-box">
+            <div class="sign-line"></div>
+            <div class="sign-label">ENROLLMENT MANAGER</div>
           </div>
-        </div>
-        <div class="section mt-4 small">
-          <b>For Office Use:</b>
-          <p class="small">
-            This sheet is generated from the system based on the selected fee plan and scholarship
-            entries. Please verify details before handing over to the parent/student.
-          </p>
         </div>
       </div>
     `;
@@ -804,7 +1223,7 @@ export class AdmissionviewComponent implements OnInit {
             </div>
         <div class="header-row">            
           <div>
-            <div class="title-main">Enrolment Report / Fee Acknowledgement</div>
+          <div class="title-main">ACKNOWLEDGEMENT</div>
             <div class="subtitle">Provisional Admission Confirmation</div>
           </div>
           <div class="meta">
@@ -843,7 +1262,32 @@ export class AdmissionviewComponent implements OnInit {
             <div>${this.esc(a.academics.className || '')}</div>
           </div>
         </div>
-
+        <!-- Scholarship Details -->
+        <div class="section">
+          <div class="section-title">Scholarship Details</div>
+          <table>
+            <tbody>
+              <tr>
+                <td>Test Scholarship (%)</td>
+                <td class="text-right">${Number(
+                  a.fee?.testScholarshipPct || 0
+                ).toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <td>Scholarship (%)</td>
+                <td class="text-right">${Number(
+                  a.fee?.scholarshipPct || 0
+                ).toFixed(2)}%</td>
+              </tr>
+              <tr>
+                <td>Additional Scholarship (%)</td>
+                <td class="text-right">${Number(
+                  a.fee?.additionalScholarshipPct || 0
+                ).toFixed(2)}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <!-- Summary of fee & discount -->
         <div class="section">
           <div class="section-title">Fee Summary</div>
@@ -851,9 +1295,7 @@ export class AdmissionviewComponent implements OnInit {
             <tbody>
               <tr>
                 <td>Fee Plan</td>
-                <td>${this.esc(a.fee.feePlanCode)} – ${this.esc(
-      a.fee.feePlanName
-    )}</td>
+                <td>${this.esc(a.fee.feePlanName)}</td>
               </tr>
               <tr>
                 <td>Scholarship / Discount % (Total)</td>
@@ -944,8 +1386,8 @@ export class AdmissionviewComponent implements OnInit {
           </ul>
         </div>
 
-        <div class="section mt-4 small">
-          <table style="border:none; width:100%; margin-top:16px;">
+        <div class="section mt-7 small">
+          <table style="border:none; width:100%; margin-top:60px;">
             <tr>
               <td style="border:none; width:50%;">Parent / Student Signature</td>
               <td style="border:none; text-align:right;">Authorised Signatory</td>

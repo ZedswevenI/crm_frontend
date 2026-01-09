@@ -654,7 +654,7 @@
                                 Send for Approval
                             </button>
 
-                            <button type="button" class="btn btn-saffron admission-confirm-btn"
+                            <button type="button" class="btn btn-saffron admission-confirm-btn" *ngIf="isL1"
                                 [disabled]="!feeCalcGenerated || !approvalSent" (click)="confirmAdmission()">
                                 Confirm Admission
                                 <i class="fa-regular fa-circle-check ms-1"></i>

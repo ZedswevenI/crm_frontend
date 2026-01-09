@@ -15,3 +15,84 @@
     letter-spacing: 0.2px;
   }
 }
+
+.btn-saffron {
+  border: 1px solid var(--z7i-saffron, #f47b20);
+  color: #ffffff;
+  background: var(--z7i-saffron, #f47b20);
+
+  &:hover {
+    background: var(--z7i-saffron, #f47b20);
+    border-color: var(--z7i-saffron, #f47b20);
+    color: #ffffff;
+  }
+}
+
+.btn-outline-saffron {
+  border: 1px solid var(--z7i-saffron, #f47b20);
+  color: var(--z7i-saffron, #f47b20);
+  background: #fff;
+
+  &:hover {
+    background: rgba(244, 123, 32, 0.08);
+    border-color: var(--z7i-saffron, #f47b20);
+    color: var(--z7i-saffron, #f47b20);
+  }
+}
+
+.btn-approve {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+  &:hover {
+    background: #15803d;
+    border-color: #15803d;
+    color: #fff;
+  }
+}
+
+.btn-reject {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+  &:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+    color: #fff;
+  }
+}
+
+.btn-print {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+  &:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+  }
+}
+
+.btn-print-outline {
+  border: 1px solid #2563eb;
+  color: #2563eb;
+  background: #fff;
+  &:hover {
+    background: rgba(37, 99, 235, 0.08);
+  }
+}
+
+.btn-back {
+  border: 1px solid #d1d5db;
+  color: #374151;
+  background: #fff;
+  &:hover {
+    background: #f9fafb;
+  }
+}
+
+.btn.btn-sm {
+  border-radius: 10px;
+  padding: 0.38rem 0.6rem;
+  font-weight: 600;
+}
