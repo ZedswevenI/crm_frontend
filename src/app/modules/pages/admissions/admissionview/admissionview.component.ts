@@ -93,6 +93,11 @@ interface AdmissionViewModel {
     cheques: ChequeRow[];
   };
   workflowStage?: string | null;
+  schoolMarks?: {
+    overallPct?: any | null;
+    coreSubjectPct?: any | null;
+    remarks?: string | null;
+  };
 }
 
 @Component({
@@ -107,6 +112,7 @@ export class AdmissionviewComponent implements OnInit {
   loading = true;
   admission!: AdmissionViewModel;
   rawPayments: any[] = [];
+  existingPayments: any[] = [];
   showPaymentsEditor = false;
   showEditAdmission = false;
   rejectModalOpen = false;
@@ -140,6 +146,16 @@ export class AdmissionviewComponent implements OnInit {
     this.loadAdmission();
   }
 
+  goToPaymentsEdit(): void {
+    if (!this.admissionId) return;
+    this.router.navigate(['app/admissions/payments/edit', this.admissionId]);
+  }
+
+  goToAdmissionEdit(): void {
+    if (!this.admissionId) return;
+    this.router.navigate(['app/admissions/edit', this.admissionId]);
+  }
+
   get feeHeadPreview(): FeeBreakupRow[] {
     return this.admission?.fee?.breakup || [];
   }
@@ -170,9 +186,8 @@ export class AdmissionviewComponent implements OnInit {
   }
 
   private pickTenantId(): string {
-    const t1 = (localStorage.getItem('entiId') || '').trim();
     const t2 = (localStorage.getItem('tenantId') || '').trim();
-    return t1 || t2;
+    return t2;
   }
 
   private loadAdmission(): void {
@@ -281,7 +296,7 @@ export class AdmissionviewComponent implements OnInit {
       },
       test: {
         testDate: adm.test?.testDate || null,
-        testName: adm.test?.resultCategory || null,
+        testName: adm.test?.testName || null,
         score: adm.test?.normalizedScore
           ? Number(adm.test.normalizedScore)
           : null,
@@ -291,9 +306,20 @@ export class AdmissionviewComponent implements OnInit {
         result: this.mapTestResult(adm.test),
         remarks: null,
       },
+      schoolMarks: {
+        overallPct:
+          typeof adm?.schoolMarks?.overallPct === 'number'
+            ? adm.schoolMarks.overallPct
+            : null,
+        coreSubjectPct:
+          typeof adm?.schoolMarks?.coreSubjectPct === 'number'
+            ? adm.schoolMarks.coreSubjectPct
+            : null,
+        remarks: adm?.schoolMarks?.remarks || null,
+      },
       fee: {
         feePlanCode: adm.feePlanCode || '—',
-        feePlanName: adm.programName || '',
+        feePlanName: adm.feePlanName || '',
         baseFee: Number(adm.fee?.baseFee || 0),
         finalFee: Number(adm.fee?.finalFee || 0),
         testScholarshipPct: Number(adm.fee?.testScholarshipPct || 0),
@@ -373,7 +399,7 @@ export class AdmissionviewComponent implements OnInit {
   }
 
   get isDraftOrRejected(): boolean {
-    return ['DRAFT', 'REJECTED'].includes(this.workflowStage);
+    return ['DRAFT'].includes(this.workflowStage);
   }
 
   get isRejected(): boolean {
@@ -388,21 +414,31 @@ export class AdmissionviewComponent implements OnInit {
     return this.workflowStage === 'PAYMENTS_SUBMITTED';
   }
 
-  private pickUserId(): string {
-    return String(localStorage.getItem('userId') || '').trim();
+  get isSubmittedOrApproved(): boolean {
+    return (
+      this.workflowStage === 'SUBMITTED_FOR_APPROVAL' ||
+      this.workflowStage === 'APPROVED' || this.workflowStage === 'CONFIRMED'
+    );
+  }
+
+  get isApproved(): boolean {
+    return this.workflowStage === 'APPROVED' || this.workflowStage === 'CONFIRMED';
+  }
+
+  get isDraft(): boolean {
+    return this.workflowStage === 'DRAFT';
   }
 
   sendForApproval(): void {
     if (this.actionBusy) return;
-    const tenantId = this.pickTenantId();
-    const userId = this.pickUserId();
-    if (!tenantId || !userId) {
-      this.alert.error('tenantId/userId missing. Please login again.');
+    const tenantId = localStorage.getItem('tenantId');
+    if (!tenantId) {
+      this.alert.error('tenantId missing. Please login again.');
       return;
     }
     this.actionBusy = true;
-    const body = { entiId: tenantId, userId, admissionId: this.admissionId };
-    this.api.fetchData(body, 'admi', 'submitforapproval').subscribe({
+    const body = { entiId: tenantId, admissionId: this.admissionId };
+    this.api.fetchData(body, 'admi', 'submit-approval').subscribe({
       next: (resp: any) => {
         this.actionBusy = false;
         if (!resp?.status)
@@ -421,14 +457,13 @@ export class AdmissionviewComponent implements OnInit {
 
   approve(): void {
     if (this.actionBusy) return;
-    const tenantId = this.pickTenantId();
-    const userId = this.pickUserId();
-    if (!tenantId || !userId) {
+    const tenantId = localStorage.getItem('tenantId');
+    if (!tenantId) {
       this.alert.error('tenantId/userId missing. Please login again.');
       return;
     }
     this.actionBusy = true;
-    const body = { entiId: tenantId, userId, admissionId: this.admissionId };
+    const body = { entiId: tenantId, admissionId: this.admissionId };
     this.api.fetchData(body, 'admi', 'approve').subscribe({
       next: (resp: any) => {
         this.actionBusy = false;
@@ -461,16 +496,14 @@ export class AdmissionviewComponent implements OnInit {
       return;
     }
     if (this.actionBusy) return;
-    const tenantId = this.pickTenantId();
-    const userId = this.pickUserId();
-    if (!tenantId || !userId) {
+    const tenantId = localStorage.getItem('tenantId');
+    if (!tenantId) {
       this.alert.error('tenantId/userId missing. Please login again.');
       return;
     }
     this.actionBusy = true;
     const body = {
       entiId: tenantId,
-      userId,
       admissionId: this.admissionId,
       reason,
     };
