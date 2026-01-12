@@ -1,0 +1,294 @@
+<div class="batch-view">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-outline-secondary" (click)="back()"><i
+                        class="fa-solid fa-arrow-left"></i></button>
+                <h5 class="mb-0 fw-semibold">Batch View</h5>
+            </div>
+            <div class="text-muted small" *ngIf="batch">
+                {{ batch?.batchName }} ({{ batch?.batchCode }}) • {{ batch?.academicYear }} • {{ batch?.programName }} •
+                {{ batch?.centerName }}
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" (click)="openEdit()"><i
+                    class="fa-regular fa-pen-to-square"></i> Update</button>
+            <button class="btn btn-sm btn-outline-primary" (click)="openStaff()"><i class="fa-solid fa-users-gear"></i>
+                Add Faculty</button>
+            <button class="btn btn-sm btn-outline-primary" (click)="openAssign()"><i class="fa-solid fa-user-plus"></i>
+                Assign Students</button>
+            <button class="btn btn-sm btn-outline-warning" (click)="openShuffle()"><i class="fa-solid fa-shuffle"></i>
+                Shuffle</button>
+            <button class="btn btn-sm btn-outline-danger" (click)="removeSelected()"><i
+                    class="fa-regular fa-trash-can"></i> Remove</button>
+            <button class="btn btn-sm btn-danger" (click)="closeBatch()"><i class="fa-solid fa-lock"></i> Close
+                Batch</button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- LEFT: Batch Info + Students -->
+        <div class="col-12" [class.col-lg-8]="showEdit || showStaff || showAssign || showShuffle"
+            [class.col-lg-12]="!(showEdit || showStaff || showAssign || showShuffle)">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12 col-md-4">
+                            <div class="text-muted small">Status</div>
+                            <div class="fw-semibold">{{ batch?.status }}</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="text-muted small">Start / End</div>
+                            <div class="fw-semibold">{{ batch?.startDate }} - {{ batch?.endDate }}</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="text-muted small">Students</div>
+                            <div class="fw-semibold">{{ batch?.studentCount || 0 }}</div>
+                        </div>
+                    </div>
+
+                    <hr class="my-3" />
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">Students in this batch</div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" #cb
+                                    (change)="selectAllCurrent(cb.checked)" />
+                                <label class="form-check-label small">Select all</label>
+                            </div>
+                            <div class="text-muted small">Selected: {{ selected.size }}</div>
+                        </div>
+                    </div>
+
+                    <!-- simple students list (same style as your list-table) -->
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th style="width:34px;"></th>
+                                    <th>Student</th>
+                                    <th>Admission No</th>
+                                    <th>Reg No</th>
+                                    <th>Phone</th>
+                                    <th>Parent Phone</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let s of studentRows">
+                                    <td>
+                                        <input type="checkbox" #cb (change)="toggleSelect(s.studentId, cb.checked)" />
+                                    </td>
+                                    <td class="fw-semibold">{{ s?.student?.name }}</td>
+                                    <td>{{ s?.admissionNo }}</td>
+                                    <td>{{ s?.registrationNumber }}</td>
+                                    <td>{{ s?.student?.phone }}</td>
+                                    <td>{{ s?.student?.parentPhone }}</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-danger"
+                                            (click)="removeStudents([s.studentId])">
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr *ngIf="!studentRows.length">
+                                    <td colspan="7" class="text-muted small">No students in this batch.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANELS -->
+        <div class="col-12 col-lg-4" *ngIf="showEdit">
+            <div class="card shadow-sm border-0 sticky-panel">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <div class="fw-semibold">Update Batch</div>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="cancelEdit()"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="card-body">
+                    <form [formGroup]="editForm" class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label small">Batch Name *</label>
+                            <input class="form-control form-control-sm" formControlName="batchName" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">Batch Code *</label>
+                            <input class="form-control form-control-sm" formControlName="batchCode" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Start (epoch ms) *</label>
+                            <input type="number" class="form-control form-control-sm" formControlName="startDate" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">End (epoch ms) *</label>
+                            <input type="number" class="form-control form-control-sm" formControlName="endDate" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">Status *</label>
+                            <select class="form-select form-select-sm" formControlName="status">
+                                <option value="DRAFT">DRAFT</option>
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="CLOSED">CLOSED</option>
+                                <option value="INACTIVE">INACTIVE</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">Remarks</label>
+                            <textarea rows="2" class="form-control form-control-sm"
+                                formControlName="remarks"></textarea>
+                        </div>
+
+                        <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                (click)="cancelEdit()">Cancel</button>
+                            <button type="button" class="btn btn-sm btn-primary" (click)="saveBatch()"
+                                [disabled]="loading">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4" *ngIf="showStaff">
+            <div class="card shadow-sm border-0 sticky-panel">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <div class="fw-semibold">Faculty Mapping (Subject → Staff)</div>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="showStaff=false"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="card-body">
+                    <form [formGroup]="staffForm">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="text-muted small">Duplicate subjectId is not allowed.</div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" (click)="addStaffRow()">
+                                <i class="fa-solid fa-plus"></i> Add
+                            </button>
+                        </div>
+
+                        <div formArrayName="staffMap" class="vstack gap-2">
+                            <div class="border rounded-3 p-2" *ngFor="let g of staffFA.controls; let i=index"
+                                [formGroup]="asFormGroup(g)">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small">Subject Id *</label>
+                                        <input class="form-control form-control-sm" formControlName="subjectId" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">Subject Name</label>
+                                        <input class="form-control form-control-sm" formControlName="subjectName" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">Staff Id *</label>
+                                        <input class="form-control form-control-sm" formControlName="staffId" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">Staff Name</label>
+                                        <input class="form-control form-control-sm" formControlName="staffName" />
+                                    </div>
+                                    <div class="col-12 d-flex justify-content-end">
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                            (click)="removeStaffRow(i)">
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div *ngIf="staffFA.length===0" class="text-muted small">No staff mapping added.</div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                (click)="showStaff=false">Cancel</button>
+                            <button type="button" class="btn btn-sm btn-primary" (click)="saveStaffMap()"
+                                [disabled]="loading">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4" *ngIf="showAssign">
+            <div class="card shadow-sm border-0 sticky-panel">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <div class="fw-semibold">Assign Eligible Students</div>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="showAssign=false"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="card-body">
+                    <div class="d-flex gap-2 mb-2">
+                        <input class="form-control form-control-sm" placeholder="Search"
+                            [(ngModel)]="eligibleQuery.search" />
+                        <button class="btn btn-sm btn-outline-primary"
+                            (click)="eligibleQuery.page=1; loadEligible()">Go</button>
+                    </div>
+
+                    <div class="eligible-box">
+                        <div class="text-muted small mb-1">Found: {{ eligibleCount }}</div>
+                        <div *ngFor="let s of eligibleRows" class="d-flex align-items-center gap-2 py-1 border-bottom">
+                            <input type="checkbox" #cb (change)="toggleEligible(s.studentId, cb.checked)" />
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold small">{{ s?.student?.name }} <span class="text-muted">({{
+                                        s?.admissionNo }})</span></div>
+                                <div class="text-muted small">{{ s?.student?.phone }} • {{ s?.student?.parentPhone }}
+                                </div>
+                            </div>
+                        </div>
+                        <div *ngIf="!eligibleRows.length" class="text-muted small">No eligible students.</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <div class="text-muted small">Selected: {{ eligibleSelected.size }}</div>
+                        <button class="btn btn-sm btn-primary" (click)="assignEligibleSelected()"
+                            [disabled]="loading">Assign</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4" *ngIf="showShuffle">
+            <div class="card shadow-sm border-0 sticky-panel">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <div class="fw-semibold">Shuffle Selected Students</div>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="showShuffle=false"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="card-body">
+                    <div class="text-muted small mb-2">
+                        Selected students: <b>{{ selected.size }}</b> (from this batch)
+                    </div>
+
+                    <label class="form-label small">Target Batch</label>
+                    <select class="form-select form-select-sm" [(ngModel)]="shuffleToBatchId">
+                        <option value="">Select batch</option>
+                        <option *ngFor="let b of batchesFull" [value]="b.batchId">
+                            {{ b.batchName }} ({{ b.batchCode }}) - {{ b.academicYear }}
+                        </option>
+                    </select>
+
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button class="btn btn-sm btn-outline-secondary" (click)="showShuffle=false">Cancel</button>
+                        <button class="btn btn-sm btn-primary" (click)="shuffleSelected()"
+                            [disabled]="loading">Shuffle</button>
+                    </div>
+
+                    <div class="text-muted small mt-2">
+                        Backend validates program/year/center match between fromBatch & toBatch.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

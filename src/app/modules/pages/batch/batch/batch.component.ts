@@ -1,43 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../service/alert/alert.service';
+import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 
-interface Batch {
-  id: number;
-  name: string;
-  code: string;
-  programId: number;
-  programName: string;
-  centerId: number;
-  centerName: string;
-  academicYear: string;
-  startDate: string | null;
-  endDate: string | null;
-  plannedStrength?: number | null;
-  isActive: boolean;
-}
-
-interface ProgramOption {
-  id: number;
-  name: string;
-}
-
-interface CenterOption {
-  id: number;
-  name: string;
-}
-
-interface Student {
-  id: number;
-  name: string;
-  enrolmentNo: string;
-  programId: number;
-  programName: string;
-  centerId: number;
-  centerName: string;
-  phone: string;
-}
+const safeTrim = (v: any) =>
+  v === undefined || v === null ? '' : String(v).trim();
 
 @Component({
   selector: 'app-batch',
@@ -46,184 +15,76 @@ interface Student {
   styleUrl: './batch.component.scss',
 })
 export class BatchComponent implements OnInit {
-  batchForm!: FormGroup;
-  formMode: 'create' | 'edit' = 'create';
-  showForm = false;
-  editingId: number | null = null;
+  loading = false;
+  entiId: any;
+  private moduleName = 'batch';
+  totalRecords = 0;
+  batchRows: any[] = [];
+  filterForm!: FormGroup;
+  editorForm!: FormGroup;
+  editorMode: 'create' | 'edit' = 'create';
+  showEditorModal = false;
+  academicYears: string[] = ['2024-2025', '2025-2026', '2026-2027'];
+  programsFull: any[] = [];
+  centersFull: any[] = [];
+  showAssignPanel = false;
+  activeBatchForAssign: any | null = null;
+  eligibleRows: any[] = [];
+  eligibleCount = 0;
+  eligibleQuery = { page: 1, limit: 20, search: '' };
+  selectedStudentIds = new Set<string>();
 
-  // delete modal
-  deleteModalVisible = false;
-  deleteTarget: Batch | null = null;
-  deleteMessage = '';
-
-  // map students modal
-  showMapModal = false;
-  selectedBatch: Batch | null = null;
-
-  // filters for map modal
-  filterProgram: number | 'all' = 'all';
-  filterCenter: number | 'all' = 'all';
-  filterSearch: string = '';
-
-  // dummy programs & centres
-  programs: ProgramOption[] = [
-    { id: 1, name: 'JEE 2 Year Classroom' },
-    { id: 2, name: 'NEET 1 Year Repeaters' },
-    { id: 3, name: 'Foundation 9-10' },
-  ];
-
-  centers: CenterOption[] = [
-    { id: 1, name: 'Gandhipuram Center' },
-    { id: 2, name: 'Nungambakkam Center' },
-  ];
-
-  // program & centre dropdown options
-  programOptions = this.programs.map((p) => ({ label: p.name, value: p.id }));
-  centerOptions = this.centers.map((c) => ({ label: c.name, value: c.id }));
-
-  // filter dropdowns (include "All")
-  programFilterOptions = [
-    { label: 'All Programs', value: 'all' as const },
-    ...this.programOptions,
-  ];
-
-  centerFilterOptions = [
-    { label: 'All Centres', value: 'all' as const },
-    ...this.centerOptions,
-  ];
-
-  // dummy batches
-  batchData: Batch[] = [
-    {
-      id: 1,
-      name: 'JEE 2026 - Phase 1',
-      code: 'JEE26-P1',
-      programId: 1,
-      programName: 'JEE 2 Year Classroom',
-      centerId: 1,
-      centerName: 'Gandhipuram Center',
-      academicYear: '2024-2026',
-      startDate: '2024-04-01',
-      endDate: '2026-03-31',
-      plannedStrength: 40,
-      isActive: true,
-    },
-    {
-      id: 2,
-      name: 'NEET 2025 - Regular',
-      code: 'NEET25-REG',
-      programId: 2,
-      programName: 'NEET 1 Year Repeaters',
-      centerId: 2,
-      centerName: 'Nungambakkam Center',
-      academicYear: '2024-2025',
-      startDate: '2024-06-01',
-      endDate: '2025-03-31',
-      plannedStrength: 60,
-      isActive: true,
-    },
-  ];
-
-  // list-table columns
   columns = [
-    { key: 'name', label: 'Batch Name', sortable: true },
-    { key: 'code', label: 'Code', sortable: true },
-    { key: 'programName', label: 'Program', sortable: true },
-    { key: 'centerName', label: 'Centre', sortable: true },
+    { key: 'batchName', label: 'Batch Name', sortable: true },
+    { key: 'batchCode', label: 'Batch Code', sortable: true },
     { key: 'academicYear', label: 'Academic Year', sortable: true },
-    { key: 'plannedStrength', label: 'Planned', sortable: false },
-    { key: 'isActive', label: 'Active', sortable: false },
+    { key: 'programName', label: 'Program', sortable: false },
+    { key: 'centerName', label: 'Center', sortable: false },
+    { key: 'status', label: 'Status', sortable: true },
+    { key: 'studentCount', label: 'Students', sortable: false },
   ];
 
-  // actions (Edit / Map / Delete)
   actions = [
     {
       type: 'icon',
+      icon: 'fa-regular fa-eye',
+      tooltip: 'View',
+      callback: (row: any) => this.openView(row),
+    },
+    {
+      type: 'icon',
       icon: 'fa-regular fa-pen-to-square',
-      tooltip: 'Edit Batch',
-      color: '#6B7280',
-      callback: (row: Batch) => this.edit(row),
+      tooltip: 'Edit',
+      callback: (row: any) => this.openEdit(row),
     },
     {
       type: 'icon',
-      icon: 'fa-solid fa-user-group',
-      tooltip: 'Map Students',
-      color: '#2563EB',
-      callback: (row: Batch) => this.openMapModal(row),
+      icon: 'fa-solid fa-users-gear',
+      tooltip: 'Add Faculty',
+      callback: (row: any) => this.openView(row),
     },
     {
       type: 'icon',
-      icon: 'fa-regular fa-trash-can',
-      tooltip: 'Delete',
-      color: '#6B7280',
-      hoverColor: '#D42B2B',
-      callback: (row: Batch) => this.openDelete(row),
+      icon: 'fa-solid fa-user-plus',
+      tooltip: 'Assign Students',
+      callback: (row: any) => this.openAssign(row),
+    },
+    {
+      type: 'icon',
+      icon: 'fa-solid fa-lock',
+      tooltip: 'Close Batch',
+      callback: (row: any) => this.closeBatch(row),
     },
   ];
-
-  // dummy students (global pool)
-  students: Student[] = [
-    {
-      id: 101,
-      name: 'Rohit Sharma',
-      enrolmentNo: 'JEE26-0001',
-      programId: 1,
-      programName: 'JEE 2 Year Classroom',
-      centerId: 1,
-      centerName: 'Gandhipuram Center',
-      phone: '9000010001',
-    },
-    {
-      id: 102,
-      name: 'Sanjana Iyer',
-      enrolmentNo: 'JEE26-0002',
-      programId: 1,
-      programName: 'JEE 2 Year Classroom',
-      centerId: 1,
-      centerName: 'Gandhipuram Center',
-      phone: '9000010002',
-    },
-    {
-      id: 103,
-      name: 'Harish Kumar',
-      enrolmentNo: 'NEET25-0001',
-      programId: 2,
-      programName: 'NEET 1 Year Repeaters',
-      centerId: 2,
-      centerName: 'Nungambakkam Center',
-      phone: '9000020001',
-    },
-    {
-      id: 104,
-      name: 'Megha Varma',
-      enrolmentNo: 'FDN24-0001',
-      programId: 3,
-      programName: 'Foundation 9-10',
-      centerId: 1,
-      centerName: 'Gandhipuram Center',
-      phone: '9000030001',
-    },
-  ];
-
-  /**
-   * batchStudentMap keeps student IDs per batch:
-   * {
-   *   [batchId]: number[]
-   * }
-   */
-  batchStudentMap: Record<number, number[]> = {
-    1: [101, 102],
-    2: [103],
-  };
-
-  // temp selection for "Add Selected to Batch"
-  selectedToAdd: Set<number> = new Set<number>();
 
   constructor(
     private fb: FormBuilder,
+    private router: Router,
     private breadcrumb: BredcrumpService,
-    private alertService: AlertService
+    private alert: AlertService,
+    private commonApi: CommonapiService
   ) {
+    this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
       { label: 'Control Panel' },
       { label: 'Masters' },
@@ -232,219 +93,396 @@ export class BatchComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.batchForm = this.fb.group({
-      name: ['', Validators.required],
-      code: ['', Validators.required],
-      programId: [null, Validators.required],
-      centerId: [null, Validators.required],
-      academicYear: ['', Validators.required],
-      startDate: ['', Validators.required],
-      endDate: [''],
-      plannedStrength: [null],
-      isActive: [true],
+    this.initForms();
+    this.loadProgramsFull();
+    this.loadCentersFull();
+    this.loadBatches({ page: 1, pageSize: 20 });
+  }
+
+  // ---------------- Forms ----------------
+  initForms() {
+    this.filterForm = this.fb.group({
+      search: [''],
+      status: ['ALL'],
+      academicYear: [''],
+      programId: [''],
+      centerId: [''],
+    });
+
+    this.editorForm = this.fb.group({
+      batchId: [null],
+      batchName: ['', [Validators.required]],
+      batchCode: ['', [Validators.required]],
+      academicYear: ['', [Validators.required]],
+      programId: ['', [Validators.required]],
+      programName: [''],
+      programCode: [''],
+      centerId: ['', [Validators.required]],
+      centerName: [''],
+      centerCode: [''],
+      startDate: ['', [Validators.required]],
+      endDate: ['', [Validators.required]],
+      status: ['ACTIVE', [Validators.required]],
+      remarks: [''],
     });
   }
 
-  // ---------- CRUD: BATCH ----------
-
-  add(): void {
-    this.formMode = 'create';
-    this.editingId = null;
-    this.batchForm.reset({
-      name: '',
-      code: '',
-      programId: null,
-      centerId: null,
-      academicYear: '',
-      startDate: '',
-      endDate: '',
-      plannedStrength: null,
-      isActive: true,
-    });
-    this.showForm = true;
-    this.setBodyModalOpen(true);
-  }
-
-  edit(row: Batch): void {
-    this.formMode = 'edit';
-    this.editingId = row.id;
-
-    this.batchForm.reset({
-      name: row.name,
-      code: row.code,
-      programId: row.programId,
-      centerId: row.centerId,
-      academicYear: row.academicYear,
-      startDate: row.startDate,
-      endDate: row.endDate,
-      plannedStrength: row.plannedStrength ?? null,
-      isActive: row.isActive,
-    });
-
-    this.showForm = true;
-    this.setBodyModalOpen(true);
-  }
-
-  cancel(): void {
-    this.showForm = false;
-    this.setBodyModalOpen(this.showMapModal); // keep locked if map modal open
-  }
-
-  save(): void {
-    if (this.batchForm.invalid) {
-      this.batchForm.markAllAsTouched();
-      return;
-    }
-
-    const value = this.batchForm.value;
-    const program = this.programs.find((p) => p.id === value.programId);
-    const center = this.centers.find((c) => c.id === value.centerId);
-
-    const payload: Batch = {
-      id: this.editingId ?? 0,
-      name: value.name,
-      code: value.code,
-      programId: value.programId,
-      programName: program?.name || '',
-      centerId: value.centerId,
-      centerName: center?.name || '',
-      academicYear: value.academicYear,
-      startDate: value.startDate || null,
-      endDate: value.endDate || null,
-      plannedStrength: value.plannedStrength ?? null,
-      isActive: value.isActive,
-    };
-
-    if (this.formMode === 'create') {
-      const newId = (this.batchData[this.batchData.length - 1]?.id || 0) + 1;
-      this.batchData = [...this.batchData, { ...payload, id: newId }];
-      this.alertService.success('Batch created successfully');
-    } else if (this.editingId != null) {
-      this.batchData = this.batchData.map((b) =>
-        b.id === this.editingId ? { ...payload, id: this.editingId! } : b
-      );
-      this.alertService.success('Batch updated successfully');
-    }
-
-    this.showForm = false;
-  }
-
-  openDelete(row: Batch): void {
-    this.deleteTarget = row;
-    this.deleteMessage = `Are you sure you want to delete batch "${row.name}"?`;
-    this.deleteModalVisible = true;
-  }
-
-  onDeleteModalClosed(confirmed: boolean): void {
-    this.deleteModalVisible = false;
-
-    if (confirmed && this.deleteTarget) {
-      this.batchData = this.batchData.filter(
-        (b) => b.id !== this.deleteTarget!.id
-      );
-      delete this.batchStudentMap[this.deleteTarget.id];
-      this.alertService.success('Batch deleted');
-    }
-
-    this.deleteTarget = null;
-  }
-
-  // ---------- MAP STUDENTS ----------
-
-  openMapModal(batch: Batch): void {
-    this.selectedBatch = batch;
-    this.filterProgram = 'all';
-    this.filterCenter = 'all';
-    this.filterSearch = '';
-    this.selectedToAdd.clear();
-    this.showMapModal = true;
-    this.setBodyModalOpen(true);
-  }
-
-  closeMapModal(): void {
-    this.showMapModal = false;
-    this.selectedBatch = null;
-    this.selectedToAdd.clear();
-    this.setBodyModalOpen(this.showForm);
-  }
-
-  ngOnDestroy(): void {
-    this.setBodyModalOpen(false);
-  }
-
-  get mappedStudents(): Student[] {
-    if (!this.selectedBatch) return [];
-    const ids = this.batchStudentMap[this.selectedBatch.id] || [];
-    return this.students.filter((s) => ids.includes(s.id));
-  }
-
-  get filteredAvailableStudents(): Student[] {
-    if (!this.selectedBatch) return [];
-
-    const mappedIds = new Set(
-      this.batchStudentMap[this.selectedBatch.id] || []
+  private buildQueryParams(params: Record<string, any>) {
+    const keys = Object.keys(params || {}).filter(
+      (k) => params[k] !== undefined && params[k] !== null && params[k] !== ''
     );
+    if (!keys.length) return '';
+    const qs = keys
+      .map(
+        (k) =>
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`
+      )
+      .join('&');
+    return `?${qs}`;
+  }
 
-    return this.students
-      .filter((s) => !mappedIds.has(s.id))
-      .filter((s) => {
-        if (
-          this.filterProgram !== 'all' &&
-          s.programId !== this.filterProgram
-        ) {
-          return false;
-        }
-        if (this.filterCenter !== 'all' && s.centerId !== this.filterCenter) {
-          return false;
-        }
-        if (this.filterSearch) {
-          const q = this.filterSearch.toLowerCase();
-          return (
-            s.name.toLowerCase().includes(q) ||
-            s.enrolmentNo.toLowerCase().includes(q)
-          );
-        }
-        return true;
+  loadProgramsFull() {
+    const payload = { entiId: this.entiId };
+    this.commonApi
+      .fetchData(payload, 'ims', 'program/list?list=full')
+      .subscribe({
+        next: (res: any) => {
+          this.programsFull = res?.data || [];
+        },
+        error: () => {
+          this.programsFull = [];
+        },
       });
   }
 
-  isSelectedToAdd(studentId: number): boolean {
-    return this.selectedToAdd.has(studentId);
+  loadCentersFull() {
+    const payload = { entiId: this.entiId };
+    this.commonApi
+      .fetchData(payload, 'ims', 'center/list?list=full')
+      .subscribe({
+        next: (res: any) => {
+          this.centersFull = res?.data || [];
+        },
+        error: () => {
+          this.centersFull = [];
+        },
+      });
   }
 
-  toggleSelectToAdd(studentId: number, checked: boolean): void {
-    if (checked) {
-      this.selectedToAdd.add(studentId);
-    } else {
-      this.selectedToAdd.delete(studentId);
-    }
+  onProgramChanged(programId: string) {
+    const p = this.programsFull.find(
+      (x: any) =>
+        safeTrim(x.programId) === safeTrim(programId) ||
+        safeTrim(x._id) === safeTrim(programId)
+    );
+    this.editorForm.patchValue({
+      programName: p?.programName || p?.name || '',
+      programCode: p?.programCode || p?.code || '',
+    });
   }
 
-  addSelectedToBatch(): void {
-    if (!this.selectedBatch || this.selectedToAdd.size === 0) {
+  onCenterChanged(centerId: string) {
+    const c = this.centersFull.find(
+      (x: any) =>
+        safeTrim(x.centerId) === safeTrim(centerId) ||
+        safeTrim(x._id) === safeTrim(centerId)
+    );
+    this.editorForm.patchValue({
+      centerName: c?.centerName || c?.name || '',
+      centerCode: c?.centerCode || c?.code || '',
+    });
+  }
+
+  // ---------------- LIST ----------------
+  loadBatches(event?: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: 'asc' | 'desc';
+  }) {
+    const page = event?.page || 1;
+    const limit = event?.pageSize || 20;
+    const f = this.filterForm.value || {};
+    const search = safeTrim(event?.search || f.search);
+    const sortMap: any = {
+      batchName: 'batchName',
+      batchCode: 'batchCode',
+      academicYear: 'academicYear',
+      status: 'status',
+    };
+    const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
+    const sort = sortKey
+      ? event?.sortDirection === 'asc'
+        ? sortKey
+        : `-${sortKey}`
+      : '';
+    const status = safeTrim(f.status);
+    const academicYear = safeTrim(f.academicYear);
+    const programId = safeTrim(f.programId);
+    const centerId = safeTrim(f.centerId);
+    const qp = this.buildQueryParams({
+      page,
+      limit,
+      ...(search ? { search } : {}),
+      ...(sort ? { sort } : {}),
+      ...(status && status !== 'ALL' ? { status } : { status: 'ALL' }),
+      ...(academicYear ? { academicYear } : {}),
+      ...(programId ? { programId } : {}),
+      ...(centerId ? { centerId } : {}),
+    });
+    const payload = { entiId: this.entiId };
+    this.loading = true;
+    this.commonApi
+      .fetchData(payload, this.moduleName, `list${qp}`)
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          this.totalRecords = res?.count || 0;
+          this.batchRows = (res?.data || []).map((b: any) => ({
+            ...b,
+            _raw: b,
+          }));
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Failed to load batches');
+        },
+      });
+  }
+
+  refresh() {
+    this.loadBatches({ page: 1, pageSize: 20 });
+  }
+
+  // ---------------- Modal Open/Close ----------------
+  openCreate() {
+    this.editorMode = 'create';
+    this.editorForm.reset({
+      batchId: null,
+      batchName: '',
+      batchCode: '',
+      academicYear: '',
+      programId: '',
+      programName: '',
+      programCode: '',
+      centerId: '',
+      centerName: '',
+      centerCode: '',
+      startDate: '',
+      endDate: '',
+      status: 'ACTIVE',
+      remarks: '',
+    });
+    this.showEditorModal = true;
+  }
+
+  private dateToEpochMs(dateStr: any): number {
+    const s = safeTrim(dateStr);
+    if (!s) return 0;
+    const d = new Date(`${s}T00:00:00`);
+    const t = d.getTime();
+    return Number.isFinite(t) ? t : 0;
+  }
+
+  private epochMsToDateInput(ms: any): string {
+    const n = Number(ms);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const d = new Date(n);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  openEdit(row: any) {
+    const b = row?._raw || row;
+    this.editorMode = 'edit';
+    this.editorForm.patchValue({
+      batchId: b?.batchId,
+      batchName: b?.batchName,
+      batchCode: b?.batchCode,
+      academicYear: b?.academicYear,
+      programId: b?.programId,
+      programName: b?.programName,
+      programCode: b?.programCode,
+      centerId: b?.centerId,
+      centerName: b?.centerName,
+      centerCode: b?.centerCode,
+      startDate: this.epochMsToDateInput(b?.startDate),
+      endDate: this.epochMsToDateInput(b?.endDate),
+      status: b?.status || 'ACTIVE',
+      remarks: b?.remarks || '',
+    });
+    this.showEditorModal = true;
+  }
+
+  closeEditorModal() {
+    this.showEditorModal = false;
+  }
+
+  // ---------------- SAVE ----------------
+  saveBatch() {
+    if (this.editorForm.invalid) {
+      this.editorForm.markAllAsTouched();
+      this.alert.error('Please fill all required fields');
       return;
     }
-
-    const currentIds = new Set(
-      this.batchStudentMap[this.selectedBatch.id] || []
-    );
-    this.selectedToAdd.forEach((id) => currentIds.add(id));
-    this.batchStudentMap[this.selectedBatch.id] = Array.from(currentIds);
-
-    this.alertService.success('Students mapped to batch');
-    this.selectedToAdd.clear();
+    const v = this.editorForm.value || {};
+    const payload: any = {
+      entiId: this.entiId,
+      batchName: safeTrim(v.batchName),
+      batchCode: safeTrim(v.batchCode),
+      academicYear: safeTrim(v.academicYear),
+      programId: safeTrim(v.programId),
+      programName: safeTrim(v.programName) || null,
+      programCode: safeTrim(v.programCode) || null,
+      centerId: safeTrim(v.centerId),
+      centerName: safeTrim(v.centerName) || null,
+      centerCode: safeTrim(v.centerCode) || null,
+      startDate: this.dateToEpochMs(v.startDate),
+      endDate: this.dateToEpochMs(v.endDate),
+      status: safeTrim(v.status) || 'ACTIVE',
+      remarks: safeTrim(v.remarks) || null,
+    };
+    const endpoint =
+      this.editorMode === 'create' ? 'create' : 'update';
+    if (this.editorMode === 'edit') payload.batchId = safeTrim(v.batchId);
+    this.loading = true;
+    this.commonApi.fetchData(payload, this.moduleName, endpoint).subscribe({
+      next: () => {
+        this.loading = false;
+        this.alert.success(
+          this.editorMode === 'create'
+            ? 'Batch created successfully'
+            : 'Batch updated successfully'
+        );
+        this.showEditorModal = false;
+        this.refresh();
+      },
+      error: (err: any) => {
+        this.loading = false;
+        this.alert.error(err?.error?.message || 'Operation failed');
+      },
+    });
   }
 
-  removeFromBatch(studentId: number): void {
-    if (!this.selectedBatch) return;
-    const ids = this.batchStudentMap[this.selectedBatch.id] || [];
-    this.batchStudentMap[this.selectedBatch.id] = ids.filter(
-      (id) => id !== studentId
-    );
-    this.alertService.success('Student removed from batch');
+  // ---------------- VIEW ----------------
+  openView(row: any) {
+    const b = row?._raw || row;
+    this.router.navigate(['/app//batches/view', b?.batchId]);
   }
 
-  private setBodyModalOpen(open: boolean) {
-    document.body.classList.toggle('modal-open', open);
+  // ---------------- CLOSE ----------------
+  closeBatch(row: any) {
+    const b = row?._raw || row;
+    const batchId = safeTrim(b?.batchId);
+    if (!batchId) return;
+    if (
+      !confirm(
+        `Close batch ${b?.batchName || ''}? This will release all students.`
+      )
+    )
+      return;
+    const payload = { entiId: this.entiId, batchId };
+    this.loading = true;
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'batch/close')
+      .subscribe({
+        next: () => {
+          this.loading = false;
+          this.alert.success('Batch closed and students released');
+          this.refresh();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Close failed');
+        },
+      });
+  }
+
+  // ---------------- Assign Students ----------------
+  openAssign(row: any) {
+    this.activeBatchForAssign = row?._raw || row;
+    this.showAssignPanel = true;
+    this.selectedStudentIds.clear();
+    this.eligibleQuery = { page: 1, limit: 20, search: '' };
+    this.loadEligible();
+  }
+
+  closeAssignPanel() {
+    this.showAssignPanel = false;
+    this.activeBatchForAssign = null;
+    this.eligibleRows = [];
+    this.eligibleCount = 0;
+    this.selectedStudentIds.clear();
+  }
+
+  toggleStudent(id: string, checked: boolean) {
+    const sid = safeTrim(id);
+    if (!sid) return;
+    if (checked) this.selectedStudentIds.add(sid);
+    else this.selectedStudentIds.delete(sid);
+  }
+
+  loadEligible() {
+    const b = this.activeBatchForAssign;
+    const batchId = safeTrim(b?.batchId);
+    if (!batchId) return;
+    const qp = this.buildQueryParams({
+      page: this.eligibleQuery.page,
+      limit: this.eligibleQuery.limit,
+      ...(safeTrim(this.eligibleQuery.search)
+        ? { search: safeTrim(this.eligibleQuery.search) }
+        : {}),
+    });
+    const payload = { entiId: this.entiId, batchId };
+    this.loading = true;
+    this.commonApi
+      .fetchData(payload, this.moduleName, `students/eligible${qp}`)
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          this.eligibleRows = res?.data || [];
+          this.eligibleCount = Number(res?.count || 0);
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(
+            err?.error?.message || 'Failed to load eligible students'
+          );
+        },
+      });
+  }
+
+  assignSelected() {
+    const b = this.activeBatchForAssign;
+    const batchId = safeTrim(b?.batchId);
+    if (!batchId) return;
+    const ids = Array.from(this.selectedStudentIds);
+    if (!ids.length) {
+      this.alert.error('Select at least one student');
+      return;
+    }
+    const payload = {
+      entiId: this.entiId,
+      batchId,
+      studentIds: ids,
+    };
+    this.loading = true;
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'students/assign')
+      .subscribe({
+        next: () => {
+          this.loading = false;
+          this.alert.success('Students assigned successfully');
+          this.closeAssignPanel();
+          this.refresh();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Assign failed');
+        },
+      });
   }
 }

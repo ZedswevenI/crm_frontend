@@ -1,0 +1,17 @@
+.sticky-panel {
+  position: sticky;
+  top: 84px;
+}
+
+.eligible-box {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+}
