@@ -6,6 +6,7 @@ import { StaffComponent } from './staff/staff.component';
 import { ProgramComponent } from './program/program.component';
 import { DepartmentComponent } from './department/department.component';
 import { SubjectComponent } from './subject/subject.component';
+import { BankaccountsComponent } from './bankaccounts/bankaccounts.component';
 
 const routes: Routes = [
   {
@@ -31,6 +32,10 @@ const routes: Routes = [
   {
     path: 'subject',
     component: SubjectComponent
+  },
+  {
+    path: 'bankaccounts',
+    component: BankaccountsComponent
   }
 ];
 

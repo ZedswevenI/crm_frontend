@@ -1,0 +1,329 @@
+<div class="accounts-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Cheque Details</h5>
+                <!-- <p class="mb-0 text-muted small">
+                    Payment ID: <span class="mono">{{ paymentId }}</span>
+                </p> -->
+            </div>
+            <div class="d-flex gap-2 flex-wrap justify-content-end ms-auto"
+                *ngIf="(payment?.status || '').toUpperCase() !== 'CANCELLED'">
+                <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1 rounded-pill"
+                    (click)="openRemarksModal()" [disabled]="loading || !payment">
+                    <i class="fa-regular fa-comment-dots"></i>
+                    <span>Remarks</span>
+                </button>
+
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 rounded-pill"
+                    [disabled]="!canDeposit()" (click)="openDepositModal()">
+                    <i class="fa-solid fa-building-columns"></i>
+                    <span>Deposit</span>
+                </button>
+                <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1 rounded-pill"
+                    [disabled]="!canReconcile()" (click)="openReconcileModal('CLEAR')">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Mark Cleared</span>
+                </button>
+                <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill"
+                    [disabled]="!canReconcile()" (click)="openReconcileModal('FAIL')">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                    <span>Mark Failed</span>
+                </button>
+                <button class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1 rounded-pill"
+                    [disabled]="!canRequestExtension()" (click)="openExtensionModal()">
+                    <i class="fa-solid fa-calendar-days"></i>
+                    <span>Extension</span>
+                </button>
+                <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1 rounded-pill"
+                    [disabled]="!canReplaceCheque()" (click)="openReplaceModal()">
+                    <i class="fa-solid fa-repeat"></i>
+                    <span>Replace</span>
+                </button>
+
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 rounded-pill"
+                    (click)="back()">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back</span>
+                </button>
+            </div>
+            <div class="d-flex gap-2 flex-wrap justify-content-end ms-auto"
+                *ngIf="(payment?.status || '').toUpperCase() === 'CANCELLED'">
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 rounded-pill"
+                    (click)="back()">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back</span>
+                </button>
+            </div>
+        </div>
+        <div class="card-body" *ngIf="loading">
+            <div class="text-muted">Loading...</div>
+        </div>
+        <div class="card-body" *ngIf="!loading && !payment">
+            <div class="alert alert-warning mb-0">Cheque not found.</div>
+        </div>
+        <div class="card-body" *ngIf="!loading && payment">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold mb-2">Cheque</div>
+                        <div class="small">
+                            <div><span class="text-muted">Cheque No: </span> <span class="mono">{{
+                                    payment?.cheque?.chequeNo || '-' }}</span></div>
+                            <div><span class="text-muted">Mode: </span> {{ payment?.cheque?.mode || '-' }}</div>
+                            <div><span class="text-muted">Bank: </span> {{ payment?.cheque?.bankName || '-' }}</div>
+                            <div><span class="text-muted">Due Date: </span> {{ payment?.cheque?.chequeDate ?
+                                (payment?.cheque?.chequeDate | date:'dd-MM-yyyy') : '-' }}
+                            </div>
+                            <div><span class="text-muted">Cheque Date (Issued): </span> {{ payment?.cheque?.dueDate ?
+                                (payment?.cheque?.dueDate | date:'dd-MM-yyyy') : '-' }}
+                            </div>
+                            <div><span class="text-muted">Planned Deposit: </span> {{
+                                payment?.cheque?.plannedDepositDate ?
+                                (payment?.cheque?.plannedDepositDate | date:'dd-MM-yyyy') : '-'}}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold mb-2">Student</div>
+                        <div class="small">
+                            <div><span class="text-muted">Name: </span> {{ payment?.studentName || '-' }}</div>
+                            <div><span class="text-muted">Admission No: </span> <span class="mono">{{
+                                    payment?.admissionId?.admissionNo || '-' }}</span></div>
+                            <div><span class="text-muted">Program: </span> {{ payment?.programName || '-' }}</div>
+                            <div><span class="text-muted">Center: </span> {{ payment?.centerName || '-' }}</div>
+                            <div><span class="text-muted">Amount: </span> ₹{{ payment?.amount || 0 | number:'1.0-0' }}
+                            </div>
+                            <div><span class="text-muted">Status: </span> <span class="fw-semibold">{{ payment?.status
+                                    ||
+                                    '-' }}</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ===================== Deposit Modal ===================== -->
+<div class="app-modal-backdrop" *ngIf="showDepositModal">
+    <div class="app-modal" style="max-width:720px;">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Deposit Cheque</h6>
+                <span class="text-muted small">This will move status to <b>DEPOSITED</b></span>
+            </div>
+            <button type="button" class="btn-close" (click)="closeDepositModal()" aria-label="Close"></button>
+        </div>
+        <div class="app-modal-body">
+            <form [formGroup]="depositForm" (ngSubmit)="confirmDeposit()">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Deposit Date</label>
+                        <input type="date" class="form-control" formControlName="depositDate" />
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Deposit Bank</label>
+                        <select class="form-select" formControlName="bankName">
+                            <option value="">-- Select Bank Account --</option>
+                            <option *ngFor="let b of bankAccounts" [value]="b.depositLabel">
+                                {{ b.depositLabel }}
+                            </option>
+                        </select>
+                        <div class="form-text" *ngIf="!bankAccounts.length">
+                            No bank accounts found. Please add bank accounts first.
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary"
+                        (click)="closeDepositModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" [disabled]="depositForm.invalid || loading">
+                        <i class="fa-solid fa-building-columns me-1"></i> Deposit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Reconcile Modal ===================== -->
+<div class="app-modal-backdrop" *ngIf="showReconcileModal">
+    <div class="app-modal" style="max-width:720px;">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Update Clearance</h6>
+                <span class="text-muted small">Action: <b>{{ reconcileAction }}</b></span>
+            </div>
+            <button type="button" class="btn-close" (click)="closeReconcileModal()" aria-label="Close"></button>
+        </div>
+        <div class="app-modal-body">
+            <form [formGroup]="reconcileForm" (ngSubmit)="confirmReconcile()">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Date (optional)</label>
+                        <input type="date" class="form-control" formControlName="date" />
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Remarks (optional)</label>
+                        <input class="form-control" formControlName="remarks" placeholder="Optional notes..." />
+                    </div>
+
+                    <div class="col-12" *ngIf="reconcileAction === 'FAIL'">
+                        <label class="form-label fw-semibold">Failure Reason (optional)</label>
+                        <input class="form-control" formControlName="failureReason" placeholder="Cheque bounced..." />
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary"
+                        (click)="closeReconcileModal()">Cancel</button>
+                    <button type="submit" class="btn"
+                        [ngClass]="reconcileAction === 'CLEAR' ? 'btn-success' : 'btn-danger'" [disabled]="loading">
+                        Confirm {{ reconcileAction }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Remarks Modal ===================== -->
+<div class="app-modal-backdrop" *ngIf="showRemarksModal">
+    <div class="app-modal" style="max-width:720px;">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Update Remarks</h6>
+                <span class="text-muted small">Payment ID: <span class="mono">{{ paymentId }}</span></span>
+            </div>
+            <button type="button" class="btn-close" (click)="closeRemarksModal()" aria-label="Close"></button>
+        </div>
+
+        <div class="app-modal-body">
+            <form [formGroup]="remarksForm" (ngSubmit)="saveRemarks()">
+                <div class="mb-2 text-muted small" *ngIf="payment?.remarks">
+                    Current: {{ payment?.remarks }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Remarks</label>
+                    <textarea class="form-control" rows="4" formControlName="remarks"
+                        placeholder="Type remarks..."></textarea>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary"
+                        (click)="closeRemarksModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" [disabled]="remarksForm.invalid || loading">
+                        Save Remarks
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Extension Modal ===================== -->
+<div class="app-modal-backdrop" *ngIf="showExtensionModal">
+    <div class="app-modal" style="max-width:720px;">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Request Cheque Extension</h6>
+                <span class="text-muted small">
+                    Current planned: <b>{{ payment?.cheque?.plannedDepositDate || payment?.cheque?.dueDate || '-' }}</b>
+                </span>
+            </div>
+            <button type="button" class="btn-close" (click)="closeExtensionModal()" aria-label="Close"></button>
+        </div>
+
+        <div class="app-modal-body">
+            <form [formGroup]="extensionForm" (ngSubmit)="submitExtensionRequest()">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">New Planned Deposit Date</label>
+                        <input type="date" class="form-control" formControlName="newPlannedDepositDate" />
+                    </div>
+
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Remarks</label>
+                        <input class="form-control" formControlName="remarks" placeholder="Reason for extension..." />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary"
+                        (click)="closeExtensionModal()">Cancel</button>
+                    <button type="submit" class="btn btn-warning" [disabled]="extensionForm.invalid || loading">
+                        Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Replace Cheque Modal ===================== -->
+<div class="app-modal-backdrop" *ngIf="showReplaceModal">
+    <div class="app-modal" style="max-width: 900px;">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Replace Cheque</h6>
+                <span class="text-muted small">
+                    This will cancel old cheque and create new cheque entry.
+                </span>
+            </div>
+            <button type="button" class="btn-close" (click)="closeReplaceModal()" aria-label="Close"></button>
+        </div>
+
+        <div class="app-modal-body">
+            <form [formGroup]="replaceForm" (ngSubmit)="submitReplacement()">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Cheque No</label>
+                        <input class="form-control" formControlName="chequeNo" placeholder="Cheque number" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Due Date</label>
+                        <input type="text" class="form-control" formControlName="dueDate" readonly />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Cheque Date (optional)</label>
+                        <input type="date" class="form-control" formControlName="chequeDate" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Mode</label>
+                        <select class="form-select" formControlName="mode">
+                            <option value="PDC">PDC</option>
+                            <option value="CDC">CDC</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Favour Of</label>
+                        <input class="form-control" formControlName="favourOf" placeholder="e.g. Institute name" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Issuing Bank Name</label>
+                        <input class="form-control" formControlName="bankName" placeholder="SBI / HDFC..." />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Amount</label>
+                        <input type="number" class="form-control" formControlName="amount" />
+                        <div class="form-text">New cheque amount (must be > 0)</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Remarks (optional)</label>
+                        <input class="form-control" formControlName="remarks"
+                            placeholder="Replacement reason / notes..." />
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary"
+                        (click)="closeReplaceModal()">Cancel</button>
+                    <button type="submit" class="btn btn-dark" [disabled]="replaceForm.invalid || loading">
+                        Replace Cheque
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

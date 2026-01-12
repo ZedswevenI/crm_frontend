@@ -1,0 +1,225 @@
+<div class="program-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Bank Accounts</h5>
+                <p class="mb-0 text-muted small">
+                    Manage bank accounts used for cheque deposit batches and reconciliation.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Bank Accounts</span>
+                </button>
+
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Bank Account</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" (requestData)="loadBankAccounts($event)" [columns]="columns"
+                [totalRecords]="totalRecords" [data]="bankData" [actions]="actions" [showpageoptions]="true">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- ===================== CREATE / EDIT MODAL ===================== -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal" style="max-width: 980px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        {{ formMode === 'create' ? 'Create Bank Account' : 'Edit Bank Account' }}
+                    </h6>
+                    <span class="text-muted small">
+                        {{ formMode === 'create' ? 'Add a new bank account for deposits' : 'Update bank account details'
+                        }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="bankForm" (ngSubmit)="save()">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <formfield label="Bank Name" [required]="true" [control]="bankForm.get('bankName')"
+                                formControlName="bankName" placeholder="SBI / HDFC / ICICI">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Account Name" [required]="true" [control]="bankForm.get('accountName')"
+                                formControlName="accountName" placeholder="NAMITH SOFTWARE SOLUTIONS">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Account Number" [required]="true"
+                                [control]="bankForm.get('accountNumber')" formControlName="accountNumber"
+                                placeholder="1234567890">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="IFSC" [required]="false" [control]="bankForm.get('ifsc')"
+                                formControlName="ifsc" placeholder="HDFC0000123">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Branch" [required]="false" [control]="bankForm.get('branch')"
+                                formControlName="branch" placeholder="Coimbatore / Chennai">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-2 d-flex align-items-center">
+                            <checkbox label="Default" [control]="bankForm.get('isDefault')" formControlName="isDefault">
+                            </checkbox>
+                        </div>
+
+                        <div class="col-md-2 d-flex align-items-center">
+                            <checkbox label="Active" [control]="bankForm.get('isActive')" formControlName="isActive">
+                            </checkbox>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+                        <button type="submit" class="btn btn-primary" [disabled]="bankForm.invalid">
+                            {{ formMode === 'create' ? 'Save Bank Account' : 'Update Bank Account' }}
+                        </button>
+                    </div>
+                </form>
+
+                <div class="alert alert-warning small mt-3 mb-0">
+                    If you mark an account as <b>Default</b>, all other accounts will be automatically unset as default.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== IMPORT MODAL ===================== -->
+    <div class="app-modal-backdrop" *ngIf="showImport">
+        <div class="app-modal" style="max-width: 1100px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Import Bank Accounts (Excel)</h6>
+                    <span class="text-muted small">Upload Excel and import bank accounts in bulk.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="alert alert-info py-2 small mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <div class="fw-semibold mb-1">Required columns in Excel:</div>
+                            <div class="text-muted">
+                                <span class="me-2">Bank Name</span> |
+                                <span class="mx-2">Account Name</span> |
+                                <span class="mx-2">Account Number</span> |
+                                <span class="mx-2">IFSC</span> |
+                                <span class="mx-2">Branch</span> |
+                                <span class="mx-2">Default</span> |
+                                <span class="mx-2">Status</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()">
+                            <i class="fa-solid fa-download me-1"></i>
+                            Download Sample Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Excel File</label>
+                        <input type="file" class="form-control" accept=".xlsx,.xls"
+                            (change)="onExcelSelected($event)" />
+                        <div class="form-text" *ngIf="importFileName">Selected: {{ importFileName }}</div>
+                    </div>
+
+                    <div class="col-md-6 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
+                            [disabled]="!importPreviewRows.length">
+                            Reset
+                        </button>
+
+                        <button type="button" class="btn btn-primary" (click)="confirmImport()"
+                            [disabled]="!importPreviewRows.length || importHasInvalidRows || importing">
+                            <i class="fa-solid fa-cloud-arrow-up me-1"></i>
+                            Import Now
+                        </button>
+                    </div>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">
+                        Rows: <span class="fw-semibold">{{ importPreviewRows.length }}</span>
+                        <span class="ms-2" *ngIf="importHasInvalidRows">
+                            | Invalid: <span class="fw-semibold text-danger">{{ importInvalidCount }}</span>
+                        </span>
+                    </div>
+
+                    <div class="small text-muted" *ngIf="importPreviewRows.length && importDefaultCount > 1">
+                        <span class="badge bg-warning text-dark">Multiple Defaults</span>
+                        Only first "Default=YES" will be kept as default during import.
+                    </div>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:60px;">#</th>
+                                <th>Bank Name</th>
+                                <th>Account Name</th>
+                                <th>Account Number</th>
+                                <th style="width:140px;">IFSC</th>
+                                <th style="width:160px;">Branch</th>
+                                <th style="width:90px;">Default</th>
+                                <th style="width:120px;">Status</th>
+                                <th style="width:220px;">Row Validation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let r of importPreviewRows; let i = index" [class.table-danger]="!r._valid">
+                                <td>{{ r._rowNo }}</td>
+                                <td>{{ r.bankName }}</td>
+                                <td>{{ r.accountName }}</td>
+                                <td>{{ r.accountNumber }}</td>
+                                <td>{{ r.ifsc || '-' }}</td>
+                                <td>{{ r.branch || '-' }}</td>
+                                <td>
+                                    <span class="badge" [ngClass]="r.isDefault ? 'bg-primary' : 'bg-secondary'">
+                                        {{ r.isDefault ? 'YES' : 'NO' }}
+                                    </span>
+                                </td>
+                                <td>{{ r.status }}</td>
+                                <td>
+                                    <span *ngIf="r._valid" class="badge bg-success">OK</span>
+                                    <span *ngIf="!r._valid" class="badge bg-danger">{{ r._errors?.join(', ') }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
+                    Fix invalid rows in Excel and upload again. Import is disabled until all rows are valid.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== DELETE MODAL ===================== -->
+    <delete [title]="'Delete Bank Account'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+</div>

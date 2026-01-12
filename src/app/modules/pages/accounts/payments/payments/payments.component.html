@@ -1,0 +1,267 @@
+<div class="accounts-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Payments Register</h5>
+                <p class="mb-0 text-muted small">View all payments (Cheque + NEFT) with filters and export.</p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                    (click)="resetFilters()">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Reset</span>
+                </button>
+
+                <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1" (click)="exportExcel()"
+                    [disabled]="loading">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Export</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pb-0">
+            <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+                <div class="row g-2 align-items-end mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Search</label>
+                        <input class="form-control form-control-sm" formControlName="search"
+                            placeholder="Student / Admission / UTR / Cheque / Bank / PaymentId" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Payment Type</label>
+                        <select class="form-select form-select-sm" formControlName="paymentType">
+                            <option value="ALL">ALL</option>
+                            <option value="CHEQUE">CHEQUE</option>
+                            <option value="NEFT">NEFT</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Status</label>
+                        <select class="form-select form-select-sm" formControlName="status">
+                            <option value="ALL">ALL</option>
+                            <option *ngFor="let s of statusList" [value]="s">{{ s }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex gap-2 mb-2 justify-content-end">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                            (click)="resetFilters()">Clear</button>
+                        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-body pt-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mt-3 mb-2">
+                <div class="small text-muted">
+                    Total Payments: <span class="fw-semibold">{{ totalRecords }}</span>
+                </div>
+            </div>
+            <div class="app-table">
+                <div class="rounded-3 overflow-hidden position-relative app-table-wrapper">
+                    <div *ngIf="loading" class="table-overlay">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle app-table-grid">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('paymentId')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Payment ID</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('paymentId')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('type')" style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Type</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('type')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold">Ref</th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('studentName')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Student</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('studentName')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('admissionNo')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Admission No</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('admissionNo')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('amount')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Amount</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('amount')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('status')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Status</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('status')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold">Key Date</th>
+                                    <th class="px-4 py-3 fw-semibold text-center action-col">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <ng-container *ngFor="let row of paymentsData">
+                                    <tr class="app-table-row">
+                                        <td class="px-4 py-3"><span class="mono">{{ row.paymentId }}</span></td>
+                                        <td class="px-4 py-3">{{ row.paymentType }}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="truncate-cell" [style.maxWidth.px]="220">{{ row.ref }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="truncate-cell" [style.maxWidth.px]="220">{{ row.studentName
+                                                }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="truncate-cell" [style.maxWidth.px]="160">{{ row.admissionNo
+                                                }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">₹{{ row.amount | number:'1.0-0' }}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="badge" [ngClass]="statusBadge(row.status)">{{ row.status
+                                                }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">{{ row.keyDate || '-' }}</td>
+                                        <td class="px-4 py-3 text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                (click)="openView(row)">
+                                                <i class="fa-regular fa-eye me-1"></i> View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </ng-container>
+
+                                <tr *ngIf="!paymentsData || paymentsData.length === 0">
+                                    <td colspan="9" class="text-center py-4 text-muted">No data found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div *ngIf="totalRecords > pageSize"
+                    class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
+                    <button class="btn btn-link app-table-page-link" [disabled]="currentPage <= 1"
+                        (click)="goPage(currentPage - 1)">
+                        <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20" />
+                        Previous
+                    </button>
+                    <div class="d-flex align-items-center gap-1">
+                        <ng-container *ngFor="let item of paginationItems">
+                            <div *ngIf="item.page === '...'"
+                                class="d-flex align-items-center justify-content-center app-table-page-ellipsis">
+                                <span class="fw-medium text-muted small">...</span>
+                            </div>
+                            <button *ngIf="item.page !== '...'" type="button"
+                                class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle app-table-page-btn"
+                                [class.pagination-active]="item.isActive" (click)="goPage(+item.page)">
+                                <span class="fw-medium small">{{ item.page }}</span>
+                            </button>
+                        </ng-container>
+                    </div>
+                    <button class="btn btn-link app-table-page-link" [disabled]="currentPage >= totalPages"
+                        (click)="goPage(currentPage + 1)">
+                        Next
+                        <img src="assets/icons/pageiright.svg" alt="pageright" width="20" height="20" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Popup -->
+    <div class="app-modal-backdrop" *ngIf="showViewModal">
+        <div class="app-modal" style="max-width: 920px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Payment Details</h6>
+                    <span class="text-muted small">Payment ID: <span class="mono">{{ viewRow?.paymentId }}</span></span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeView()" aria-label="Close"></button>
+            </div>
+            <div class="app-modal-body" *ngIf="viewRow">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="fw-semibold mb-2">Payment</div>
+                            <div class="small">
+                                <div><span class="text-muted">Type: </span>{{ viewRow.paymentType }}</div>
+                                <div><span class="text-muted">Amount: </span>₹{{ viewRow.amount | number:'1.0-0' }}
+                                </div>
+                                <div><span class="text-muted">Status: </span><span class="fw-semibold">{{ viewRow.status
+                                        }}</span></div>
+                                <div><span class="text-muted">Deposit Batch: </span><span class="mono">{{
+                                        viewRow.depositBatchId || '-' }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="fw-semibold mb-2">Student</div>
+                            <div class="small">
+                                <div><span class="text-muted">Name: </span>{{ viewRow.studentName }}</div>
+                                <div><span class="text-muted">Admission No: </span><span class="mono">{{
+                                        viewRow.admissionNo || '-' }}</span></div>
+                                <div><span class="text-muted">Program: </span>{{ viewRow.programName || '-' }}</div>
+                                <div><span class="text-muted">Center: </span>{{ viewRow.centerName || '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12" *ngIf="viewRow.paymentType === 'NEFT'">
+                        <div class="border rounded p-3">
+                            <div class="fw-semibold mb-2">NEFT</div>
+                            <div class="small">
+                                <div><span class="text-muted">UTR: </span><span class="mono">{{ viewRow?.neft?.utr ||
+                                        '-' }}</span></div>
+                                <div><span class="text-muted">Paid On: </span>{{ viewRow?.neft?.paidOn || '-' }}</div>
+                                <div><span class="text-muted">Bank: </span>{{ viewRow?.neft?.bankName || '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12" *ngIf="viewRow.paymentType === 'CHEQUE'">
+                        <div class="border rounded p-3">
+                            <div class="fw-semibold mb-2">Cheque</div>
+                            <div class="small">
+                                <div><span class="text-muted">Cheque No: </span><span class="mono">{{
+                                        viewRow?.cheque?.chequeNo || '-' }}</span></div>
+                                <div><span class="text-muted">Due Date: </span>{{ viewRow?.cheque?.dueDate || '-' }}
+                                </div>
+                                <div><span class="text-muted">Planned Deposit: </span>{{
+                                    viewRow?.cheque?.plannedDepositDate || viewRow?.cheque?.dueDate || '-' }}</div>
+                                <div><span class="text-muted">Mode: </span>{{ viewRow?.cheque?.mode || '-' }}</div>
+                                <div><span class="text-muted">Bank: </span>{{ viewRow?.cheque?.bankName || '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary" (click)="closeView()">Close</button>
+                    <button *ngIf="viewRow.paymentType === 'CHEQUE'" type="button" class="btn btn-dark"
+                        (click)="openChequeView(viewRow.paymentId)">
+                        Open Cheque View
+                    </button>
+                    <button *ngIf="viewRow.paymentType === 'NEFT'" type="button" class="btn btn-dark"
+                        (click)="openNeftView(viewRow.paymentId)">
+                        Open NEFT View
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

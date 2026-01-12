@@ -1,0 +1,167 @@
+<div class="accounts-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Deposit Batches</h5>
+                <p class="mb-0 text-muted small">
+                    View deposit batches, totals and open each batch to reconcile cheques.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                    (click)="resetFilters()">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Reset</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pb-4">
+            <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Search</label>
+                        <input class="form-control form-control-sm" formControlName="search"
+                            placeholder="Batch ID / Bank name" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">From Date</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="fromDate" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">To Date</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="toDate" />
+                    </div>
+
+                    <div class="col-md-2 d-flex gap-2 justify-content-end mb-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="resetFilters()">
+                            Clear
+                        </button>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            Apply
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-body pt-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mt-3 mb-2">
+                <div class="small text-muted">
+                    Total Batches: <span class="fw-semibold">{{ totalRecords }}</span>
+                </div>
+            </div>
+            <div class="app-table">
+                <div class="rounded-3 overflow-hidden position-relative app-table-wrapper">
+                    <div *ngIf="loading" class="table-overlay">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle app-table-grid">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="px-4 py-3 fw-semibold" style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>S.No.</span>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('depositBatchId')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Batch ID</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('depositBatchId')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('depositDate')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Deposit Date</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('depositDate')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold">Bank</th>
+                                    <th class="px-4 py-3 fw-semibold text-end" (click)="onSort('totalAmount')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center justify-content-end gap-1">
+                                            <span>Total</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('totalAmount')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold text-center" (click)="onSort('chequeCount')"
+                                        style="cursor:pointer;">
+                                        <div class="d-flex align-items-center justify-content-center gap-1">
+                                            <span>Cheques</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('chequeCount')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold text-center action-col">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <ng-container *ngFor="let row of rows;let i = index">
+                                    <tr class="app-table-row">
+                                        <td class="px-4 py-3">
+                                            <span class="mono">{{ i+1 }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="mono">{{ row.depositBatchId }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">{{ row.depositDate || '-' }}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="truncate-cell" [style.maxWidth.px]="260">{{ row.bankName || '-'
+                                                }}</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-end">₹{{ row.totalAmount || 0 | number:'1.0-2' }}</td>
+                                        <td class="px-4 py-3 text-center">{{ row.chequeCount || 0 }}</td>
+                                        <td class="px-4 py-3 text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                (click)="view(row)">
+                                                <i class="fa-regular fa-eye me-1"></i> View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </ng-container>
+                                <tr *ngIf="!rows.length">
+                                    <td colspan="6" class="text-center py-4 text-muted">No data found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div *ngIf="totalRecords > pageSize"
+                    class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
+                    <button class="btn btn-link app-table-page-link" [disabled]="currentPage <= 1"
+                        (click)="goPage(currentPage - 1)">
+                        <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20" />
+                        Previous
+                    </button>
+                    <div class="d-flex align-items-center gap-1">
+                        <ng-container *ngFor="let item of paginationItems">
+                            <div *ngIf="item.page === '...'"
+                                class="d-flex align-items-center justify-content-center app-table-page-ellipsis">
+                                <span class="fw-medium text-muted small">...</span>
+                            </div>
+
+                            <button *ngIf="item.page !== '...'" type="button"
+                                class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle app-table-page-btn"
+                                [class.pagination-active]="item.isActive" (click)="goPage(+item.page)">
+                                <span class="fw-medium small">{{ item.page }}</span>
+                            </button>
+                        </ng-container>
+                    </div>
+                    <button class="btn btn-link app-table-page-link" [disabled]="currentPage >= totalPages"
+                        (click)="goPage(currentPage + 1)">
+                        Next
+                        <img src="assets/icons/pageiright.svg" alt="pageright" width="20" height="20" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

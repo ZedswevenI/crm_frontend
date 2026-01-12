@@ -1,10 +1,9 @@
 <nav class="navbar navbar-expand-lg shadow-sm app-navbar">
   <div class="container-fluid px-4">
-
     <!-- Logo -->
     <a class="navbar-brand d-flex align-items-center" routerLink="/app/dashboard">
       <img src="../../../../../assets/logo.png" alt="Z7i Logo" width="160" height="40" loading="lazy" decoding="async"
-        style="height:40px; width:160px;">
+        style="height: 40px; width: 160px" />
     </a>
 
     <!-- Mobile toggle -->
@@ -31,7 +30,8 @@
             <!-- <li><a class="dropdown-item" routerLink="/app/admissions" routerLinkActive="active">Admissions</a></li> -->
             <li class="dropdown-submenu">
               <a class="dropdown-item d-flex align-items-center justify-content-between" href="#" role="button">
-                <span> Admission
+                <span>
+                  Admission
                   <i class="fa-solid fa-caret-right ms-5"></i>
                 </span>
               </a>
@@ -64,10 +64,44 @@
                 </li>
               </ul>
             </li>
-            <li><a class="dropdown-item" routerLink="/app/fees/collection" routerLinkActive="active">Fee Collection</a>
+            <li>
+              <a class="dropdown-item" routerLink="/app/fees/collection" routerLinkActive="active">Fee Collection</a>
             </li>
-            <li><a class="dropdown-item" routerLink="/app/fees/reports" routerLinkActive="active">Fee Reports</a></li>
-            <li><a class="dropdown-item" routerLink="/app/fees/plans" routerLinkActive="active">Fee Plans</a></li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/fees/reports" routerLinkActive="active">Fee Reports</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/fees/plans" routerLinkActive="active">Fee Plans</a>
+            </li>
+          </ul>
+        </li>
+
+        <!-- Accounts -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
+            Accounts
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" routerLink="/app/accounts/payments" routerLinkActive="active">All Payments
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/accounts/neft" routerLinkActive="active">NEFT Register</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/accounts/cheques" routerLinkActive="active">Cheque Register</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/accounts/deposit" routerLinkActive="active">Cheque Deposit</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/accounts/extention" routerLinkActive="active">Cheque
+                Extensions</a>
+            </li>
+            <li><a class="dropdown-item" routerLink="/app/accounts/replacements" routerLinkActive="active">Cheque
+                Replacements</a></li>
+
           </ul>
         </li>
 
@@ -77,11 +111,17 @@
             Students & Batches
           </a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" routerLink="/app/students" routerLinkActive="active">Students</a></li>
-            <li><a class="dropdown-item" routerLink="/app/batches" routerLinkActive="active">Batches</a></li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/students" routerLinkActive="active">Students</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/batches" routerLinkActive="active">Batches</a>
+            </li>
             <!-- <li><a class="dropdown-item" routerLink="/app/enrollment" routerLinkActive="active">Enrollment</a></li> -->
-            <li><a class="dropdown-item" routerLink="/app/faculty-assignment" routerLinkActive="active">Faculty
-                Assignment</a></li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/faculty-assignment" routerLinkActive="active">Faculty
+                Assignment</a>
+            </li>
           </ul>
         </li>
 
@@ -91,7 +131,9 @@
             Timetable
           </a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" routerLink="/app/timetable" routerLinkActive="active">Timetable</a></li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/timetable" routerLinkActive="active">Timetable</a>
+            </li>
             <!-- <li><a class="dropdown-item" routerLink="/app/classes" routerLinkActive="active">Class Management</a></li> -->
             <!-- <li><a class="dropdown-item" routerLink="/app/classes/rearranged-report" routerLinkActive="active">Class
                 Rearranged Report</a></li> -->
@@ -99,7 +141,7 @@
         </li>
 
         <!-- Attendance -->
-        <li class="nav-item dropdown">
+        <!-- <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
             Attendance
           </a>
@@ -113,10 +155,10 @@
             <li><a class="dropdown-item" routerLink="/app/attendance/reports" routerLinkActive="active">Attendance
                 Reports</a></li>
           </ul>
-        </li>
+        </li> -->
 
         <!-- Exams & Performance -->
-        <li class="nav-item dropdown">
+        <!-- <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
             Exams & Performance
           </a>
@@ -128,10 +170,10 @@
             <li><a class="dropdown-item" routerLink="/app/exams/reports" routerLinkActive="active">Performance
                 Reports</a></li>
           </ul>
-        </li>
+        </li> -->
 
         <!-- Feedback & Quality -->
-        <li class="nav-item dropdown">
+        <!-- <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
             Feedback & Quality
           </a>
@@ -143,7 +185,7 @@
             <li><a class="dropdown-item" routerLink="/app/feedback/reports" routerLinkActive="active">Feedback
                 Reports</a></li>
           </ul>
-        </li>
+        </li> -->
 
         <!-- Utilities -->
         <!-- <li class="nav-item dropdown">
@@ -164,22 +206,34 @@
             Org Config's
           </a>
           <ul class="dropdown-menu">
-            <li><a class="dropdown-item" routerLink="/app/admin/masters/institute"
-                routerLinkActive="active">Institute</a></li>
-            <li><a class="dropdown-item" routerLink="/app/admin/masters/centers" routerLinkActive="active">Centers</a>
+            <li>
+              <a class="dropdown-item" routerLink="/app/admin/masters/institute" routerLinkActive="active">Institute</a>
             </li>
-            <li><a class="dropdown-item" routerLink="/app/admin/masters/programs" routerLinkActive="active">Programs</a>
+            <li>
+              <a class="dropdown-item" routerLink="/app/admin/masters/centers" routerLinkActive="active">Centers</a>
             </li>
-            <li><a class="dropdown-item" routerLink="/app/admin/masters/staff" routerLinkActive="active">Staff</a></li>
-            <li><a class="dropdown-item" routerLink="/app/admin/masters/departments"
+            <li>
+              <a class="dropdown-item" routerLink="/app/admin/masters/programs" routerLinkActive="active">Programs</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/admin/masters/staff" routerLinkActive="active">Staff</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/admin/masters/departments"
                 routerLinkActive="active">Departments</a>
             </li>
-            <li><a class="dropdown-item" routerLink="/app/admin/masters/subject" routerLinkActive="active">Subject</a>
+            <li>
+              <a class="dropdown-item" routerLink="/app/admin/masters/subject" routerLinkActive="active">Subject</a>
             </li>
-            <li><a class="dropdown-item" routerLink="/app/admin/users" routerLinkActive="active">Users & Roles</a></li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/admin/masters/bankaccounts" routerLinkActive="active">Bank
+                Accounts</a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/app/admin/users" routerLinkActive="active">Users & Roles</a>
+            </li>
           </ul>
         </li>
-
       </ul>
 
       <!-- RIGHT: User dropdown (notifications + logout) -->
@@ -198,7 +252,7 @@
               Logged in as <strong>Admin</strong>
             </li>
             <li>
-              <hr class="dropdown-divider">
+              <hr class="dropdown-divider" />
             </li>
             <li>
               <button type="button" class="dropdown-item">
@@ -213,7 +267,6 @@
           </ul>
         </div>
       </div>
-
     </div>
   </div>
 </nav>

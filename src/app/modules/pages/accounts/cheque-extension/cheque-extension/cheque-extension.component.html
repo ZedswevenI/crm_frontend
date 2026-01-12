@@ -1,0 +1,174 @@
+<div class="accounts-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Cheque Extension Requests</h5>
+                <p class="mb-0 text-muted small">Review and approve/reject planned deposit date extension requests.</p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                    (click)="resetFilters()">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Reset</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pb-4">
+            <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Search</label>
+                        <input class="form-control form-control-sm" formControlName="search"
+                            placeholder="Request ID / Payment ID / Remarks" />
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Status</label>
+                        <select class="form-select form-select-sm" formControlName="status">
+                            <option value="ALL">ALL</option>
+                            <option *ngFor="let s of statusList" [value]="s">{{ s }}</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4"></div>
+
+                    <div class="col-md-2 d-flex gap-2 mb-2 justify-content-end">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                            (click)="resetFilters()">Clear</button>
+                        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-body pt-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mt-3 mb-2">
+                <div class="small text-muted">
+                    Total Requests: <span class="fw-semibold">{{ totalRecords }}</span>
+                </div>
+            </div>
+
+            <div class="app-table">
+                <div class="rounded-3 overflow-hidden position-relative app-table-wrapper">
+                    <div *ngIf="loading" class="table-overlay">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle app-table-grid">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="px-4 py-3 fw-semibold" style="cursor:pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>S.No</span>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('requestId')"
+                                        style="cursor:pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Request ID</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('requestId')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('paymentId')"
+                                        style="cursor:pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Payment ID</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('paymentId')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('oldPlannedDepositDate')"
+                                        style="cursor:pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Old Planned</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('oldPlannedDepositDate')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('newPlannedDepositDate')"
+                                        style="cursor:pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>New Planned</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('newPlannedDepositDate')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('status')" style="cursor:pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Status</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('status')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold text-center action-col">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                <ng-container *ngFor="let row of rows; let i = index">
+                                    <tr class="app-table-row">
+                                        <td class="px-4 py-3">
+                                            <span class="mono">{{ i+1}}</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="mono">{{ row.requestId }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="mono">{{ row.paymentId }}</span>
+                                        </td>
+                                        <td class="px-4 py-3">{{ row.oldPlannedDepositDate || '-' }}</td>
+                                        <td class="px-4 py-3">{{ row.newPlannedDepositDate || '-' }}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="badge" [ngClass]="statusBadge(row.status)">{{ row.status
+                                                }}</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                (click)="view(row)">
+                                                <i class="fa-regular fa-eye me-1"></i> View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </ng-container>
+
+                                <tr *ngIf="!rows.length">
+                                    <td colspan="6" class="text-center py-4 text-muted">No data found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div *ngIf="totalRecords > pageSize"
+                    class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
+                    <button class="btn btn-link app-table-page-link" [disabled]="currentPage <= 1"
+                        (click)="goPage(currentPage - 1)">
+                        <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20" />
+                        Previous
+                    </button>
+
+                    <div class="d-flex align-items-center gap-1">
+                        <ng-container *ngFor="let item of paginationItems">
+                            <div *ngIf="item.page === '...'"
+                                class="d-flex align-items-center justify-content-center app-table-page-ellipsis">
+                                <span class="fw-medium text-muted small">...</span>
+                            </div>
+                            <button *ngIf="item.page !== '...'" type="button"
+                                class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle app-table-page-btn"
+                                [class.pagination-active]="item.isActive" (click)="goPage(+item.page)">
+                                <span class="fw-medium small">{{ item.page }}</span>
+                            </button>
+                        </ng-container>
+                    </div>
+
+                    <button class="btn btn-link app-table-page-link" [disabled]="currentPage >= totalPages"
+                        (click)="goPage(currentPage + 1)">
+                        Next
+                        <img src="assets/icons/pageiright.svg" alt="pageright" width="20" height="20" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

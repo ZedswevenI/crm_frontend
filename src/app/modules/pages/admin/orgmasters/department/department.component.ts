@@ -13,38 +13,26 @@ import * as XLSX from 'xlsx';
 })
 export class DepartmentComponent implements OnInit {
   deptForm!: FormGroup;
-
   totalRecords = 0;
-
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   editingRecId: string | null = null;
-
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
-
   entiId: any;
-
-  // Import modal state
   showImport = false;
   importFileName = '';
   importPreviewRows: any[] = [];
   importHasInvalidRows = false;
   importInvalidCount = 0;
-
-  // list table state
   departmentData: any[] = [];
-
-  // ✅ routes based on your backend
   private moduleName = 'ims';
-
   columns = [
     { key: 'departmentName', label: 'Department Name', sortable: true },
     { key: 'departmentCode', label: 'Code', sortable: false },
     { key: 'isActive', label: 'Active', sortable: false },
   ];
-
   actions = [
     {
       type: 'icon',
