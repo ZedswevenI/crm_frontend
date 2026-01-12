@@ -23,28 +23,8 @@ const routes: Routes = [
     loadChildren: () => import('./fees/fees.module').then(m => m.FeesModule)
   },
   {
-    path: 'attendance',
-    loadChildren: () => import('./attendence/attendence.module').then(m => m.AttendenceModule)
-  },
-  {
     path: 'batches',
     loadChildren: () => import('./batch/batch.module').then(m => m.BatchModule)
-  },
-  {
-    path: 'classes',
-    loadChildren: () => import('./classes/classes.module').then(m => m.ClassesModule)
-  },
-  {
-    path: 'enrollment',
-    loadChildren: () => import('./enrollment/enrollment.module').then(m => m.EnrollmentModule)
-  },
-  {
-    path: 'exams',
-    loadChildren: () => import('./exam/exam.module').then(m => m.ExamModule)
-  },
-  {
-    path: 'dashboard',
-    loadChildren: () => import('./faculty/faculty.module').then(m => m.FacultyModule)
   },
   {
     path: 'students',
@@ -53,10 +33,6 @@ const routes: Routes = [
   {
     path: 'timetable',
     loadChildren: () => import('./timetable/timetable.module').then(m => m.TimetableModule)
-  },
-  {
-    path: 'faculty-assignment',
-    loadChildren: () => import('./faculty/faculty.module').then(m => m.FacultyModule)
   },
   {
     path: 'feedback',
