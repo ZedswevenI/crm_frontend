@@ -4,6 +4,8 @@ import { InstituteComponent } from './institute/institute.component';
 import { CenterComponent } from './center/center.component';
 import { StaffComponent } from './staff/staff.component';
 import { ProgramComponent } from './program/program.component';
+import { DepartmentComponent } from './department/department.component';
+import { SubjectComponent } from './subject/subject.component';
 
 const routes: Routes = [
   {
@@ -21,6 +23,14 @@ const routes: Routes = [
   {
     path: 'programs',
     component: ProgramComponent
+  },
+  {
+    path: 'departments',
+    component: DepartmentComponent
+  },
+  {
+    path: 'subject',
+    component: SubjectComponent
   }
 ];
 

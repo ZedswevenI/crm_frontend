@@ -1,110 +1,446 @@
 <div class="staff-page">
-
-    <!-- List Card -->
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-1 fw-semibold">Staff Master</h5>
                 <p class="mb-0 text-muted small">
-                    Manage faculty, centre heads, counsellors and admin staff.
+                    Manage staff, roles, faculty mapping, department and weekoff.
                 </p>
             </div>
-            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
-                <i class="fa-solid fa-plus"></i>
-                <span>Add Staff</span>
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Staff</span>
+                </button>
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Staff</span>
+                </button>
+            </div>
         </div>
-
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="staffData" [actions]="actions">
+            <list-table [autoFitChars]="true" (requestData)="loadStaff($event)" [columns]="columns"
+                [totalRecords]="totalRecords" [data]="staffData" [actions]="actions" [showpageoptions]="true">
             </list-table>
         </div>
     </div>
-
-    <!-- Create / Edit Modal -->
     <div class="app-modal-backdrop" *ngIf="showForm">
-        <div class="app-modal">
-
-            <!-- Modal header -->
+        <div class="app-modal" style="max-width: 980px">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">
-                        {{ formMode === 'create' ? 'Create Staff' : 'Edit Staff' }}
+                        {{ formMode === "create" ? "Create Staff" : "Edit Staff" }}
                     </h6>
                     <span class="text-muted small">
-                        {{ formMode === 'create'
-                        ? 'Add a new staff member to a centre.'
-                        : 'Update staff details.' }}
+                        {{
+                        formMode === "create"
+                        ? "Add a new staff record"
+                        : "Update staff details"
+                        }}
                     </span>
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
             </div>
-
-            <!-- Modal body -->
             <div class="app-modal-body">
                 <form [formGroup]="staffForm" (ngSubmit)="save()">
                     <div class="row g-3">
-                        <div class="col-md-4">
-                            <formfield label="Staff Name" [required]="true" [control]="staffForm.get('name')"
-                                formControlName="name" placeholder="Enter staff name">
+                        <div class="col-md-5">
+                            <formfield label="Staff Name" [required]="true" [control]="staffForm.get('staffName')"
+                                formControlName="staffName" placeholder="Staff Name">
                             </formfield>
                         </div>
-
                         <div class="col-md-3">
-                            <formfield label="Code" [required]="true" [control]="staffForm.get('code')"
-                                formControlName="code" placeholder="STF-XXX">
+                            <formfield label="Staff Code" [required]="true" [control]="staffForm.get('staffCode')"
+                                formControlName="staffCode" placeholder="STF001">
                             </formfield>
+                            <div class="form-text">Will be saved in uppercase.</div>
                         </div>
-
-                        <div class="col-md-3">
-                            <selectbox label="Role" [required]="true" [options]="roleOptions" [optionLabel]="'label'"
-                                [optionValue]="'value'" [control]="staffForm.get('role')" formControlName="role">
-                            </selectbox>
-                        </div>
-
                         <div class="col-md-4">
-                            <selectbox label="Center" [required]="true" [options]="centerOptions"
-                                [optionLabel]="'label'" [optionValue]="'value'" [control]="staffForm.get('centerId')"
-                                formControlName="centerId">
+                            <selectbox label="Role" [required]="true" [options]="roleOptions" optionLabel="label"
+                                optionValue="value" [control]="staffForm.get('role')" formControlName="role">
                             </selectbox>
                         </div>
-
                         <div class="col-md-3">
                             <formfield label="Phone" [required]="true" [control]="staffForm.get('phone')"
-                                formControlName="phone" placeholder="10 digit phone">
+                                formControlName="phone" placeholder="9876543210">
                             </formfield>
                         </div>
-
+                        <div class="col-md-5">
+                            <formfield label="Email" [required]="false" [control]="staffForm.get('email')"
+                                formControlName="email" placeholder="staff@email.com">
+                            </formfield>
+                        </div>
                         <div class="col-md-4">
-                            <formfield label="Email" [required]="true" [control]="staffForm.get('email')"
-                                formControlName="email" placeholder="staff@z7i.com">
-                            </formfield>
+                            <selectbox label="Center" [required]="true" [options]="centerOptions" optionLabel="label"
+                                optionValue="value" [control]="staffForm.get('centerId')" formControlName="centerId">
+                            </selectbox>
                         </div>
-
-                        <div class="col-md-2 d-flex align-items-center">
-                            <checkbox label="Active" [control]="staffForm.get('isActive')" formControlName="isActive">
-                            </checkbox>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Joining Date <span
+                                    class="text-danger">*</span></label>
+                            <input type="date" class="form-control" formControlName="joiningDate" />
+                            <div class="text-danger small" *ngIf="
+                  staffForm.get('joiningDate')?.touched &&
+                  staffForm.get('joiningDate')?.invalid
+                ">
+                                Joining Date is required
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Relieving Date</label>
+                            <input type="date" class="form-control" formControlName="relievingDate" />
+                        </div>
+                        <div class="col-md-3">
+                            <selectbox label="Payroll" [required]="true" [options]="payrollOptions" optionLabel="label"
+                                optionValue="value" [control]="staffForm.get('payroll')" formControlName="payroll">
+                            </selectbox>
+                        </div>
+                        <div class="col-md-6">
+                            <selectbox label="Department" [required]="true" [options]="departmentOptions"
+                                optionLabel="label" optionValue="value" [control]="staffForm.get('department')"
+                                formControlName="department">
+                            </selectbox>
+                        </div>
+                        <div class="col-md-3">
+                            <selectbox label="Status" [required]="true" [options]="statusOptions" optionLabel="label"
+                                optionValue="value" [control]="staffForm.get('status')" formControlName="status">
+                            </selectbox>
+                        </div>
+                        <ng-container *ngIf="staffForm.get('role')?.value === 'Faculty'">
+                            <div class="col-md-3">
+                                <selectbox label="Faculty Type" [required]="true" [options]="facultyTypeOptions"
+                                    optionLabel="label" optionValue="value" [control]="staffForm.get('facultyType')"
+                                    formControlName="facultyType">
+                                </selectbox>
+                            </div>
+                            <div class="col-md-9" *ngIf="staffForm.get('facultyType')?.value === 'TEACHING'">
+                                <selectbox label="Subject" [required]="true" [options]="subjectOptions"
+                                    optionLabel="label" optionValue="value" [control]="staffForm.get('subject')"
+                                    formControlName="subject">
+                                </selectbox>
+                            </div>
+                        </ng-container>
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold">Weekoff</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <div class="form-check form-check-inline" *ngFor="let d of weekoffDays">
+                                    <input class="form-check-input" type="checkbox" [id]="'wk_' + d"
+                                        [checked]="isWeekoffSelected(d)" (change)="toggleWeekoff(d, $event)" />
+                                    <label class="form-check-label" [for]="'wk_' + d">{{
+                                        d
+                                        }}</label>
+                                </div>
+                            </div>
+                            <div class="form-text">You can select multiple weekoff days.</div>
                         </div>
                     </div>
-
-                    <!-- Modal footer actions -->
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
                             Cancel
                         </button>
                         <button type="submit" class="btn btn-primary" [disabled]="staffForm.invalid">
-                            {{ formMode === 'create' ? 'Save Staff' : 'Update Staff' }}
+                            {{ formMode === "create" ? "Save Staff" : "Update Staff" }}
                         </button>
                     </div>
                 </form>
             </div>
-
         </div>
     </div>
 
-    <!-- Delete Confirmation -->
+    <!-- Import Modal -->
+    <div class="app-modal-backdrop" *ngIf="showImport">
+        <div class="app-modal" style="max-width: 1100px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Import Staff (Excel)</h6>
+                    <span class="text-muted small">Upload Excel and import staff in bulk.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="alert alert-info py-2 small mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <div class="fw-semibold mb-1">Required columns in Excel:</div>
+                            <div class="text-muted">
+                                <span class="me-2">Staff Name</span> |
+                                <span class="mx-2">Staff Code</span> |
+                                <span class="mx-2">Role</span> |
+                                <span class="mx-2">Phone</span> |
+                                <span class="mx-2">Email</span> |
+                                <span class="mx-2">CenterId</span> |
+                                <span class="mx-2">Joining Date</span> |
+                                <span class="mx-2">Payroll</span> |
+                                <span class="mx-2">DepartmentId</span> |
+                                <span class="mx-2">Faculty Type</span> |
+                                <span class="mx-2">SubjectId</span> |
+                                <span class="mx-2">Weekoff</span> |
+                                <span class="mx-2">Status</span>
+                            </div>
+                            <div class="form-text mt-1">
+                                Note: DepartmentId and SubjectId must be Mongo ObjectId values.
+                                Weekoff can be comma separated like "Sunday, Monday".
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()">
+                            <i class="fa-solid fa-download me-1"></i>
+                            Download Sample Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Import Mode</label>
+                        <select class="form-select" [(ngModel)]="importMode" [ngModelOptions]="{ standalone: true }">
+                            <option value="insert">Insert (skip duplicates)</option>
+                            <option value="upsert">
+                                Upsert (insert/update by Staff Code)
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Excel File</label>
+                        <input type="file" class="form-control" accept=".xlsx,.xls"
+                            (change)="onExcelSelected($event)" />
+                        <div class="form-text" *ngIf="importFileName">
+                            Selected: {{ importFileName }}
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
+                            [disabled]="!importPreviewRows.length">
+                            Reset
+                        </button>
+                        <button type="button" class="btn btn-primary" (click)="confirmImport()"
+                            [disabled]="!importPreviewRows.length || importHasInvalidRows">
+                            Import Now
+                        </button>
+                    </div>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">
+                        Rows:
+                        <span class="fw-semibold">{{ importPreviewRows.length }}</span>
+                        <span class="ms-2" *ngIf="importHasInvalidRows">
+                            | Invalid:
+                            <span class="fw-semibold text-danger">{{
+                                importInvalidCount
+                                }}</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Preview Table -->
+                <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 60px">#</th>
+                                <th>Staff Name</th>
+                                <th>Staff Code</th>
+                                <th>Role</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>CenterId</th>
+                                <th>Joining</th>
+                                <th>Payroll</th>
+                                <th>DepartmentId</th>
+                                <th>Faculty Type</th>
+                                <th>SubjectId</th>
+                                <th>Weekoff</th>
+                                <th>Status</th>
+                                <th style="width: 220px">Row Validation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let r of importPreviewRows; let i = index" [class.table-danger]="!r._valid">
+                                <td>{{ r._rowNo }}</td>
+                                <td>{{ r.staffName }}</td>
+                                <td>{{ r.staffCode }}</td>
+                                <td>{{ r.role }}</td>
+                                <td>{{ r.phone }}</td>
+                                <td>{{ r.email || "-" }}</td>
+                                <td>{{ r.centerId }}</td>
+                                <td>{{ r.joiningDate }}</td>
+                                <td>{{ r.payroll }}</td>
+                                <td>{{ r.department }}</td>
+                                <td>{{ r.facultyType || "-" }}</td>
+                                <td>{{ r.subject || "-" }}</td>
+                                <td>{{ r.weekoffText || "-" }}</td>
+                                <td>{{ r.status }}</td>
+                                <td>
+                                    <span *ngIf="r._valid" class="badge bg-success">OK</span>
+                                    <span *ngIf="!r._valid" class="badge bg-danger">{{
+                                        r._errors?.join(", ")
+                                        }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
+                    Fix invalid rows in Excel and upload again. Import is disabled until
+                    all rows are valid.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div class="app-modal-backdrop" *ngIf="showView">
+        <div class="app-modal" style="max-width: 980px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Staff Details</h6>
+                    <span class="text-muted small">View staff information and update relieving date / retire.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeView()" aria-label="Close"></button>
+            </div>
+            <div class="app-modal-body" *ngIf="viewRec; else viewLoading">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Staff Name</div>
+                            <div class="fw-semibold">{{ viewRec.staffName || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Staff Code</div>
+                            <div class="fw-semibold">{{ viewRec.staffCode || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Status</div>
+                            <div class="fw-semibold">
+                                <span class="badge" [class.bg-success]="viewRec.status === 'Active'"
+                                    [class.bg-secondary]="viewRec.status !== 'Active'">
+                                    {{ viewRec.status || "-" }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Role</div>
+                            <div class="fw-semibold">{{ viewRec.role || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Phone</div>
+                            <div class="fw-semibold">{{ viewRec.phone || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Email</div>
+                            <div class="fw-semibold">{{ viewRec.email || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Center</div>
+                            <div class="fw-semibold">
+                                {{ viewRec.centerId.centerCode }} - {{ viewRec.centerId.centerName }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Department</div>
+                            <div class="fw-semibold">
+                                {{ getDepartmentName(viewRec.department.departmentName) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4" *ngIf="viewRec.role === 'Faculty'">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Faculty Type</div>
+                            <div class="fw-semibold">{{ viewRec.facultyType || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-8" *ngIf="
+              viewRec.role === 'Faculty' && viewRec.facultyType === 'TEACHING'
+            ">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Subject</div>
+                            <div class="fw-semibold">
+                                {{ getSubjectName(viewRec.subject.subjectName ) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Joining Date</div>
+                            <div class="fw-semibold">{{ viewRec.joiningDate || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Relieving Date</div>
+                            <div class="fw-semibold">{{ viewRec.relievingDate || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Payroll</div>
+                            <div class="fw-semibold">{{ viewRec.payroll || "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="border rounded p-3">
+                            <div class="small text-muted">Weekoff</div>
+                            <div class="fw-semibold">
+                                {{
+                                viewRec.weekoff && viewRec.weekoff.length
+                                ? viewRec.weekoff.join(", ")
+                                : "-"
+                                }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-top pt-3 mt-3">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Update Relieving Date</label>
+                            <input type="date" class="form-control" [(ngModel)]="viewRelievingDate"
+                                [ngModelOptions]="{ standalone: true }" />
+                        </div>
+                        <div class="col-md-8 d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-primary" (click)="updateRelievingDate()">
+                                Update Relieving Date
+                            </button>
+                            <button type="button" class="btn btn-danger" (click)="openRetire()"
+                                [disabled]="viewRec.status === 'Inactive'">
+                                Retire Employee
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" (click)="closeView()">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-text mt-2">
+                        Retire will set Status = Inactive and save relieving date.
+                    </div>
+                </div>
+            </div>
+            <ng-template #viewLoading>
+                <div class="p-4 text-center text-muted">Loading staff details...</div>
+            </ng-template>
+        </div>
+    </div>
+
     <delete [title]="'Delete Staff'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
         (closed)="onDeleteModalClosed($event)">
     </delete>
-
 </div>

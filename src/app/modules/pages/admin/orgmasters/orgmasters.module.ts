@@ -8,9 +8,11 @@ import { InstituteComponent } from './institute/institute.component';
 import { CenterComponent } from './center/center.component';
 import { StaffComponent } from './staff/staff.component';
 import { ProgramComponent } from './program/program.component';
+import { DepartmentComponent } from './department/department.component';
+import { SubjectComponent } from './subject/subject.component';
 
 @NgModule({
-  declarations: [InstituteComponent, CenterComponent, StaffComponent, ProgramComponent],
+  declarations: [InstituteComponent, CenterComponent, StaffComponent, ProgramComponent, DepartmentComponent, SubjectComponent],
   imports: [CommonModule, OrgmastersRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })
 export class OrgmastersModule {}
