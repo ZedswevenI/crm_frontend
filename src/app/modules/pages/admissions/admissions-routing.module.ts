@@ -9,10 +9,12 @@ import { AdmissioncommunicationComponent } from './admissioncommunication/admiss
 import { AdmissionfeecalComponent } from './admissionfeecal/admissionfeecal.component';
 import { AdmissionpaymentsEditorComponent } from './admissionpayments-editor/admissionpayments-editor.component';
 import { AdmissionEditComponent } from './admission-edit/admission-edit.component';
+import { AdmissionbugComponent } from './admissionbug/admissionbug.component';
 
 const routes: Routes = [
   { path: '', component: ListComponent },
-  { path: 'new', component: AdmissionsComponent },
+  { path: 'new1', component: AdmissionsComponent },
+  { path: 'new', component: AdmissionbugComponent },
   { path: 'view/:id', component: AdmissionviewComponent },
   { path: 'reports', component: AdmissionreportsComponent },
   { path: 'communication', component: AdmissioncommunicationComponent },
