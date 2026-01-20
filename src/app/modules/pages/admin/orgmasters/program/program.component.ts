@@ -11,7 +11,7 @@ type ImportMode = 'insert' | 'upsert';
   selector: 'app-program',
   standalone: false,
   templateUrl: './program.component.html',
-  styleUrl: './program.component.scss'
+  styleUrl: './program.component.scss',
 })
 export class ProgramComponent implements OnInit {
   programForm!: FormGroup;
@@ -21,91 +21,89 @@ export class ProgramComponent implements OnInit {
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   editingRecId: string | null = null;
-
+  showView = false;
+  viewData: any | null = null;
+  subjectOptions: any[] = [];
+  private subjectByCode = new Map<string, any>();
+  private subjectByName = new Map<string, any>();
+  private existingSubjectIds = new Set<string>();
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
-
   entiId: any;
-
-  // Import modal state
   showImport = false;
   importMode: ImportMode = 'upsert';
   importFileName = '';
   importPreviewRows: any[] = [];
   importHasInvalidRows = false;
   importInvalidCount = 0;
-
-  // list table state
   programData: any[] = [];
-
-  // module name for API (keep consistent with your backend route)
-  private moduleName = 'ims/program';
-
-  // ✅ table columns aligned with new model
+  private moduleName = 'ims';
   columns = [
     { key: 'name', label: 'Program Name', sortable: true },
     { key: 'code', label: 'Code', sortable: false },
     { key: 'stream', label: 'Stream', sortable: true },
-    { key: 'eligibleToClass', label: 'Eligible To Class', sortable: true },
+    { key: 'eligibleToClass', label: 'Eligible Class', sortable: true },
     { key: 'duration', label: 'Duration', sortable: true },
+    { key: 'startingClass', label: 'Start Class', sortable: true },
     { key: 'version', label: 'Version', sortable: true },
-    { key: 'isActive', label: 'Active', sortable: false }
+    { key: 'subjects', label: 'Subjects', sortable: false },
+    { key: 'isActive', label: 'Active', sortable: false },
   ];
-
   streamOptions = [
     { label: 'JEE', value: 'JEE' },
     { label: 'NEET', value: 'NEET' },
-    { label: 'Foundation', value: 'Foundation' }
+    { label: 'Foundation', value: 'Foundation' },
   ];
-
-  durationOptions = [
-    { label: '2 Years', value: '2 Years' },
-    { label: '1 Year', value: '1 Year' },
-    { label: 'Crash Course', value: 'Crash Course' }
-  ];
-
-  studentBandOptions = [
-    { label: 'Class 5', value: 'Class 5th' },
-    { label: 'Class 6', value: 'Class 6th' },
-    { label: 'Class 7', value: 'Class 7th' },
-    { label: 'Class 8', value: 'Class 8th' },
-    { label: 'Class 9', value: 'Class 9th' },
-    { label: 'Class 10', value: 'Class 10th' },
-    { label: 'Class 11', value: 'Class 11th' }
-  ];
-
+  durationOptions = [1, 2, 3, 4, 5, 6].map((n) => ({
+    label: String(n),
+    value: n,
+  }));
+  eligibleClassOptions = Array.from({ length: 9 }, (_, i) => 5 + i).map(
+    (n) => ({ label: String(n), value: n }),
+  );
+  startingClassOptions = Array.from({ length: 8 }, (_, i) => 5 + i).map(
+    (n) => ({ label: String(n), value: n }),
+  );
   actions = [
+    {
+      type: 'icon',
+      icon: 'fa-regular fa-eye',
+      tooltip: 'View',
+      callback: (row: any) => this.openView(row),
+    },
     {
       type: 'icon',
       icon: 'fa-regular fa-pen-to-square',
       tooltip: 'Edit',
-      callback: (row: any) => this.edit(row)
+      callback: (row: any) => this.edit(row),
     },
     {
       type: 'icon',
       icon: 'fa-regular fa-trash-can',
       tooltip: 'Delete',
-      callback: (row: any) => this.openDelete(row)
-    }
+      callback: (row: any) => this.openDelete(row),
+    },
   ];
 
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
-    private commonApi: CommonapiService
+    private commonApi: CommonapiService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
       { label: 'Control Panel' },
       { label: 'Masters' },
-      { label: 'Programs' }
+      { label: 'Programs' },
     ]);
   }
 
   ngOnInit(): void {
     this.initForm();
+    this.loadMasters();
+    this.bindDerivedFields();
     this.loadPrograms({ page: 1, pageSize: 10 });
   }
 
@@ -115,11 +113,52 @@ export class ProgramComponent implements OnInit {
       name: ['', Validators.required],
       code: ['', [Validators.required, this.csvCodesValidator]],
       stream: ['', Validators.required],
-      duration: [null, Validators.required],
-      eligibleToClass: ['', Validators.required],
+
+      // ✅ numeric fields
+      eligibleToClass: [
+        null,
+        [Validators.required, Validators.min(5), Validators.max(13)],
+      ],
+      startingClass: [
+        null,
+        [Validators.required, Validators.min(5), Validators.max(13)],
+      ],
+      duration: [
+        null,
+        [Validators.required, Validators.min(1), Validators.max(6)],
+      ],
+      endingClass: [{ value: null, disabled: true }], // computed display
+
       version: ['', Validators.required],
-      isActive: [true]
+
+      // ✅ subjects array (checkboxes)
+      subjects: [[]],
+
+      isActive: [true],
     });
+  }
+
+  private bindDerivedFields() {
+    const startCtrl = this.programForm.get('startingClass');
+    const durCtrl = this.programForm.get('duration');
+    const endCtrl = this.programForm.get('endingClass');
+
+    const compute = () => {
+      const start = this.toNum(startCtrl?.value);
+      const dur = this.toNum(durCtrl?.value);
+      if (!start || !dur) {
+        endCtrl?.setValue(null, { emitEvent: false });
+        return;
+      }
+      const end = start + dur - 1;
+      endCtrl?.setValue(end, { emitEvent: false });
+    };
+
+    startCtrl?.valueChanges.subscribe(() => compute());
+    durCtrl?.valueChanges.subscribe(() => compute());
+
+    // initial compute
+    compute();
   }
 
   // CSV validator: must contain at least one non-empty token
@@ -130,6 +169,98 @@ export class ProgramComponent implements OnInit {
       .map((x: string) => (x || '').trim())
       .filter(Boolean);
     return parts.length ? null : { csvInvalid: true };
+  }
+
+  // ---------------- MASTERS ----------------
+  private loadMasters() {
+    this.commonApi
+      .fetchData(
+        { entiId: this.entiId },
+        this.moduleName,
+        `subject/list?list=full`,
+      )
+      .subscribe({
+        next: (res: any) => {
+          const rows = res?.data || [];
+          this.subjectOptions = rows.map((s: any) => ({
+            label: s.subjectName,
+            value: s._id,
+            code: (s.subjectCode || '').toString(),
+          }));
+
+          // build lookup maps for import validation (UPPER compare)
+          this.subjectByCode.clear();
+          this.subjectByName.clear();
+          this.subjectOptions.forEach((s: any) => {
+            const code = this.normKey(s.code);
+            const name = this.normKey(s.label);
+            if (code) this.subjectByCode.set(code, s);
+            if (name) this.subjectByName.set(name, s);
+          });
+        },
+        error: () => {
+          this.subjectOptions = [];
+          this.subjectByCode.clear();
+          this.subjectByName.clear();
+        },
+      });
+  }
+
+  // ---------------- CHECKBOX SUBJECTS ----------------
+  isSubjectChecked(subjectId: string): boolean {
+    const list = (this.programForm.get('subjects')?.value || []) as any[];
+    return list.some((x: any) => String(x) === String(subjectId));
+  }
+
+  toggleSubject(subjectId: string, checked: boolean) {
+    const ctrl = this.programForm.get('subjects');
+    const list = Array.isArray(ctrl?.value) ? [...ctrl!.value] : [];
+    const id = String(subjectId);
+
+    const exists = list.some((x: any) => String(x) === id);
+    if (checked && !exists) list.push(id);
+    if (!checked && exists) {
+      const next = list.filter((x: any) => String(x) !== id);
+      ctrl?.setValue(next);
+      ctrl?.markAsDirty();
+      return;
+    }
+    ctrl?.setValue(list);
+    ctrl?.markAsDirty();
+  }
+
+  // ✅ separate method: add only new subjects to current program
+  addSubjectsToCurrentProgram() {
+    if (!this.editingRecId) return;
+
+    const selected = (this.programForm.get('subjects')?.value ||
+      []) as string[];
+    const toAdd = selected.filter(
+      (x) => !this.existingSubjectIds.has(String(x)),
+    );
+
+    if (!toAdd.length) {
+      this.alert.error('No new subjects selected to add');
+      return;
+    }
+
+    const payload = {
+      entiId: this.entiId,
+      recId: this.editingRecId,
+      subjects: toAdd,
+    };
+
+    // ✅ endpoint name: make sure your route maps this to addProgramSubjects()
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'program/addsubjects')
+      .subscribe({
+        next: () => {
+          toAdd.forEach((x) => this.existingSubjectIds.add(String(x)));
+          this.alert.success('Subjects added to program');
+        },
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Failed to add subjects'),
+      });
   }
 
   // ---------------- LIST ----------------
@@ -143,63 +274,112 @@ export class ProgramComponent implements OnInit {
     const page = event?.page || 1;
     const limit = event?.pageSize || 10;
     const search = (event?.search || '').toString().trim();
+
     const sortMap: any = {
       name: 'programName',
       stream: 'target',
       eligibleToClass: 'eligibleToClass',
+      startingClass: 'startingClass',
+      endingClass: 'endingClass',
       duration: 'duration',
-      version: 'version'
+      version: 'version',
     };
     const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
-    const sort = sortKey ? (event?.sortDirection === 'asc' ? sortKey : `-${sortKey}`) : '';
+    const sort = sortKey
+      ? event?.sortDirection === 'asc'
+        ? sortKey
+        : `-${sortKey}`
+      : '';
+
     const qp = this.buildQueryParams({
       page,
       limit,
       ...(search ? { search } : {}),
-      ...(sort ? { sort } : {})
+      ...(sort ? { sort } : {}),
     });
-    this.commonApi.fetchData({ entiId: this.entiId }, this.moduleName, `list${qp}`).subscribe({
-      next: (res: any) => {
-        this.totalRecords = res?.count || 0;
 
-        this.programData = (res?.data || []).map((p: any) => ({
-          recId: p._id,
-          name: p.programName,
-          code: p.programCodes || '-',
-          stream: p.target || '-',
-          eligibleToClass: p.eligibleToClass || '-',
-          duration: p.duration || '-',
-          version: p.version || '-',
-          isActive: p.status === 'Active',
-          _raw: p
-        }));
-      },
-      error: () => this.alert.error('Failed to load programs')
-    });
+    this.commonApi
+      .fetchData({ entiId: this.entiId }, this.moduleName, `program/list${qp}`)
+      .subscribe({
+        next: (res: any) => {
+          this.totalRecords = res?.count || 0;
+          this.programData = (res?.data || []).map((p: any) => ({
+            recId: p._id,
+            name: p.programName,
+            code: p.programCodes || '-',
+            stream: p.target || '-',
+            eligibleToClass: p.eligibleToClass ?? '-',
+            startingClass: p.startingClass ?? '-',
+            endingClass: p.endingClass ?? '-',
+            duration: p.duration ?? '-',
+            version: p.version || '-',
+            subjects: Array.isArray(p.subjects) ? p.subjects.length : 0,
+            isActive: p.status === 'Active',
+            _raw: p,
+          }));
+        },
+        error: () => this.alert.error('Failed to load programs'),
+      });
   }
 
   private buildQueryParams(params: Record<string, any>) {
-    const keys = Object.keys(params || {}).filter((k) => params[k] !== undefined && params[k] !== null && params[k] !== '');
+    const keys = Object.keys(params || {}).filter(
+      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
+    );
     if (!keys.length) return '';
     const qs = keys
-      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`)
+      .map(
+        (k) =>
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
+      )
       .join('&');
     return `?${qs}`;
+  }
+
+  // ---------------- VIEW ----------------
+  openView(row: any) {
+    const recId = row?.recId || row?._raw?._id;
+    if (!recId) return;
+
+    this.commonApi
+      .fetchData(
+        { entiId: this.entiId, recId },
+        this.moduleName,
+        'program/view',
+      )
+      .subscribe({
+        next: (res: any) => {
+          this.viewData = res?.data || null;
+          this.showView = true;
+        },
+        error: () => this.alert.error('Failed to load program'),
+      });
+  }
+
+  closeView() {
+    this.showView = false;
+    this.viewData = null;
   }
 
   // ---------------- ADD ----------------
   add() {
     this.formMode = 'create';
     this.editingRecId = null;
+    this.existingSubjectIds.clear();
+
     this.programForm.reset({
       name: '',
       code: '',
       stream: '',
+      eligibleToClass: null,
+      startingClass: null,
       duration: null,
-      eligibleToClass: '',
+      endingClass: null,
       version: '',
-      isActive: true
+      subjects: [],
+      isActive: true,
     });
+
     this.showForm = true;
   }
 
@@ -210,14 +390,27 @@ export class ProgramComponent implements OnInit {
     this.formMode = 'edit';
     this.editingRecId = p._id;
 
+    const subs = Array.isArray(p.subjects)
+      ? p.subjects
+          .map((x: any) => (typeof x === 'string' ? x : x?._id))
+          .filter(Boolean)
+      : [];
+
+    this.existingSubjectIds = new Set(subs.map((x: any) => String(x)));
+
     this.programForm.patchValue({
       name: p.programName,
       code: p.programCodes,
       stream: p.target,
-      duration: p.duration,
-      eligibleToClass: p.eligibleToClass,
+
+      eligibleToClass: this.toNum(p.eligibleToClass),
+      startingClass: this.toNum(p.startingClass),
+      duration: this.toNum(p.duration),
+      endingClass: this.toNum(p.endingClass),
+
       version: p.version,
-      isActive: p.status === 'Active'
+      subjects: subs,
+      isActive: p.status === 'Active',
     });
 
     this.showForm = true;
@@ -230,21 +423,41 @@ export class ProgramComponent implements OnInit {
       this.alert.error('Please fill all required fields');
       return;
     }
-    const payload = this.buildPayload(this.programForm.value, this.editingRecId || '');
 
+    // extra derived validations (frontend)
+    const start = this.toNum(this.programForm.get('startingClass')?.value);
+    const dur = this.toNum(this.programForm.get('duration')?.value);
+    const end = start && dur ? start + dur - 1 : 0;
+    if (end > 13) {
+      this.alert.error(
+        'Ending class exceeds max 13. Adjust starting class or duration.',
+      );
+      return;
+    }
+
+    const payload = this.buildPayload(
+      this.programForm.getRawValue(),
+      this.editingRecId || '',
+    );
     const endpoint = this.formMode === 'create' ? 'create' : 'edit';
 
-    this.commonApi.fetchData(payload, this.moduleName, endpoint).subscribe({
-      next: (res: any) => {
-        this.alert.success(this.formMode === 'create' ? 'Program created successfully' : 'Program updated successfully');
-        this.showForm = false;
-        this.loadPrograms({ page: 1, pageSize: 10 });
-      },
-      error: (err: any) => {
-        const msg = err?.error?.message || 'Operation failed';
-        this.alert.error(msg);
-      }
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, `program/${endpoint}`)
+      .subscribe({
+        next: () => {
+          this.alert.success(
+            this.formMode === 'create'
+              ? 'Program created successfully'
+              : 'Program updated successfully',
+          );
+          this.showForm = false;
+          this.loadPrograms({ page: 1, pageSize: 10 });
+        },
+        error: (err: any) => {
+          const msg = err?.error?.message || 'Operation failed';
+          this.alert.error(msg);
+        },
+      });
   }
 
   cancel() {
@@ -264,29 +477,41 @@ export class ProgramComponent implements OnInit {
 
     const payload = { entiId: this.entiId, recId: this.deleteTarget.recId };
 
-    this.commonApi.fetchData(payload, this.moduleName, 'delete').subscribe({
-      next: () => {
-        this.alert.success('Program deleted successfully');
-        this.loadPrograms({ page: 1, pageSize: 10 });
-      },
-      error: (err: any) => this.alert.error(err?.error?.message || 'Delete failed')
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'program/delete')
+      .subscribe({
+        next: () => {
+          this.alert.success('Program deleted successfully');
+          this.loadPrograms({ page: 1, pageSize: 10 });
+        },
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Delete failed'),
+      });
 
     this.deleteTarget = null;
   }
 
   // ---------------- PAYLOAD BUILDER ----------------
   private buildPayload(form: any, recId?: string) {
+    const subjects = Array.isArray(form.subjects)
+      ? form.subjects.map((x: any) => String(x)).filter(Boolean)
+      : [];
+
     return {
       entiId: this.entiId,
       ...(recId ? { recId } : {}),
-      eligibleToClass: form.eligibleToClass,
+      eligibleToClass: this.toNum(form.eligibleToClass),
+      startingClass: this.toNum(form.startingClass),
+      duration: this.toNum(form.duration),
+
       programName: form.name,
-      programCodes: form.code,        // CSV string
-      target: form.stream,            // maps to backend target
-      duration: form.duration,
+      programCodes: form.code, // CSV string
+      target: form.stream, // backend target
       version: form.version,
-      status: form.isActive ? 'Active' : 'Inactive'
+
+      subjects, // ✅ array
+
+      status: form.isActive ? 'Active' : 'Inactive',
     };
   }
 
@@ -306,7 +531,7 @@ export class ProgramComponent implements OnInit {
     this.importPreviewRows = [];
     this.importHasInvalidRows = false;
     this.importInvalidCount = 0;
-    this.importMode = 'upsert';
+    this.importMode = 'upsert'; // ✅ fixed
   }
 
   onExcelSelected(ev: any) {
@@ -327,9 +552,13 @@ export class ProgramComponent implements OnInit {
         const data = e.target.result;
         const wb = XLSX.read(data, { type: 'binary' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawRows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' }) as any[];
+        const rawRows: any[] = XLSX.utils.sheet_to_json(ws, {
+          defval: '',
+        }) as any[];
 
-        const mapped = rawRows.map((r: any, idx: number) => this.mapExcelRow(r, idx + 2)); // +2 header line
+        const mapped = rawRows.map((r: any, idx: number) =>
+          this.mapExcelRow(r, idx + 2),
+        ); // +2 header line
         this.importPreviewRows = mapped;
         this.computeImportValidation();
       } catch (err) {
@@ -344,55 +573,81 @@ export class ProgramComponent implements OnInit {
   }
 
   private mapExcelRow(r: any, rowNo: number) {
-    // Accept common header variations
     const get = (...keys: string[]) => {
       for (const k of keys) {
-        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') return String(r[k]).trim();
+        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '')
+          return String(r[k]).trim();
       }
       return '';
     };
-
     const excelIdStr = get('ID', 'Id', 'id');
     const excelId = excelIdStr ? Number(excelIdStr) : null;
-
     const programName = get('Program Name', 'ProgramName', 'programName');
-    const eligibleToClass = get('Eligible Class', 'EligibleClass', 'eligibleToClass');
+    const eligibleToClass = this.toNum(
+      get('Eligible Class', 'EligibleClass', 'eligibleToClass'),
+    );
+    const startingClass = this.toNum(
+      get('Starting Class', 'Start Class', 'startingClass'),
+    );
+    const duration = this.toNum(get('Duration', 'duration'));
     const programCodes = get('Program Code', 'ProgramCode', 'programCodes');
     const target = get('Target', 'Stream', 'target');
-    const duration = get('Duration', 'duration');
     const version = get('Program Version', 'ProgramVersion', 'version');
     const programType = get('Program Type', 'ProgramType', 'programType');
+    const subjectsRaw = get('Subjects', 'Subject', 'subjects', 'subject');
     const statusRaw = get('Status', 'status');
-
     const status = statusRaw === 'Inactive' ? 'Inactive' : 'Active';
-
-    // validation
     const errors: string[] = [];
     if (!programName) errors.push('Program Name required');
     if (!eligibleToClass) errors.push('Eligible Class required');
+    if (eligibleToClass && (eligibleToClass < 5 || eligibleToClass > 13))
+      errors.push('Eligible Class must be 5..13');
+    if (!startingClass) errors.push('Starting Class required');
+    if (startingClass && (startingClass < 5 || startingClass > 13))
+      errors.push('Starting Class must be 5..13');
+    if (!duration) errors.push('Duration required');
+    if (duration && (duration < 1 || duration > 6))
+      errors.push('Duration must be 1..6');
+    const endingClass =
+      startingClass > 0 && duration > 0 ? startingClass + duration - 1 : 0;
+    if (endingClass && endingClass > 13)
+      errors.push('Calculated endingClass exceeds 13');
     if (!programCodes) errors.push('Program Code required');
-    if (!version) errors.push('Version required');
-
-    const parts = (programCodes || '')
+    const codeParts = (programCodes || '')
       .split(',')
       .map((x) => (x || '').trim())
       .filter(Boolean);
-    if (!parts.length) errors.push('Program Code invalid');
-
+    if (!codeParts.length) errors.push('Program Code invalid');
+    const subjectTokens = this.splitCsv(subjectsRaw);
+    const subjectIds: string[] = [];
+    if (subjectTokens.length) {
+      const missing: string[] = [];
+      for (const tok of subjectTokens) {
+        const key = this.normKey(tok);
+        const hit = this.subjectByCode.get(key) || this.subjectByName.get(key);
+        if (!hit) missing.push(tok);
+        else subjectIds.push(String(hit.value));
+      }
+      if (missing.length)
+        errors.push(`Invalid subjects: ${missing.join(', ')}`);
+    }
     return {
       _rowNo: rowNo,
       _valid: errors.length === 0,
       _errors: errors,
-
       excelId: Number.isFinite(excelId as any) ? excelId : null,
       programName,
       eligibleToClass,
+      startingClass,
+      endingClass: endingClass || null,
+      duration,
       programCodes,
       target: target || null,
-      duration: duration || null,
       version,
       programType: programType || null,
-      status
+      subjectsRaw,
+      subjects: Array.from(new Set(subjectIds)),
+      status,
     };
   }
 
@@ -411,39 +666,38 @@ export class ProgramComponent implements OnInit {
       this.alert.error('Fix invalid rows before importing');
       return;
     }
-
     const rows = this.importPreviewRows.map((r) => ({
       excelId: r.excelId ?? null,
       programName: r.programName,
       eligibleToClass: r.eligibleToClass,
+      startingClass: r.startingClass,
+      duration: r.duration,
+      endingClass: r.endingClass ?? null,
       programCodes: r.programCodes,
       target: r.target,
-      duration: r.duration,
       version: r.version,
       programType: r.programType,
-      status: r.status
+      subjects: r.subjects || [],
+      status: r.status,
     }));
     const payload = {
       entiId: this.entiId,
-      mode: this.importMode,
-      rows
+      mode: 'upsert',
+      rows,
     };
-
-    this.commonApi.fetchData(payload, this.moduleName, 'import').subscribe({
-      next: (res: any) => {
-        const inserted = res?.summary?.inserted;
-        const upserted = res?.summary?.upserted;
-        if (inserted !== undefined) this.alert.success(`Import completed. Inserted: ${inserted}`);
-        else if (upserted !== undefined) this.alert.success(`Import completed. Upserted: ${upserted}`);
-        else this.alert.success('Import completed');
-        this.closeImport();
-        this.loadPrograms({ page: 1, pageSize: 10 });
-      },
-      error: (err: any) => {
-        const msg = err?.error?.message || 'Import failed';
-        this.alert.error(msg);
-      }
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'program/import')
+      .subscribe({
+        next: () => {
+          this.alert.success('Import completed');
+          this.closeImport();
+          this.loadPrograms({ page: 1, pageSize: 10 });
+        },
+        error: (err: any) => {
+          const msg = err?.error?.message || 'Import failed';
+          this.alert.error(msg);
+        },
+      });
   }
 
   downloadSampleExcel() {
@@ -451,18 +705,47 @@ export class ProgramComponent implements OnInit {
       {
         ID: 1,
         'Program Name': 'ARISE - One Year Foundation',
-        'Eligible Class': 'Class 10th',
-        'Program Type': 'CRP',
-        Duration: '1 Year',
+        'Eligible Class': 10,
+        'Starting Class': 9,
+        Duration: 2,
         Target: 'Foundation',
         'Program Version': 'Special Sunday / Regular',
-        'Program Code': 'C6053, M6053, U6053',
-        Status: 'Active'
-      }
+        'Program Code': 'C6053',
+        Subjects: 'MATHS, PHYSICS',
+        Status: 'Active',
+      },
     ];
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Programs');
     XLSX.writeFile(wb, 'Program_Import_Sample.xlsx');
+  }
+
+  // ---------------- HELPERS ----------------
+  private toNum(v: any): number {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === 'number' && Number.isFinite(v)) return Math.trunc(v);
+    const s = String(v).trim();
+    if (!s) return 0;
+    const m = s.match(/-?\d+/);
+    if (!m) return 0;
+    const n = Number(m[0]);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  private splitCsv(v: any): string[] {
+    const s = (v === null || v === undefined ? '' : String(v)).trim();
+    if (!s) return [];
+    return s
+      .split(',')
+      .map((x) => String(x || '').trim())
+      .filter(Boolean);
+  }
+
+  private normKey(v: any): string {
+    return (v === null || v === undefined ? '' : String(v))
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ');
   }
 }

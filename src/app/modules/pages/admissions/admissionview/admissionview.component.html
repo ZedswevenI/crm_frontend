@@ -118,7 +118,8 @@
                 <div class="row g-2">
                     <div class="col-md-3">
                         <div class="label">Test Date</div>
-                        <div class="value">{{ admission.test.testDate || "—" }}</div>
+                        <div class="value">{{ admission.test.testDate ? (admission.test.testDate | date:'dd-MMM-yyyy') :
+                            '—' }}</div>
                     </div>
                     <div class="col-md-3">
                         <div class="label">Test Name</div>
@@ -244,7 +245,7 @@
                                         <td class="fw-semibold">{{ i + 1 }}</td>
                                         <td>{{ n.utrNo }}</td>
                                         <td class="text-end">₹{{ n.amount | number : "1.0-0" }}</td>
-                                        <td>{{ n.paidOn || "—" }}</td>
+                                        <td>{{ n.paidOn ? (n.paidOn | date:'dd-MMM-yyyy') : '—' }}</td>
                                         <td>{{ n.remarks || "—" }}</td>
                                     </tr>
                                     <tr *ngIf="!admission.payments.neftRefs.length">
@@ -298,8 +299,8 @@
                                 <tbody>
                                     <tr *ngFor="let c of admission.payments.cheques">
                                         <td class="fw-semibold">{{ c.sno }}</td>
-                                        <td>{{ c.chequeDate || "—" }}</td>
-                                        <td>{{ c.dueDate || "—" }}</td>
+                                        <td>{{ c.chequeDate ? (c.chequeDate | date:'dd-MMM-yyyy') : '—' }}</td>
+                                        <td>{{ c.dueDate ? (c.dueDate | date:'dd-MMM-yyyy') : '—' }}</td>
                                         <td>{{ c.favourOf || "—" }}</td>
                                         <td class="text-end">₹{{ c.amount | number : "1.0-0" }}</td>
                                         <td>{{ c.chequeNo || "—" }}</td>

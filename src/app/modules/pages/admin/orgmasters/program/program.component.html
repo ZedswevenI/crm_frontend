@@ -4,9 +4,10 @@
             <div>
                 <h5 class="mb-1 fw-semibold">Program Master</h5>
                 <p class="mb-0 text-muted small">
-                    Configure JEE / NEET / Foundation programs with class, duration and version.
+                    Configure programs with eligible class, start/end class, duration, version and subjects.
                 </p>
             </div>
+
             <div class="d-flex gap-2">
                 <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
                     <i class="fa-solid fa-file-import"></i>
@@ -19,6 +20,7 @@
                 </button>
             </div>
         </div>
+
         <div class="card-body pt-0">
             <list-table [autoFitChars]="true" (requestData)="loadPrograms($event)" [columns]="columns"
                 [totalRecords]="totalRecords" [data]="programData" [actions]="actions" [showpageoptions]="true">
@@ -26,66 +28,189 @@
         </div>
     </div>
 
-    <!-- Create / Edit Modal -->
+    <!-- ================= View Modal ================= -->
+    <div class="app-modal-backdrop" *ngIf="showView">
+        <div class="app-modal" style="max-width: 920px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Program View</h6>
+                    <span class="text-muted small">Complete program details</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeView()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body" *ngIf="viewData as v">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="text-muted small">Program Name</div>
+                        <div class="fw-semibold">{{ v.programName || '-' }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted small">Program Codes</div>
+                        <div class="fw-semibold">{{ v.programCodes || '-' }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">Stream / Target</div>
+                        <div class="fw-semibold">{{ v.target || '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Version</div>
+                        <div class="fw-semibold">{{ v.version || '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Status</div>
+                        <div class="fw-semibold">{{ v.status || '-' }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">Eligible Class</div>
+                        <div class="fw-semibold">{{ v.eligibleToClass ?? '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Starting Class</div>
+                        <div class="fw-semibold">{{ v.startingClass ?? '-' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Ending Class</div>
+                        <div class="fw-semibold">{{ v.endingClass ?? '-' }}</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="text-muted small">Duration (Years)</div>
+                        <div class="fw-semibold">{{ v.duration ?? '-' }}</div>
+                    </div>
+
+                    <div class="col-md-8">
+                        <div class="text-muted small">Subjects</div>
+                        <div class="fw-semibold" *ngIf="(v.subjects || []).length; else noSubs">
+                            <span class="badge bg-light text-dark border me-1 mb-1"
+                                *ngFor="let s of (v.subjects || [])">
+                                {{ s?.subjectName || s?.subjectCode || s?._id || s }}
+                            </span>
+                        </div>
+                        <ng-template #noSubs>-</ng-template>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary" (click)="closeView()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= Create / Edit Modal ================= -->
     <div class="app-modal-backdrop" *ngIf="showForm">
-        <div class="app-modal">
+        <div class="app-modal" style="max-width: 1020px;">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">
                         {{ formMode === 'create' ? 'Create Program' : 'Edit Program' }}
                     </h6>
                     <span class="text-muted small">
-                        {{ formMode === 'create'
-                        ? 'Add a new program'
-                        : 'Update program details' }}
+                        {{ formMode === 'create' ? 'Add a new program' : 'Update program details' }}
                     </span>
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
             </div>
+
             <div class="app-modal-body">
                 <form [formGroup]="programForm" (ngSubmit)="save()">
                     <div class="row g-3">
+
                         <div class="col-md-5">
                             <formfield label="Program Name" [required]="true" [control]="programForm.get('name')"
-                                formControlName="name" placeholder="ARISE - One Year Foundation">
-                            </formfield>
+                                formControlName="name" placeholder="ARISE - One Year Foundation"></formfield>
                         </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Program Code" [required]="true" [control]="programForm.get('code')"
+                                formControlName="code" placeholder="C6053"></formfield>
+                        </div>
+
                         <div class="col-md-3">
-                            <formfield label="Program Code (CSV)" [required]="true" [control]="programForm.get('code')"
-                                formControlName="code" placeholder="C6053, M6053, U6053">
-                            </formfield>
-                        </div>
-                        <div class="col-md-2">
                             <selectbox label="Stream" [required]="true" [options]="streamOptions" optionLabel="label"
                                 optionValue="value" [control]="programForm.get('stream')" formControlName="stream">
                             </selectbox>
                         </div>
-                        <div class="col-md-2">
-                            <selectbox label="Duration Type" [required]="true" [options]="durationOptions"
-                                [optionLabel]="'label'" [optionValue]="'value'" [control]="programForm.get('duration')"
-                                formControlName="duration">
-                            </selectbox>
-                        </div>
-                        <div class="col-md-4">
-                            <selectbox label="Eligible To Class" [required]="true" [options]="studentBandOptions"
+
+                        <div class="col-md-3">
+                            <selectbox label="Eligible Class" [required]="true" [options]="eligibleClassOptions"
                                 [optionLabel]="'label'" [optionValue]="'value'"
                                 [control]="programForm.get('eligibleToClass')" formControlName="eligibleToClass">
                             </selectbox>
                         </div>
+
+                        <div class="col-md-3">
+                            <selectbox label="Starting Class" [required]="true" [options]="startingClassOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'"
+                                [control]="programForm.get('startingClass')" formControlName="startingClass">
+                            </selectbox>
+                        </div>
+
+                        <div class="col-md-2">
+                            <selectbox label="Duration (Years)" [required]="true" [options]="durationOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="programForm.get('duration')"
+                                formControlName="duration"></selectbox>
+                        </div>
+
+                        <div class="col-md-2">
+                            <appreadonly label="Ending Class" [required]="false"
+                                [control]="programForm.get('endingClass')" formControlName="endingClass"
+                                placeholder="-"></appreadonly>
+                        </div>
+
                         <div class="col-md-5">
                             <formfield label="Version" [required]="true" [control]="programForm.get('version')"
-                                formControlName="version" placeholder="Special Sunday / Regular">
-                            </formfield>
+                                formControlName="version" placeholder="Special Sunday / Regular"></formfield>
                         </div>
+
                         <div class="col-md-3 d-flex align-items-center">
                             <checkbox label="Active" [control]="programForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
+
+                        <!-- ✅ Subjects checkbox group -->
+                        <div class="col-12">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                <div class="fw-semibold">Subjects</div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" *ngIf="formMode === 'edit'"
+                                    (click)="addSubjectsToCurrentProgram()">
+                                    <i class="fa-solid fa-plus me-1"></i>
+                                    Add Subjects to Program
+                                </button>
+                            </div>
+
+                            <div class="border rounded p-2" style="max-height: 210px; overflow: auto;">
+                                <div class="row g-2">
+                                    <div class="col-md-4" *ngFor="let s of subjectOptions">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" [id]="'sub_' + s.value"
+                                                [checked]="isSubjectChecked(s.value)"
+                                                (change)="toggleSubject(s.value, $any($event.target).checked)" />
+                                            <label class="form-check-label" [for]="'sub_' + s.value">
+                                                <span class="fw-semibold">{{ s.label }}</span>
+                                                <span class="text-muted small" *ngIf="s.code">({{ s.code }})</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="small text-muted mt-2" *ngIf="!subjectOptions.length">
+                                    No subjects available. Please create subjects first.
+                                </div>
+                            </div>
+
+                            <div class="small text-muted mt-1">
+                                Note: In edit, <span class="fw-semibold">Add Subjects</span> will only append newly
+                                selected subjects (won’t remove existing).
+                            </div>
+                        </div>
                     </div>
+
                     <div class="d-flex justify-content-end gap-2 mt-4">
-                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
-                            Cancel
-                        </button>
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
                         <button type="submit" class="btn btn-primary" [disabled]="programForm.invalid">
                             {{ formMode === 'create' ? 'Save Program' : 'Update Program' }}
                         </button>
@@ -95,9 +220,9 @@
         </div>
     </div>
 
-    <!-- Import Modal -->
+    <!-- ================= Import Modal ================= -->
     <div class="app-modal-backdrop" *ngIf="showImport">
-        <div class="app-modal" style="max-width: 980px;">
+        <div class="app-modal" style="max-width: 1040px;">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">Import Programs (Excel)</h6>
@@ -105,6 +230,7 @@
                 </div>
                 <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
             </div>
+
             <div class="app-modal-body">
                 <div class="alert alert-info py-2 small mb-3">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -113,10 +239,12 @@
                             <div class="text-muted">
                                 <span class="me-2">Program Name</span> |
                                 <span class="mx-2">Eligible Class</span> |
+                                <span class="mx-2">Starting Class</span> |
+                                <span class="mx-2">Duration</span> |
                                 <span class="mx-2">Program Code</span> |
                                 <span class="mx-2">Target</span> |
-                                <span class="mx-2">Duration</span> |
-                                <span class="mx-2">Program Version</span>
+                                <span class="mx-2">Program Version</span> |
+                                <span class="mx-2">Subjects</span>
                             </div>
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()">
@@ -125,24 +253,18 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- ✅ No mode dropdown; default upsert -->
                 <div class="row g-3 align-items-end mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Import Mode</label>
-                        <select class="form-select" [(ngModel)]="importMode" [ngModelOptions]="{standalone:true}">
-                            <option value="insert">Insert (skip duplicates)</option>
-                            <option value="upsert">Upsert (insert/update)</option>
-                        </select>
-                        <div class="form-text">
-                            Upsert uses: tenantId + eligibleToClass + programName + version
-                        </div>
-                    </div>
-                    <div class="col-md-5">
+                    <div class="col-md-7">
                         <label class="form-label fw-semibold">Excel File</label>
                         <input type="file" class="form-control" accept=".xlsx,.xls"
                             (change)="onExcelSelected($event)" />
                         <div class="form-text" *ngIf="importFileName">Selected: {{ importFileName }}</div>
+                        <div class="form-text">Import mode: <span class="fw-semibold">Upsert</span></div>
                     </div>
-                    <div class="col-md-3 d-flex gap-2 justify-content-end">
+
+                    <div class="col-md-5 d-flex gap-2 justify-content-end">
                         <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
                             [disabled]="!importPreviewRows.length">
                             Reset
@@ -153,6 +275,7 @@
                         </button>
                     </div>
                 </div>
+
                 <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
                     <div class="small text-muted">
                         Rows: <span class="fw-semibold">{{ importPreviewRows.length }}</span>
@@ -161,6 +284,7 @@
                         </span>
                     </div>
                 </div>
+
                 <!-- Preview Table -->
                 <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
                     <table class="table table-sm table-hover align-middle mb-0">
@@ -168,11 +292,14 @@
                             <tr>
                                 <th style="width:60px;">#</th>
                                 <th>Program Name</th>
-                                <th>Eligible Class</th>
+                                <th>Eligible</th>
+                                <th>Start</th>
+                                <th>Duration</th>
+                                <th>End</th>
                                 <th>Program Code</th>
                                 <th>Target</th>
-                                <th>Duration</th>
                                 <th>Version</th>
+                                <th>Subjects</th>
                                 <th style="width:120px;">Status</th>
                                 <th style="width:220px;">Row Validation</th>
                             </tr>
@@ -182,10 +309,13 @@
                                 <td>{{ r._rowNo }}</td>
                                 <td>{{ r.programName }}</td>
                                 <td>{{ r.eligibleToClass }}</td>
+                                <td>{{ r.startingClass }}</td>
+                                <td>{{ r.duration }}</td>
+                                <td>{{ r.endingClass || '-' }}</td>
                                 <td>{{ r.programCodes }}</td>
                                 <td>{{ r.target || '-' }}</td>
-                                <td>{{ r.duration || '-' }}</td>
                                 <td>{{ r.version }}</td>
+                                <td>{{ r.subjectsRaw || '-' }}</td>
                                 <td>{{ r.status }}</td>
                                 <td>
                                     <span *ngIf="r._valid" class="badge bg-success">OK</span>
@@ -197,13 +327,14 @@
                         </tbody>
                     </table>
                 </div>
+
                 <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
                     Fix invalid rows in Excel and upload again. Import is disabled until all rows are valid.
                 </div>
             </div>
-
         </div>
     </div>
+
     <!-- Delete Confirmation -->
     <delete [title]="'Delete Program'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
         (closed)="onDeleteModalClosed($event)">

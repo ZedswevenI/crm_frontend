@@ -24,19 +24,25 @@ interface FeeBreakupRow {
 interface NefRef {
   utrNo: string;
   amount: number;
-  paidOn?: string | null;
+  paidOn?: number | null;
+  bankName?: string | null;
+  referenceNote?: string | null;
   remarks?: string | null;
 }
 
 interface ChequeRow {
   sno: number;
-  chequeDate: string;
-  dueDate: string;
+  chequeDate: number | null;
+  dueDate: number | null;
   favourOf: string;
   amount: number;
   chequeNo: string;
   mode: ChequeMode;
   status: ChequeStatus;
+  bankName?: string | null;
+  instalmentLabel?: string | null;
+  instalmentDate?: number | null;
+  plannedDepositDate?: number | null;
   remarks?: string | null;
 }
 
@@ -124,7 +130,7 @@ export class AdmissionviewComponent implements OnInit {
     private router: Router,
     private alert: AlertService,
     private breadcrumb: BredcrumpService,
-    private api: CommonapiService
+    private api: CommonapiService,
   ) {
     this.breadcrumb.set([
       { label: 'Control Panel' },
@@ -135,7 +141,7 @@ export class AdmissionviewComponent implements OnInit {
 
   ngOnInit(): void {
     this.admissionId = String(
-      this.route.snapshot.paramMap.get('id') || ''
+      this.route.snapshot.paramMap.get('id') || '',
     ).trim();
     if (!this.admissionId) {
       this.alert.error('Invalid admission id');
@@ -207,7 +213,7 @@ export class AdmissionviewComponent implements OnInit {
         this.loading = false;
         if (!resp?.status || !resp?.data?.admission) {
           this.alert.error(
-            resp?.message || resp?.error || 'Admission not found'
+            resp?.message || resp?.error || 'Admission not found',
           );
           this.router.navigate(['/app/admissions']);
           return;
@@ -235,10 +241,8 @@ export class AdmissionviewComponent implements OnInit {
       : [];
     const breakup: FeeBreakupRow[] = feeBreakupRaw.map((h: any) => ({
       label: String(h.label || '').trim(),
-      total: Number(h.total ?? h.amount ?? 0),
+      total: Number(h.total ?? 0),
       scholBenefits: Number(h.scholBenefits ?? 0),
-      fee: Number(h.fee ?? h.base ?? 0),
-      stax: Number(h.stax ?? h.taxAmount ?? h.gstAmount ?? 0),
     }));
     const neftSplitAmount = Number(adm?.payments?.neft?.splitAmount || 0);
     const neftTotalEntered = Number(adm?.payments?.neft?.totalEntered || 0);
@@ -255,24 +259,44 @@ export class AdmissionviewComponent implements OnInit {
       .map((p: any) => ({
         utrNo: String(p.neft?.utr || '').trim(),
         amount: Number(p.amount || 0),
-        paidOn: p.neft?.paidOn || null,
+        paidOn: typeof p.neft?.paidOn === 'number' ? p.neft.paidOn : null,
+        bankName: p.neft?.bankName ? String(p.neft.bankName).trim() : null,
+        referenceNote: p.neft?.referenceNote
+          ? String(p.neft.referenceNote).trim()
+          : null,
         remarks: p.remarks || null,
-      }));
+      }))
+      .filter((x: any) => !!x.utrNo && x.amount > 0);
     const chequeRows: ChequeRow[] = (payments || [])
       .filter(
-        (p: any) => String(p.paymentType || '').toUpperCase() === 'CHEQUE'
+        (p: any) => String(p.paymentType || '').toUpperCase() === 'CHEQUE',
       )
       .map((p: any, idx: number) => ({
         sno: typeof p.cheque?.sno === 'number' ? p.cheque.sno : idx + 1,
-        chequeDate: p.cheque?.chequeDate || '',
-        dueDate: p.cheque?.dueDate || '',
-        favourOf: p.cheque?.favourOf || '',
+        chequeDate:
+          typeof p.cheque?.chequeDate === 'number' ? p.cheque.chequeDate : null,
+        dueDate:
+          typeof p.cheque?.dueDate === 'number' ? p.cheque.dueDate : null,
+        favourOf: String(p.cheque?.favourOf || '').trim(),
         amount: Number(p.amount || 0),
-        chequeNo: p.cheque?.chequeNo || '',
+        chequeNo: String(p.cheque?.chequeNo || '').trim(),
         mode: (p.cheque?.mode || '') as ChequeMode,
         status: this.mapPaymentStatus(p.status),
+        bankName: p.cheque?.bankName ? String(p.cheque.bankName).trim() : null,
+        plannedDepositDate:
+          typeof p.cheque?.plannedDepositDate === 'number'
+            ? p.cheque.plannedDepositDate
+            : null,
+        instalmentLabel: p.cheque?.instalmentLabel
+          ? String(p.cheque.instalmentLabel).trim()
+          : null,
+        instalmentDate:
+          typeof p.cheque?.instalmentDate === 'number'
+            ? p.cheque.instalmentDate
+            : null,
         remarks: p.remarks || null,
-      }));
+      }))
+      .filter((x: any) => x.amount > 0);
     return {
       workflowStage: String(adm?.workflow?.stage || ''),
       admissionId: String(adm.admissionId || ''),
@@ -325,7 +349,7 @@ export class AdmissionviewComponent implements OnInit {
         testScholarshipPct: Number(adm.fee?.testScholarshipPct || 0),
         scholarshipPct: Number(adm.fee?.scholarshipPct || 0),
         additionalScholarshipPct: Number(
-          adm.fee?.additionalScholarshipPct || 0
+          adm.fee?.additionalScholarshipPct || 0,
         ),
         totalDiscountPct: Number(adm.fee?.totalDiscountPct || 0),
         breakup,
@@ -342,7 +366,7 @@ export class AdmissionviewComponent implements OnInit {
 
   private mapStageToStatus(
     stageRaw?: string,
-    statusRaw?: string
+    statusRaw?: string,
   ): AdmissionStatus {
     const stage = String(stageRaw || '').toUpperCase();
     const stat = String(statusRaw || '').toUpperCase();
@@ -390,7 +414,7 @@ export class AdmissionviewComponent implements OnInit {
   get neftTotal(): number {
     return (this.admission?.payments?.neftRefs || []).reduce(
       (s, n) => s + Number(n.amount || 0),
-      0
+      0,
     );
   }
 
@@ -456,7 +480,7 @@ export class AdmissionviewComponent implements OnInit {
         this.actionBusy = false;
         if (!resp?.status)
           return this.alert.error(
-            resp?.message || 'Failed to send for approval'
+            resp?.message || 'Failed to send for approval',
           );
         this.alert.success('Sent for approval');
         this.loadAdmission();
@@ -772,7 +796,7 @@ export class AdmissionviewComponent implements OnInit {
   private scalePlan(
     amounts: number[],
     targetTotal: number,
-    baseTotal: number
+    baseTotal: number,
   ): number[] {
     const target = this.roundRupee(targetTotal);
     if (!baseTotal || target <= 0) return amounts.map(() => 0);
@@ -868,11 +892,11 @@ export class AdmissionviewComponent implements OnInit {
         <td>${this.esc(
           nefts?.[0]?.paidOn
             ? new Date(nefts[0].paidOn).toLocaleDateString('en-IN')
-            : ''
+            : '',
         )}</td>
         <td class="text-center">NEFT</td>
         <td class="text-right">${Number(neftTotal || 0).toLocaleString(
-          'en-IN'
+          'en-IN',
         )}</td>
       </tr>
     `);
@@ -884,11 +908,11 @@ export class AdmissionviewComponent implements OnInit {
           <td class="text-center">${sno++}</td>
           <td>Cheque ${idx + 1}</td>
           <td>${this.esc(
-            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : ''
+            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : '',
           )}</td>
           <td class="text-center">CHEQUE</td>
           <td class="text-right">${Number(c.amount || 0).toLocaleString(
-            'en-IN'
+            'en-IN',
           )}</td>
         </tr>
       `);
@@ -1049,7 +1073,7 @@ export class AdmissionviewComponent implements OnInit {
 
     const scholTotal = (a.fee?.breakup || []).reduce(
       (s: number, r: any) => s + Number(r.scholBenefits || 0),
-      0
+      0,
     );
 
     return `
@@ -1116,7 +1140,7 @@ export class AdmissionviewComponent implements OnInit {
               <tr>
                 <td><b>Total Scholarship Benefits</b></td>
                 <td class="text-right"><b>₹ ${Number(
-                  scholTotal || 0
+                  scholTotal || 0,
                 ).toLocaleString('en-IN')}</b></td>
               </tr>
             </tbody>
@@ -1130,7 +1154,7 @@ export class AdmissionviewComponent implements OnInit {
               <tr>
                 <td><b>Final Fee (After Scholarships)</b></td>
                 <td class="text-right"><b>₹ ${finalFee.toLocaleString(
-                  'en-IN'
+                  'en-IN',
                 )}</b></td>
               </tr>
             </tbody>
@@ -1156,7 +1180,7 @@ export class AdmissionviewComponent implements OnInit {
               <tr>
                 <th colspan="4" class="text-right">Total</th>
                 <th class="text-right">₹ ${finalFee.toLocaleString(
-                  'en-IN'
+                  'en-IN',
                 )}</th>
               </tr>
             </tfoot>
@@ -1187,14 +1211,14 @@ export class AdmissionviewComponent implements OnInit {
           <td class="text-center">${idx + 1}</td>
           <td>${this.esc(n.utrNo)}</td>
           <td class="text-right">${Number(n.amount || 0).toLocaleString(
-            'en-IN'
+            'en-IN',
           )}</td>
           <td>${this.esc(
-            n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : ''
+            n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : '',
           )}</td>
           <td>${this.esc(n.remarks || '')}</td>
         </tr>
-      `
+      `,
       )
       .join('');
     const chequeRowsHtml = (a.payments.cheques || [])
@@ -1203,16 +1227,16 @@ export class AdmissionviewComponent implements OnInit {
         <tr>
           <td class="text-center">${idx + 1}</td>
           <td>${this.esc(
-            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : ''
+            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : '',
           )}</td>
           <td>${this.esc(c.chequeNo)}</td>
           <td>${this.esc(c.favourOf)}</td>
           <td class="text-right">${Number(c.amount || 0).toLocaleString(
-            'en-IN'
+            'en-IN',
           )}</td>
           <td>${this.esc(c.mode)}</td>
         </tr>
-      `
+      `,
       )
       .join('');
     const feeTotal = this.finalFee || 0;
@@ -1270,19 +1294,19 @@ export class AdmissionviewComponent implements OnInit {
               <tr>
                 <td>Test Scholarship (%)</td>
                 <td class="text-right">${Number(
-                  a.fee?.testScholarshipPct || 0
+                  a.fee?.testScholarshipPct || 0,
                 ).toFixed(2)}%</td>
               </tr>
               <tr>
                 <td>Scholarship (%)</td>
                 <td class="text-right">${Number(
-                  a.fee?.scholarshipPct || 0
+                  a.fee?.scholarshipPct || 0,
                 ).toFixed(2)}%</td>
               </tr>
               <tr>
                 <td>Additional Scholarship (%)</td>
                 <td class="text-right">${Number(
-                  a.fee?.additionalScholarshipPct || 0
+                  a.fee?.additionalScholarshipPct || 0,
                 ).toFixed(2)}%</td>
               </tr>
             </tbody>
@@ -1332,7 +1356,7 @@ export class AdmissionviewComponent implements OnInit {
               <tr>
                 <td colspan="2" class="text-right">Total</td>
                 <td class="text-right">₹ ${this.neftTotal.toLocaleString(
-                  'en-IN'
+                  'en-IN',
                 )}</td>
                 <td colspan="2"></td>
               </tr>
@@ -1364,7 +1388,7 @@ export class AdmissionviewComponent implements OnInit {
               <tr>
                 <td colspan="4" class="text-right">Total Cheques</td>
                 <td class="text-right">₹ ${this.chequeTotal.toLocaleString(
-                  'en-IN'
+                  'en-IN',
                 )}</td>
                 <td></td>
               </tr>
@@ -1440,7 +1464,7 @@ export class AdmissionviewComponent implements OnInit {
       this.esc(s.address || s.addressLine1 || anyAdm.studentAddress || '') ||
       '__________________________';
     const enrolmentNumber = this.esc(
-      s.regNo || anyAdm.registrationNumber || anyAdm.enrolmentNo || ''
+      s.regNo || anyAdm.registrationNumber || anyAdm.enrolmentNo || '',
     );
     const registrationNumber = this.esc(anyAdm.registrationNumber || '');
     const studentId = this.esc(anyAdm.studentId || '');
@@ -1465,13 +1489,13 @@ export class AdmissionviewComponent implements OnInit {
           <td>NEFT</td>
           <td>${this.esc(n.utrNo || '')}</td>
           <td>${this.esc(
-            n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : ''
+            n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : '',
           )}</td>
           <td class="text-right">${Number(n.amount || 0).toLocaleString(
-            'en-IN'
+            'en-IN',
           )}</td>
         </tr>
-      `
+      `,
       )
       .join('');
     const chequeRowsHtml = (a.payments.cheques || [])
@@ -1484,13 +1508,13 @@ export class AdmissionviewComponent implements OnInit {
           <td>${this.esc(c.mode || 'PDC')}</td>
           <td>${this.esc(c.chequeNo || '')}</td>
           <td>${this.esc(
-            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : ''
+            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : '',
           )}</td>
           <td class="text-right">${Number(c.amount || 0).toLocaleString(
-            'en-IN'
+            'en-IN',
           )}</td>
         </tr>
-      `
+      `,
       )
       .join('');
     const paymentTableBody =

@@ -418,6 +418,8 @@
                                         <th style="width: 220px">UTR No</th>
                                         <th style="width: 160px">Amount (₹)</th>
                                         <th style="width: 160px">Paid On</th>
+                                        <th style="width: 220px">Bank</th>
+                                        <th style="width: 240px">Reference Note</th>
                                         <th>Remarks</th>
                                         <th style="width: 60px"></th>
                                     </tr>
@@ -427,31 +429,39 @@
                                     <tr *ngFor="let r of neftRefsFA.controls; let i = index; trackBy: trackByIndex"
                                         [formGroupName]="i">
                                         <td class="fw-semibold">{{ i + 1 }}</td>
-
                                         <td>
                                             <input class="form-control form-control-sm" placeholder="UTR Number"
                                                 formControlName="utr"
                                                 [class.is-invalid]="r.get('utr')?.touched && r.get('utr')?.invalid" />
                                             <div class="invalid-feedback">Required</div>
                                         </td>
-
                                         <td>
                                             <input class="form-control form-control-sm" type="number"
                                                 placeholder="Amount" formControlName="amount"
                                                 [class.is-invalid]="r.get('amount')?.touched && r.get('amount')?.invalid" />
                                             <div class="invalid-feedback">Required</div>
                                         </td>
-
                                         <td>
                                             <input class="form-control form-control-sm" type="date"
                                                 formControlName="paidOn" />
                                         </td>
+                                        <td>
+                                            <!-- <select class="form-select form-select-sm" formControlName="bankName">
+                                                <option value="" disabled>Select bank</option>
+                                                <option *ngFor="let b of bankNames" [value]="b">{{ b }}</option>
+                                            </select> -->
+                                            <input class="form-control form-control-sm" formControlName="bankName"
+                                                placeholder="Type bank name" list="bankList" />
 
+                                        </td>
+                                        <td>
+                                            <input class="form-control form-control-sm" placeholder="optional"
+                                                formControlName="referenceNote" />
+                                        </td>
                                         <td>
                                             <input class="form-control form-control-sm" placeholder="optional"
                                                 formControlName="remarks" />
                                         </td>
-
                                         <td class="text-end">
                                             <button type="button" class="btn btn-sm btn-outline-danger"
                                                 (click)="removeNeftRef(i)" [disabled]="neftRefsFA.length <= 1">
@@ -464,7 +474,7 @@
                                 <tfoot class="table-light">
                                     <tr>
                                         <th colspan="2" class="text-end">Total Entered</th>
-                                        <th colspan="4" class="fw-bold">
+                                        <th colspan="5" class="fw-bold">
                                             ₹{{ (neftTotalEntered$() | async) | number:"1.0-0" }}
                                         </th>
                                     </tr>
@@ -486,57 +496,70 @@
                             <table class="table table-sm align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width: 70px">Sno</th>
-                                        <th style="width: 160px">Due Date</th>
-                                        <th style="width: 260px">Favour of</th>
-                                        <th style="width: 150px">Amount (₹)</th>
-                                        <th style="width: 170px">Cheque No</th>
-                                        <th style="width: 150px">Cheque Date</th>
+                                        <th style="width: 70px">S.no</th>
+                                        <th style="width: 260px">Description</th>
+                                        <th style="width: 160px">Instalment Date</th>
+                                        <th style="width: 150px" class="text-end">Amount (₹)</th>
+                                        <th style="width: 240px">Favour of</th>
                                         <th style="width: 140px">Mode</th>
+                                        <th style="width: 150px">Cheque Date</th>
+                                        <th style="width: 170px">Cheque No</th>
+                                        <th style="width: 220px">Bank</th>
                                         <th>Remarks</th>
                                     </tr>
                                 </thead>
-
                                 <tbody formArrayName="cheques">
                                     <tr *ngFor="let row of chequesFA.controls; let idx = index; trackBy: trackByIndex"
                                         [formGroupName]="idx">
-                                        <td class="fw-semibold">{{ row.get("sno")?.value }}</td>
-
+                                        <td class="fw-semibold">{{ row.get('sno')?.value }}</td>
+                                        <td>
+                                            <span class="fw-medium">{{ row.get('description')?.value || '—' }}</span>
+                                        </td>
                                         <td>
                                             <span class="text-muted">
-                                                {{ row.get('dueDate')?.value ? (row.get('dueDate')?.value |
-                                                date:'dd-MM-yyyy') : '—' }}
+                                                {{ row.get('instalmentDate')?.value ? (row.get('instalmentDate')?.value
+                                                | date:'dd-MM-yyyy') : '—' }}
                                             </span>
                                         </td>
-
-                                        <td>
-                                            <input class="form-control form-control-sm" formControlName="favourOf" />
+                                        <td class="text-center">
+                                            ₹{{ row.get('amount')?.value | number:'1.0-0' }}
                                         </td>
-
                                         <td>
-                                            <input class="form-control form-control-sm" type="number"
-                                                formControlName="amount" readonly />
+                                            <input class="form-control form-control-sm" formControlName="favourOf"
+                                                readonly />
                                         </td>
-
                                         <td>
-                                            <input class="form-control form-control-sm" placeholder="Cheque Number"
-                                                formControlName="chequeNo"
-                                                [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
-                                            <div class="invalid-feedback">Required</div>
+                                            <select class="form-select form-select-sm" formControlName="mode">
+                                                <option value="PDC">PDC</option>
+                                                <option value="CDC">CDC</option>
+                                            </select>
                                         </td>
-
                                         <td>
                                             <input class="form-control form-control-sm" type="date"
                                                 formControlName="chequeDate"
                                                 [class.is-invalid]="row.get('chequeDate')?.touched && row.get('chequeDate')?.invalid" />
                                             <div class="invalid-feedback">Required</div>
                                         </td>
-
                                         <td>
-                                            <select class="form-select form-select-sm" formControlName="mode">
-                                                <option value="PDC">PDC</option>
-                                                <option value="CDC">CDC</option>
+                                            <input class="form-control form-control-sm" placeholder="Cheque Number"
+                                                formControlName="chequeNo"
+                                                [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
+                                            <div class="invalid-feedback">Required</div>
+                                        </td>
+                                        <td>
+                                            <!-- <select class="form-select form-select-sm" formControlName="bankName"
+                                                [class.is-invalid]="row.get('bankName')?.touched && row.get('bankName')?.invalid">
+                                                <option value="" disabled>Select bank</option>
+                                                <option *ngFor="let b of bankNames" [value]="b">{{ b }}</option>
                                             </select>
+                                            <div class="invalid-feedback">Required</div> -->
+                                            <input class="form-control form-control-sm" formControlName="bankName"
+                                                placeholder="Type bank name" list="bankList"
+                                                [class.is-invalid]="row.get('bankName')?.touched && row.get('bankName')?.invalid" />
+                                            <datalist id="bankList">
+                                                <option *ngFor="let b of bankNames" [value]="b"></option>
+                                            </datalist>
+                                            <div class="invalid-feedback">Required</div>
                                         </td>
 
                                         <td>
@@ -545,12 +568,11 @@
                                         </td>
                                     </tr>
                                 </tbody>
-
                                 <tfoot class="table-light">
                                     <tr>
                                         <th colspan="2" class="text-end">Total Cheques</th>
                                         <th class="fw-bold">{{ chequesFA.length }}</th>
-                                        <th colspan="5" class="fw-bold">
+                                        <th colspan="8" class="fw-bold">
                                             Amount: ₹{{ (chequeTotal$() | async) | number:"1.0-0" }}
                                         </th>
                                     </tr>

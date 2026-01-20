@@ -30,11 +30,11 @@ export class FeeplanviewComponent implements OnInit {
     private alert: AlertService,
     private commonApi: CommonapiService
   ) {
-    this.entiId = localStorage.getItem('tenantId');
+    this.entiId = localStorage.getItem('tenantId') || localStorage.getItem('tenantid');
     this.breadcrumb.set([
       { label: 'Control Panel' },
       { label: 'Masters' },
-      { label: 'Fee Plans'},
+      { label: 'Fee Plans' },
       { label: 'View' }
     ]);
   }
@@ -55,7 +55,10 @@ export class FeeplanviewComponent implements OnInit {
 
   private fmt2(n: any) {
     const num = Number(n || 0);
-    return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return num.toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
   }
 
   money(n: any) {
@@ -67,9 +70,11 @@ export class FeeplanviewComponent implements OnInit {
     this.commonApi.fetchData({ entiId: this.entiId, recId: this.recId }, this.moduleName, 'view').subscribe({
       next: (res: any) => {
         this.doc = res?.data || null;
+
         this.totalBaseFee = Number(this.doc?.totalBaseFee || 0);
         this.totalGST = Number(this.doc?.totalGST || 0);
         this.totalFee = Number(this.doc?.totalFee || 0);
+
         this.loading = false;
       },
       error: (err: any) => {
@@ -87,5 +92,11 @@ export class FeeplanviewComponent implements OnInit {
   feeHeadRowClass(h: any) {
     const key = String(h?.key || '').toUpperCase();
     return key === 'TF' ? 'table-success' : '';
+  }
+
+  // instalmentDate: backend now sends number (0 or epoch ms)
+  hasInstDate(i: any): boolean {
+    const n = Number(i?.instalmentDate || 0);
+    return Number.isFinite(n) && n > 0;
   }
 }

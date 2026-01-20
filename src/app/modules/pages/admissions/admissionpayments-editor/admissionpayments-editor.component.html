@@ -2,7 +2,9 @@
     <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
             <h6 class="mb-0 fw-semibold">Edit Payments</h6>
-            <div class="text-muted small">Registratoin Number : <b>{{ registrationNumber }}</b></div>
+            <div class="text-muted small">
+                Registratoin Number : <b>{{ registrationNumber }}</b>
+            </div>
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-outline-secondary btn-sm" type="button" (click)="back()">
@@ -26,32 +28,48 @@
                     <table class="table table-sm align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th style="width:60px">#</th>
-                                <th style="width:220px">UTR No</th>
-                                <th style="width:160px">Amount (₹)</th>
-                                <th style="width:160px">Paid On</th>
+                                <th style="width: 60px">#</th>
+                                <th style="width: 220px">UTR No</th>
+                                <th style="width: 160px">Amount (₹)</th>
+                                <th style="width: 160px">Paid On</th>
+                                <th style="width: 220px">Bank</th>
+                                <th style="width: 240px">Reference Note</th>
                                 <th>Remarks</th>
-                                <th style="width:60px"></th>
+                                <th style="width: 60px"></th>
                             </tr>
                         </thead>
+
                         <tbody formArrayName="neftRefs">
-                            <tr *ngFor="let r of neftRefsFA.controls; let i=index; trackBy: trackByIndex"
-                                [formGroupName]="i">
+                            <tr *ngFor="
+                  let r of neftRefsFA.controls;
+                  let i = index;
+                  trackBy: trackByIndex
+                " [formGroupName]="i">
                                 <td class="fw-semibold">{{ i + 1 }}</td>
                                 <td>
                                     <input class="form-control form-control-sm" placeholder="UTR Number"
-                                        formControlName="utr"
-                                        [class.is-invalid]="r.get('utr')?.touched && r.get('utr')?.invalid" />
+                                        formControlName="utr" [class.is-invalid]="
+                      r.get('utr')?.touched && r.get('utr')?.invalid
+                    " />
                                     <div class="invalid-feedback">Required</div>
                                 </td>
                                 <td>
                                     <input class="form-control form-control-sm" type="number" placeholder="Amount"
-                                        formControlName="amount"
-                                        [class.is-invalid]="r.get('amount')?.touched && r.get('amount')?.invalid" />
+                                        formControlName="amount" [class.is-invalid]="
+                      r.get('amount')?.touched && r.get('amount')?.invalid
+                    " />
                                     <div class="invalid-feedback">Required</div>
                                 </td>
                                 <td>
                                     <input class="form-control form-control-sm" type="date" formControlName="paidOn" />
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm" placeholder="Type bank name"
+                                        formControlName="bankName" list="bankList" />
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm" placeholder="optional"
+                                        formControlName="referenceNote" />
                                 </td>
                                 <td>
                                     <input class="form-control form-control-sm" placeholder="optional"
@@ -69,8 +87,8 @@
                             <tr>
                                 <th colspan="2" class="text-end">Total Entered</th>
                                 <th colspan="4" class="fw-bold">
-                                    ₹{{ neftTotalEntered | number:'1.0-0' }}
-                                    <span class="text-muted ms-2">(Max: ₹{{ neftAmount | number:'1.0-0' }})</span>
+                                    ₹{{ neftTotalEntered | number: "1.0-0" }}
+                                    <span class="text-muted ms-2">(Max: ₹{{ neftAmount | number: "1.0-0" }})</span>
                                 </th>
                             </tr>
                         </tfoot>
@@ -86,48 +104,95 @@
                     <table class="table table-sm align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th style="width:70px">Sno</th>
-                                <th style="width:160px">Due Date</th>
-                                <th style="width:260px">Favour of</th>
-                                <th style="width:150px">Amount (₹)</th>
-                                <th style="width:170px">Cheque No</th>
-                                <th style="width:150px">Check Date</th>
-                                <th style="width:140px">Mode</th>
+                                <th style="width: 70px">Sno</th>
+                                <th style="width: 260px">Description</th>
+                                <th style="width: 160px">Instalment Date</th>
+                                <th style="width: 260px">Favour of</th>
+                                <th style="width: 150px">Amount (₹)</th>
+                                <th style="width: 170px">Cheque No</th>
+                                <th style="width: 150px">Cheque Date</th>
+                                <th style="width: 180px">Due Date</th>
+                                <th style="width: 200px">Bank</th>
+                                <th style="width: 140px">Mode</th>
                                 <th>Remarks</th>
                             </tr>
                         </thead>
                         <tbody formArrayName="cheques">
-                            <tr *ngFor="let row of chequesFA.controls; let idx=index; trackBy: trackByIndex"
-                                [formGroupName]="idx">
-                                <td class="fw-semibold">{{ row.get('sno')?.value }}</td>
+                            <tr *ngFor="
+                  let row of chequesFA.controls;
+                  let idx = index;
+                  trackBy: trackByIndex
+                " [formGroupName]="idx">
+                                <td class="fw-semibold">{{ row.get("sno")?.value }}</td>
+
                                 <td>
-                                    <input class="form-control form-control-sm" type="date"
-                                        formControlName="chequeDate" />
+                                    <span class="fw-medium">{{
+                                        row.get("instalmentLabel")?.value || "—"
+                                        }}</span>
                                 </td>
+
                                 <td>
-                                    <input class="form-control form-control-sm" formControlName="favourOf" />
+                                    <span class="text-muted">
+                                        {{
+                                        row.get("instalmentDate")?.value
+                                        ? (row.get("instalmentDate")?.value
+                                        | date: "dd-MM-yyyy")
+                                        : "—"
+                                        }}
+                                    </span>
                                 </td>
+
+                                <td>
+                                    <input class="form-control form-control-sm" formControlName="favourOf" readonly />
+                                </td>
+
                                 <td>
                                     <input class="form-control form-control-sm" type="number" formControlName="amount"
                                         readonly />
                                 </td>
+
                                 <td>
                                     <input class="form-control form-control-sm" placeholder="Cheque Number"
-                                        formControlName="chequeNo"
-                                        [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
+                                        formControlName="chequeNo" [class.is-invalid]="
+                      row.get('chequeNo')?.touched &&
+                      row.get('chequeNo')?.invalid
+                    " />
                                     <div class="invalid-feedback">Required</div>
                                 </td>
+
+                                <td>
+                                    <input class="form-control form-control-sm" type="date" formControlName="chequeDate"
+                                        [class.is-invalid]="
+                      row.get('chequeDate')?.touched &&
+                      row.get('chequeDate')?.invalid
+                    " />
+                                    <div class="invalid-feedback">Required</div>
+                                </td>
+
                                 <td>
                                     <input class="form-control form-control-sm" type="date" formControlName="dueDate"
-                                        [class.is-invalid]="row.get('dueDate')?.touched && row.get('dueDate')?.invalid" />
+                                        [class.is-invalid]="
+                      row.get('dueDate')?.touched && row.get('dueDate')?.invalid
+                    " />
                                     <div class="invalid-feedback">Required</div>
                                 </td>
+
+                                <td>
+                                    <input class="form-control form-control-sm" placeholder="Type bank name"
+                                        formControlName="bankName" list="bankList" [class.is-invalid]="
+                      row.get('bankName')?.touched &&
+                      row.get('bankName')?.invalid
+                    " />
+                                    <div class="invalid-feedback">Required</div>
+                                </td>
+
                                 <td>
                                     <select class="form-select form-select-sm" formControlName="mode">
                                         <option value="PDC">PDC</option>
                                         <option value="CDC">CDC</option>
                                     </select>
                                 </td>
+
                                 <td>
                                     <input class="form-control form-control-sm" placeholder="optional"
                                         formControlName="remarks" />
@@ -138,10 +203,16 @@
                             <tr>
                                 <th colspan="2" class="text-end">Total Cheques</th>
                                 <th class="fw-bold">{{ chequeCount }}</th>
-                                <th colspan="6" class="fw-bold">Amount: ₹{{ chequeTotal | number:'1.0-0' }}</th>
+                                <th colspan="6" class="fw-bold">
+                                    Amount: ₹{{ chequeTotal | number: "1.0-0" }}
+                                </th>
                             </tr>
                         </tfoot>
                     </table>
+                    <datalist id="bankList">
+                        <option *ngFor="let b of bankNames" [value]="b"></option>
+                    </datalist>
+
                 </div>
             </div>
             <div class="border rounded-3 p-3 bg-light-subtle mt-3">
@@ -150,21 +221,25 @@
                     <div class="d-flex flex-wrap gap-3">
                         <div>
                             <div class="text-muted small">NEFT Entered</div>
-                            <div class="fw-semibold">₹{{ neftTotalEntered | number:'1.0-0' }}</div>
+                            <div class="fw-semibold">
+                                ₹{{ neftTotalEntered | number: "1.0-0" }}
+                            </div>
                         </div>
                         <div>
                             <div class="text-muted small">Cheques Total</div>
-                            <div class="fw-semibold">₹{{ chequeTotal | number:'1.0-0' }}</div>
+                            <div class="fw-semibold">
+                                ₹{{ chequeTotal | number: "1.0-0" }}
+                            </div>
                         </div>
                         <div>
                             <div class="text-muted small">Total Collected</div>
-                            <div class="fw-bold">₹{{ totalCollected | number:'1.0-0' }}</div>
+                            <div class="fw-bold">₹{{ totalCollected | number: "1.0-0" }}</div>
                         </div>
                         <div>
                             <div class="text-muted small">Balance</div>
                             <div class="fw-bold" [class.text-success]="balanceAmount === 0"
                                 [class.text-danger]="balanceAmount > 0">
-                                ₹{{ balanceAmount | number:'1.0-0' }}
+                                ₹{{ balanceAmount | number: "1.0-0" }}
                             </div>
                         </div>
                     </div>

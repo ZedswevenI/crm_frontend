@@ -57,23 +57,31 @@ interface ProgramItem {
   programCode?: string;
   centerId?: string;
   centerName?: string;
+  durationYears?: number;
 }
 
 interface FeePlan {
   id: string;
   name: string;
   feePlanCode?: string;
+
   instalments: Array<{
     seq: number;
-    label: string;
-    amount: number;
-    dueDate?: string | null;
+    feeHead: string; // NEW (AM/AF/TF etc)
+    label: string; // description
+    instalmentDate: number; // epoch ms OR 0
+    amount: number; // amount as per backend
+    mode: string; // Online/DD, PDC, CDC etc
+    chequeFavour?: string; // NEW
+    discountApplied?: boolean; // NEW
   }>;
+
   feeHeads: Array<{
     key: string;
     label: string;
-    fee: number;
-    stax: number;
+    fee: number; // base
+    stax: number; // gst
+    discountAllowed?: boolean; // NEW
   }>;
 }
 
@@ -138,12 +146,35 @@ export class AdmissionbugComponent implements OnInit {
   // triggers feeplan reload (cancellable)
   private feePlanReload$ = new Subject<void>();
 
+  readonly bankNames: string[] = [
+    'STATE BANK OF INDIA',
+    'HDFC BANK',
+    'ICICI BANK',
+    'AXIS BANK',
+    'KOTAK MAHINDRA BANK',
+    'PUNJAB NATIONAL BANK',
+    'BANK OF BARODA',
+    'CANARA BANK',
+    'UNION BANK OF INDIA',
+    'IDFC FIRST BANK',
+    'INDUSIND BANK',
+    'YES BANK',
+    'FEDERAL BANK',
+    'INDIAN BANK',
+    'IDBI BANK',
+    'UCO BANK',
+    'CENTRAL BANK OF INDIA',
+    'BANK OF INDIA',
+    'BANK OF MAHARASHTRA',
+    'PUNJAB & SIND BANK',
+  ];
+
   constructor(
     private fb: UntypedFormBuilder,
     private alert: AlertService,
     private breadcrumb: BredcrumpService,
     private router: Router,
-    private api: CommonapiService
+    private api: CommonapiService,
   ) {
     this.breadcrumb.set([
       { label: 'Control Panel' },
@@ -157,34 +188,34 @@ export class AdmissionbugComponent implements OnInit {
     this.step1Form.get('feePlanId')!.valueChanges.pipe(
       startWith(this.step1Form.get('feePlanId')!.value),
       map((v) => String(v || '').trim()),
-      distinctUntilChanged()
+      distinctUntilChanged(),
     );
 
   readonly selectedPlan$ = () =>
     combineLatest([this.feePlans$, this.feePlanId$()]).pipe(
       map(([plans, id]) => plans.find((p) => p.id === id) || null),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   readonly testScholarshipPct$ = () =>
     this.step1Form.get('testScholarshipPct')!.valueChanges.pipe(
       startWith(this.step1Form.getRawValue().testScholarshipPct),
       map((v) => Number(v || 0) || 0),
-      distinctUntilChanged()
+      distinctUntilChanged(),
     );
 
   readonly scholarshipPct$ = () =>
     this.step1Form.get('scholarshipPct')!.valueChanges.pipe(
       startWith(this.step1Form.get('scholarshipPct')!.value),
       map((v) => Number(v || 0) || 0),
-      distinctUntilChanged()
+      distinctUntilChanged(),
     );
 
   readonly additionalScholarshipPct$ = () =>
     this.step1Form.get('additionalScholarshipPct')!.valueChanges.pipe(
       startWith(this.step1Form.get('additionalScholarshipPct')!.value),
       map((v) => Number(v || 0) || 0),
-      distinctUntilChanged()
+      distinctUntilChanged(),
     );
 
   readonly feeHeadPreview$ = () =>
@@ -195,13 +226,13 @@ export class AdmissionbugComponent implements OnInit {
       this.additionalScholarshipPct$(),
     ]).pipe(
       map(([plan, t, s, a]) => this.computeFeeHeadPreview(plan, t, s, a)),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   readonly finalFee$ = () =>
     this.feeHeadPreview$().pipe(
       map((rows) => rows.reduce((sum, r) => sum + (Number(r.total) || 0), 0)),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   readonly totalDiscountPct$ = () =>
@@ -217,7 +248,7 @@ export class AdmissionbugComponent implements OnInit {
         const eff = 1 - (1 - A) * (1 - B) * (1 - C);
         return Math.round(eff * 10000) / 100;
       }),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   // Step2 streamed totals
@@ -225,24 +256,24 @@ export class AdmissionbugComponent implements OnInit {
     this.neftRefsFA.valueChanges.pipe(
       startWith(this.neftRefsFA.getRawValue()),
       map((rows: any[]) =>
-        (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0)
+        (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0),
       ),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   readonly chequeTotal$ = () =>
     this.chequesFA.valueChanges.pipe(
       startWith(this.chequesFA.getRawValue()),
       map((rows: any[]) =>
-        (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0)
+        (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0),
       ),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   readonly totalCollected$ = () =>
     combineLatest([this.neftTotalEntered$(), this.chequeTotal$()]).pipe(
       map(([n, c]) => (Number(n) || 0) + (Number(c) || 0)),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   readonly balanceAmount$ = () =>
@@ -252,7 +283,7 @@ export class AdmissionbugComponent implements OnInit {
         const P = Math.round(Number(paid) || 0);
         return Math.max(0, D - P);
       }),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   // Small display-only fields
@@ -260,7 +291,7 @@ export class AdmissionbugComponent implements OnInit {
     this.step1Form.get('regNo')!.valueChanges.pipe(
       startWith(this.step1Form.get('regNo')!.value),
       map((v) => String(v || '—')),
-      shareReplay(1)
+      shareReplay(1),
     );
 
   // ---------- Init ----------
@@ -303,7 +334,7 @@ export class AdmissionbugComponent implements OnInit {
       cheques: this.fb.array([]),
     });
 
-    this.buildAcademicYearOptions();
+    this.buildAcademicYearOptions(0);
     this.buildEmptyPayments();
 
     // phone -> parentPhone sync (cheap, but prevent loops)
@@ -312,11 +343,11 @@ export class AdmissionbugComponent implements OnInit {
       .valueChanges.pipe(
         map((v) => String(v || '').trim()),
         distinctUntilChanged(),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((phone) => {
         const cur = String(
-          this.step1Form.get('parentPhone')?.value || ''
+          this.step1Form.get('parentPhone')?.value || '',
         ).trim();
         if (phone && phone !== cur) {
           this.step1Form
@@ -338,7 +369,7 @@ export class AdmissionbugComponent implements OnInit {
         debounceTime(50),
         tap((pid) => this.applyProgramFromMaster(pid)),
         tap(() => this.feePlanReload$.next()),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
 
@@ -353,7 +384,7 @@ export class AdmissionbugComponent implements OnInit {
           this.resetWorkflowFlags();
           this.feePlanReload$.next();
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
 
@@ -363,13 +394,13 @@ export class AdmissionbugComponent implements OnInit {
       .subscribe(([plan]) => {
         this.step1Form.patchValue(
           { feePlanCode: plan?.feePlanCode || '' },
-          { emitEvent: false }
+          { emitEvent: false },
         );
 
         const total =
           plan?.feeHeads?.reduce(
             (s, x) => s + (Number(x.fee || 0) + Number(x.stax || 0)),
-            0
+            0,
           ) || 0;
         this.step1Form.get('baseFee')?.setValue(total, { emitEvent: false });
 
@@ -384,7 +415,7 @@ export class AdmissionbugComponent implements OnInit {
     ])
       .pipe(
         tap(() => this.resetWorkflowFlags()),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
 
@@ -394,7 +425,7 @@ export class AdmissionbugComponent implements OnInit {
         startWith(void 0),
         debounceTime(0),
         switchMap(() => this.fetchFeePlans$()),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
   }
@@ -460,7 +491,7 @@ export class AdmissionbugComponent implements OnInit {
         feePlanCode: '',
         academicYear: this.step1Form.get('academicYear')?.value || '',
       },
-      { emitEvent: false }
+      { emitEvent: false },
     );
 
     this.testInfo = {
@@ -501,7 +532,7 @@ export class AdmissionbugComponent implements OnInit {
     const regNo = String(this.lookupForm.value.regNo || '').trim();
     if (!regNo) {
       this.alert.error(
-        'Please enter Enrolment / Reg No. Or use Direct Enrolment.'
+        'Please enter Enrolment / Reg No. Or use Direct Enrolment.',
       );
       return;
     }
@@ -516,11 +547,11 @@ export class AdmissionbugComponent implements OnInit {
           this.loading = false;
           if (this.handleAdmissionAlreadyExists(err?.error)) return of(null);
           this.alert.error(
-            err?.error?.message || err?.message || 'Fetch failed'
+            err?.error?.message || err?.message || 'Fetch failed',
           );
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((res: any) => {
         if (!res) return;
@@ -534,10 +565,10 @@ export class AdmissionbugComponent implements OnInit {
         const d = res?.data || {};
         const phone = String(d.mobileNo || d.phone || d.mobile || '').trim();
         const parentName = String(
-          d.fatherName || d.parentName || d.guardianName || ''
+          d.fatherName || d.parentName || d.guardianName || '',
         ).trim();
         const academicYear = String(
-          d.academicYear || d.academic_year || ''
+          d.academicYear || d.academic_year || '',
         ).trim();
 
         const portal: PortalStudentResult = {
@@ -553,7 +584,7 @@ export class AdmissionbugComponent implements OnInit {
           phone,
           parentName,
           parentPhone: String(
-            d.parentPhone || d.parentMobile || phone || ''
+            d.parentPhone || d.parentMobile || phone || '',
           ).trim(),
           email: d.email || '',
           programName: d.programName || '',
@@ -563,7 +594,7 @@ export class AdmissionbugComponent implements OnInit {
           studyCentre: d.studyCentre || '',
           testScholarshipPct:
             Number(
-              d.waiverPerInTf ?? d.testScholarshipPct ?? d.testScholarship ?? 0
+              d.waiverPerInTf ?? d.testScholarshipPct ?? d.testScholarship ?? 0,
             ) || 0,
           academicYear: academicYear || '',
         };
@@ -596,7 +627,7 @@ export class AdmissionbugComponent implements OnInit {
             feePlanCode: '',
             baseFee: 0,
           },
-          { emitEvent: false }
+          { emitEvent: false },
         );
 
         this.testInfo = {
@@ -658,7 +689,7 @@ export class AdmissionbugComponent implements OnInit {
           this.alert.error(`${err?.error?.message || 'Fetch failed'}`);
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((res: any) => {
         if (!res) return;
@@ -672,10 +703,10 @@ export class AdmissionbugComponent implements OnInit {
         const d = res?.data || {};
         const phone = String(d.mobileNo || d.phone || d.mobile || '').trim();
         const parentName = String(
-          d.fatherName || d.parentName || d.guardianName || ''
+          d.fatherName || d.parentName || d.guardianName || '',
         ).trim();
         const academicYear = String(
-          d.academicYear || d.academic_year || ''
+          d.academicYear || d.academic_year || '',
         ).trim();
 
         const portal: PortalStudentResult = {
@@ -691,7 +722,7 @@ export class AdmissionbugComponent implements OnInit {
           phone,
           parentName,
           parentPhone: String(
-            d.parentPhone || d.parentMobile || phone || ''
+            d.parentPhone || d.parentMobile || phone || '',
           ).trim(),
           email: d.email || '',
           programName: d.programName || '',
@@ -731,7 +762,7 @@ export class AdmissionbugComponent implements OnInit {
             feePlanCode: '',
             baseFee: 0,
           },
-          { emitEvent: false }
+          { emitEvent: false },
         );
 
         this.testInfo = {
@@ -761,7 +792,7 @@ export class AdmissionbugComponent implements OnInit {
         this.buildEmptyPayments();
 
         this.alert.success(
-          'Student details fetched (test scholarship ignored).'
+          'Student details fetched (test scholarship ignored).',
         );
         this.feePlanReload$.next();
       });
@@ -787,47 +818,42 @@ export class AdmissionbugComponent implements OnInit {
       this.alert.error('Some required fields are missing/invalid.');
       return;
     }
-
     const tenantId = this.pickTenantId();
     if (!tenantId) {
       this.alert.error('tenantId (entiId) is missing. Please login again.');
       return;
     }
-
     const plan =
       this.feePlansSub
         .getValue()
         .find(
           (p) =>
-            p.id === String(this.step1Form.get('feePlanId')?.value || '').trim()
+            p.id ===
+            String(this.step1Form.get('feePlanId')?.value || '').trim(),
         ) || null;
 
     if (!plan) {
       this.alert.error('Please select a valid fee plan.');
       return;
     }
-
     this.submitting = true;
     const s1 = this.step1Form.getRawValue();
     const sourceType = s1.portalStudentId ? 'PORTAL' : 'DIRECT';
-
-    // compute fee preview once for payload (avoid template getters)
     const feePreview = this.computeFeeHeadPreview(
       plan,
       Number(s1.testScholarshipPct || 0),
       Number(s1.scholarshipPct || 0),
-      Number(s1.additionalScholarshipPct || 0)
+      Number(s1.additionalScholarshipPct || 0),
     );
     const finalFee = feePreview.reduce(
       (sum, r) => sum + (Number(r.total) || 0),
-      0
+      0,
     );
     const totalDisc = this.computeTotalDiscountPct(
       Number(s1.testScholarshipPct || 0),
       Number(s1.scholarshipPct || 0),
-      Number(s1.additionalScholarshipPct || 0)
+      Number(s1.additionalScholarshipPct || 0),
     );
-
     const body: any = {
       entiId: tenantId,
       academicYear: String(s1.academicYear || '').trim() || null,
@@ -873,9 +899,8 @@ export class AdmissionbugComponent implements OnInit {
         coreSubjectPct: s1.schoolCorePct,
         remarks: String(s1.schoolRemarks || '').trim() || null,
       },
-      test: this.testInfo,
+      test: this.normalizeTestInfoForPayload(this.testInfo),
     };
-
     this.api
       .fetchData(body, 'admi', 'create')
       .pipe(
@@ -884,7 +909,7 @@ export class AdmissionbugComponent implements OnInit {
           this.alert.error('Failed to create admission draft');
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((res: any) => {
         if (!res) return;
@@ -892,11 +917,10 @@ export class AdmissionbugComponent implements OnInit {
 
         if (!res?.status) {
           this.alert.error(
-            res?.message || res?.error || 'Failed to create admission draft'
+            res?.message || res?.error || 'Failed to create admission draft',
           );
           return;
         }
-
         const adm = res?.data || {};
         this.admissionId =
           String(adm.admissionId || adm._id || '').trim() || null;
@@ -907,7 +931,8 @@ export class AdmissionbugComponent implements OnInit {
         }
 
         this.resetWorkflowFlags();
-        this.buildPaymentsFromFinalFee(this.roundRupee(finalFee), plan);
+        this.buildPaymentsFromFeePlanInstalments(plan);
+
         this.step = 2;
         this.alert.success('Admission draft created. Proceed to payments.');
       });
@@ -930,7 +955,7 @@ export class AdmissionbugComponent implements OnInit {
         bankName: [''],
         referenceNote: [''],
         remarks: [''],
-      })
+      }),
     );
   }
 
@@ -947,7 +972,7 @@ export class AdmissionbugComponent implements OnInit {
     }
     if (!this.admissionId) {
       this.alert.error(
-        'Admission draft not created. Go back and proceed again.'
+        'Admission draft not created. Go back and proceed again.',
       );
       return;
     }
@@ -956,10 +981,9 @@ export class AdmissionbugComponent implements OnInit {
       this.alert.error('Please fill all required NEFT/cheque details.');
       return;
     }
-
     const entered = (this.neftRefsFA.getRawValue() || []).reduce(
       (s: number, r: any) => s + (Number(r.amount) || 0),
-      0
+      0,
     );
     const neftAmount =
       Number(this.step2Form.getRawValue().neftAmount ?? 0) || 0;
@@ -970,23 +994,21 @@ export class AdmissionbugComponent implements OnInit {
     }
     if (entered > neftAmount) {
       this.alert.error(
-        `NEFT total (₹${entered}) cannot exceed NEFT split (₹${neftAmount}).`
+        `NEFT total (₹${entered}) cannot exceed NEFT split (₹${neftAmount}).`,
       );
       return;
     }
-
     const chequeTotal = (this.chequesFA.getRawValue() || []).reduce(
       (s: number, r: any) => s + (Number(r.amount) || 0),
-      0
+      0,
     );
-
-    // finalFee snapshot (cheap sync by recompute from plan list)
     const plan =
       this.feePlansSub
         .getValue()
         .find(
           (p) =>
-            p.id === String(this.step1Form.get('feePlanId')?.value || '').trim()
+            p.id ===
+            String(this.step1Form.get('feePlanId')?.value || '').trim(),
         ) || null;
 
     const s1 = this.step1Form.getRawValue();
@@ -994,29 +1016,29 @@ export class AdmissionbugComponent implements OnInit {
       plan,
       Number(s1.testScholarshipPct || 0),
       Number(s1.scholarshipPct || 0),
-      Number(s1.additionalScholarshipPct || 0)
+      Number(s1.additionalScholarshipPct || 0),
     );
     const finalFee = feePreview.reduce(
       (sum, r) => sum + (Number(r.total) || 0),
-      0
+      0,
     );
-
     const totalPaid = entered + chequeTotal;
     const totalDue = this.roundRupee(finalFee || 0);
-
     if (totalDue > 0 && Math.round(totalPaid) !== totalDue) {
       this.alert.error(
-        `Total of NEFT and cheques (₹${totalPaid}) must match final fee (₹${totalDue}).`
+        `Total of NEFT and cheques (₹${totalPaid}) must match final fee (₹${totalDue}).`,
       );
       return;
     }
-
     const neftRefs = (this.neftRefsFA.getRawValue() || [])
       .map((r: any) => ({
         utr: String(r.utr || '').trim(),
         amount: Number(r.amount || 0),
-        paidOn: r.paidOn || null,
-        bankName: String(r.bankName || '').trim() || null,
+        paidOn: this.dateInputToEpoch(r.paidOn), // epoch
+        bankName:
+          String(r.bankName || '')
+            .trim()
+            .toUpperCase() || null, // ✅ uppercase
         referenceNote: String(r.referenceNote || '').trim() || null,
         remarks: String(r.remarks || '').trim() || null,
       }))
@@ -1025,23 +1047,26 @@ export class AdmissionbugComponent implements OnInit {
     const cheques = (this.chequesFA.getRawValue() || [])
       .map((r: any) => ({
         sno: Number(r.sno || 0) || 0,
+        description: String(r.description || '').trim() || null,
+        dueDate: Number(r.instalmentDate || 0) || 0,
         chequeNo: String(r.chequeNo || '').trim(),
-        chequeDate: r.chequeDate || this.todayISO(),
-        dueDate: r.dueDate || null,
+        chequeDate: this.dateInputToEpoch(r.chequeDate),
         favourOf: String(this.DEFAULT_FAVOUR_OF || '').trim(),
-        mode: (r.mode === 'CDC' ? 'CDC' : 'PDC') as ChequeMode,
-        bankName: String(r.bankName || '').trim() || null,
+        mode: (String(r.mode || 'PDC').toUpperCase() === 'CDC'
+          ? 'CDC'
+          : 'PDC') as ChequeMode,
+        bankName:
+          String(r.bankName || '')
+            .trim()
+            .toUpperCase() || null,
         amount: Number(r.amount || 0),
         remarks: String(r.remarks || '').trim() || null,
       }))
       .filter(
         (x: any) =>
-          !!x.chequeNo &&
-          !!x.dueDate &&
-          !!x.favourOf &&
-          (x.mode === 'PDC' || x.mode === 'CDC') &&
-          x.amount > 0
+          !!x.chequeNo && !!x.chequeDate && x.amount > 0 && x.dueDate > 0,
       );
+
     this.submitting = true;
     const body: any = {
       entiId: tenantId,
@@ -1057,7 +1082,7 @@ export class AdmissionbugComponent implements OnInit {
           this.alert.error('Failed to save payments');
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((res: any) => {
         if (!res) return;
@@ -1065,7 +1090,7 @@ export class AdmissionbugComponent implements OnInit {
 
         if (!res?.status) {
           this.alert.error(
-            res?.message || res?.error || 'Failed to save payments'
+            res?.message || res?.error || 'Failed to save payments',
           );
           return;
         }
@@ -1082,7 +1107,7 @@ export class AdmissionbugComponent implements OnInit {
     if (this.step2Form.invalid) {
       this.step2Form.markAllAsTouched();
       this.alert.error(
-        'Fill required NEFT/cheque details before generating fee calculation.'
+        'Fill required NEFT/cheque details before generating fee calculation.',
       );
       return;
     }
@@ -1119,7 +1144,7 @@ export class AdmissionbugComponent implements OnInit {
           this.alert.error('Failed to send for approval');
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((res: any) => {
         if (!res) return;
@@ -1127,7 +1152,7 @@ export class AdmissionbugComponent implements OnInit {
 
         if (!res?.status) {
           this.alert.error(
-            res?.message || res?.error || 'Failed to send for approval'
+            res?.message || res?.error || 'Failed to send for approval',
           );
           return;
         }
@@ -1152,7 +1177,7 @@ export class AdmissionbugComponent implements OnInit {
     }
     if (!this.feeCalcGenerated || !this.approvalSent) {
       this.alert.error(
-        'Generate fee calculation and send for approval before confirming.'
+        'Generate fee calculation and send for approval before confirming.',
       );
       return;
     }
@@ -1166,14 +1191,14 @@ export class AdmissionbugComponent implements OnInit {
           this.alert.error('Failed to confirm admission');
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((res: any) => {
         if (!res) return;
         this.submitting = false;
         if (!res?.status) {
           this.alert.error(
-            res?.message || res?.error || 'Failed to confirm admission'
+            res?.message || res?.error || 'Failed to confirm admission',
           );
           return;
         }
@@ -1199,14 +1224,14 @@ export class AdmissionbugComponent implements OnInit {
           this.alert.error('Failed to load programs');
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((res: any) => {
         this.programsLoading$.next(false);
         if (!res?.status) {
           this.programsSub.next([]);
           this.alert.error(
-            res?.message || res?.error || 'Failed to load programs'
+            res?.message || res?.error || 'Failed to load programs',
           );
           return;
         }
@@ -1218,6 +1243,9 @@ export class AdmissionbugComponent implements OnInit {
             programCode: String(x.programCodes || x.programCode || '').trim(),
             centerId: x.centerId ? String(x.centerId).trim() : '',
             centerName: x.centerName ? String(x.centerName).trim() : '',
+            durationYears:
+              Number(x.durationYears ?? x.duration ?? x.programDuration ?? 0) ||
+              0,
           }))
           .filter((p: ProgramItem) => !!p.programId && !!p.programName);
         this.programsSub.next(programs);
@@ -1245,14 +1273,14 @@ export class AdmissionbugComponent implements OnInit {
           this.alert.error('Failed to load centers');
           return of(null);
         }),
-        takeUntilDestroyed(this.destroyRef)
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((res: any) => {
         this.centersLoading$.next(false);
         if (!res?.status) {
           this.centersSub.next([]);
           this.alert.error(
-            res?.message || res?.error || 'Failed to load centers'
+            res?.message || res?.error || 'Failed to load centers',
           );
           return;
         }
@@ -1276,16 +1304,16 @@ export class AdmissionbugComponent implements OnInit {
     const tenantId = this.pickTenantId();
     if (!tenantId) return of(null);
     const programId = String(
-      this.step1Form.get('programId')?.value || ''
+      this.step1Form.get('programId')?.value || '',
     ).trim();
     const programCode = String(
-      this.step1Form.get('programCode')?.value || ''
+      this.step1Form.get('programCode')?.value || '',
     ).trim();
     if (!programId && !programCode) {
       this.feePlansSub.next([]);
       this.step1Form.patchValue(
         { feePlanId: '', feePlanCode: '' },
-        { emitEvent: false }
+        { emitEvent: false },
       );
       this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
       return of(null);
@@ -1307,7 +1335,7 @@ export class AdmissionbugComponent implements OnInit {
         if (!res?.status) {
           this.feePlansSub.next([]);
           this.alert.error(
-            res?.message || res?.error || 'Failed to load fee plans'
+            res?.message || res?.error || 'Failed to load fee plans',
           );
           return;
         }
@@ -1316,23 +1344,29 @@ export class AdmissionbugComponent implements OnInit {
           .map((x: any) => ({
             id: String(x.feePlanId || x.id || x._id || '').trim(),
             name: String(
-              x.feePlanName || x.feePlanCode || x.name || 'Fee Plan'
+              x.feePlanName || x.feePlanCode || x.name || 'Fee Plan',
             ).trim(),
             feePlanCode: x.feePlanCode ? String(x.feePlanCode).trim() : '',
             instalments: Array.isArray(x.instalments)
               ? x.instalments.map((i: any) => ({
                   seq: Number(i.seq || 0) || 0,
+                  feeHead: String(i.feeHead || '').trim(),
                   label: String(i.label || `Instalment ${i.seq || ''}`).trim(),
+                  instalmentDate: Number(i.instalmentDate || 0) || 0,
                   amount: Number(i.amount || 0) || 0,
-                  dueDate: i.dueDate ? String(i.dueDate) : null,
+                  mode: String(i.mode || 'PDC').trim(),
+                  chequeFavour: String(i.chequeFavour || '').trim(),
+                  discountApplied: !!i.discountApplied,
                 }))
               : [],
+
             feeHeads: Array.isArray(x.feeHeads)
               ? x.feeHeads.map((h: any) => ({
-                  key: String(h.key || h.feeHeadKey || '').trim(),
-                  label: String(h.label || h.feeHeadName || '').trim(),
-                  fee: Number(h.amount || 0),
-                  stax: Number(h.gstAmount || 0),
+                  key: String(h.key || '').trim(),
+                  label: String(h.label || '').trim(),
+                  fee: Number(h.amount || 0) || 0,
+                  stax: Number(h.gstAmount || 0) || 0,
+                  discountAllowed: !!h.discountAllowed,
                 }))
               : [],
           }))
@@ -1343,20 +1377,20 @@ export class AdmissionbugComponent implements OnInit {
         if (cur && !exists) {
           this.step1Form.patchValue(
             { feePlanId: '', feePlanCode: '' },
-            { emitEvent: false }
+            { emitEvent: false },
           );
           this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
         }
         const after = String(
-          this.step1Form.get('feePlanId')?.value || ''
+          this.step1Form.get('feePlanId')?.value || '',
         ).trim();
         if (!after && plans.length) {
           this.step1Form.patchValue(
             { feePlanId: plans[0].id },
-            { emitEvent: true }
+            { emitEvent: true },
           );
         }
-      })
+      }),
     );
   }
 
@@ -1369,7 +1403,7 @@ export class AdmissionbugComponent implements OnInit {
         centerName: c?.centerName || '',
         centerCode: c?.centerCode || '',
       },
-      { emitEvent: false }
+      { emitEvent: false },
     );
     this.resetWorkflowFlags();
   }
@@ -1378,6 +1412,7 @@ export class AdmissionbugComponent implements OnInit {
     const pid = String(programId || '').trim();
     const p =
       this.programsSub.getValue().find((x) => x.programId === pid) || null;
+    this.buildAcademicYearOptions(p?.durationYears || 0);
     this.step1Form.patchValue(
       {
         programName: p?.programName || '',
@@ -1385,7 +1420,7 @@ export class AdmissionbugComponent implements OnInit {
         feePlanId: '',
         feePlanCode: '',
       },
-      { emitEvent: false }
+      { emitEvent: false },
     );
     this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
     this.resetWorkflowFlags();
@@ -1413,7 +1448,7 @@ export class AdmissionbugComponent implements OnInit {
     const portalCode = this.norm(this.portal.programCode);
     const portalName = this.norm(this.portal.programName);
     let match = portalCode
-      ? programs.find((p) => this.norm(p.programCode) === portalCode) ?? null
+      ? (programs.find((p) => this.norm(p.programCode) === portalCode) ?? null)
       : null;
     if (!match && portalName) {
       match =
@@ -1423,7 +1458,7 @@ export class AdmissionbugComponent implements OnInit {
       this.alert.error(
         `Program not found in master. Portal ProgramCode="${
           this.portal.programCode || ''
-        }", ProgramName="${this.portal.programName || ''}".`
+        }", ProgramName="${this.portal.programName || ''}".`,
       );
       this.step1Form.patchValue(
         {
@@ -1433,7 +1468,7 @@ export class AdmissionbugComponent implements OnInit {
           feePlanId: '',
           feePlanCode: '',
         },
-        { emitEvent: false }
+        { emitEvent: false },
       );
       this.feePlansSub.next([]);
       this.step1Form.get('baseFee')?.setValue(0, { emitEvent: false });
@@ -1445,7 +1480,7 @@ export class AdmissionbugComponent implements OnInit {
         programName: match.programName,
         programCode: match.programCode || this.portal?.programCode || '',
       },
-      { emitEvent: true }
+      { emitEvent: true },
     );
     this.pendingPortalProgramCode = null;
     this.pendingPortalProgramName = null;
@@ -1465,112 +1500,186 @@ export class AdmissionbugComponent implements OnInit {
     return `${m[2]}-${m[3]}-${m[1]}`;
   }
 
-  private buildPaymentsFromFinalFee(finalFee: number, plan: FeePlan): void {
-    const baseAmounts = (plan?.instalments || []).map(
-      (i) => Number(i.amount) || 0
-    );
-    if (!baseAmounts.length) {
-      this.alert.error('Selected fee plan has no instalment structure.');
-      this.buildEmptyPayments();
-      return;
-    }
-    const baseTotal = baseAmounts.reduce(
-      (s: number, x: number) => s + (Number(x) || 0),
-      0
-    );
-    const scaled = this.scalePlan(baseAmounts, finalFee, baseTotal);
-    const neftAmt = scaled[0] || 0;
-    const chequeAmounts = scaled.slice(1);
-    this.step2Form.get('neftAmount')?.setValue(neftAmt, { emitEvent: false });
-    const neftFA = this.fb.array([]) as UntypedFormArray;
-    neftFA.push(
-      this.fb.group({
-        utr: [
-          '',
-          [
-            Validators.required,
-            Validators.minLength(6),
-            Validators.maxLength(40),
-          ],
-        ],
-        amount: [neftAmt, [Validators.required, Validators.min(1)]],
-        paidOn: [null],
-        bankName: [''],
-        referenceNote: [''],
-        remarks: [''],
-      })
-    );
-    this.step2Form.setControl('neftRefs', neftFA);
-    const chqFA = this.fb.array([]) as UntypedFormArray;
-    const instals = (plan?.instalments || []).slice(1);
-    chequeAmounts.forEach((amt, idx) => {
-      const sno = idx + 1;
-      const dueFromPlan = this.toDateInputISO(
-        instals[idx]?.label ? String(instals[idx].label) : null
-      );
-      chqFA.push(
-        this.fb.group({
-          sno: [sno],
-          dueDate: [
-            { value: dueFromPlan, disabled: true },
-            [Validators.required],
-          ],
-          favourOf: [
-            { value: this.DEFAULT_FAVOUR_OF, disabled: true },
-            [Validators.required],
-          ],
-          amount: [
-            { value: amt, disabled: true },
-            [Validators.required, Validators.min(1)],
-          ],
-          chequeNo: [
-            '',
-            [
-              Validators.required,
-              Validators.minLength(6),
-              Validators.maxLength(6),
-            ],
-          ],
-          chequeDate: [null, [Validators.required]],
-          mode: ['PDC' as ChequeMode, [Validators.required]],
-          bankName: [''],
-          remarks: [''],
-        })
-      );
-    });
-    this.step2Form.setControl('cheques', chqFA);
-  }
+  // printReportStep1(): void {
+  //   if (this.step !== 1) {
+  //     this.alert.error('Fee calculation can be printed from Step 1 only.');
+  //     return;
+  //   }
+  //   this.step1Form.markAllAsTouched();
+  //   if (this.step1Form.invalid) {
+  //     this.alert.error('Please fill the required student and fee details.');
+  //     return;
+  //   }
+  //   const plans = this.feePlansSub.getValue();
+  //   const planId = String(this.step1Form.get('feePlanId')?.value || '').trim();
+  //   const plan = plans.find((p) => p.id === planId) || null;
+  //   if (!plan) {
+  //     this.alert.error('Please select a valid fee plan to preview fees.');
+  //     return;
+  //   }
+  //   const s1 = this.step1Form.getRawValue();
+  //   const heads = this.computeFeeHeadPreview(
+  //     plan,
+  //     Number(s1.testScholarshipPct || 0),
+  //     Number(s1.scholarshipPct || 0),
+  //     Number(s1.additionalScholarshipPct || 0),
+  //   );
+  //   if (!heads.length) {
+  //     this.alert.error('No fee heads found for this plan.');
+  //     return;
+  //   }
+  //   const html = this.buildFeeCalcHtmlStep1(plan, heads);
+  //   this.openPrintWindow('Fee Calculation Sheet', html);
+  // }
 
   printReportStep1(): void {
     if (this.step !== 1) {
-      this.alert.error('Fee calculation can be printed from Step 1 only.');
+      this.alert.error('Step 1 report can be printed from Step 1 only.');
       return;
     }
     this.step1Form.markAllAsTouched();
     if (this.step1Form.invalid) {
-      this.alert.error('Please fill the required student and fee details.');
+      this.alert.error('Please fill the required student and program details.');
       return;
     }
     const plans = this.feePlansSub.getValue();
     const planId = String(this.step1Form.get('feePlanId')?.value || '').trim();
     const plan = plans.find((p) => p.id === planId) || null;
+
     if (!plan) {
-      this.alert.error('Please select a valid fee plan to preview fees.');
+      this.alert.error('Please select a valid fee plan.');
       return;
     }
+    const html = this.buildStep1PreviewHtml(plan);
+    this.openPrintWindow('Admission Preview', html);
+  }
+
+  private buildStep1PreviewHtml(plan: FeePlan): string {
     const s1 = this.step1Form.getRawValue();
-    const heads = this.computeFeeHeadPreview(
-      plan,
-      Number(s1.testScholarshipPct || 0),
-      Number(s1.scholarshipPct || 0),
-      Number(s1.additionalScholarshipPct || 0)
+    const today = new Date();
+    const discounted = this.buildDiscountedInstalmentsFromPlan(plan);
+    const neftItems = discounted.filter(
+      (x) => Number(x.instalmentDate || 0) === 0,
     );
-    if (!heads.length) {
-      this.alert.error('No fee heads found for this plan.');
-      return;
-    }
-    const html = this.buildFeeCalcHtmlStep1(plan, heads);
-    this.openPrintWindow('Fee Calculation Sheet', html);
+    const chequeItems = discounted.filter(
+      (x) => Number(x.instalmentDate || 0) !== 0,
+    );
+    const neftAmt = this.roundRupee(
+      neftItems.reduce((s, x) => s + (Number(x.amount || 0) || 0), 0),
+    );
+    const groupedCheques = this.groupInstalmentsByDate(
+      chequeItems.map((x) => ({
+        instalmentDate: x.instalmentDate,
+        label: x.label,
+        amount: x.amount,
+        mode: x.mode,
+        chequeFavour: x.chequeFavour,
+      })),
+    );
+    const chequeTotal = this.roundRupee(
+      groupedCheques.reduce((s, g) => s + (Number(g.amount || 0) || 0), 0),
+    );
+    const splitRows: string[] = [];
+    let sno = 1;
+    splitRows.push(`
+    <tr>
+      <td class="text-center">${sno++}</td>
+      <td>ON ADMISSION</td>
+      <td>Online/DD</td>
+      <td>${this.esc(
+        neftItems
+          .map((x) => x.label)
+          .filter(Boolean)
+          .join(', ') || 'Admission',
+    )}</td>
+      <td>ZEDSWEVEN I Private Limited</td>
+      <td class="text-right">${neftAmt.toLocaleString('en-IN')}</td>
+    </tr>
+  `);
+
+    // CHEQUE rows (grouped by date)
+    groupedCheques.forEach((g) => {
+      const dt = Number(g.instalmentDate || 0) || 0;
+      const due =
+        dt > 0 ? new Date(dt).toLocaleDateString('en-IN') : 'ON ADMISSION';
+      const desc = Array.from(new Set(g.labels || [])).join(', ') || '-';
+      const mode = String(g.mode || 'PDC').toUpperCase();
+
+      splitRows.push(`
+      <tr>
+        <td class="text-center">${sno++}</td>
+        <td>${this.esc(due)}</td>
+        <td>(${this.esc(mode)})</td>
+        <td>${this.esc(desc)}</td>        
+      <td>ZEDSWEVEN I Private Limited</td>
+        <td class="text-right">${this.roundRupee(g.amount).toLocaleString('en-IN')}</td>
+      </tr>
+    `);
+    });
+
+    const total = this.roundRupee(neftAmt + chequeTotal);
+
+    return `
+  <div class="page">
+    <div class="brand-center">
+      <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+    </div>
+
+    <div class="title-main">ADMISSION DETAILS PREVIEW</div>
+    <div class="subtitle">Step 1 preview (Payment split shown as per fee plan instalments).</div>
+
+    <div class="meta-row">
+      <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
+      <div><b>Academic Year :</b> ${this.esc(s1.academicYear || '')}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Student and Program Details</div>
+      <div class="kv-grid">
+        <div class="kv-label">Registration / Reg No</div><div>${this.esc(s1.regNo || '')}</div>
+        <div class="kv-label">Student Name</div><div>${this.esc(s1.name || '')}</div>
+        <div class="kv-label">Student Mobile</div><div>${this.esc(s1.phone || '')}</div>
+        <div class="kv-label">Parent Name</div><div>${this.esc(s1.parentName || '')}</div>
+        <div class="kv-label">Parent Mobile</div><div>${this.esc(s1.parentPhone || '')}</div>
+        <div class="kv-label">Email</div><div>${this.esc(s1.email || '')}</div>
+        <div class="kv-label">Program</div><div>${this.esc(s1.programCode || '')} - ${this.esc(s1.programName || '')}</div>
+        <div class="kv-label">Study Centre</div><div>${this.esc(s1.centerCode || '')} - ${this.esc(s1.centerName || '')}</div>
+        <div class="kv-label">Fee Plan</div><div>${this.esc(plan.feePlanCode || s1.feePlanCode || plan.name || '')}</div>
+        <div class="kv-label">Discounts</div><div>Test Scholarship : ${Number(s1.testScholarshipPct||0).toFixed(2)}% , Scholarship ${Number(s1.scholarshipPct||0).toFixed(2)}% , Additional Scholarship ${Number(s1.additionalScholarshipPct||0).toFixed(2)}%}</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px;" class="text-center">S.No</th>
+            <th style="width:120px;">Payment Date</th>
+            <th style="width:130px;">Mode</th>
+            <th>Fees For</th>
+            <th>Payment in Favour of</th>
+            <th style="width:140px;" class="text-right">Amount (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${splitRows.join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="5" class="text-right">Total</th>
+            <th class="text-right">₹ ${total.toLocaleString('en-IN')}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="sign-row">
+      <div class="sign-box">
+        <div class="sign-line"></div>
+        <div class="sign-label">ENROLLMENT MANAGER</div>
+      </div>
+    </div>
+  </div>`;
   }
 
   printPaymentsAck(): void {
@@ -1580,7 +1689,7 @@ export class AdmissionbugComponent implements OnInit {
     }
     if (!this.submittedForAck) {
       this.alert.error(
-        'Please submit payment details before printing acknowledgement.'
+        'Please submit payment details before printing acknowledgement.',
       );
       return;
     }
@@ -1593,14 +1702,14 @@ export class AdmissionbugComponent implements OnInit {
     const planId = String(this.step1Form.get('feePlanId')?.value || '').trim();
     const plan = plans.find((p) => p.id === planId) || null;
     const html = this.buildPaymentsAckHtmlStep2(plan);
-    this.openPrintWindow('Enrolment Report', html);
+    this.openPrintWindow('Acknowledgement', html);
   }
 
   private computeFeeHeadPreview(
     plan: FeePlan | null,
     testPct: number,
     schlPct: number,
-    addPct: number
+    addPct: number,
   ): Array<{
     label: string;
     fee: number;
@@ -1667,7 +1776,7 @@ export class AdmissionbugComponent implements OnInit {
   private scalePlan(
     amounts: number[],
     targetTotal: number,
-    baseTotal: number
+    baseTotal: number,
   ): number[] {
     const target = this.roundRupee(targetTotal);
     if (!baseTotal || target <= 0) return amounts.map(() => 0);
@@ -1698,21 +1807,20 @@ export class AdmissionbugComponent implements OnInit {
     return rounded;
   }
 
-  private buildAcademicYearOptions(): void {
-    const base = new Date().getFullYear();
-    this.academicYearOptions = [1, 2, 3, 4].map((n) => `${base} - ${base + n}`);
+  private buildAcademicYearOptions(durationYears?: number): void {
+    const now = new Date().getFullYear();
+    const dur = Math.max(1, Number(durationYears || 0) || 1);
+    const starts = [now - 1, now, now + 1];
+    this.academicYearOptions = starts.map(
+      (start) => `${start} - ${start + dur}`,
+    );
     const cur = String(this.step1Form?.get('academicYear')?.value || '').trim();
-    if (!cur) {
+    if (!cur || !this.academicYearOptions.includes(cur)) {
       setTimeout(() => {
-        const now = String(
-          this.step1Form.get('academicYear')?.value || ''
-        ).trim();
-        if (!now) {
-          this.step1Form.patchValue(
-            { academicYear: this.academicYearOptions[0] },
-            { emitEvent: true }
-          );
-        }
+        this.step1Form.patchValue(
+          { academicYear: this.academicYearOptions[0] },
+          { emitEvent: true },
+        );
       });
     }
   }
@@ -1770,29 +1878,6 @@ export class AdmissionbugComponent implements OnInit {
     const rounded = frac >= 0.5 ? base + 1 : base;
     return sign * rounded;
   }
-
-  // private toDateInputISO(v: any): string | null {
-  //   if (!v) return null;
-  //   if (/^\d{4}-\d{2}-\d{2}$/.test(String(v).trim())) return String(v).trim();
-  //   const s = String(v).trim();
-  //   const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})T/);
-  //   if (isoMatch?.[1]) return isoMatch[1];
-  //   const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  //   if (dm) {
-  //     const dd = dm[1].padStart(2, '0');
-  //     const mm = dm[2].padStart(2, '0');
-  //     const yyyy = dm[3];
-  //     return `${yyyy}-${mm}-${dd}`;
-  //   }
-  //   const d = new Date(s);
-  //   if (!isNaN(d.getTime())) {
-  //     const yyyy = d.getFullYear();
-  //     const mm = String(d.getMonth() + 1).padStart(2, '0');
-  //     const dd = String(d.getDate()).padStart(2, '0');
-  //     return `${yyyy}-${mm}-${dd}`;
-  //   }
-  //   return null;
-  // }
 
   private toDateInputISO(v: any): string | null {
     if (!v) return null;
@@ -1915,29 +2000,38 @@ export class AdmissionbugComponent implements OnInit {
 
   private buildInstallmentBreakupForStep1(
     plan: FeePlan,
-    finalFee: number
+    finalFee: number,
   ): string {
     const instals = plan?.instalments || [];
-    if (!instals.length)
+    if (!instals.length) {
       return `<tr><td colspan="5" class="text-center">No instalment structure available.</td></tr>`;
+    }
+
     const baseAmounts = instals.map((i) => Number(i.amount) || 0);
     const baseTotal = baseAmounts.reduce((s, x) => s + (Number(x) || 0), 0);
     const scaled = this.scalePlan(baseAmounts, finalFee || 0, baseTotal);
+
     return instals
       .map((i, idx) => {
         const label = String(i.label || `Instalment ${idx + 1}`).trim();
-        const due = this.toDateInputISO(i.dueDate) || '';
+
+        // ✅ instalmentDate is epoch ms OR 0 (On Admission)
+        const dt = Number(i.instalmentDate || 0) || 0;
+        const due =
+          dt > 0 ? new Date(dt).toLocaleDateString('en-IN') : 'ON ADMISSION';
+
         const amount = Number(scaled[idx] || 0);
-        const mode = idx === 0 ? 'NEFT' : 'CHEQUE';
+        const mode = dt === 0 ? 'NEFT' : 'CHEQUE';
+
         return `
-          <tr>
-            <td class="text-center">${idx + 1}</td>
-            <td>${this.esc(label)}</td>
-            <td>${this.esc(due)}</td>
-            <td class="text-center">${mode}</td>
-            <td class="text-right">${amount.toLocaleString('en-IN')}</td>
-          </tr>
-        `;
+        <tr>
+          <td class="text-center">${idx + 1}</td>
+          <td>${this.esc(label)}</td>
+          <td>${this.esc(due)}</td>
+          <td class="text-center">${this.esc(mode)}</td>
+          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+        </tr>
+      `;
       })
       .join('');
   }
@@ -1947,11 +2041,11 @@ export class AdmissionbugComponent implements OnInit {
     const today = new Date();
     const finalFee = heads.reduce(
       (s: number, r: any) => s + Number(r.total || 0),
-      0
+      0,
     );
     const scholTotal = heads.reduce(
       (s: number, r: any) => s + Number(r.scholBenefits || 0),
-      0
+      0,
     );
     return `
     <div class="page">
@@ -1968,25 +2062,25 @@ export class AdmissionbugComponent implements OnInit {
         <div class="section-title">Student and Program Details</div>
         <div class="kv-grid">
           <div class="kv-label">Name of the Student</div><div>${this.esc(
-            s1.name || ''
+            s1.name || '',
           )}</div>
           <div class="kv-label">Registration / Reg No</div><div>${this.esc(
-            s1.regNo || ''
+            s1.regNo || '',
           )}</div>
           <div class="kv-label">Academic Year</div><div>${this.esc(
-            s1.academicYear || ''
+            s1.academicYear || '',
           )}</div>
           <div class="kv-label">Mobile (Student / Parent)</div><div>${this.esc(
-            s1.phone || ''
+            s1.phone || '',
           )}</div>
           <div class="kv-label">Program</div><div>${this.esc(
-            s1.programName || ''
+            s1.programName || '',
           )}</div>
           <div class="kv-label">Fee Plan</div><div>${this.esc(
-            plan.feePlanCode || s1.feePlanCode || plan.name || ''
+            plan.feePlanCode || s1.feePlanCode || plan.name || '',
           )}</div>
           <div class="kv-label">Study Centre</div><div>${this.esc(
-            s1.centerName || ''
+            s1.centerName || '',
           )}</div>
         </div>
       </div>
@@ -1995,16 +2089,16 @@ export class AdmissionbugComponent implements OnInit {
         <table>
           <tbody>
             <tr><td>Test Scholarship (%)</td><td class="text-right">${Number(
-              s1.testScholarshipPct || 0
+              s1.testScholarshipPct || 0,
             ).toFixed(2)}%</td></tr>
             <tr><td>Scholarship (%)</td><td class="text-right">${Number(
-              s1.scholarshipPct || 0
+              s1.scholarshipPct || 0,
             ).toFixed(2)}%</td></tr>
             <tr><td>Additional Scholarship (%)</td><td class="text-right">${Number(
-              s1.additionalScholarshipPct || 0
+              s1.additionalScholarshipPct || 0,
             ).toFixed(2)}%</td></tr>
             <tr><td><b>Total Scholarship Benefits</b></td><td class="text-right"><b>₹ ${scholTotal.toLocaleString(
-              'en-IN'
+              'en-IN',
             )}</b></td></tr>
           </tbody>
         </table>
@@ -2014,7 +2108,7 @@ export class AdmissionbugComponent implements OnInit {
         <table>
           <tbody>
             <tr><td><b>Final Fee (After Scholarships)</b></td><td class="text-right"><b>₹ ${finalFee.toLocaleString(
-              'en-IN'
+              'en-IN',
             )}</b></td></tr>
           </tbody>
         </table>
@@ -2054,117 +2148,413 @@ export class AdmissionbugComponent implements OnInit {
   private buildPaymentsAckHtmlStep2(plan: FeePlan | null): string {
     const s1 = this.step1Form.getRawValue();
     const today = new Date();
+
     const nefts = (this.neftRefsFA.getRawValue() || []) as any[];
     const cheques = (this.chequesFA.getRawValue() || []) as any[];
+
     const paymentRows: string[] = [];
     let sno = 1;
+
+    // ---------- NEFT rows ----------
     nefts.forEach((n: any) => {
       const amount = Number(n.amount || 0);
       if (!amount) return;
+      const paidEpoch = this.dateInputToEpoch(n.paidOn);
       paymentRows.push(`
-        <tr>
-          <td class="text-center">${sno++}</td>
-          <td>NEFT</td>
-          <td>${this.esc(
-            n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : ''
-          )}</td>
-          <td>${this.esc(n.utr || '')}</td>
-          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
-        </tr>
-      `);
+      <tr>
+        <td class="text-center">${sno++}</td>
+        <td>NEFT</td>
+        <td>${this.esc(paidEpoch ? new Date(paidEpoch).toLocaleDateString('en-IN') : '')}</td>
+        <td>${this.esc(n.utr || '')}</td>
+        <td>${this.esc((n.bankName || '').toString().trim() || '-')}</td>
+        <td>
+        <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+      </tr>
+    `);
     });
+
+    // ---------- CHEQUE rows ----------
     cheques.forEach((c: any) => {
       const amount = Number(c.amount || 0);
       if (!amount) return;
+
+      // due date is instalmentDate epoch (stored in form)
+      const dueEpoch = this.dateInputToEpoch(c.instalmentDate ?? c.dueDate);
+
       paymentRows.push(`
-        <tr>
-          <td class="text-center">${sno++}</td>
-          <td>${this.esc(c.mode || 'PDC')}</td>
-          <td>${this.esc(
-            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : ''
-          )}</td>
-          <td>${this.esc(c.chequeNo || '')}</td>
-          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
-        </tr>
-      `);
+      <tr>
+        <td class="text-center">${sno++}</td>
+        <td>${this.esc(c.mode || 'PDC')}</td>
+        <td>${this.esc(dueEpoch ? new Date(dueEpoch).toLocaleDateString('en-IN') : '')}</td>
+        <td>${this.esc(c.chequeNo || '')}</td>
+        <td>${this.esc((c.bankName || '').toString().trim() || '-')}</td>
+        <td>${this.esc((c.description || '').toString().trim() || '-')}</td>
+        <td class="text-right">${amount.toLocaleString('en-IN')}</td>
+      </tr>
+    `);
     });
+
     const totalPaid =
       (nefts || []).reduce((s, x) => s + (Number(x.amount) || 0), 0) +
       (cheques || []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+
     return `
-    <div class="page">
-      <div class="brand-center">
-        <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+  <div class="page">
+    <div class="brand-center">
+      <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+    </div>
+    <div class="title-main">ACKNOWLEDGEMENT</div>
+    <div class="subtitle">Provisional Admission Confirmation</div>
+    <div class="meta-row">
+      <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
+      <div><b>Academic Year :</b> ${this.esc(s1.academicYear || '')}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Student, Program and Study Centre Details</div>
+      <table>
+        <tbody>
+          <tr><td>Registration No.</td><td>${this.esc(s1.regNo || '')}</td></tr>
+          <tr><td>Student Name</td><td>${this.esc(s1.name || '')}</td><td>Enrollment Date</td><td>${today.toLocaleDateString('en-IN')}</td></tr>
+          <tr><td>Student Mobile</td><td>${this.esc(s1.phone || '')}</td><td>Parent Name</td><td>${this.esc(s1.parentName || '')}</td></tr>
+          <tr><td>Email ID</td><td>${this.esc(s1.email || '')}</td><td>Program</td><td>${this.esc(s1.programName || '')}</td></tr>
+          <tr><td>Study Centre</td><td>${this.esc(s1.centerName || '')}</td><td>Fee Plan</td><td>${this.esc(plan?.feePlanCode || s1.feePlanCode || plan?.name || '')}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Payment Schedule</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px;" class="text-center">S.No</th>
+            <th style="width:80px;">Mode</th>
+            <th style="width:110px;">Date</th>
+            <th style="width:150px;">Cheque / UTR No.</th>
+            <th style="width:140px;">Bank</th>
+            <th>Description</th>
+            <th style="width:120px;" class="text-right">Amount (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            paymentRows.length
+              ? paymentRows.join('')
+              : '<tr><td colspan="7" class="text-center">No payment details captured.</td></tr>'
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="6" class="text-right">Total payments captured</th>
+            <th class="text-right">₹ ${totalPaid.toLocaleString('en-IN')}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="sign-row">
+      <div class="sign-box">
+        <div class="sign-line"></div>
+        <div class="sign-label">Authorized Signatory</div>
       </div>
-      <div class="title-main">ACKNOWLEDGEMENT</div>
-      <div class="subtitle">Provisional Admission Confirmation</div>
-      <div class="meta-row">
-        <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
-        <div><b>Academic Year :</b> ${this.esc(s1.academicYear || '')}</div>
-      </div>
-      <div class="section">
-        <div class="section-title">Student, Program and Study Centre Details</div>
-        <table>
-          <tbody>
-            <tr><td>Registration No.</td><td>${this.esc(
-              s1.regNo || ''
-            )}</td></tr>
-            <tr><td>Student Name</td><td>${this.esc(
-              s1.name || ''
-            )}</td><td>Enrollment Date</td><td>${today.toLocaleDateString(
-      'en-IN'
-    )}</td></tr>
-            <tr><td>Student Mobile</td><td>${this.esc(
-              s1.phone || ''
-            )}</td><td>Parent Name</td><td>${this.esc(
-      s1.parentName || ''
-    )}</td></tr>
-            <tr><td>Email ID</td><td>${this.esc(
-              s1.email || ''
-            )}</td><td>Program</td><td>${this.esc(
-      s1.programName || ''
-    )}</td></tr>
-            <tr><td>Study Centre</td><td>${this.esc(
-              s1.centerName || ''
-            )}</td><td>Fee Plan</td><td>${this.esc(
-      plan?.feePlanCode || s1.feePlanCode || plan?.name || ''
-    )}</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="section">
-        <div class="section-title">Payment Schedule</div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width:40px;" class="text-center">S.No</th>
-              <th style="width:70px;">Mode</th>
-              <th style="width:110px;">Dated</th>
-              <th>Cheque/DD/UTR No.</th>
-              <th style="width:120px;" class="text-right">Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${
-              paymentRows.length
-                ? paymentRows.join('')
-                : '<tr><td colspan="5" class="text-center">No payment details captured.</td></tr>'
-            }
-          </tbody>
-          <tfoot>
-            <tr>
-              <th colspan="4" class="text-right">Total payments captured</th>
-              <th class="text-right">₹ ${totalPaid.toLocaleString('en-IN')}</th>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      <div class="sign-row">
-        <div class="sign-box">
-          <div class="sign-line"></div>
-          <div class="sign-label">Authorized Signatory</div>
-        </div>
-      </div>
-    </div>`;
+    </div>
+  </div>`;
+  }
+
+  private buildDiscountedInstalmentsFromPlan(plan: FeePlan): Array<{
+    seq: number;
+    feeHead: string;
+    label: string;
+    instalmentDate: number;
+    amount: number;
+    mode: string;
+    chequeFavour: string;
+    discountApplied: boolean;
+  }> {
+    const s1 = this.step1Form.getRawValue();
+
+    const testPct = Number(s1.testScholarshipPct || 0) || 0;
+    const schlPct = Number(s1.scholarshipPct || 0) || 0;
+    const addPct = Number(s1.additionalScholarshipPct || 0) || 0;
+
+    // Build discounted totals per feeHead key (we mainly need TF)
+    const discountedTotalsByKey = this.computeDiscountedTotalsByFeeHeadKey(
+      plan,
+      testPct,
+      schlPct,
+      addPct,
+    );
+
+    // Original totals per feeHead key from feeHeads
+    const originalTotalsByKey: Record<string, number> = {};
+    (plan.feeHeads || []).forEach((h) => {
+      const key = String(h.key || '').trim();
+      const total = (Number(h.fee || 0) || 0) + (Number(h.stax || 0) || 0);
+      originalTotalsByKey[key] = total;
+    });
+
+    const tfKey = this.findDiscountFeeHeadKey(plan); // usually TF
+    const origTF = Number(originalTotalsByKey[tfKey] || 0);
+    const discTF = Number(discountedTotalsByKey[tfKey] || 0);
+
+    // factor to distribute discounted TF total across all TF instalments
+    const tfFactor = origTF > 0 ? discTF / origTF : 1;
+
+    const discounted = (plan.instalments || []).map((ins) => {
+      const feeHead = String(ins.feeHead || '').trim();
+      const discountApplied = !!ins.discountApplied;
+
+      let amt = Number(ins.amount || 0) || 0;
+
+      // Apply discount ONLY when discountApplied is true
+      if (discountApplied && feeHead === tfKey) {
+        amt = this.roundRupee(amt * tfFactor);
+      }
+
+      return {
+        seq: Number(ins.seq || 0) || 0,
+        feeHead,
+        label: String(ins.label || '').trim(),
+        instalmentDate: Number(ins.instalmentDate || 0) || 0,
+        amount: this.roundRupee(amt),
+        mode: String(ins.mode || 'PDC').trim(),
+        chequeFavour: String(ins.chequeFavour || this.DEFAULT_FAVOUR_OF).trim(),
+        discountApplied,
+      };
+    });
+
+    // ✅ requested verification log
+    console.log('[Admission] Discounted instalments:', discounted);
+
+    return discounted;
+  }
+
+  private findDiscountFeeHeadKey(plan: FeePlan): string {
+    // Prefer discountAllowed feehead (your backend already sends it)
+    const byFlag =
+      (plan.feeHeads || []).find((h) => !!h.discountAllowed)?.key || '';
+    if (byFlag) return String(byFlag).trim();
+
+    // fallback old heuristic
+    const byName =
+      (plan.feeHeads || []).find((h) =>
+        String(h.label || '')
+          .toLowerCase()
+          .includes('tuition'),
+      )?.key || '';
+
+    return String(byName || 'TF').trim();
+  }
+
+  private computeDiscountedTotalsByFeeHeadKey(
+    plan: FeePlan,
+    testPct: number,
+    schlPct: number,
+    addPct: number,
+  ): Record<string, number> {
+    const clamp = (v: number) => Math.max(0, Math.min(100, Number(v || 0)));
+
+    const p1 = clamp(testPct);
+    const p2 = clamp(schlPct);
+    const p3 = clamp(addPct);
+
+    const applyPct = (amount: number, pct: number) => {
+      const out = Math.round(amount * (1 - pct / 100));
+      return out < 0 ? 0 : out;
+    };
+
+    const out: Record<string, number> = {};
+    const tfKey = this.findDiscountFeeHeadKey(plan);
+
+    (plan.feeHeads || []).forEach((h) => {
+      const key = String(h.key || '').trim();
+      const fee0 = Number(h.fee || 0) || 0;
+      const tax0 = Number(h.stax || 0) || 0;
+      const rate = fee0 > 0 ? tax0 / fee0 : 0;
+
+      // Default = no discount
+      let outFee = fee0;
+      let outTax = tax0;
+
+      // Discount only for TF (and only if plan says discountAllowed)
+      const isDiscountAllowed = !!h.discountAllowed;
+      const isTuition = key === tfKey;
+
+      if (isDiscountAllowed && isTuition) {
+        const fee1 = applyPct(outFee, p1);
+        const tax1 = Math.round(fee1 * rate);
+
+        const fee2 = applyPct(fee1, p2);
+        const tax2 = Math.round(fee2 * rate);
+
+        const fee3 = applyPct(fee2, p3);
+        const tax3 = Math.round(fee3 * rate);
+
+        outFee = fee3;
+        outTax = tax3;
+      }
+
+      out[key] = this.roundRupee(outFee + outTax);
+    });
+
+    return out;
+  }
+
+  private groupInstalmentsByDate(
+    insts: Array<{
+      instalmentDate: number;
+      label: string;
+      amount: number;
+      mode: string;
+      chequeFavour: string;
+    }>,
+  ) {
+    const map = new Map<
+      number,
+      {
+        instalmentDate: number;
+        amount: number;
+        labels: string[];
+        mode: string;
+        favourOf: string;
+      }
+    >();
+
+    for (const it of insts) {
+      const dt = Number(it.instalmentDate || 0) || 0;
+      const cur = map.get(dt);
+
+      if (!cur) {
+        map.set(dt, {
+          instalmentDate: dt,
+          amount: Number(it.amount || 0) || 0,
+          labels: [String(it.label || '').trim()].filter(Boolean),
+          mode: String(it.mode || 'PDC').trim(),
+          favourOf: String(it.chequeFavour || this.DEFAULT_FAVOUR_OF).trim(),
+        });
+      } else {
+        cur.amount += Number(it.amount || 0) || 0;
+        const lbl = String(it.label || '').trim();
+        if (lbl) cur.labels.push(lbl);
+      }
+    }
+
+    // sort by date (0 first)
+    return Array.from(map.values()).sort(
+      (a, b) => (a.instalmentDate || 0) - (b.instalmentDate || 0),
+    );
+  }
+
+  private buildPaymentsFromFeePlanInstalments(plan: FeePlan): void {
+    const discountedInsts = this.buildDiscountedInstalmentsFromPlan(plan);
+
+    // NEFT bucket = instalmentDate === 0
+    const neftItems = discountedInsts.filter(
+      (x) => Number(x.instalmentDate || 0) === 0,
+    );
+    const chequeItems = discountedInsts.filter(
+      (x) => Number(x.instalmentDate || 0) !== 0,
+    );
+
+    const neftAmt = this.roundRupee(
+      neftItems.reduce((s, x) => s + (Number(x.amount || 0) || 0), 0),
+    );
+    this.step2Form.get('neftAmount')?.setValue(neftAmt, { emitEvent: false });
+
+    // NEFT refs default 1 row with full amount
+    const neftFA = this.fb.array([]) as UntypedFormArray;
+    neftFA.push(
+      this.fb.group({
+        utr: [
+          '',
+          [
+            Validators.required,
+            Validators.minLength(6),
+            Validators.maxLength(40),
+          ],
+        ],
+        amount: [neftAmt, [Validators.required, Validators.min(1)]],
+        paidOn: [null], // UI date string, convert to epoch in submit
+        bankName: [''],
+        referenceNote: [''],
+        remarks: [''],
+      }),
+    );
+    this.step2Form.setControl('neftRefs', neftFA);
+
+    // Group cheques by instalmentDate (sum amounts)
+    const grouped = this.groupInstalmentsByDate(
+      chequeItems.map((x) => ({
+        instalmentDate: x.instalmentDate,
+        label: x.label,
+        amount: x.amount,
+        mode: x.mode,
+        chequeFavour: x.chequeFavour,
+      })),
+    );
+
+    const chqFA = this.fb.array([]) as UntypedFormArray;
+    grouped.forEach((g, idx) => {
+      const desc = Array.from(new Set(g.labels)).join(', ');
+
+      chqFA.push(
+        this.fb.group({
+          sno: [idx + 1],
+          description: [desc],
+          instalmentDate: [g.instalmentDate, [Validators.required]], // epoch
+          amount: [
+            { value: this.roundRupee(g.amount), disabled: true },
+            [Validators.required, Validators.min(1)],
+          ],
+          favourOf: [
+            { value: g.favourOf || this.DEFAULT_FAVOUR_OF, disabled: true },
+            [Validators.required],
+          ],
+          mode: [
+            String(g.mode || 'PDC').toUpperCase() === 'CDC' ? 'CDC' : 'PDC',
+            [Validators.required],
+          ],
+          chequeDate: [null, [Validators.required]], // UI date string, convert to epoch in submit
+          chequeNo: [
+            '',
+            [
+              Validators.required,
+              Validators.minLength(6),
+              Validators.maxLength(20),
+            ],
+          ],
+          bankName: ['', [Validators.required]],
+          remarks: [''],
+        }),
+      );
+    });
+
+    this.step2Form.setControl('cheques', chqFA);
+  }
+
+  private dateInputToEpoch(v: any): number | null {
+    const s = String(v || '').trim();
+    if (!s) return null;
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+      const yyyy = Number(m[1]);
+      const mm = Number(m[2]) - 1;
+      const dd = Number(m[3]);
+      const dt = new Date(yyyy, mm, dd, 0, 0, 0, 0);
+      return dt.getTime();
+    }
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return n;
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.getTime();
+    return null;
+  }
+
+  private normalizeTestInfoForPayload(testInfo: any): any {
+    const t = { ...(testInfo || {}) };
+    if (t.testDate !== undefined)
+      t.testDate = this.dateInputToEpoch(t.testDate);
+    return t;
   }
 }
