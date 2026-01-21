@@ -25,10 +25,10 @@ import {
   switchMap,
   tap,
 } from 'rxjs/operators';
-
 import { AlertService } from '../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
+import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 
 type ChequeMode = 'PDC' | 'CDC';
 
@@ -64,24 +64,22 @@ interface FeePlan {
   id: string;
   name: string;
   feePlanCode?: string;
-
   instalments: Array<{
     seq: number;
-    feeHead: string; // NEW (AM/AF/TF etc)
-    label: string; // description
-    instalmentDate: number; // epoch ms OR 0
-    amount: number; // amount as per backend
-    mode: string; // Online/DD, PDC, CDC etc
-    chequeFavour?: string; // NEW
-    discountApplied?: boolean; // NEW
+    feeHead: string;
+    label: string;
+    instalmentDate: number;
+    amount: number;
+    mode: string;
+    chequeFavour?: string;
+    discountApplied?: boolean;
   }>;
-
   feeHeads: Array<{
     key: string;
     label: string;
-    fee: number; // base
-    stax: number; // gst
-    discountAllowed?: boolean; // NEW
+    fee: number;
+    stax: number;
+    discountAllowed?: boolean;
   }>;
 }
 
@@ -101,51 +99,34 @@ type Step = 0 | 1 | 2;
 })
 export class AdmissionbugComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
-
-  // ---------- UI State ----------
   step: Step = 0;
   directMode: 'NONE' | 'NO_TEST' | 'WITH_TEST' = 'NONE';
-
   loading = false;
   submitting = false;
-
   submittedForAck = false;
   feeCalcGenerated = false;
   approvalSent = false;
-
   isDirectEnrolment = false;
   portal: PortalStudentResult | null = null;
   admissionId: string | null = null;
-
   discountOptions = Array.from({ length: 21 }, (_, i) => i * 5);
-
   academicYearOptions: string[] = [];
   testInfo: any = {};
-
   readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
   readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
-
-  // ---------- Forms ----------
   lookupForm!: UntypedFormGroup;
   step1Form!: UntypedFormGroup;
   step2Form!: UntypedFormGroup;
-
-  // ---------- Masters (Subjects for OnPush friendly updates) ----------
   private programsSub = new BehaviorSubject<ProgramItem[]>([]);
   programs$ = this.programsSub.asObservable();
   programsLoading$ = new BehaviorSubject<boolean>(false);
-
   private centersSub = new BehaviorSubject<CenterItem[]>([]);
   centers$ = this.centersSub.asObservable();
   centersLoading$ = new BehaviorSubject<boolean>(false);
-
   private feePlansSub = new BehaviorSubject<FeePlan[]>([]);
   feePlans$ = this.feePlansSub.asObservable();
   feePlansLoading$ = new BehaviorSubject<boolean>(false);
-
-  // triggers feeplan reload (cancellable)
   private feePlanReload$ = new Subject<void>();
-
   readonly bankNames: string[] = [
     'STATE BANK OF INDIA',
     'HDFC BANK',
@@ -183,7 +164,6 @@ export class AdmissionbugComponent implements OnInit {
     ]);
   }
 
-  // ---------- Derived streams (NO heavy getters in template) ----------
   readonly feePlanId$ = () =>
     this.step1Form.get('feePlanId')!.valueChanges.pipe(
       startWith(this.step1Form.get('feePlanId')!.value),
@@ -251,12 +231,13 @@ export class AdmissionbugComponent implements OnInit {
       shareReplay(1),
     );
 
-  // Step2 streamed totals
   readonly neftTotalEntered$ = () =>
     this.neftRefsFA.valueChanges.pipe(
       startWith(this.neftRefsFA.getRawValue()),
       map((rows: any[]) =>
-        (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0),
+        this.roundRupee(
+          (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0),
+        ),
       ),
       shareReplay(1),
     );
@@ -265,28 +246,29 @@ export class AdmissionbugComponent implements OnInit {
     this.chequesFA.valueChanges.pipe(
       startWith(this.chequesFA.getRawValue()),
       map((rows: any[]) =>
-        (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0),
+        this.roundRupee(
+          (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0),
+        ),
       ),
       shareReplay(1),
     );
 
   readonly totalCollected$ = () =>
     combineLatest([this.neftTotalEntered$(), this.chequeTotal$()]).pipe(
-      map(([n, c]) => (Number(n) || 0) + (Number(c) || 0)),
+      map(([n, c]) => this.roundRupee((Number(n) || 0) + (Number(c) || 0))),
       shareReplay(1),
     );
 
   readonly balanceAmount$ = () =>
     combineLatest([this.finalFee$(), this.totalCollected$()]).pipe(
       map(([due, paid]) => {
-        const D = Math.round(Number(due) || 0);
-        const P = Math.round(Number(paid) || 0);
+        const D = this.roundRupee(due || 0);
+        const P = this.roundRupee(paid || 0);
         return Math.max(0, D - P);
       }),
       shareReplay(1),
     );
 
-  // Small display-only fields
   readonly regNoView$ = () =>
     this.step1Form.get('regNo')!.valueChanges.pipe(
       startWith(this.step1Form.get('regNo')!.value),
@@ -294,12 +276,10 @@ export class AdmissionbugComponent implements OnInit {
       shareReplay(1),
     );
 
-  // ---------- Init ----------
   ngOnInit(): void {
     this.lookupForm = this.fb.group({
       regNo: [''],
     });
-
     this.step1Form = this.fb.group({
       academicYear: ['', Validators.required],
       portalStudentId: [''],
@@ -327,17 +307,14 @@ export class AdmissionbugComponent implements OnInit {
       schoolCorePct: [null],
       schoolRemarks: [''],
     });
-
     this.step2Form = this.fb.group({
       neftAmount: [{ value: 0, disabled: true }],
       neftRefs: this.fb.array([]),
       cheques: this.fb.array([]),
     });
-
+    this.bindStep2NeftValidator();
     this.buildAcademicYearOptions(0);
     this.buildEmptyPayments();
-
-    // phone -> parentPhone sync (cheap, but prevent loops)
     this.step1Form
       .get('phone')!
       .valueChanges.pipe(
@@ -355,12 +332,8 @@ export class AdmissionbugComponent implements OnInit {
             ?.setValue(phone, { emitEvent: false });
         }
       });
-
-    // Load masters once
     this.loadPrograms();
     this.loadCenters();
-
-    // Program change -> reload feeplans (debounced, cancellable)
     this.step1Form
       .get('programId')!
       .valueChanges.pipe(
@@ -372,8 +345,6 @@ export class AdmissionbugComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
-
-    // academicYear change -> reload feeplans
     this.step1Form
       .get('academicYear')!
       .valueChanges.pipe(
@@ -387,8 +358,6 @@ export class AdmissionbugComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
-
-    // feePlanId change -> update feePlanCode + baseFee (cheap)
     combineLatest([this.selectedPlan$(), this.feePlanId$()])
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(([plan]) => {
@@ -406,8 +375,6 @@ export class AdmissionbugComponent implements OnInit {
 
         this.resetWorkflowFlags();
       });
-
-    // Any scholarship change resets workflow flags
     combineLatest([
       this.testScholarshipPct$(),
       this.scholarshipPct$(),
@@ -418,8 +385,6 @@ export class AdmissionbugComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
-
-    // Fee plan loader stream (switchMap = cancels old calls)
     this.feePlanReload$
       .pipe(
         startWith(void 0),
@@ -430,22 +395,20 @@ export class AdmissionbugComponent implements OnInit {
       .subscribe();
   }
 
-  // ---------- FormArray getters (safe, used by template for form bindings) ----------
   get neftRefsFA(): UntypedFormArray {
     return this.step2Form.get('neftRefs') as UntypedFormArray;
   }
+
   get chequesFA(): UntypedFormArray {
     return this.step2Form.get('cheques') as UntypedFormArray;
   }
 
-  // ---------- trackBy ----------
   trackByIndex = (i: number) => i;
   trackByProgramId = (_: number, x: ProgramItem) => x.programId;
   trackByCenterId = (_: number, x: CenterItem) => x.centerId;
   trackByFeePlanId = (_: number, x: FeePlan) => x.id;
   trackByFeeHeadLabel = (_: number, x: any) => x.label;
 
-  // ---------- UI handlers ----------
   onDirectModeChange(mode: 'NO_TEST' | 'WITH_TEST', ev: any): void {
     const checked = !!ev?.target?.checked;
     if (!checked) {
@@ -464,11 +427,9 @@ export class AdmissionbugComponent implements OnInit {
       return;
     }
     const newReg = this.uuidv4();
-
     this.isDirectEnrolment = true;
     this.portal = null;
     this.admissionId = null;
-
     this.step1Form.reset();
     this.step1Form.patchValue(
       {
@@ -493,7 +454,6 @@ export class AdmissionbugComponent implements OnInit {
       },
       { emitEvent: false },
     );
-
     this.testInfo = {
       testDate: null,
       testCity: null,
@@ -511,14 +471,11 @@ export class AdmissionbugComponent implements OnInit {
       waiverPerInTf: null,
       studyCentre: null,
     };
-
     this.setRegNoLock(true);
     this.setTestScholarshipLock(true);
-
     this.feePlansSub.next([]);
     this.buildEmptyPayments();
     this.resetWorkflowFlags();
-
     this.step = 1;
     this.alert.success('Direct enrolment started (RegNo auto generated).');
   }
@@ -811,7 +768,6 @@ export class AdmissionbugComponent implements OnInit {
     this.step = 1;
   }
 
-  // ---------- Step 1 -> Step 2 (Create draft) ----------
   next(): void {
     this.step1Form.markAllAsTouched();
     if (this.step1Form.invalid) {
@@ -938,7 +894,6 @@ export class AdmissionbugComponent implements OnInit {
       });
   }
 
-  // ---------- Step 2 actions ----------
   addNeftRef(): void {
     this.neftRefsFA.push(
       this.fb.group({
@@ -957,11 +912,13 @@ export class AdmissionbugComponent implements OnInit {
         remarks: [''],
       }),
     );
+    this.neftRefsFA.updateValueAndValidity(); // ✅
   }
 
   removeNeftRef(i: number): void {
     if (this.neftRefsFA.length <= 1) return;
     this.neftRefsFA.removeAt(i);
+    this.neftRefsFA.updateValueAndValidity(); // ✅
   }
 
   submitPayments(): void {
@@ -985,6 +942,8 @@ export class AdmissionbugComponent implements OnInit {
       (s: number, r: any) => s + (Number(r.amount) || 0),
       0,
     );
+    console.log(' entered ', entered);
+    const enteredRounded = this.roundRupee(entered);
     const neftAmount =
       Number(this.step2Form.getRawValue().neftAmount ?? 0) || 0;
 
@@ -992,16 +951,19 @@ export class AdmissionbugComponent implements OnInit {
       this.alert.error('Please add at least one NEFT reference amount.');
       return;
     }
-    if (entered > neftAmount) {
+    if (enteredRounded > this.roundRupee(neftAmount)) {
       this.alert.error(
-        `NEFT total (₹${entered}) cannot exceed NEFT split (₹${neftAmount}).`,
+        `NEFT total (₹${enteredRounded}) cannot exceed NEFT split (₹${this.roundRupee(neftAmount)}).`,
       );
       return;
     }
+    console.log('enteredRounded ', enteredRounded);
     const chequeTotal = (this.chequesFA.getRawValue() || []).reduce(
       (s: number, r: any) => s + (Number(r.amount) || 0),
       0,
     );
+    const chequeTotalRounded = this.roundRupee(chequeTotal);
+    console.log('entchequeTotalRoundederedRounded ', chequeTotalRounded);
     const plan =
       this.feePlansSub
         .getValue()
@@ -1018,15 +980,28 @@ export class AdmissionbugComponent implements OnInit {
       Number(s1.scholarshipPct || 0),
       Number(s1.additionalScholarshipPct || 0),
     );
+    console.log('feePreview ', feePreview);
     const finalFee = feePreview.reduce(
-      (sum, r) => sum + (Number(r.total) || 0),
+      (sum, r) => sum + (Number(this.roundRupee(r.total)) || 0),
       0,
     );
-    const totalPaid = entered + chequeTotal;
+    console.log('finalFee ', finalFee);
+    const totalPaid = this.roundRupee(enteredRounded + chequeTotalRounded);
     const totalDue = this.roundRupee(finalFee || 0);
-    if (totalDue > 0 && Math.round(totalPaid) !== totalDue) {
+    console.log('totalPaid ', totalPaid, 'totalDue ', totalDue);
+    // if (totalDue > 0 && totalPaid !== totalDue) {
+    //   this.alert.error(
+    //     `Total of NEFT and cheques (₹${totalPaid}) must match final fee (₹${totalDue}).`,
+    //   );
+    //   return;
+    // }
+    const diff = this.roundRupee(totalPaid - totalDue);
+    const TOL = 2;
+
+    if (totalDue > 0 && Math.abs(diff) > TOL) {
+      const sign = diff > 0 ? '+' : '';
       this.alert.error(
-        `Total of NEFT and cheques (₹${totalPaid}) must match final fee (₹${totalDue}).`,
+        `Total of NEFT and cheques (₹${totalPaid}) should be within ₹${TOL} of final fee (₹${totalDue}). Difference: ${sign}${diff}.`,
       );
       return;
     }
@@ -1034,11 +1009,11 @@ export class AdmissionbugComponent implements OnInit {
       .map((r: any) => ({
         utr: String(r.utr || '').trim(),
         amount: Number(r.amount || 0),
-        paidOn: this.dateInputToEpoch(r.paidOn), // epoch
+        paidOn: this.dateInputToEpoch(r.paidOn),
         bankName:
           String(r.bankName || '')
             .trim()
-            .toUpperCase() || null, // ✅ uppercase
+            .toUpperCase() || null,
         referenceNote: String(r.referenceNote || '').trim() || null,
         remarks: String(r.remarks || '').trim() || null,
       }))
@@ -1492,46 +1467,6 @@ export class AdmissionbugComponent implements OnInit {
     this.step2Form.setControl('cheques', this.fb.array([]));
   }
 
-  public isoToDDMMYYYY(iso: any): string {
-    const s = String(iso || '').trim();
-    if (!s) return '';
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!m) return '';
-    return `${m[2]}-${m[3]}-${m[1]}`;
-  }
-
-  // printReportStep1(): void {
-  //   if (this.step !== 1) {
-  //     this.alert.error('Fee calculation can be printed from Step 1 only.');
-  //     return;
-  //   }
-  //   this.step1Form.markAllAsTouched();
-  //   if (this.step1Form.invalid) {
-  //     this.alert.error('Please fill the required student and fee details.');
-  //     return;
-  //   }
-  //   const plans = this.feePlansSub.getValue();
-  //   const planId = String(this.step1Form.get('feePlanId')?.value || '').trim();
-  //   const plan = plans.find((p) => p.id === planId) || null;
-  //   if (!plan) {
-  //     this.alert.error('Please select a valid fee plan to preview fees.');
-  //     return;
-  //   }
-  //   const s1 = this.step1Form.getRawValue();
-  //   const heads = this.computeFeeHeadPreview(
-  //     plan,
-  //     Number(s1.testScholarshipPct || 0),
-  //     Number(s1.scholarshipPct || 0),
-  //     Number(s1.additionalScholarshipPct || 0),
-  //   );
-  //   if (!heads.length) {
-  //     this.alert.error('No fee heads found for this plan.');
-  //     return;
-  //   }
-  //   const html = this.buildFeeCalcHtmlStep1(plan, heads);
-  //   this.openPrintWindow('Fee Calculation Sheet', html);
-  // }
-
   printReportStep1(): void {
     if (this.step !== 1) {
       this.alert.error('Step 1 report can be printed from Step 1 only.');
@@ -1591,7 +1526,7 @@ export class AdmissionbugComponent implements OnInit {
           .map((x) => x.label)
           .filter(Boolean)
           .join(', ') || 'Admission',
-    )}</td>
+      )}</td>
       <td>ZEDSWEVEN I Private Limited</td>
       <td class="text-right">${neftAmt.toLocaleString('en-IN')}</td>
     </tr>
@@ -1645,7 +1580,7 @@ export class AdmissionbugComponent implements OnInit {
         <div class="kv-label">Program</div><div>${this.esc(s1.programCode || '')} - ${this.esc(s1.programName || '')}</div>
         <div class="kv-label">Study Centre</div><div>${this.esc(s1.centerCode || '')} - ${this.esc(s1.centerName || '')}</div>
         <div class="kv-label">Fee Plan</div><div>${this.esc(plan.feePlanCode || s1.feePlanCode || plan.name || '')}</div>
-        <div class="kv-label">Discounts</div><div>Test Scholarship : ${Number(s1.testScholarshipPct||0).toFixed(2)}% , Scholarship ${Number(s1.scholarshipPct||0).toFixed(2)}% , Additional Scholarship ${Number(s1.additionalScholarshipPct||0).toFixed(2)}%}</div>
+        <div class="kv-label">Discounts</div><div>Test Scholarship : ${Number(s1.testScholarshipPct || 0).toFixed(2)}% , Scholarship ${Number(s1.scholarshipPct || 0).toFixed(2)}% , Additional Scholarship ${Number(s1.additionalScholarshipPct || 0).toFixed(2)}%}</div>
       </div>
     </div>
 
@@ -1750,17 +1685,19 @@ export class AdmissionbugComponent implements OnInit {
         const fee2 = applyPct(fee1, p2);
         const tax2 = Math.round(fee2 * rate);
         const fee3 = applyPct(fee2, p3);
-        const tax3 = Math.round(fee3 * rate);
+        const tax3 = this.roundRupee(fee3 * rate);
         outFee = fee3;
         outTax = tax3;
-        scholBenefits = Math.max(0, fee0 + tax0 - (outFee + outTax));
+        scholBenefits = this.roundRupee(
+          Math.max(0, fee0 + tax0 - (outFee + outTax)),
+        );
       }
       return {
         label: h.label,
         fee: outFee,
         stax: outTax,
-        total: outFee + outTax,
-        scholBenefits,
+        total: this.roundRupee(outFee + outTax),
+        scholBenefits: this.roundRupee(scholBenefits),
       };
     });
   }
@@ -1871,43 +1808,7 @@ export class AdmissionbugComponent implements OnInit {
   private roundRupee(v: any): number {
     const n = Number(v || 0);
     if (!Number.isFinite(n)) return 0;
-    const sign = n < 0 ? -1 : 1;
-    const abs = Math.abs(n);
-    const base = Math.floor(abs);
-    const frac = abs - base;
-    const rounded = frac >= 0.5 ? base + 1 : base;
-    return sign * rounded;
-  }
-
-  private toDateInputISO(v: any): string | null {
-    if (!v) return null;
-    const s = String(v).trim();
-    if (!s) return null;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})T/);
-    if (isoMatch?.[1]) return isoMatch[1];
-    const dmyDash = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-    if (dmyDash) {
-      const dd = dmyDash[1].padStart(2, '0');
-      const mm = dmyDash[2].padStart(2, '0');
-      const yyyy = dmyDash[3];
-      return `${yyyy}-${mm}-${dd}`;
-    }
-    const dmySlash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (dmySlash) {
-      const dd = dmySlash[1].padStart(2, '0');
-      const mm = dmySlash[2].padStart(2, '0');
-      const yyyy = dmySlash[3];
-      return `${yyyy}-${mm}-${dd}`;
-    }
-    const d = new Date(s);
-    if (!isNaN(d.getTime())) {
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    }
-    return null;
+    return Math.round(n);
   }
 
   private handleAdmissionAlreadyExists(payload: any): boolean {
@@ -1998,153 +1899,6 @@ export class AdmissionbugComponent implements OnInit {
     win.document.close();
   }
 
-  private buildInstallmentBreakupForStep1(
-    plan: FeePlan,
-    finalFee: number,
-  ): string {
-    const instals = plan?.instalments || [];
-    if (!instals.length) {
-      return `<tr><td colspan="5" class="text-center">No instalment structure available.</td></tr>`;
-    }
-
-    const baseAmounts = instals.map((i) => Number(i.amount) || 0);
-    const baseTotal = baseAmounts.reduce((s, x) => s + (Number(x) || 0), 0);
-    const scaled = this.scalePlan(baseAmounts, finalFee || 0, baseTotal);
-
-    return instals
-      .map((i, idx) => {
-        const label = String(i.label || `Instalment ${idx + 1}`).trim();
-
-        // ✅ instalmentDate is epoch ms OR 0 (On Admission)
-        const dt = Number(i.instalmentDate || 0) || 0;
-        const due =
-          dt > 0 ? new Date(dt).toLocaleDateString('en-IN') : 'ON ADMISSION';
-
-        const amount = Number(scaled[idx] || 0);
-        const mode = dt === 0 ? 'NEFT' : 'CHEQUE';
-
-        return `
-        <tr>
-          <td class="text-center">${idx + 1}</td>
-          <td>${this.esc(label)}</td>
-          <td>${this.esc(due)}</td>
-          <td class="text-center">${this.esc(mode)}</td>
-          <td class="text-right">${amount.toLocaleString('en-IN')}</td>
-        </tr>
-      `;
-      })
-      .join('');
-  }
-
-  private buildFeeCalcHtmlStep1(plan: FeePlan, heads: any[]): string {
-    const s1 = this.step1Form.getRawValue();
-    const today = new Date();
-    const finalFee = heads.reduce(
-      (s: number, r: any) => s + Number(r.total || 0),
-      0,
-    );
-    const scholTotal = heads.reduce(
-      (s: number, r: any) => s + Number(r.scholBenefits || 0),
-      0,
-    );
-    return `
-    <div class="page">
-      <div class="brand-center">
-        <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
-      </div>
-      <div class="title-main">FEE CALCULATION SHEET</div>
-      <div class="subtitle">Please check the details carefully and sign.</div>
-      <div class="meta-row">
-        <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
-        <div><b>Prepared On :</b> ${today.toLocaleString('en-IN')}</div>
-      </div>
-      <div class="section">
-        <div class="section-title">Student and Program Details</div>
-        <div class="kv-grid">
-          <div class="kv-label">Name of the Student</div><div>${this.esc(
-            s1.name || '',
-          )}</div>
-          <div class="kv-label">Registration / Reg No</div><div>${this.esc(
-            s1.regNo || '',
-          )}</div>
-          <div class="kv-label">Academic Year</div><div>${this.esc(
-            s1.academicYear || '',
-          )}</div>
-          <div class="kv-label">Mobile (Student / Parent)</div><div>${this.esc(
-            s1.phone || '',
-          )}</div>
-          <div class="kv-label">Program</div><div>${this.esc(
-            s1.programName || '',
-          )}</div>
-          <div class="kv-label">Fee Plan</div><div>${this.esc(
-            plan.feePlanCode || s1.feePlanCode || plan.name || '',
-          )}</div>
-          <div class="kv-label">Study Centre</div><div>${this.esc(
-            s1.centerName || '',
-          )}</div>
-        </div>
-      </div>
-      <div class="section">
-        <div class="section-title">Scholarship Details</div>
-        <table>
-          <tbody>
-            <tr><td>Test Scholarship (%)</td><td class="text-right">${Number(
-              s1.testScholarshipPct || 0,
-            ).toFixed(2)}%</td></tr>
-            <tr><td>Scholarship (%)</td><td class="text-right">${Number(
-              s1.scholarshipPct || 0,
-            ).toFixed(2)}%</td></tr>
-            <tr><td>Additional Scholarship (%)</td><td class="text-right">${Number(
-              s1.additionalScholarshipPct || 0,
-            ).toFixed(2)}%</td></tr>
-            <tr><td><b>Total Scholarship Benefits</b></td><td class="text-right"><b>₹ ${scholTotal.toLocaleString(
-              'en-IN',
-            )}</b></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="section">
-        <div class="section-title">Final Fee Summary</div>
-        <table>
-          <tbody>
-            <tr><td><b>Final Fee (After Scholarships)</b></td><td class="text-right"><b>₹ ${finalFee.toLocaleString(
-              'en-IN',
-            )}</b></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="section">
-        <div class="section-title">Fee Instalment Breakup</div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width:40px;" class="text-center">S.No</th>
-              <th>Instalment</th>
-              <th style="width:140px;">Due Date</th>
-              <th style="width:90px;" class="text-center">Mode</th>
-              <th style="width:140px;" class="text-right">Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${this.buildInstallmentBreakupForStep1(plan, finalFee)}
-          </tbody>
-          <tfoot>
-            <tr>
-              <th colspan="4" class="text-right">Total</th>
-              <th class="text-right">₹ ${finalFee.toLocaleString('en-IN')}</th>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      <div class="sign-row">
-        <div class="sign-box">
-          <div class="sign-line"></div>
-          <div class="sign-label">ENROLLMENT MANAGER</div>
-        </div>
-      </div>
-    </div>`;
-  }
-
   private buildPaymentsAckHtmlStep2(plan: FeePlan | null): string {
     const s1 = this.step1Form.getRawValue();
     const today = new Date();
@@ -2152,114 +1906,168 @@ export class AdmissionbugComponent implements OnInit {
     const nefts = (this.neftRefsFA.getRawValue() || []) as any[];
     const cheques = (this.chequesFA.getRawValue() || []) as any[];
 
-    const paymentRows: string[] = [];
-    let sno = 1;
+    const neftCount = nefts.filter((x) => (Number(x?.amount) || 0) > 0).length;
+    const neftTotal = this.roundRupee(
+      nefts.reduce((s, x) => s + (Number(x?.amount) || 0), 0),
+    );
 
-    // ---------- NEFT rows ----------
-    nefts.forEach((n: any) => {
-      const amount = Number(n.amount || 0);
-      if (!amount) return;
-      const paidEpoch = this.dateInputToEpoch(n.paidOn);
-      paymentRows.push(`
-      <tr>
-        <td class="text-center">${sno++}</td>
-        <td>NEFT</td>
-        <td>${this.esc(paidEpoch ? new Date(paidEpoch).toLocaleDateString('en-IN') : '')}</td>
-        <td>${this.esc(n.utr || '')}</td>
-        <td>${this.esc((n.bankName || '').toString().trim() || '-')}</td>
-        <td>
-        <td class="text-right">${amount.toLocaleString('en-IN')}</td>
-      </tr>
-    `);
-    });
+    const chequeCount = cheques.filter(
+      (x) => (Number(x?.amount) || 0) > 0,
+    ).length;
+    const chequeTotal = this.roundRupee(
+      cheques.reduce((s, x) => s + (Number(x?.amount) || 0), 0),
+    );
 
-    // ---------- CHEQUE rows ----------
-    cheques.forEach((c: any) => {
-      const amount = Number(c.amount || 0);
-      if (!amount) return;
+    const totalPaid = this.roundRupee(neftTotal + chequeTotal);
 
-      // due date is instalmentDate epoch (stored in form)
-      const dueEpoch = this.dateInputToEpoch(c.instalmentDate ?? c.dueDate);
+    const studentName = String(s1.name || '');
+    const regNo = String(s1.regNo || '');
+    const programName = String(s1.programName || '');
+    const feePlanName = String(
+      plan?.name || plan?.feePlanCode || s1.feePlanCode || '',
+    );
+    const dateStr = today.toLocaleDateString('en-IN');
 
-      paymentRows.push(`
-      <tr>
-        <td class="text-center">${sno++}</td>
-        <td>${this.esc(c.mode || 'PDC')}</td>
-        <td>${this.esc(dueEpoch ? new Date(dueEpoch).toLocaleDateString('en-IN') : '')}</td>
-        <td>${this.esc(c.chequeNo || '')}</td>
-        <td>${this.esc((c.bankName || '').toString().trim() || '-')}</td>
-        <td>${this.esc((c.description || '').toString().trim() || '-')}</td>
-        <td class="text-right">${amount.toLocaleString('en-IN')}</td>
-      </tr>
-    `);
-    });
+    const copyHtml = (title: string) => `
+    <div class="ack-copy">
+      <div class="copy-title">${title}</div>
 
-    const totalPaid =
-      (nefts || []).reduce((s, x) => s + (Number(x.amount) || 0), 0) +
-      (cheques || []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
-
-    return `
-  <div class="page">
-    <div class="brand-center">
-      <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
-    </div>
-    <div class="title-main">ACKNOWLEDGEMENT</div>
-    <div class="subtitle">Provisional Admission Confirmation</div>
-    <div class="meta-row">
-      <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
-      <div><b>Academic Year :</b> ${this.esc(s1.academicYear || '')}</div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Student, Program and Study Centre Details</div>
-      <table>
-        <tbody>
-          <tr><td>Registration No.</td><td>${this.esc(s1.regNo || '')}</td></tr>
-          <tr><td>Student Name</td><td>${this.esc(s1.name || '')}</td><td>Enrollment Date</td><td>${today.toLocaleDateString('en-IN')}</td></tr>
-          <tr><td>Student Mobile</td><td>${this.esc(s1.phone || '')}</td><td>Parent Name</td><td>${this.esc(s1.parentName || '')}</td></tr>
-          <tr><td>Email ID</td><td>${this.esc(s1.email || '')}</td><td>Program</td><td>${this.esc(s1.programName || '')}</td></tr>
-          <tr><td>Study Centre</td><td>${this.esc(s1.centerName || '')}</td><td>Fee Plan</td><td>${this.esc(plan?.feePlanCode || s1.feePlanCode || plan?.name || '')}</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Payment Schedule</div>
-      <table>
+      <div class="header">
+        <img src="${this.esc(this.PRINT_LOGO_URL)}" class="logo" />
+        <div class="inst-name">ZEDSWEVEN I Private Limited, Coimbatore</div>
+        <div class="inst-addr">
+          47D2, Nehru Nagar West, Civil Aerodrome Post,
+          Kalapatti Road, Coimbatore - 641014
+        </div>
+      </div>
+      <div class="ack-title">ACKNOWLEDGEMENT</div>
+      <div class="row"><b>Date:</b> ${dateStr}</div>
+      <div class="para">
+        Received the below mentioned Payments towards the Enrolment for
+        <b>${this.esc(studentName)}</b><br/>
+        with Reg No: <b>${this.esc(regNo)}</b> &amp;
+        Enrolling For Program <b>${this.esc(programName)}</b>
+      </div>
+      <div class="para">
+        Fee Plan Opted: <b>${this.esc(feePlanName)}</b>
+      </div>
+      <table class="pay-table">
         <thead>
           <tr>
-            <th style="width:40px;" class="text-center">S.No</th>
-            <th style="width:80px;">Mode</th>
-            <th style="width:110px;">Date</th>
-            <th style="width:150px;">Cheque / UTR No.</th>
-            <th style="width:140px;">Bank</th>
-            <th>Description</th>
-            <th style="width:120px;" class="text-right">Amount (₹)</th>
+            <th>Payment Mode</th>
+            <th>Total No of Payments</th>
+            <th>Total Amount in Rs.</th>
           </tr>
         </thead>
         <tbody>
-          ${
-            paymentRows.length
-              ? paymentRows.join('')
-              : '<tr><td colspan="7" class="text-center">No payment details captured.</td></tr>'
-          }
-        </tbody>
-        <tfoot>
           <tr>
-            <th colspan="6" class="text-right">Total payments captured</th>
-            <th class="text-right">₹ ${totalPaid.toLocaleString('en-IN')}</th>
+            <td>UPI / DD / NEFT</td>
+            <td class="center">${neftCount}</td>
+            <td class="right">${neftTotal}</td>
           </tr>
-        </tfoot>
+          <tr>
+            <td>Post Dated Cheques</td>
+            <td class="center">${chequeCount}</td>
+            <td class="right">${chequeTotal}</td>
+          </tr>
+          <tr class="total-row">
+            <td colspan="2"><b>Total Value of Payments Submitted</b></td>
+            <td class="right"><b>${totalPaid}</b></td>
+          </tr>
+        </tbody>
       </table>
-    </div>
-
-    <div class="sign-row">
-      <div class="sign-box">
-        <div class="sign-line"></div>
-        <div class="sign-label">Authorized Signatory</div>
+      <div class="docs">
+        Please ensure the below mentioned documents are also submitted:
+        <ol>
+          <li>Z-SAT Exam Hall Ticket in Original</li>
+          <li>Student ID Proof (Xerox Copy)</li>
+          <li>Offer Letter Copy (Print out Taken from Result Website)</li>
+          <li>Enrolment form in filled Manner/li>
+          <li>Passport size photograph of student & parent as mentioned in the enrolment form.</li>
+        </ol>
+      </div>
+      <div class="note">
+        <b>Note:</b> This is not an Enrolment FEE Receipt.<br/>
+        Proper Enrolment Report will be provided at a later stage along with an enrolment Number.
+      </div>
+      <div class="sign">Signature of Staff</div>
+      <div class="contact">
+        For any support on a later stage please contact us on contact 9159241133 / 9626292233
       </div>
     </div>
-  </div>`;
+  `;
+    return `
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    body { font-family: Arial, sans-serif; font-size: 11px; }
+    .sheet {
+      display: flex;
+      gap: 10mm;
+    }
+    .ack-copy {
+      width: 50%;
+      padding: 6mm;
+      box-sizing: border-box;
+    }
+    .divider {
+      border-left: 2px dashed #000;
+    }
+    .copy-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .header {
+      text-align: center;
+    }
+    .logo {
+      height: 40px;
+      margin-bottom: 4px;
+    }
+    .inst-name {
+      font-weight: 700;
+    }
+    .inst-addr {
+      font-size: 10px;
+      margin-bottom: 6px;
+    }
+    .ack-title {
+      text-align: center;
+      font-weight: 800;
+      margin: 20px 0;
+      text-decoration: underline;
+    }
+    .row { margin: 10px 0; }
+    .para { margin: 10px 0; }
+    .pay-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+    }
+    .pay-table th,
+    .pay-table td {
+      border: 1px solid #000;
+      padding: 6px;
+    }
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .docs { margin-top: 6px; }
+    .note { margin-top: 6px; font-weight: 600; }
+    .sign {
+      margin-top: 30px;
+      text-align: right;
+    }
+    .contact {
+      margin-top: 6px;
+      font-size: 10px;
+    }
+  </style>
+
+  <div class="sheet">
+    ${copyHtml('OFFICE COPY')}
+    <div class="divider"></div>
+    ${copyHtml('PARENT COPY')}
+  </div>
+  `;
   }
 
   private buildDiscountedInstalmentsFromPlan(plan: FeePlan): Array<{
@@ -2556,5 +2364,32 @@ export class AdmissionbugComponent implements OnInit {
     if (t.testDate !== undefined)
       t.testDate = this.dateInputToEpoch(t.testDate);
     return t;
+  }
+
+  private neftSumNotExceedSplitValidator(): ValidatorFn {
+    return (ctrl: AbstractControl): ValidationErrors | null => {
+      const fa = ctrl as UntypedFormArray;
+      const rows = (fa?.getRawValue?.() || []) as any[];
+      const entered = (rows || []).reduce(
+        (s, r) => s + (Number(r?.amount) || 0),
+        0,
+      );
+      const split =
+        Number(this.step2Form?.getRawValue?.()?.neftAmount ?? 0) || 0;
+      if (!split) return null;
+      return entered > split ? { neftSumExceed: { entered, split } } : null;
+    };
+  }
+
+  private bindStep2NeftValidator(): void {
+    const fa = this.neftRefsFA;
+    fa.setValidators([this.neftSumNotExceedSplitValidator()]);
+    fa.updateValueAndValidity({ emitEvent: false });
+    this.step2Form
+      .get('neftAmount')
+      ?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.neftRefsFA.updateValueAndValidity({ emitEvent: false });
+      });
   }
 }
