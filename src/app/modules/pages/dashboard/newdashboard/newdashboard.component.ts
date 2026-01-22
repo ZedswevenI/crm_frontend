@@ -35,7 +35,8 @@ export class NewdashboardComponent {
         { label: 'Search Enrollment', path: '/app/admissions' },
         { label: 'Admission Reports', path: '/app/admissions/reports' },
         { label: 'Communication', path: '/app/admissions/communication' },
-        { label: 'Fee Calculator', path: '/app/admissions/fee-calculator' }
+        { label: 'Fee Calculator', path: '/app/admissions/fee-calculator' },
+        { label: 'Fee Plans', path: '/app/fees/plans' }
       ]
     },
     {
