@@ -2,86 +2,53 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../service/alert/alert.service';
+import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 
 type ViewMode = 'list' | 'grid';
 
-interface StudentListRow {
-  id: number;
-  name: string;
-  enrolmentNo: string;
-  program: string;
-  center: string;
-  status: 'Active' | 'Completed' | 'Dropout';
-  mobile: string;
-  city: string;
-  attendancePct: number;
-}
+const safeTrim = (v: any) =>
+  v === undefined || v === null ? '' : String(v).trim();
 
 @Component({
   selector: 'app-students',
   standalone: false,
   templateUrl: './students.component.html',
-  styleUrl: './students.component.scss'
+  styleUrl: './students.component.scss',
 })
 export class StudentsComponent implements OnInit {
   viewMode: ViewMode = 'list';
   loading = false;
-
+  entiId: any;
+  private moduleName = 'student';
+  students: any[] = [];
+  totalRecords = 0;
+  currentPage = 1;
+  pageSize = 20;
   searchText = '';
   selectedProgram = '';
   selectedCenter = '';
   selectedStatus = '';
-
-  // table columns (for list-table)
+  programsFull: any[] = [];
+  centersFull: any[] = [];
   columns = [
-    { key: 'name',        label: 'Student Name',   sortable: true },
-    { key: 'enrolmentNo', label: 'Enrolment No',   sortable: true },
-    { key: 'program',     label: 'Program',        sortable: true },
-    { key: 'center',      label: 'Center',         sortable: true },
-    { key: 'status',      label: 'Status',         sortable: true },
-    { key: 'mobile',      label: 'Mobile',         sortable: false }
-  ];
-
-  students: StudentListRow[] = [
+    { key: 'student.name', label: 'Name', sortable: true },
+    { key: 'admissionNo', label: 'Admission No', sortable: true },
+    { key: 'programName', label: 'Program', sortable: true },
+    { key: 'centerName', label: 'Center', sortable: true },
     {
-      id: 1,
-      name: 'Arjun R',
-      enrolmentNo: 'Z7I-JEE-2025-001',
-      program: 'JEE 2 Year Classroom',
-      center: 'Gandhipuram Center',
-      status: 'Active',
-      mobile: '9000000001',
-      city: 'Coimbatore',
-      attendancePct: 94
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      type: 'badge',
+      badgeColors: {
+        ACTIVE: 'badge bg-success-subtle text-success',
+        INACTIVE: 'badge bg-secondary-subtle text-secondary',
+        DROPOUT: 'badge bg-danger-subtle text-danger',
+        COMPLETED: 'badge bg-primary-subtle text-primary',
+      },
     },
-    {
-      id: 2,
-      name: 'Lakshmi S',
-      enrolmentNo: 'Z7I-NEET-2025-014',
-      program: 'NEET 1 Year Repeaters',
-      center: 'Nungambakkam Center',
-      status: 'Active',
-      mobile: '9000000002',
-      city: 'Chennai',
-      attendancePct: 88
-    },
-    {
-      id: 3,
-      name: 'Rahul Mehta',
-      enrolmentNo: 'Z7I-JEE-2024-032',
-      program: 'JEE Crash Course',
-      center: 'Gandhipuram Center',
-      status: 'Completed',
-      mobile: '9000000003',
-      city: 'Coimbatore',
-      attendancePct: 91
-    }
+    { key: 'student.phone', label: 'Mobile', sortable: false },
   ];
-
-  filteredStudents: StudentListRow[] = [];
-
-  programFilters: string[] = [];
-  centerFilters: string[] = [];
 
   actions = [
     {
@@ -89,26 +56,88 @@ export class StudentsComponent implements OnInit {
       icon: 'fa-regular fa-eye',
       tooltip: 'View details',
       color: '#6B7280',
-      callback: (row: any) => this.openDetail(row)
-    }
+      callback: (row: any) => this.openDetail(row),
+    },
   ];
 
   constructor(
     private router: Router,
     private breadcrumb: BredcrumpService,
-    private alertService: AlertService
+    private alert: AlertService,
+    private commonApi: CommonapiService,
   ) {
-    this.breadcrumb.set([
-      { label: 'Students' }
-    ]);
+    this.entiId = localStorage.getItem('tenantId');
+    this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Students' }]);
   }
 
   ngOnInit(): void {
-    // derive filters from data
-    this.programFilters = Array.from(new Set(this.students.map(s => s.program)));
-    this.centerFilters  = Array.from(new Set(this.students.map(s => s.center)));
+    this.loadPrograms();
+    this.loadCenters();
+    this.loadStudents();
+  }
 
-    this.applyFilters();
+  loadPrograms() {
+    this.commonApi
+      .fetchData({ entiId: this.entiId }, 'ims', 'program/list?list=full')
+      .subscribe({
+        next: (res: any) => {
+          this.programsFull = res?.data || [];
+        },
+      });
+  }
+
+  loadCenters() {
+    this.commonApi
+      .fetchData({ entiId: this.entiId }, 'ims', 'center/list?list=full')
+      .subscribe({
+        next: (res: any) => {
+          this.centersFull = res?.data || [];
+        },
+      });
+  }
+
+  // --- Load Data ---
+  loadStudents(event?: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: 'asc' | 'desc';
+  }) {
+    this.loading = true;
+    this.currentPage = event?.page || 1;
+    this.pageSize = event?.pageSize || 20;
+    const queryParams: any = {
+      page: this.currentPage,
+      limit: this.pageSize,
+    };
+    if (this.searchText) queryParams.search = safeTrim(this.searchText);
+    if (this.selectedProgram) queryParams.programId = this.selectedProgram;
+    if (this.selectedCenter) queryParams.centerId = this.selectedCenter;
+    if (this.selectedStatus) queryParams.status = this.selectedStatus;
+    if (event?.sortKey) {
+      const dir = event.sortDirection === 'asc' ? '' : '-';
+      queryParams.sort = `${dir}${event.sortKey}`;
+    }
+    const qs = Object.keys(queryParams)
+      .map((k) => `${k}=${encodeURIComponent(queryParams[k])}`)
+      .join('&');
+    this.commonApi
+      .fetchData({ entiId: this.entiId }, this.moduleName, `list?${qs}`)
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          this.students = (res?.data || []).map((s: any) => ({
+            ...s,
+            _raw: s,
+          }));
+          this.totalRecords = res?.count || 0;
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Failed to load students');
+        },
+      });
   }
 
   setView(mode: ViewMode): void {
@@ -116,41 +145,24 @@ export class StudentsComponent implements OnInit {
   }
 
   applyFilters(): void {
-    const term = (this.searchText || '').toLowerCase().trim();
+    this.loadStudents({ page: 1, pageSize: this.pageSize });
+  }
 
-    this.filteredStudents = this.students.filter(s => {
-      const matchesText =
-        !term ||
-        s.name.toLowerCase().includes(term) ||
-        s.enrolmentNo.toLowerCase().includes(term) ||
-        s.mobile.toLowerCase().includes(term);
-
-      const matchesProgram =
-        !this.selectedProgram || s.program === this.selectedProgram;
-
-      const matchesCenter =
-        !this.selectedCenter || s.center === this.selectedCenter;
-
-      const matchesStatus =
-        !this.selectedStatus || s.status === this.selectedStatus;
-
-      return matchesText && matchesProgram && matchesCenter && matchesStatus;
-    });
+  clearSearch() {
+    this.searchText = '';
+    this.loadStudents({ page: 1, pageSize: this.pageSize });
   }
 
   getInitials(name: string): string {
     if (!name) return '?';
     const parts = name.trim().split(' ');
     const first = parts[0]?.[0] ?? '';
-    const last  = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
     return (first + last).toUpperCase();
   }
 
-  openDetail(row: StudentListRow): void {
-    this.router.navigate(['/app/students/view', row.id]);
-  }
-
-  addStudent(): void {
-    this.alertService.success('Add Student flow will be implemented later.');
+  openDetail(row: any): void {
+    const s = row?._raw || row;
+    this.router.navigate(['/app/students/view', s.studentId]);
   }
 }

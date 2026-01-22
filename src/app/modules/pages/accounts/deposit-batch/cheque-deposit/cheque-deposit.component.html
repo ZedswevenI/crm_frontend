@@ -110,7 +110,13 @@
                                         <td class="px-4 py-3">
                                             <span class="mono">{{ row.depositBatchId }}</span>
                                         </td>
-                                        <td class="px-4 py-3">{{ row.depositDate || '-' }}</td>
+                                        <td class="px-4 py-3">
+                                            {{
+                                            row.depositDate
+                                            ? (row.depositDate | date:'dd/MM/yyyy')
+                                            : '-'
+                                            }}
+                                        </td>
                                         <td class="px-4 py-3">
                                             <span class="truncate-cell" [style.maxWidth.px]="260">{{ row.bankName || '-'
                                                 }}</span>

@@ -1,89 +1,118 @@
 <div class="timetable-page">
 
-    <!-- List Card -->
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h5 class="mb-1 fw-semibold">Timetable Management</h5>
                 <p class="mb-0 text-muted small">
-                    Upload, manage and publish batch-wise timetables.
+                    Manage batch-wise timetables. Upload CSV to create/update.
                 </p>
             </div>
 
             <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="openUpload()">
-                <i class="fa-solid fa-upload"></i>
+                <i class="fa-solid fa-cloud-arrow-up"></i>
                 <span>Upload Timetable</span>
             </button>
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [actions]="actions">
+            <div class="row g-2 mb-3">
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" [(ngModel)]="selectedProgram"
+                        (change)="onProgramFilterChange()">
+                        <option value="">All Programs</option>
+                        <option *ngFor="let p of programsFull" [value]="p.programId">{{ p.programName }}</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" [(ngModel)]="selectedBatch" (change)="applyFilters()">
+                        <option value="">All Batches</option>
+                        <option *ngFor="let b of filteredBatches" [value]="b.batchCode">{{ b.batchName }}
+                            ({{b.batchCode}})</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" [(ngModel)]="selectedCenter" (change)="applyFilters()">
+                        <option value="">All Centers</option>
+                        <option *ngFor="let c of centersFull" [value]="c.centerCode">{{ c.centerName }}</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary"
+                        (click)="selectedProgram=''; selectedBatch=''; selectedCenter=''; applyFilters()">
+                        Reset
+                    </button>
+                    <button class="btn btn-sm btn-primary" (click)="applyFilters()">Search</button>
+                </div>
+            </div>
+
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [totalRecords]="totalRecords"
+                [actions]="actions" [showpageoptions]="true" (requestData)="loadTimetables($event)">
             </list-table>
         </div>
     </div>
 
-    <!-- Upload Modal -->
     <div class="app-modal-backdrop" *ngIf="showUpload">
         <div class="app-modal timetable-modal">
 
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">Upload Timetable</h6>
-                    <span class="text-muted small">Excel format only</span>
+                    <span class="text-muted small">Upload CSV to auto-fill details</span>
                 </div>
                 <button class="btn-close" (click)="closeUpload()"></button>
             </div>
 
             <div class="app-modal-body">
-                <form [formGroup]="uploadForm" (ngSubmit)="upload()">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-link text-decoration-none" (click)="downloadSample()">
+                        <i class="fa-solid fa-download me-1"></i> Download Sample CSV
+                    </button>
+                </div>
+
+                <form [formGroup]="uploadForm" (ngSubmit)="submitUpload()">
                     <div class="row g-3">
 
-                        <div class="col-md-4">
-                            <selectbox label="Program" [required]="true" [options]="programOptions"
-                                formControlName="programId" [control]="uploadForm.get('programId')">
-                            </selectbox>
-                        </div>
-
-                        <div class="col-md-4">
-                            <selectbox label="Batch" [required]="true" [options]="batchOptions"
-                                formControlName="batchId" [control]="uploadForm.get('batchId')">
-                            </selectbox>
-                        </div>
-
-                        <div class="col-md-4">
-                            <selectbox label="Centre" [required]="true" [options]="centreOptions"
-                                formControlName="centreId" [control]="uploadForm.get('centreId')">
-                            </selectbox>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Valid From</label>
-                            <input class="form-control" type="date" formControlName="validFrom">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Valid To</label>
-                            <input class="form-control" type="date" formControlName="validTo">
-                        </div>
-
                         <div class="col-12">
-                            <label class="form-label small text-muted">Upload Excel</label>
-                            <input type="file" class="form-control" accept=".xlsx" (change)="onFileChange($event)">
-                        </div>
-
-                        <div class="col-12">
-                            <div class="alert alert-light small mb-0">
-                                Upload must match the provided timetable format.
-                                Faculty clashes and invalid subjects will be flagged.
+                            <label class="form-label small fw-bold">Select CSV File</label>
+                            <input type="file" class="form-control" accept=".csv" (change)="onFileChange($event)">
+                            <div class="form-text small" *ngIf="parsedPayload">
+                                <i class="fa-solid fa-check-circle text-success me-1"></i>
+                                Parsed successfully: {{ parseStats.periodsFound }} periods across {{
+                                parseStats.daysFound }} days.
                             </div>
                         </div>
 
+                        <div class="col-12">
+                            <hr class="my-1">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Batch Code *</label>
+                            <input class="form-control form-control-sm" formControlName="batchCode">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Center Code *</label>
+                            <input class="form-control form-control-sm" formControlName="centerCode">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Week Starting (Monday) *</label>
+                            <input class="form-control form-control-sm" type="date" formControlName="wkStartOn">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Phase (Optional)</label>
+                            <input class="form-control form-control-sm" formControlName="phase">
+                        </div>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <button type="button" class="btn btn-outline-secondary" (click)="closeUpload()">Cancel</button>
-                        <button type="submit" class="btn btn-saffron" [disabled]="uploadForm.invalid || !file">
-                            Upload & Preview
+                        <button type="submit" class="btn btn-saffron"
+                            [disabled]="uploadForm.invalid || !parsedPayload || loading">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Create Timetable
                         </button>
                     </div>
                 </form>

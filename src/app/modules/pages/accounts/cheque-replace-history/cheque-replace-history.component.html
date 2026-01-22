@@ -58,9 +58,27 @@
                                     <td class="px-4 py-3">{{ i + 1 }}</td>
                                     <td class="px-4 py-3"><span class="mono">{{ row.paymentId }}</span></td>
                                     <td class="px-4 py-3">{{ row?.cheque?.chequeNo || '-' }}</td>
-                                    <td class="px-4 py-3">{{ row?.cheque?.dueDate || '-' }}</td>
-                                    <td class="px-4 py-3">{{ row?.cheque?.plannedDepositDate || row?.cheque?.dueDate ||
-                                        '-' }}</td>
+
+                                    <!-- ✅ Due Date with date pipe -->
+                                    <td class="px-4 py-3">
+                                        {{
+                                        row?.cheque?.dueDate
+                                        ? (row?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                        : '-'
+                                        }}
+                                    </td>
+
+                                    <!-- ✅ Planned Deposit with date pipe + fallback to dueDate -->
+                                    <td class="px-4 py-3">
+                                        {{
+                                        row?.cheque?.plannedDepositDate
+                                        ? (row?.cheque?.plannedDepositDate | date:'dd/MM/yyyy')
+                                        : row?.cheque?.dueDate
+                                        ? (row?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                        : '-'
+                                        }}
+                                    </td>
+
                                     <td class="px-4 py-3">₹{{ row?.amount || 0 | number:'1.0-0' }}</td>
                                     <td class="px-4 py-3">
                                         <span class="badge" [ngClass]="statusBadge(row?.status)">{{ row?.status || '-'
@@ -108,10 +126,28 @@
                                         viewRow?.cheque?.chequeNo || '-' }}</span></div>
                                 <div><span class="text-muted">Mode: </span>{{ viewRow?.cheque?.mode || '-' }}</div>
                                 <div><span class="text-muted">Bank: </span>{{ viewRow?.cheque?.bankName || '-' }}</div>
-                                <div><span class="text-muted">Due Date: </span>{{ viewRow?.cheque?.dueDate || '-' }}
+
+                                <!-- ✅ Due Date with date pipe -->
+                                <div>
+                                    <span class="text-muted">Due Date: </span>
+                                    {{
+                                    viewRow?.cheque?.dueDate
+                                    ? (viewRow?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                    : '-'
+                                    }}
                                 </div>
-                                <div><span class="text-muted">Planned Deposit: </span>{{
-                                    viewRow?.cheque?.plannedDepositDate || viewRow?.cheque?.dueDate || '-' }}</div>
+
+                                <!-- ✅ Planned Deposit with date pipe + fallback -->
+                                <div>
+                                    <span class="text-muted">Planned Deposit: </span>
+                                    {{
+                                    viewRow?.cheque?.plannedDepositDate
+                                    ? (viewRow?.cheque?.plannedDepositDate | date:'dd/MM/yyyy')
+                                    : viewRow?.cheque?.dueDate
+                                    ? (viewRow?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                    : '-'
+                                    }}
+                                </div>
                             </div>
                         </div>
                     </div>

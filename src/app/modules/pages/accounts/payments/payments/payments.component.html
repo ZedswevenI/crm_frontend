@@ -112,7 +112,10 @@
                                             <i class="fas icon-14" [ngClass]="sortIcon('status')"></i>
                                         </div>
                                     </th>
+
+                                    <!-- Key Date column: use date pipe -->
                                     <th class="px-4 py-3 fw-semibold">Key Date</th>
+
                                     <th class="px-4 py-3 fw-semibold text-center action-col">Action</th>
                                 </tr>
                             </thead>
@@ -132,12 +135,17 @@
                                             <span class="truncate-cell" [style.maxWidth.px]="160">{{ row.admissionNo
                                                 }}</span>
                                         </td>
-                                        <td class="px-4 py-3">₹{{ row.amount | number:'1.0-0' }}</td>
+                                        <td class="px-4 py-3">₹{{ row.amount | number: '1.0-0' }}</td>
                                         <td class="px-4 py-3">
                                             <span class="badge" [ngClass]="statusBadge(row.status)">{{ row.status
                                                 }}</span>
                                         </td>
-                                        <td class="px-4 py-3">{{ row.keyDate || '-' }}</td>
+
+                                        <!-- Key Date with date pipe & safe fallback -->
+                                        <td class="px-4 py-3">
+                                            {{ row.keyDate ? (row.keyDate | date: 'dd/MM/yyyy') : '-' }}
+                                        </td>
+
                                         <td class="px-4 py-3 text-center">
                                             <button type="button" class="btn btn-sm btn-outline-secondary"
                                                 (click)="openView(row)">
@@ -193,7 +201,8 @@
                     <h6 class="mb-0 fw-semibold">Payment Details</h6>
                     <span class="text-muted small">Payment ID: <span class="mono">{{ viewRow?.paymentId }}</span></span>
                 </div>
-                <button type="button" class="btn-close" (click)="closeView()" aria-label="Close"></button>
+                <button type="button" class="btn-close" (click)="closeView()
+          " aria-label="Close"></button>
             </div>
             <div class="app-modal-body" *ngIf="viewRow">
                 <div class="row g-3">
@@ -202,12 +211,17 @@
                             <div class="fw-semibold mb-2">Payment</div>
                             <div class="small">
                                 <div><span class="text-muted">Type: </span>{{ viewRow.paymentType }}</div>
-                                <div><span class="text-muted">Amount: </span>₹{{ viewRow.amount | number:'1.0-0' }}
+                                <div>
+                                    <span class="text-muted">Amount: </span>₹{{ viewRow.amount | number: '1.0-0' }}
                                 </div>
-                                <div><span class="text-muted">Status: </span><span class="fw-semibold">{{ viewRow.status
-                                        }}</span></div>
-                                <div><span class="text-muted">Deposit Batch: </span><span class="mono">{{
-                                        viewRow.depositBatchId || '-' }}</span></div>
+                                <div>
+                                    <span class="text-muted">Status: </span><span class="fw-semibold">{{ viewRow.status
+                                        }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted">Deposit Batch: </span><span class="mono">{{
+                                        viewRow.depositBatchId || '-' }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -216,34 +230,58 @@
                             <div class="fw-semibold mb-2">Student</div>
                             <div class="small">
                                 <div><span class="text-muted">Name: </span>{{ viewRow.studentName }}</div>
-                                <div><span class="text-muted">Admission No: </span><span class="mono">{{
-                                        viewRow.admissionNo || '-' }}</span></div>
+                                <div>
+                                    <span class="text-muted">Admission No: </span><span class="mono">{{
+                                        viewRow.admissionNo || '-' }}</span>
+                                </div>
                                 <div><span class="text-muted">Program: </span>{{ viewRow.programName || '-' }}</div>
                                 <div><span class="text-muted">Center: </span>{{ viewRow.centerName || '-' }}</div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- NEFT block -->
                     <div class="col-12" *ngIf="viewRow.paymentType === 'NEFT'">
                         <div class="border rounded p-3">
                             <div class="fw-semibold mb-2">NEFT</div>
                             <div class="small">
-                                <div><span class="text-muted">UTR: </span><span class="mono">{{ viewRow?.neft?.utr ||
-                                        '-' }}</span></div>
-                                <div><span class="text-muted">Paid On: </span>{{ viewRow?.neft?.paidOn || '-' }}</div>
-                                <div><span class="text-muted">Bank: </span>{{ viewRow?.neft?.bankName || '-' }}</div>
+                                <div>
+                                    <span class="text-muted">UTR: </span><span class="mono">{{ viewRow?.neft?.utr || '-'
+                                        }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted">Paid On: </span>
+                                    {{ viewRow?.neft?.paidOn ? (viewRow.neft.paidOn | date: 'dd-MM-yyyy') : '-' }}
+                                </div>
+                                <div>
+                                    <span class="text-muted">Bank: </span>{{ viewRow?.neft?.bankName || '-' }}
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Cheque block -->
                     <div class="col-12" *ngIf="viewRow.paymentType === 'CHEQUE'">
                         <div class="border rounded p-3">
                             <div class="fw-semibold mb-2">Cheque</div>
                             <div class="small">
-                                <div><span class="text-muted">Cheque No: </span><span class="mono">{{
-                                        viewRow?.cheque?.chequeNo || '-' }}</span></div>
-                                <div><span class="text-muted">Due Date: </span>{{ viewRow?.cheque?.dueDate || '-' }}
+                                <div>
+                                    <span class="text-muted">Cheque No: </span><span class="mono">{{
+                                        viewRow?.cheque?.chequeNo || '-' }}</span>
                                 </div>
-                                <div><span class="text-muted">Planned Deposit: </span>{{
-                                    viewRow?.cheque?.plannedDepositDate || viewRow?.cheque?.dueDate || '-' }}</div>
+                                <div>
+                                    <span class="text-muted">Due Date: </span>
+                                    {{ viewRow?.cheque?.dueDate ? (viewRow.cheque.dueDate | date: 'dd/MM/yyyy') : '-' }}
+                                </div>
+                                <div>
+                                    <span class="text-muted">Planned Deposit: </span>
+                                    {{
+                                    (viewRow?.cheque?.plannedDepositDate || viewRow?.cheque?.dueDate)
+                                    ? ((viewRow?.cheque?.plannedDepositDate || viewRow?.cheque?.dueDate) | date:
+                                    'dd/MM/yyyy')
+                                    : '-'
+                                    }}
+                                </div>
                                 <div><span class="text-muted">Mode: </span>{{ viewRow?.cheque?.mode || '-' }}</div>
                                 <div><span class="text-muted">Bank: </span>{{ viewRow?.cheque?.bankName || '-' }}</div>
                             </div>

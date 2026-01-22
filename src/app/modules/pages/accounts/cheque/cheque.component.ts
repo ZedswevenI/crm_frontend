@@ -54,7 +54,7 @@ export class ChequeComponent implements OnInit {
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private commonApi: CommonapiService,
-    private router: Router
+    private router: Router,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([{ label: 'Accounts' }, { label: 'Cheque Register' }]);
@@ -99,13 +99,13 @@ export class ChequeComponent implements OnInit {
 
   private buildQueryParams(params: Record<string, any>) {
     const keys = Object.keys(params || {}).filter(
-      (k) => params[k] !== undefined && params[k] !== null && params[k] !== ''
+      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
     );
     if (!keys.length) return '';
     const qs = keys
       .map(
         (k) =>
-          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
       )
       .join('&');
     return `?${qs}`;
@@ -134,8 +134,8 @@ export class ChequeComponent implements OnInit {
           this.centerOptions = Array.isArray(res?.data)
             ? res.data
             : Array.isArray(res?.rows)
-            ? res.rows
-            : [];
+              ? res.rows
+              : [];
         },
         error: () => {
           this.centerOptions = [];
@@ -152,8 +152,8 @@ export class ChequeComponent implements OnInit {
           this.programOptions = Array.isArray(res?.data)
             ? res.data
             : Array.isArray(res?.rows)
-            ? res.rows
-            : [];
+              ? res.rows
+              : [];
         },
         error: () => {
           this.programOptions = [];
@@ -171,8 +171,8 @@ export class ChequeComponent implements OnInit {
           const rows = Array.isArray(res?.data)
             ? res.data
             : Array.isArray(res?.rows)
-            ? res.rows
-            : [];
+              ? res.rows
+              : [];
           const mapped = (rows || [])
             .map((x: any) => ({
               accountNumber: x?.accountNumber,
@@ -184,7 +184,7 @@ export class ChequeComponent implements OnInit {
           mapped.sort(
             (a: any, b: any) =>
               (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) ||
-              a.depositLabel.localeCompare(b.depositLabel)
+              a.depositLabel.localeCompare(b.depositLabel),
           );
           this.bankAccounts = mapped;
           const cur = String(this.depositForm?.value?.bankName || '').trim();
@@ -193,7 +193,7 @@ export class ChequeComponent implements OnInit {
             if (def?.depositLabel) {
               this.depositForm.patchValue(
                 { bankName: def.depositLabel },
-                { emitEvent: false }
+                { emitEvent: false },
               );
             }
           }
@@ -257,13 +257,12 @@ export class ChequeComponent implements OnInit {
           const d = res?.data || {};
           const rows = Array.isArray(d.rows) ? d.rows : [];
           this.totalRecords = Number(d.total || 0);
-
           this.chequeData = rows.map((x: any) => ({
             paymentId: x?.paymentId,
             chequeNo: x?.cheque?.chequeNo || '-',
-            dueDate: x?.cheque?.dueDate || '-',
+            dueDate: x?.cheque?.dueDate || null,
             plannedDepositDate:
-              x?.cheque?.plannedDepositDate || x?.cheque?.dueDate || '-',
+              x?.cheque?.plannedDepositDate || x?.cheque?.dueDate || null,
             studentName: x?.studentName || '-',
             admissionNo: x?.admissionId.admissionNo || '-',
             amount: x?.amount || 0,
@@ -272,6 +271,7 @@ export class ChequeComponent implements OnInit {
             mode: x?.cheque?.mode || '-',
             _raw: x,
           }));
+
           this.cleanupSelectionForCurrentPage();
           this.updatePagination();
           this.loading = false;
@@ -325,7 +325,7 @@ export class ChequeComponent implements OnInit {
   isAllSelectedOnPage(): boolean {
     const rows = Array.isArray(this.chequeData) ? this.chequeData : [];
     const selectable = rows.filter(
-      (r) => !this.isRowSelectDisabled(r) && r?.paymentId
+      (r) => !this.isRowSelectDisabled(r) && r?.paymentId,
     );
     if (!selectable.length) return false;
     return selectable.every((r) => !!this.selectedMap[r.paymentId]);
@@ -334,11 +334,11 @@ export class ChequeComponent implements OnInit {
   isSomeSelectedOnPage(): boolean {
     const rows = Array.isArray(this.chequeData) ? this.chequeData : [];
     const selectable = rows.filter(
-      (r) => !this.isRowSelectDisabled(r) && r?.paymentId
+      (r) => !this.isRowSelectDisabled(r) && r?.paymentId,
     );
     if (!selectable.length) return false;
     const selectedCount = selectable.filter(
-      (r) => !!this.selectedMap[r.paymentId]
+      (r) => !!this.selectedMap[r.paymentId],
     ).length;
     return selectedCount > 0 && selectedCount < selectable.length;
   }
@@ -347,7 +347,7 @@ export class ChequeComponent implements OnInit {
     const pageIds = new Set(
       (this.chequeData || [])
         .map((r) => String(r.paymentId || ''))
-        .filter(Boolean)
+        .filter(Boolean),
     );
     Object.keys(this.selectedMap || {}).forEach((k) => {
       if (!pageIds.has(k)) delete this.selectedMap[k];
@@ -437,7 +437,7 @@ export class ChequeComponent implements OnInit {
 
   get selectedIds(): string[] {
     return Object.keys(this.selectedMap || {}).filter(
-      (k) => this.selectedMap[k] === true
+      (k) => this.selectedMap[k] === true,
     );
   }
 
@@ -453,7 +453,7 @@ export class ChequeComponent implements OnInit {
       if (def?.depositLabel) {
         this.depositForm.patchValue(
           { bankName: def.depositLabel },
-          { emitEvent: false }
+          { emitEvent: false },
         );
       }
     }
@@ -493,7 +493,7 @@ export class ChequeComponent implements OnInit {
         error: (err: any) => {
           this.loading = false;
           this.alert.error(
-            err?.error?.message || 'Failed to create deposit batch'
+            err?.error?.message || 'Failed to create deposit batch',
           );
         },
       });
@@ -523,7 +523,7 @@ export class ChequeComponent implements OnInit {
         next: (res: any) => {
           this.loading = false;
           this.alert.success(
-            res?.message || `Bulk ${this.reconcileAction} completed`
+            res?.message || `Bulk ${this.reconcileAction} completed`,
           );
           this.showReconcileModal = false;
           this.selectedMap = {};
@@ -593,8 +593,8 @@ export class ChequeComponent implements OnInit {
           const rows = Array.isArray(d)
             ? d
             : Array.isArray(d?.rows)
-            ? d.rows
-            : [];
+              ? d.rows
+              : [];
           const excelRows = rows.map((x: any, idx: number) => ({
             'S.No': idx + 1,
             'Cheque No': x?.cheque?.chequeNo || '-',

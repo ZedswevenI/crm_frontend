@@ -32,7 +32,7 @@ export class ChequeDepositComponent implements OnInit {
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private commonApi: CommonapiService,
-    private router: Router
+    private router: Router,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([{ label: 'Accounts' }, { label: 'Deposit Batches' }]);
@@ -54,13 +54,13 @@ export class ChequeDepositComponent implements OnInit {
 
   private buildQueryParams(params: Record<string, any>) {
     const keys = Object.keys(params || {}).filter(
-      (k) => params[k] !== undefined && params[k] !== null && params[k] !== ''
+      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
     );
     if (!keys.length) return '';
     const qs = keys
       .map(
         (k) =>
-          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
       )
       .join('&');
     return `?${qs}`;
@@ -95,7 +95,7 @@ export class ChequeDepositComponent implements OnInit {
           const rows = Array.isArray(d.rows) ? d.rows : [];
           this.rows = rows.map((x: any) => ({
             depositBatchId: x?.batchId || '-',
-            depositDate: x?.depositDate || '-',
+            depositDate: x?.depositDate ?? null,
             bankName: x?.bankName || '-',
             chequeCount: x?.chequeCount || 0,
             totalAmount: x?.totalAmount || 0,
@@ -108,7 +108,7 @@ export class ChequeDepositComponent implements OnInit {
         error: (err: any) => {
           this.loading = false;
           this.alert.error(
-            err?.error?.message || 'Failed to load deposit batches'
+            err?.error?.message || 'Failed to load deposit batches',
           );
         },
       });

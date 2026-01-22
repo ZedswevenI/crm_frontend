@@ -39,7 +39,9 @@
                     <div class="border rounded p-3 h-100">
                         <div class="fw-semibold mb-2">Batch</div>
                         <div class="small">
-                            <div><span class="text-muted">Deposit Date: </span> {{ batch?.depositDate || '-' }}</div>
+                            <div> <span class="text-muted">Deposit Date: </span> {{ batch?.depositDate ?
+                                (batch?.depositDate | date:'dd/MM/yyyy') : '-' }}
+                            </div>
                             <div><span class="text-muted">Bank: </span> {{ batch?.bankName || '-' }}</div>
                             <div><span class="text-muted">Cheques: </span> {{ batch?.chequeCount || 0 }}</div>
                             <div><span class="text-muted">Total: </span> ₹{{ batch?.totalAmount || 0 | number:'1.0-2' }}
@@ -96,8 +98,13 @@
                                         <td class="px-4 py-3">
                                             <span class="mono">{{ row.chequeNo || '-' }}</span>
                                         </td>
-                                        <td class="px-4 py-3">{{ row.dueDate || '-' }}</td>
-                                        <td class="px-4 py-3">{{ row.plannedDepositDate || '-' }}</td>
+                                        <td class="px-4 py-3"> {{ row.dueDate ? (row.dueDate | date:'dd/MM/yyyy') : '-'
+                                            }} </td>
+                                        <td class="px-4 py-3">
+                                            {{ row.plannedDepositDate ? (row.plannedDepositDate | date:'dd/MM/yyyy') :
+                                            '-' }}
+                                        </td>
+
                                         <td class="px-4 py-3">
                                             <span class="truncate-cell" [style.maxWidth.px]="220">{{ row.studentName ||
                                                 '-' }}</span>

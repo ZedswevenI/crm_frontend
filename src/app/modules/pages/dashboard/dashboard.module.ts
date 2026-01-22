@@ -5,9 +5,10 @@ import { UiElementsModule } from '../../ui-elements/ui-elements.module';
 
 import { DashboardRoutingModule } from './dashboard-routing.module';
 import { DashboardComponent } from './dashboard/dashboard.component';
+import { NewdashboardComponent } from './newdashboard/newdashboard.component';
 
 @NgModule({
-  declarations: [DashboardComponent],
+  declarations: [DashboardComponent, NewdashboardComponent],
   imports: [CommonModule, DashboardRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })
 export class DashboardModule {}

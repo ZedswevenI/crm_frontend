@@ -14,7 +14,6 @@
                     <i class="fa-regular fa-comment-dots"></i>
                     <span>Remarks</span>
                 </button>
-
                 <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 rounded-pill"
                     [disabled]="!canDeposit()" (click)="openDepositModal()">
                     <i class="fa-solid fa-building-columns"></i>
@@ -68,20 +67,38 @@
                     <div class="border rounded p-3 h-100">
                         <div class="fw-semibold mb-2">Cheque</div>
                         <div class="small">
-                            <div><span class="text-muted">Cheque No: </span> <span class="mono">{{
-                                    payment?.cheque?.chequeNo || '-' }}</span></div>
+                            <div>
+                                <span class="text-muted">Cheque No: </span>
+                                <span class="mono">{{ payment?.cheque?.chequeNo || '-' }}</span>
+                            </div>
                             <div><span class="text-muted">Mode: </span> {{ payment?.cheque?.mode || '-' }}</div>
                             <div><span class="text-muted">Bank: </span> {{ payment?.cheque?.bankName || '-' }}</div>
-                            <div><span class="text-muted">Due Date: </span> {{ payment?.cheque?.chequeDate ?
-                                (payment?.cheque?.chequeDate | date:'dd-MM-yyyy') : '-' }}
+                            <div>
+                                <span class="text-muted">Due Date: </span>
+                                {{
+                                payment?.cheque?.dueDate
+                                ? (payment?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                : '-'
+                                }}
                             </div>
-                            <div><span class="text-muted">Cheque Date (Issued): </span> {{ payment?.cheque?.dueDate ?
-                                (payment?.cheque?.dueDate | date:'dd-MM-yyyy') : '-' }}
+                            <div>
+                                <span class="text-muted">Cheque Date (Issued): </span>
+                                {{
+                                payment?.cheque?.chequeDate
+                                ? (payment?.cheque?.chequeDate | date:'dd/MM/yyyy')
+                                : '-'
+                                }}
                             </div>
-                            <div><span class="text-muted">Planned Deposit: </span> {{
-                                payment?.cheque?.plannedDepositDate ?
-                                (payment?.cheque?.plannedDepositDate | date:'dd-MM-yyyy') : '-'}}</div>
+                            <div>
+                                <span class="text-muted">Planned Deposit: </span>
+                                {{
+                                payment?.cheque?.plannedDepositDate
+                                ? (payment?.cheque?.plannedDepositDate | date:'dd/MM/yyyy')
+                                : '-'
+                                }}
+                            </div>
                         </div>
+
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -230,7 +247,15 @@
             <div>
                 <h6 class="mb-0 fw-semibold">Request Cheque Extension</h6>
                 <span class="text-muted small">
-                    Current planned: <b>{{ payment?.cheque?.plannedDepositDate || payment?.cheque?.dueDate || '-' }}</b>
+                    Current planned:
+                    <b>
+                        {{
+                        payment?.cheque?.plannedDepositDate || payment?.cheque?.dueDate
+                        ? ((payment?.cheque?.plannedDepositDate || payment?.cheque?.dueDate) | date:'dd/MM/yyyy')
+                        : '-'
+                        }}
+                    </b>
+
                 </span>
             </div>
             <button type="button" class="btn-close" (click)="closeExtensionModal()" aria-label="Close"></button>

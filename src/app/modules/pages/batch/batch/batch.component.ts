@@ -34,13 +34,25 @@ export class BatchComponent implements OnInit {
   eligibleQuery = { page: 1, limit: 20, search: '' };
   selectedStudentIds = new Set<string>();
 
+  // ✅ IMPROVED: Added 'badge' type and colors for Status column
   columns = [
     { key: 'batchName', label: 'Batch Name', sortable: true },
     { key: 'batchCode', label: 'Batch Code', sortable: true },
-    { key: 'academicYear', label: 'Academic Year', sortable: true },
+    { key: 'academicYear', label: 'AY', sortable: true },
     { key: 'programName', label: 'Program', sortable: false },
     { key: 'centerName', label: 'Center', sortable: false },
-    { key: 'status', label: 'Status', sortable: true },
+    { 
+      key: 'status', 
+      label: 'Status', 
+      sortable: true,
+      type: 'badge',
+      badgeColors: {
+        'ACTIVE': 'badge bg-success-subtle text-success',
+        'DRAFT': 'badge bg-secondary-subtle text-secondary',
+        'CLOSED': 'badge bg-danger-subtle text-danger',
+        'INACTIVE': 'badge bg-dark-subtle text-dark'
+      }
+    },
     { key: 'studentCount', label: 'Students', sortable: false },
   ];
 
@@ -258,6 +270,11 @@ export class BatchComponent implements OnInit {
   // ---------------- Modal Open/Close ----------------
   openCreate() {
     this.editorMode = 'create';
+    // Ensure all fields are enabled for create
+    this.editorForm.get('programId')?.enable();
+    this.editorForm.get('centerId')?.enable();
+    this.editorForm.get('academicYear')?.enable();
+
     this.editorForm.reset({
       batchId: null,
       batchName: '',
@@ -280,6 +297,7 @@ export class BatchComponent implements OnInit {
   private dateToEpochMs(dateStr: any): number {
     const s = safeTrim(dateStr);
     if (!s) return 0;
+    // Forces midnight local time for the date picker string
     const d = new Date(`${s}T00:00:00`);
     const t = d.getTime();
     return Number.isFinite(t) ? t : 0;
@@ -314,6 +332,19 @@ export class BatchComponent implements OnInit {
       status: b?.status || 'ACTIVE',
       remarks: b?.remarks || '',
     });
+
+    // ✅ IMPROVED: Lock core fields if students are assigned
+    const count = Number(b?.studentCount || 0);
+    if (count > 0) {
+      this.editorForm.get('programId')?.disable();
+      this.editorForm.get('centerId')?.disable();
+      this.editorForm.get('academicYear')?.disable();
+    } else {
+      this.editorForm.get('programId')?.enable();
+      this.editorForm.get('centerId')?.enable();
+      this.editorForm.get('academicYear')?.enable();
+    }
+
     this.showEditorModal = true;
   }
 
@@ -328,7 +359,19 @@ export class BatchComponent implements OnInit {
       this.alert.error('Please fill all required fields');
       return;
     }
-    const v = this.editorForm.value || {};
+    
+    // ✅ IMPROVED: Use getRawValue() to include disabled fields
+    const v = this.editorForm.getRawValue() || {};
+    
+    // ✅ IMPROVED: Validate Start Date < End Date
+    const startMs = this.dateToEpochMs(v.startDate);
+    const endMs = this.dateToEpochMs(v.endDate);
+
+    if (startMs >= endMs) {
+      this.alert.error('End Date must be after Start Date');
+      return;
+    }
+
     const payload: any = {
       entiId: this.entiId,
       batchName: safeTrim(v.batchName),
@@ -340,14 +383,15 @@ export class BatchComponent implements OnInit {
       centerId: safeTrim(v.centerId),
       centerName: safeTrim(v.centerName) || null,
       centerCode: safeTrim(v.centerCode) || null,
-      startDate: this.dateToEpochMs(v.startDate),
-      endDate: this.dateToEpochMs(v.endDate),
+      startDate: startMs,
+      endDate: endMs,
       status: safeTrim(v.status) || 'ACTIVE',
       remarks: safeTrim(v.remarks) || null,
     };
-    const endpoint =
-      this.editorMode === 'create' ? 'create' : 'update';
+
+    const endpoint = this.editorMode === 'create' ? 'create' : 'update';
     if (this.editorMode === 'edit') payload.batchId = safeTrim(v.batchId);
+    
     this.loading = true;
     this.commonApi.fetchData(payload, this.moduleName, endpoint).subscribe({
       next: () => {
@@ -370,7 +414,7 @@ export class BatchComponent implements OnInit {
   // ---------------- VIEW ----------------
   openView(row: any) {
     const b = row?._raw || row;
-    this.router.navigate(['/app//batches/view', b?.batchId]);
+    this.router.navigate(['/app/batches/view', b?.batchId]);
   }
 
   // ---------------- CLOSE ----------------

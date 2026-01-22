@@ -9,7 +9,7 @@ import { CommonapiService } from '../../../../../service/commonapi/commonapi.ser
   selector: 'app-cheque-extension',
   standalone: false,
   templateUrl: './cheque-extension.component.html',
-  styleUrl: './cheque-extension.component.scss'
+  styleUrl: './cheque-extension.component.scss',
 })
 export class ChequeExtensionComponent implements OnInit {
   entiId: any;
@@ -34,10 +34,13 @@ export class ChequeExtensionComponent implements OnInit {
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private commonApi: CommonapiService,
-    private router: Router
+    private router: Router,
   ) {
     this.entiId = localStorage.getItem('tenantId');
-    this.breadcrumb.set([{ label: 'Accounts' }, { label: 'Cheque Extensions' }]);
+    this.breadcrumb.set([
+      { label: 'Accounts' },
+      { label: 'Cheque Extensions' },
+    ]);
   }
 
   ngOnInit(): void {
@@ -54,11 +57,14 @@ export class ChequeExtensionComponent implements OnInit {
 
   private buildQueryParams(params: Record<string, any>) {
     const keys = Object.keys(params || {}).filter(
-      (k) => params[k] !== undefined && params[k] !== null && params[k] !== ''
+      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
     );
     if (!keys.length) return '';
     const qs = keys
-      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`)
+      .map(
+        (k) =>
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
+      )
       .join('&');
     return `?${qs}`;
   }
@@ -81,7 +87,11 @@ export class ChequeExtensionComponent implements OnInit {
       status: 'status',
     };
     const sortKeyDb = this.sortKey ? sortMap[this.sortKey] : null;
-    const sort = sortKeyDb ? (this.sortDirection === 'asc' ? sortKeyDb : `-${sortKeyDb}`) : '';
+    const sort = sortKeyDb
+      ? this.sortDirection === 'asc'
+        ? sortKeyDb
+        : `-${sortKeyDb}`
+      : '';
 
     const qp = this.buildQueryParams({
       page,
@@ -94,30 +104,32 @@ export class ChequeExtensionComponent implements OnInit {
     const payload = { entiId: this.entiId };
 
     this.loading = true;
-    this.commonApi.fetchData(payload, this.moduleName, `cheque/extension/list${qp}`).subscribe({
-      next: (res: any) => {
-        const d = res?.data || {};
-        const rows = Array.isArray(d.rows) ? d.rows : [];
-        this.totalRecords = Number(d.total || 0);
-
-        this.rows = rows.map((x: any) => ({
-          requestId: x?.requestId || '-',
-          paymentId: x?.paymentId || '-',
-          oldPlannedDepositDate: x?.oldPlannedDepositDate || '-',
-          newPlannedDepositDate: x?.newPlannedDepositDate || '-',
-          status: x?.status || '-',
-          remarks: x?.remarks || '',
-          _raw: x,
-        }));
-
-        this.updatePagination();
-        this.loading = false;
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Failed to load extension requests');
-      },
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, `cheque/extension/list${qp}`)
+      .subscribe({
+        next: (res: any) => {
+          const d = res?.data || {};
+          const rows = Array.isArray(d.rows) ? d.rows : [];
+          this.totalRecords = Number(d.total || 0);
+          this.rows = rows.map((x: any) => ({
+            requestId: x?.requestId || '-',
+            paymentId: x?.paymentId || '-',
+            oldPlannedDepositDate: x?.oldPlannedDepositDate ?? null,
+            newPlannedDepositDate: x?.newPlannedDepositDate ?? null,
+            status: x?.status || '-',
+            remarks: x?.remarks || '',
+            _raw: x,
+          }));
+          this.updatePagination();
+          this.loading = false;
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(
+            err?.error?.message || 'Failed to load extension requests',
+          );
+        },
+      });
   }
 
   onSort(key: string) {
@@ -176,11 +188,14 @@ export class ChequeExtensionComponent implements OnInit {
       push(total);
     }
 
-    this.paginationItems = pages.map((p) => ({ page: p, isActive: p === current })) as any;
+    this.paginationItems = pages.map((p) => ({
+      page: p,
+      isActive: p === current,
+    })) as any;
   }
 
   view(row: any) {
-    console.log(row)
+    console.log(row);
     const id = row?.requestId;
     if (!id) return;
     this.router.navigate(['/app/accounts/extention', id]);

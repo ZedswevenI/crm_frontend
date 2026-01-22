@@ -9,7 +9,7 @@ import { CommonapiService } from '../../../../../service/commonapi/commonapi.ser
   selector: 'app-cheque-deposit-view',
   standalone: false,
   templateUrl: './cheque-deposit-view.component.html',
-  styleUrl: './cheque-deposit-view.component.scss'
+  styleUrl: './cheque-deposit-view.component.scss',
 })
 export class ChequeDepositViewComponent implements OnInit {
   entiId: any;
@@ -25,8 +25,8 @@ export class ChequeDepositViewComponent implements OnInit {
 
   summary = { deposited: 0, cleared: 0, failed: 0, cancelled: 0 };
 
- private api = {
-    view: 'deposit/view', 
+  private api = {
+    view: 'deposit/view',
     bulkReconcile: 'cheque/bulk-reconcile',
   };
 
@@ -36,13 +36,15 @@ export class ChequeDepositViewComponent implements OnInit {
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private commonApi: CommonapiService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
   ) {
     this.entiId = localStorage.getItem('tenantId');
   }
 
   ngOnInit(): void {
-    this.depositBatchId = String(this.route.snapshot.paramMap.get('id') || '').trim();
+    this.depositBatchId = String(
+      this.route.snapshot.paramMap.get('id') || '',
+    ).trim();
     this.breadcrumb.set([
       { label: 'Accounts' },
       { label: 'Deposit Batches' },
@@ -61,11 +63,15 @@ export class ChequeDepositViewComponent implements OnInit {
   }
 
   get selectedIds(): string[] {
-    return Object.keys(this.selectedMap || {}).filter((k) => this.selectedMap[k] === true);
+    return Object.keys(this.selectedMap || {}).filter(
+      (k) => this.selectedMap[k] === true,
+    );
   }
 
   get showBulkActions(): boolean {
-    return (this.payments || []).some((p) => String(p.status || '').toUpperCase() === 'DEPOSITED');
+    return (this.payments || []).some(
+      (p) => String(p.status || '').toUpperCase() === 'DEPOSITED',
+    );
   }
 
   back() {
@@ -74,34 +80,42 @@ export class ChequeDepositViewComponent implements OnInit {
 
   load() {
     this.loading = true;
-    const payload = { entiId: this.entiId, depositBatchId: this.depositBatchId };
-    this.commonApi.fetchData(payload, this.moduleName, this.api.view).subscribe({
-      next: (res: any) => {
-        const d = res?.data || {};
-        this.batch = d?.batch || null;
-        const rows = Array.isArray(d?.payments) ? d.payments : [];
-        this.payments = rows.map((x: any) => ({
-          paymentId: x?.paymentId,
-          chequeNo: x?.cheque?.chequeNo || '-',
-          dueDate: x?.cheque?.dueDate || '-',
-          plannedDepositDate: x?.cheque?.plannedDepositDate || x?.cheque?.dueDate || '-',
-          studentName: x?.studentName || '-',
-          admissionNo: x?.admissionNo || x?.admissionId?.admissionNo || '-',
-          amount: x?.amount || 0,
-          status: x?.status || '-',
-          _raw: x,
-        }));
-        this.computeSummary();
-        this.cleanupSelection();
-        this.loading = false;
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.batch = null;
-        this.payments = [];
-        this.alert.error(err?.error?.message || 'Failed to load deposit batch');
-      },
-    });
+    const payload = {
+      entiId: this.entiId,
+      depositBatchId: this.depositBatchId,
+    };
+    this.commonApi
+      .fetchData(payload, this.moduleName, this.api.view)
+      .subscribe({
+        next: (res: any) => {
+          const d = res?.data || {};
+          this.batch = d?.batch || null;
+          const rows = Array.isArray(d?.payments) ? d.payments : [];
+          this.payments = rows.map((x: any) => ({
+            paymentId: x?.paymentId,
+            chequeNo: x?.cheque?.chequeNo || '-',
+            dueDate: x?.cheque?.dueDate ?? null,
+            plannedDepositDate:
+              x?.cheque?.plannedDepositDate ?? x?.cheque?.dueDate ?? null,
+            studentName: x?.studentName || '-',
+            admissionNo: x?.admissionNo || x?.admissionId?.admissionNo || '-',
+            amount: x?.amount || 0,
+            status: x?.status || '-',
+            _raw: x,
+          }));
+          this.computeSummary();
+          this.cleanupSelection();
+          this.loading = false;
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.batch = null;
+          this.payments = [];
+          this.alert.error(
+            err?.error?.message || 'Failed to load deposit batch',
+          );
+        },
+      });
   }
 
   private computeSummary() {
@@ -153,16 +167,22 @@ export class ChequeDepositViewComponent implements OnInit {
 
   isAllSelectedOnPage(): boolean {
     const rows = Array.isArray(this.payments) ? this.payments : [];
-    const selectable = rows.filter((r) => !this.isRowSelectDisabled(r) && r?.paymentId);
+    const selectable = rows.filter(
+      (r) => !this.isRowSelectDisabled(r) && r?.paymentId,
+    );
     if (!selectable.length) return false;
     return selectable.every((r) => !!this.selectedMap[r.paymentId]);
   }
 
   isSomeSelectedOnPage(): boolean {
     const rows = Array.isArray(this.payments) ? this.payments : [];
-    const selectable = rows.filter((r) => !this.isRowSelectDisabled(r) && r?.paymentId);
+    const selectable = rows.filter(
+      (r) => !this.isRowSelectDisabled(r) && r?.paymentId,
+    );
     if (!selectable.length) return false;
-    const selectedCount = selectable.filter((r) => !!this.selectedMap[r.paymentId]).length;
+    const selectedCount = selectable.filter(
+      (r) => !!this.selectedMap[r.paymentId],
+    ).length;
     return selectedCount > 0 && selectedCount < selectable.length;
   }
 
@@ -171,7 +191,7 @@ export class ChequeDepositViewComponent implements OnInit {
       (this.payments || [])
         .filter((p) => String(p.status || '').toUpperCase() === 'DEPOSITED')
         .map((p) => String(p.paymentId || '').trim())
-        .filter(Boolean)
+        .filter(Boolean),
     );
     Object.keys(this.selectedMap || {}).forEach((k) => {
       if (!depositable.has(k)) delete this.selectedMap[k];
@@ -192,7 +212,9 @@ export class ChequeDepositViewComponent implements OnInit {
   replaceCheque(row: any) {
     const pid = row?.paymentId;
     if (!pid) return;
-    this.router.navigate(['/app/accounts/cheques', pid], { queryParams: { action: 'replace' } });
+    this.router.navigate(['/app/accounts/cheques', pid], {
+      queryParams: { action: 'replace' },
+    });
   }
 
   openBulkReconcile(action: 'CLEAR' | 'FAIL') {
@@ -224,21 +246,26 @@ export class ChequeDepositViewComponent implements OnInit {
       remarks: String(f?.remarks || '').trim() || null,
     };
     if (this.reconcileAction === 'FAIL') {
-      payload.failureReason = String(f?.failureReason || '').trim() || 'Cheque bounced';
+      payload.failureReason =
+        String(f?.failureReason || '').trim() || 'Cheque bounced';
     }
     this.loading = true;
-    this.commonApi.fetchData(payload, this.moduleName, this.api.bulkReconcile).subscribe({
-      next: (res: any) => {
-        this.loading = false;
-        this.alert.success(res?.message || `Bulk ${this.reconcileAction} completed`);
-        this.showReconcileModal = false;
-        this.selectedMap = {};
-        this.load();
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Bulk reconcile failed');
-      },
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, this.api.bulkReconcile)
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          this.alert.success(
+            res?.message || `Bulk ${this.reconcileAction} completed`,
+          );
+          this.showReconcileModal = false;
+          this.selectedMap = {};
+          this.load();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Bulk reconcile failed');
+        },
+      });
   }
 }
