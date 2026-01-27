@@ -1,0 +1,153 @@
+.institute-page {
+  max-width: 1120px;
+  margin: 0 auto;
+
+  .institute-card {
+    border-radius: 0.9rem;
+
+    .card-header {
+      padding: 0.9rem 1.25rem 0.75rem;
+    }
+
+    .card-body {
+      padding: 0.9rem 1.25rem 1.25rem;
+      background: linear-gradient(
+        135deg,
+        #f9fafb 0%,
+        #ffffff 40%,
+        #fefaf5 100%
+      );
+    }
+  }
+
+  .section-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    font-weight: 600;
+  }
+
+  .info-grid {
+    margin: 0;
+    padding: 0;
+  }
+
+  .info-row {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px dashed #e5e7eb;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    dt {
+      min-width: 140px;
+      margin: 0;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+
+    dd {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #111827;
+      flex: 1;
+      word-break: break-word;
+    }
+  }
+
+  .text-saffron {
+    color: var(--z7i-saffron);
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.15rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .status-pill-active {
+    background-color: rgba(244, 123, 32, 0.1);
+    color: #b45309;
+    border: 1px solid rgba(244, 123, 32, 0.35);
+  }
+
+  .status-pill-inactive {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+  }
+}
+
+/* Modal overlay */
+.app-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* Modal container */
+.app-modal {
+  background-color: #ffffff;
+  border-radius: 0.9rem;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(148, 163, 184, 0.25);
+}
+
+/* Modal header / body */
+.app-modal-header {
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+
+  h6 {
+    font-size: 0.95rem;
+  }
+}
+
+.app-modal-body {
+  padding: 1rem 1.25rem 1.25rem;
+  overflow-y: auto;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .institute-page .info-row {
+    flex-direction: column;
+
+    dt {
+      min-width: auto;
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .app-modal {
+    max-width: 100%;
+    border-radius: 0.75rem;
+  }
+
+  .app-modal-header,
+  .app-modal-body {
+    padding-inline: 1rem;
+  }
+}

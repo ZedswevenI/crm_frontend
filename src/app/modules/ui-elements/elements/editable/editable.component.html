@@ -1,0 +1,100 @@
+<div class="rounded-3 overflow-hidden position-relative editable-table">
+
+  <!-- Scrollable table area -->
+  <div class="table-responsive" #tableWrap style="min-height: 200px; max-height: 400px; overflow-y: auto">
+    <table class="table mb-0 align-middle">
+      <thead>
+        <tr class="table-header">
+          <th class="px-4 py-3 fw-semibold text-center align-middle" style="width:78px;">
+            S.No
+          </th>
+
+          <th class="px-4 py-3 fw-semibold text-center align-middle" *ngFor="let col of columns">
+            {{ col.label }}<span class="requierdstar">*</span>
+          </th>
+
+          <th class="px-4 py-3 fw-semibold text-center align-middle" style="width:126px;">
+            Action
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <!-- Form Row for Create/Edit -->
+        <tr [formGroup]="form" class="edit-row text-center align-middle">
+          <td class="px-4 py-2">
+            <button class="btn btn-sm btn-outline-secondary border-0 p-1" [title]="rowsno.tooltip"
+              (click)="rowsno.callback()" *ngIf="rowsno" [ngStyle]="{ color: rowsno.color || '' }"
+              aria-label="Row action">
+              <i [class]="rowsno.icon" class="icon-20" [style.--icon-hover-color]="rowsno.hoverColor || null"></i>
+            </button>
+          </td>
+
+          <td *ngFor="let field of formFields" class="px-3 py-2 text-center align-middle edit-cell">
+            <ng-container [ngSwitch]="field.type">
+              <!-- Text -->
+              <formfield *ngSwitchCase="'text'" [label]="field.label" [formControlName]="field.formControl"
+                [placeholder]="field.placeholder || field.label" [control]="form.get(field.formControl)">
+              </formfield>
+
+              <!-- Select -->
+              <selectbox *ngSwitchCase="'select'" [placeholder]="'Select ' + (field.placeholder || field.label)"
+                [label]="field.label" [options]="field.options" [optionLabel]="field.optionLabel"
+                [optionValue]="field.optionValue" [formControlName]="field.formControl" [required]="field.required"
+                [control]="form.get(field.formControl)"
+                (selectionChange)="field.onselect && field.onselect($event, form)">
+              </selectbox>
+
+              <!-- MultiSelect -->
+              <multiselect *ngSwitchCase="'multiselect'" [optionLabel]="field.optionLabel"
+                [optionValue]="field.optionValue" [placeholder]="'Select ' + (field.placeholder || field.label)"
+                [label]="field.label" [options]="field.options" [formControlName]="field.formControl"
+                [required]="field.required" [control]="form.get(field.formControl)">
+              </multiselect>
+
+              <!-- Readonly -->
+              <appreadonly *ngSwitchCase="'readonly'" [label]="field.label"
+                [placeholder]="'Select ' + (field.placeholder || field.label)" [options]="field.options"
+                [optionLabel]="field.optionLabel" [optionValue]="field.optionValue"
+                [formControlName]="field.formControl">
+              </appreadonly>
+            </ng-container>
+          </td>
+
+          <td class="px-4 py-2 text-center">
+            <ng-container *ngFor="let action of formaction">
+              <button class="btn btn-sm btn-outline-secondary border-0 p-1" [title]="action.tooltip"
+                (click)="!action['disabled']?.() && action.callback()" [disabled]="action['disabled']?.()"
+                [ngStyle]="{ color: action.color || '' }">
+                <i [class]="action.icon" class="icon-20" [style.--icon-hover-color]="action.hoverColor || null"></i>
+              </button>
+            </ng-container>
+          </td>
+        </tr>
+
+        <!-- Data Rows -->
+        <tr *ngFor="let row of data; let i = index" class="border-top align-left">
+          <td class="px-4 py-3 text-center">{{ i + 1 }}</td>
+
+          <td class="px-4 py-3" *ngFor="let col of columns">
+            <span class="truncate-cell d-inline-block" [style.maxWidth.px]="col.maxWidthPx || 240"
+              [attr.title]="needsTooltip(getCellValue(row, col.key)) ? getCellValue(row, col.key) : null">
+              {{ truncate(getCellValue(row, col.key)) }}
+            </span>
+          </td>
+
+          <td class="px-4 py-3 text-center">
+            <!-- Reserved for future per-row actions -->
+          </td>
+        </tr>
+
+        <!-- Empty state -->
+        <tr *ngIf="!data || data.length === 0">
+          <td [attr.colspan]="columns.length + 2" class="text-center py-4 text-muted">
+            No data found
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

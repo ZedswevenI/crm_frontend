@@ -1,0 +1,80 @@
+.sticky-panel {
+  position: sticky;
+  top: 84px;
+}
+
+.eligible-box {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+}
+
+/* --- Layout & Spacing --- */
+.batch-view {
+  min-height: 100vh;
+  padding-bottom: 50px;
+}
+
+/* --- Dashboard Stats Cards --- */
+.icon-box {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+/* --- Table Styles --- */
+.table th,
+.table td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* --- Offcanvas (Right Drawer) --- */
+.offcanvas {
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.offcanvas-backdrop {
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(2px); /* nice blur effect behind the drawer */
+}
+
+/* --- Assign Student List --- */
+.list-group-item {
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #f8f9fa;
+  }
+}
+
+/* --- Nav Tabs --- */
+.nav-tabs .nav-link {
+  color: #6c757d;
+  cursor: pointer;
+
+  &.active {
+    font-weight: 600;
+    color: #0d6efd; /* Bootstrap Primary Blue */
+    border-bottom: 2px solid #0d6efd;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  &:hover:not(.active) {
+    border-color: transparent;
+    color: #000;
+  }
+}

@@ -1,0 +1,16 @@
+.admission-edit-page {
+  .btn-saffron {
+    background: var(--z7i-saffron, #f47b20);
+    border-color: var(--z7i-saffron, #f47b20);
+    color: #fff;
+
+    &:hover {
+      filter: brightness(0.95);
+      color: #fff;
+    }
+  }
+
+  .tiny {
+    font-size: 0.78rem;
+  }
+}

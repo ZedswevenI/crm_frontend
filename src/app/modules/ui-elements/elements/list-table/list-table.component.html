@@ -8,7 +8,6 @@
         class="position-absolute app-table-search-icon" />
       <input [(ngModel)]="searchText" placeholder="Search Location, email, City..."
         class="form-control app-table-search-input" [disabled]="loading" (keyup.enter)="onSearch()" />
-
       <button *ngIf="searchText" type="button"
         class="btn btn-link position-absolute app-table-search-clear text-muted px-0"
         (click)="searchText = ''; onSearch()" aria-label="Clear search">

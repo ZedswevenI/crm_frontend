@@ -1,0 +1,66 @@
+.center-page {
+  .card {
+    border-radius: 0.75rem;
+
+    .card-header {
+      padding: 0.9rem 1.25rem 0.75rem;
+    }
+
+    .card-body {
+      padding: 0.75rem 1.25rem 1.25rem;
+    }
+  }
+}
+
+/* Modal overlay */
+.app-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* Modal container */
+.app-modal {
+  background-color: #ffffff;
+  border-radius: 0.9rem;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(148, 163, 184, 0.25);
+}
+
+/* Modal header / body */
+.app-modal-header {
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+
+  h6 {
+    font-size: 0.95rem;
+  }
+}
+
+.app-modal-body {
+  padding: 1rem 1.25rem 1.25rem;
+  overflow-y: auto;
+}
+
+/* Responsive tweaks */
+@media (max-width: 576px) {
+  .app-modal {
+    max-width: 100%;
+    border-radius: 0.75rem;
+  }
+
+  .app-modal-header,
+  .app-modal-body {
+    padding-inline: 1rem;
+  }
+}

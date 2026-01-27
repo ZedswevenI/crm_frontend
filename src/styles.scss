@@ -1,0 +1,189 @@
+:root {
+  --z7i-saffron: #f47b20;
+  --z7i-blue: #f47b20;
+  --z7i-green: #00a651;
+  --z7i-lightblue: #00a0e3;
+}
+
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+.w-30 {
+  width: 30%;
+}
+.w-70 {
+  width: 70%;
+}
+.w-100 {
+  width: 100%;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-wrap {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.app-sidebar {
+  width: 260px;
+  background: #fff;
+  overflow-y: auto;
+}
+
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.app-main .table-responsive,
+.app-main [class*="table-responsive"] {
+  overflow-x: auto;
+}
+
+@media (max-width: 767.98px) {
+  .app-sidebar {
+    display: none !important;
+  }
+}
+
+.app-navbar .nav-link.active {
+  color: #f47b20 !important; /* saffron */
+  border-bottom: 2px solid #f47b20; /* underline */
+}
+
+.app-navbar .nav-link:hover {
+  color: #f47b20 !important;
+}
+
+/* Global button look: saffron + pill radius */
+.btn,
+button.btn {
+  border-radius: 999px; // curved / pill
+}
+
+/* Primary button -> saffron */
+.btn-primary {
+  background-color: var(--z7i-saffron) !important;
+  border-color: var(--z7i-saffron) !important;
+  color: #ffffff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: #e96f16; // slightly darker saffron
+  border-color: #e96f16;
+  color: #ffffff;
+}
+
+/* Disabled state */
+.btn-primary:disabled,
+.btn-primary.disabled {
+  background-color: #fbb98a; // lighter saffron
+  border-color: #fbb98a;
+  color: #ffffff;
+}
+
+/* For .btn-check + .btn-primary (Bootstrap toggle buttons) */
+.btn-check:checked + .btn-primary,
+.btn-check:active + .btn-primary {
+  background-color: #cf6415; // another darker step
+  border-color: #cf6415;
+  color: #ffffff;
+}
+
+/* Outline variant in saffron */
+.btn-outline-saffron {
+  border-radius: 999px;
+  border: 1px solid var(--z7i-saffron);
+  color: var(--z7i-saffron);
+  background-color: transparent;
+}
+
+.btn-outline-saffron:hover,
+.btn-outline-saffron:focus {
+  background-color: rgba(244, 123, 32, 0.08);
+  color: var(--z7i-saffron);
+  border-color: var(--z7i-saffron);
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+/* ===== App Custom Modal (GLOBAL) ===== */
+.app-modal-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  z-index: 9999 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 16px !important;
+}
+
+.app-modal {
+  background: #fff !important;
+  border-radius: 12px !important;
+  width: 100% !important;
+  max-width: 980px !important;
+  max-height: 90vh !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25) !important;
+  overflow: hidden !important;
+}
+
+.app-modal-header {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #eee !important;
+  background: #fff !important;
+}
+
+.app-modal-body {
+  padding: 16px !important;
+  overflow-y: auto !important;
+}
+
+.fee-modal {
+  max-width: 1100px !important;
+}
+.enrollment-modal {
+  max-width: 900px !important;
+}
+
+@media (max-width: 992px) {
+  .app-modal {
+    max-width: 96vw !important;
+  }
+}
+
+.app-modal-backdrop {
+  transform: none !important;
+}

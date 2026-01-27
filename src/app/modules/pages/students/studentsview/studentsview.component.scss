@@ -1,0 +1,57 @@
+.student-detail-page {
+  .card {
+    border-radius: 0.75rem;
+  }
+}
+
+/* bigger avatar */
+.avatar-circle-lg {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: #eff6ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-initials-lg {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+/* subtle bg helpers */
+.bg-success-subtle {
+  background-color: #ecfdf3 !important;
+}
+.bg-secondary-subtle {
+  background-color: #f3f4f6 !important;
+}
+.bg-danger-subtle {
+  background-color: #fef2f2 !important;
+}
+.bg-warning-subtle {
+  background-color: #fffbeb !important;
+}
+
+/* Tabs styling */
+.student-tabs {
+  .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.9rem;
+    color: #6b7280;
+  }
+
+  .nav-link.active {
+    color: var(--z7i-saffron);
+    border-bottom-color: var(--z7i-saffron);
+    font-weight: 600;
+  }
+}
+
+.fees-summary-card {
+  font-size: 0.85rem;
+}

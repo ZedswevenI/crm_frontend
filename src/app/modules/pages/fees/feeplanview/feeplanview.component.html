@@ -1,0 +1,246 @@
+<div class="feeplan-view-page">
+    <!-- Top Header -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body d-flex justify-content-between align-items-start gap-3 flex-wrap">
+            <div class="d-flex align-items-start gap-3">
+                <button class="btn btn-sm btn-outline-secondary mt-1" (click)="back()">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back
+                </button>
+
+                <div>
+                    <div class="text-muted small">Fee Plan</div>
+                    <div class="h6 mb-0 fw-semibold" *ngIf="doc">
+                        {{ doc.feePlanDisplayName || doc.feePlanName }}
+                    </div>
+                    <div class="text-muted small" *ngIf="doc">
+                        Program: <span class="fw-semibold">{{ doc.programCode }}</span>
+                        <span class="mx-2">•</span>
+                        AY: <span class="fw-semibold">{{ doc.academicYear }}</span>
+                        <span class="mx-2" *ngIf="doc.centerCode">•</span>
+                        <span *ngIf="doc.centerCode">Center: <span class="fw-semibold">{{ doc.centerCode
+                                }}</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2" *ngIf="doc">
+                <span class="badge" [ngClass]="badgeClass(doc.status)">{{ doc.status }}</span>
+                <span class="badge bg-light text-dark border">Currency: {{ doc.currency || 'INR' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="loading" class="card border-0 shadow-sm">
+        <div class="card-body">
+            Loading...
+        </div>
+    </div>
+
+    <ng-container *ngIf="!loading && doc">
+
+        <!-- Summary Cards -->
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Fee Plan Name</div>
+                        <div class="fw-semibold">{{ doc.feePlanName }}</div>
+
+                        <div class="text-muted small mt-2">Display</div>
+                        <div class="small">{{ doc.feePlanDisplayName }}</div>
+
+                        <div class="text-muted small mt-2" *ngIf="doc.programName">
+                            Program Name
+                        </div>
+                        <div class="small" *ngIf="doc.programName">{{ doc.programName }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Program Code</div>
+                        <div class="fw-semibold">{{ doc.programCode }}</div>
+
+                        <div class="text-muted small mt-2">Academic Year</div>
+                        <div class="fw-semibold">{{ doc.academicYear }}</div>
+
+                        <div class="text-muted small mt-2">Center Code</div>
+                        <div class="fw-semibold">{{ doc.centerCode || '-' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <div class="text-muted small">Total Base</div>
+                                <div class="h6 mb-0 fw-semibold">{{ money(totalBaseFee) }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Total GST</div>
+                                <div class="h6 mb-0 fw-semibold">{{ money(totalGST) }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Total Fee</div>
+                                <div class="h5 mb-0 fw-bold">{{ money(totalFee) }}</div>
+                            </div>
+                        </div>
+
+                        <div class="text-muted small mt-2">
+                            Fee Heads: <span class="fw-semibold">{{ (doc.feeHeads?.length || 0) }}</span>
+                            <span class="mx-2">•</span>
+                            Instalments: <span class="fw-semibold">{{ (doc.instalments?.length || 0) }}</span>
+                        </div>
+
+                        <div class="row g-2 mt-2 small text-muted">
+                            <div class="col-md-6">
+                                Test Date:
+                                <span class="fw-semibold text-dark">
+                                    {{ doc.testDate ? (doc.testDate | date:'dd/MM/yyyy') : '-' }}
+                                </span>
+                            </div>
+                            <div class="col-md-6">
+                                Valid Till:
+                                <span class="fw-semibold text-dark">
+                                    {{ doc.validTill ? (doc.validTill | date:'dd/MM/yyyy') : '-' }}
+                                </span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="row g-3">
+
+            <!-- Fee Heads -->
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-semibold">Fee Heads</h6>
+                        <span class="text-muted small">Totals auto-calculated</span>
+                    </div>
+
+                    <div class="card-body pt-0">
+                        <div class="table-responsive border rounded">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:80px;">Key</th>
+                                        <th>Label</th>
+                                        <th class="text-end" style="width:130px;">Base</th>
+                                        <th class="text-end" style="width:90px;">GST%</th>
+                                        <th class="text-end" style="width:130px;">GST</th>
+                                        <th class="text-end" style="width:140px;">Total</th>
+                                        <th style="width:110px;">Discount</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <tr *ngFor="let h of (doc.feeHeads || [])" [ngClass]="feeHeadRowClass(h)">
+                                        <td class="fw-semibold">{{ h.key }}</td>
+                                        <td>{{ h.label }}</td>
+                                        <td class="text-end">{{ money(h.amount) }}</td>
+                                        <td class="text-end">{{ (h.gstPercent ?? 0) | number:'1.0-2' }}</td>
+                                        <td class="text-end">{{ money(h.gstAmount) }}</td>
+                                        <td class="text-end fw-semibold">{{ money(h.totalAmount) }}</td>
+                                        <td>
+                                            <span class="badge bg-success" *ngIf="h.discountAllowed">Allowed</span>
+                                            <span class="badge bg-secondary" *ngIf="!h.discountAllowed">No</span>
+                                        </td>
+                                    </tr>
+
+                                    <tr *ngIf="!(doc.feeHeads?.length)">
+                                        <td colspan="7" class="text-center text-muted py-3">No fee heads</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="alert alert-info mt-3 py-2 small mb-0">
+                            <b>Rule:</b> Discount is allowed only for <b>TF (Tuition Fee)</b>.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instalments -->
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-semibold">Instalments</h6>
+                        <span class="text-muted small">Must match total fee</span>
+                    </div>
+
+                    <div class="card-body pt-0">
+                        <div class="table-responsive border rounded">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width:70px;">Seq</th>
+                                        <th>Instalment</th>
+                                        <th class="text-end" style="width:140px;">Amount</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    <tr *ngFor="let i of (doc.instalments || [])">
+                                        <td class="text-center">{{ i.seq }}</td>
+
+                                        <td>
+                                            <div class="fw-semibold">{{i.label || 'On Admission' }}</div>
+
+                                            <div class="text-muted small">
+                                                <span *ngIf="hasInstDate(i); else labelOnly">
+                                                    {{ i.instalmentDate | date:'dd/MM/yyyy' }}
+                                                </span>
+                                                <ng-template #labelOnly>{{ i.feeHead }}</ng-template>
+
+                                                <span class="mx-2">•</span>
+
+                                                <span *ngIf="i.discountApplied" class="badge bg-success">Discount</span>
+                                                <span *ngIf="!i.discountApplied" class="badge bg-secondary">No
+                                                    Discount</span>
+                                            </div>
+
+                                            <div class="text-muted small mt-1" *ngIf="i.mode || i.chequeFavour">
+                                                <span *ngIf="i.mode">Mode: <span class="fw-semibold text-dark">{{ i.mode
+                                                        }}</span></span>
+                                                <span class="mx-2" *ngIf="i.mode && i.chequeFavour">•</span>
+                                                <span *ngIf="i.chequeFavour">Cheque Favour: <span
+                                                        class="fw-semibold text-dark">{{ i.chequeFavour }}</span></span>
+                                            </div>
+                                        </td>
+
+                                        <td class="text-end fw-semibold">{{ money(i.amount) }}</td>
+                                    </tr>
+
+                                    <tr *ngIf="!(doc.instalments?.length)">
+                                        <td colspan="3" class="text-center text-muted py-3">No instalments</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="border rounded p-3 bg-light mt-3">
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span>Total Fee</span>
+                                <span class="fw-semibold">{{ money(totalFee) }}</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </ng-container>
+</div>

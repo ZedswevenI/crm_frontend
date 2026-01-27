@@ -1,0 +1,55 @@
+<div class="login-page d-flex align-items-center justify-content-center">
+    <div class="login-card card border-0 shadow-sm">
+        <div class="card-body p-4 p-md-5">
+            <div class="text-center mb-3">
+                <img src="../../../assets/logo.png" alt="z7i logo" style="height: 50px;">
+                <h1 class="h3 fw-semibold mb-0 mt-2">Login</h1>
+            </div>
+
+            <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fa-regular fa-envelope"></i>
+                        </span>
+                        <input type="email" class="form-control" placeholder="admin@email.com" formControlName="email"
+                            [class.is-invalid]="f['email'].touched && f['email'].invalid" />
+                        <div class="invalid-feedback" *ngIf="f['email']?.touched && f['email']?.errors?.['required']">
+                            Email is required.
+                        </div>
+                        <div class="invalid-feedback" *ngIf="f['email']?.touched && f['email']?.errors?.['email']">
+                            Enter a valid email.
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fa-solid fa-lock"></i>
+                        </span>
+                        <input [type]="showPassword ? 'text' : 'password'" class="form-control" placeholder="••••••••"
+                            formControlName="password"
+                            [class.is-invalid]="f['password'].touched && f['password'].invalid" />
+                        <button type="button" class="input-group-text bg-white border-start-0"
+                            (click)="togglePassword()" aria-label="Toggle password visibility">
+                            <i class="fa-regular" [ngClass]="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                        </button>
+                        <div class="invalid-feedback"
+                            *ngIf="f['password']?.touched && f['password']?.errors?.['required']">
+                            Password is required.
+                        </div>
+                        <div class="invalid-feedback"
+                            *ngIf="f['password']?.touched && f['password']?.errors?.['minlength']">
+                            Minimum 6 characters.
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 btn-lg" (click)="onSubmit()">
+                    Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

@@ -93,7 +93,6 @@ export class CenterComponent implements OnInit {
       state: ['', Validators.required],
       isActive: [true],
       // Dynamic additional fields
-
       contactName: ['', Validators.required],
       address1: ['', Validators.required],
       address2: ['', Validators.required],

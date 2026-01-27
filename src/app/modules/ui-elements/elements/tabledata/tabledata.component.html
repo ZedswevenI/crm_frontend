@@ -1,0 +1,133 @@
+<div class="app-table app-viewtable">
+
+  <!-- Top Bar -->
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <!-- Rows per page -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <div class="position-relative" *ngIf="showpageoptions">
+        <select [(ngModel)]="pageSize" (change)="onPageSizeChange(pageSize)" class="form-select app-table-page-size"
+          aria-label="Rows per page" [disabled]="loading">
+          <option value="5">5 Rows</option>
+          <option value="10">10 Rows</option>
+          <option value="20">20 Rows</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="rounded-3 overflow-hidden position-relative app-table-wrapper"
+    [ngStyle]="{'min-height': loading ? '320px' : 'auto'}">
+
+    <!-- Loader Overlay -->
+    <div *ngIf="loading" class="table-overlay">
+      <div class="spinner-border text-primary"></div>
+    </div>
+
+    <div class="table-responsive" #tableWrap>
+      <table class="table mb-0 align-middle app-table-grid">
+        <thead>
+          <tr class="table-header">
+            <th class="px-4 py-3 fw-semibold text-center sno-col">
+              S.No
+            </th>
+
+            <!-- Dynamic columns with sorting -->
+            <th class="px-4 py-3 fw-semibold" *ngFor="let col of columns"
+              (click)="col.sortable !== false ? onSort(col.key) : null"
+              [style.cursor]="col.sortable !== false ? 'pointer' : 'default'">
+              <div class="d-flex align-items-center gap-1">
+                <span class="fw-semibold">{{ col.label }}</span>
+                <i *ngIf="col.sortable !== false" class="fas icon-14" [ngClass]="{
+                    'fa-sort': sortKey !== col.key,
+                    'fa-sort-up': sortKey === col.key && sortDirection === 'asc',
+                    'fa-sort-down': sortKey === col.key && sortDirection === 'desc'
+                  }">
+                </i>
+              </div>
+            </th>
+
+            <th class="px-4 py-3 fw-semibold text-center action-col" *ngIf="showaction">
+              Action
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <!-- Use pagedData -->
+          <tr *ngFor="let row of pagedData; let i = index" class="app-table-row">
+            <td class="px-4 py-3 text-center fw-normal">
+              {{ (currentPage - 1) * pageSize + i + 1 }}
+            </td>
+
+            <td class="px-4 py-3 fw-normal" *ngFor="let col of columns">
+              <!-- Dates -->
+              <ng-container *ngIf="col.date; else normalCell">
+                <span class="truncate-cell d-inline-block" [style.maxWidth.px]="col.maxWidthPx || 240"
+                  [attr.title]="needsTooltip(getCellValue(row, col.key)) ? getCellValue(row, col.key) : null">
+                  {{ (getCellValue(row, col.key) | date:'dd/MM/yyyy') || '--' }}
+                </span>
+              </ng-container>
+
+              <!-- Normal text -->
+              <ng-template #normalCell>
+                <span class="truncate-cell d-inline-block" [style.maxWidth.px]="col.maxWidthPx || 240"
+                  [attr.title]="needsTooltip(getCellValue(row, col.key)) ? getCellValue(row, col.key) : null">
+                  {{ truncate(getCellValue(row, col.key)) }}
+                </span>
+              </ng-template>
+            </td>
+
+            <td class="px-4 py-3 fw-semibold text-center action-col" *ngIf="showaction">
+              <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
+                <ng-container *ngFor="let action of actions">
+                  <button *ngIf="action.type === 'icon'" type="button" class="btn btn-sm app-table-icon-btn"
+                    [title]="action.tooltip" (click)="action.callback(row)">
+                    <i [class]="action.icon" [style.color]="action.color || ''" class="icon-20">
+                    </i>
+                  </button>
+                </ng-container>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Empty state -->
+          <tr *ngIf="(pagedData.length) === 0">
+            <td [attr.colspan]="columns.length + (showaction ? 2 : 1)" class="text-center py-4 text-muted">
+              No data found
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div *ngIf="totalPages > 1" class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
+    <button class="btn btn-link app-table-page-link" [disabled]="currentPage <= 1"
+      (click)="onPageChange(currentPage - 1)">
+      <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20">
+      Previous
+    </button>
+
+    <div class="d-flex align-items-center gap-1">
+      <!-- Example simple pagination: 1..totalPages (you can still generate in TS) -->
+      <ng-container *ngFor="let page of [].constructor(totalPages); let idx = index">
+        <button type="button"
+          class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle app-table-page-btn"
+          [class.pagination-active]="currentPage === (idx + 1)" (click)="onPageChange(idx + 1)">
+          <span class="fw-medium small" [class.text-dark]="currentPage === (idx + 1)"
+            [class.text-muted]="currentPage !== (idx + 1)">
+            {{ idx + 1 }}
+          </span>
+        </button>
+      </ng-container>
+    </div>
+
+    <button class="btn btn-link app-table-page-link" [disabled]="currentPage >= totalPages"
+      (click)="onPageChange(currentPage + 1)">
+      Next
+      <img src="assets/icons/pageiright.svg" alt="pageright" width="20" height="20">
+    </button>
+  </div>
+</div>

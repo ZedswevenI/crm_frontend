@@ -1,0 +1,384 @@
+<div class="accounts-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Cheque Register</h5>
+                <p class="mb-0 text-muted small">
+                    Track cheque status, planned deposit dates, deposit batches and
+                    reconciliation.
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1" (click)="exportExcel()"
+                    [disabled]="loading">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Export</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                    (click)="resetFilters()">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>Reset</span>
+                </button>
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                    [disabled]="!selectedIds.length" (click)="openDepositModal()">
+                    <i class="fa-solid fa-building-columns"></i>
+                    <span>Deposit Batch</span>
+                </button>
+                <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
+                    [disabled]="!selectedIds.length" (click)="openBulkReconcile('CLEAR')">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Bulk Clear</span>
+                </button>
+                <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
+                    [disabled]="!selectedIds.length" (click)="openBulkReconcile('FAIL')">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                    <span>Bulk Fail</span>
+                </button>
+            </div>
+        </div>
+        <div class="card-body pb-0">
+            <form [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Search</label>
+                        <input class="form-control form-control-sm" formControlName="search"
+                            placeholder="Admission / Student / Cheque No / Bank" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Status</label>
+                        <select class="form-select form-select-sm" formControlName="status">
+                            <option value="ALL">ALL</option>
+                            <option *ngFor="let s of statusList" [value]="s">{{ s }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Mode</label>
+                        <select class="form-select form-select-sm" formControlName="mode">
+                            <option value="">ALL</option>
+                            <option value="PDC">PDC</option>
+                            <option value="CDC">CDC</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Center Code</label>
+                        <select class="form-select form-select-sm" formControlName="centerCode">
+                            <option value="">ALL</option>
+                            <option *ngFor="let c of centerOptions" [value]="c.centerCode">
+                                {{ c.centerCode }} - {{ c.centerName }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Program Code</label>
+                        <select class="form-select form-select-sm" formControlName="programCode">
+                            <option value="">ALL</option>
+                            <option *ngFor="let p of programOptions" [value]="p.programCodes">
+                                {{ p.programCodes }} - {{ p.programName }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Due From</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="fromDue" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Due To</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="toDue" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Planned From</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="fromPlanned" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Planned To</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="toPlanned" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Deposit From</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="fromDeposit" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Deposit To</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="toDeposit" />
+                    </div>
+                    <div class="col-md-10"></div>
+                    <div class="col-md-2 d-flex gap-2 mb-2 justify-content-end">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="resetFilters()">
+                            Clear
+                        </button>
+                        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-body pt-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mt-3 mb-2">
+                <div class="small text-muted">
+                    Total Cheques: <span class="fw-semibold">{{ totalRecords }}</span>
+                    <span class="ms-2" *ngIf="selectedIds.length">
+                        | Selected:
+                        <span class="fw-semibold">{{ selectedIds.length }}</span>
+                    </span>
+                </div>
+            </div>
+            <div class="app-table">
+                <div class="rounded-3 overflow-hidden position-relative app-table-wrapper">
+                    <div *ngIf="loading" class="table-overlay">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle app-table-grid">
+                            <thead>
+                                <tr class="table-header">
+                                    <th class="px-3 py-3 fw-semibold text-center" style="width: 48px">
+                                        <input type="checkbox" class="form-check-input"
+                                            [checked]="isAllSelectedOnPage()" [indeterminate]="isSomeSelectedOnPage()"
+                                            (change)="toggleSelectAll($event)" />
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('chequeNo')"
+                                        style="cursor: default">
+                                        Cheque No
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('dueDate')"
+                                        style="cursor: pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Due Date</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('dueDate')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('plannedDepositDate')"
+                                        style="cursor: pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Planned Deposit</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('plannedDepositDate')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('studentName')"
+                                        style="cursor: pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Student</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('studentName')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('admissionNo')"
+                                        style="cursor: pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Admission No</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('admissionNo')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('amount')"
+                                        style="cursor: pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Amount</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('amount')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('status')"
+                                        style="cursor: pointer">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>Status</span>
+                                            <i class="fas icon-14" [ngClass]="sortIcon('status')"></i>
+                                        </div>
+                                    </th>
+                                    <th class="px-4 py-3 fw-semibold">Mode</th>
+                                    <th class="px-4 py-3 fw-semibold text-center action-col">
+                                        Action
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <ng-container *ngFor="let row of chequeData; let i = index">
+                                    <tr class="app-table-row">
+                                        <td class="px-3 py-3 text-center">
+                                            <input type="checkbox" class="form-check-input"
+                                                [checked]="!!selectedMap[row.paymentId]"
+                                                [disabled]="isRowSelectDisabled(row)"
+                                                (change)="toggleRow(row, $event)" />
+                                        </td>
+                                        <td class="px-4 py-3 fw-normal">
+                                            <span class="truncate-cell" [style.maxWidth.px]="240">
+                                                {{ row.chequeNo }}
+                                            </span>
+                                        </td>
+
+                                        <!-- Due Date with date pipe -->
+                                        <td class="px-4 py-3 fw-normal">
+                                            <span class="truncate-cell" [style.maxWidth.px]="160">
+                                                {{ row.dueDate ? (row.dueDate | date:'dd/MM/yyyy') : '-' }}
+                                            </span>
+                                        </td>
+
+                                        <!-- Planned Deposit with date pipe -->
+                                        <td class="px-4 py-3 fw-normal">
+                                            <span class="truncate-cell" [style.maxWidth.px]="180">
+                                                {{ row.plannedDepositDate ? (row.plannedDepositDate | date:'dd/MM/yyyy')
+                                                : '-' }}
+                                            </span>
+                                        </td>
+
+                                        <td class="px-4 py-3 fw-normal">
+                                            <span class="truncate-cell" [style.maxWidth.px]="220">
+                                                {{ row.studentName }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 fw-normal">
+                                            <span class="truncate-cell" [style.maxWidth.px]="160">
+                                                {{ row.admissionNo }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 fw-normal">₹{{ row.amount }}</td>
+                                        <td class="px-4 py-3 fw-normal">
+                                            <span class="badge" [ngClass]="statusBadge(row.status)">
+                                                {{ row.status }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 fw-normal">{{ row.mode }}</td>
+                                        <td class="px-4 py-3 text-center">
+                                            <div
+                                                class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                    (click)="view(row)">
+                                                    <i class="fa-regular fa-eye me-1"></i>
+                                                    View
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </ng-container>
+                                <tr *ngIf="!chequeData || chequeData.length === 0">
+                                    <td colspan="12" class="text-center py-4 text-muted">
+                                        No data found
+                                    </td>
+                                </tr>
+                            </tbody>
+
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination (same style names as common component) -->
+                <div *ngIf="totalRecords > pageSize"
+                    class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
+                    <button class="btn btn-link app-table-page-link" [disabled]="currentPage <= 1"
+                        (click)="goPage(currentPage - 1)">
+                        <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20" />
+                        Previous
+                    </button>
+                    <div class="d-flex align-items-center gap-1">
+                        <ng-container *ngFor="let item of paginationItems">
+                            <div *ngIf="item.page === '...'"
+                                class="d-flex align-items-center justify-content-center app-table-page-ellipsis">
+                                <span class="fw-medium text-muted small">...</span>
+                            </div>
+                            <button *ngIf="item.page !== '...'" type="button"
+                                class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle app-table-page-btn"
+                                [class.pagination-active]="item.isActive" (click)="goPage(+item.page)">
+                                <span class="fw-medium small">
+                                    {{ item.page }}
+                                </span>
+                            </button>
+                        </ng-container>
+                    </div>
+                    <button class="btn btn-link app-table-page-link" [disabled]="currentPage >= totalPages"
+                        (click)="goPage(currentPage + 1)">
+                        Next
+                        <img src="assets/icons/pageiright.svg" alt="pageright" width="20" height="20" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deposit Modal (we will wire in step-3) -->
+    <div class="app-modal-backdrop" *ngIf="showDepositModal">
+        <div class="app-modal" style="max-width: 720px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Create Deposit Batch</h6>
+                    <span class="text-muted small">Selected cheques: {{ selectedIds.length }}</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeDepositModal()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="depositForm" (ngSubmit)="createDepositBatch()">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Deposit Date</label>
+                            <input type="date" class="form-control" formControlName="depositDate" />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Deposit Bank</label>
+                            <select class="form-select" formControlName="bankName" [disabled]="bankAccountsLoading">
+                                <option value="">-- Select Bank Account --</option>
+                                <option *ngFor="let b of bankAccounts" [value]="b.depositLabel">
+                                    {{ b.depositLabel }}
+                                </option>
+                            </select>
+                            <div class="form-text" *ngIf="bankAccountsLoading">Loading bank accounts...</div>
+                            <div class="form-text text-danger" *ngIf="!bankAccountsLoading && !bankAccounts.length">
+                                No bank accounts found. Please add bank accounts first.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="closeDepositModal()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" [disabled]="depositForm.invalid">
+                            Create Batch
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Reconcile Modal (we will wire in step-4) -->
+    <div class="app-modal-backdrop" *ngIf="showReconcileModal">
+        <div class="app-modal" style="max-width: 720px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Bulk Reconcile</h6>
+                    <span class="text-muted small">Action: <b>{{ reconcileAction }}</b> | Selected:
+                        {{ selectedIds.length }}</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeReconcileModal()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="reconcileForm" (ngSubmit)="bulkReconcile()">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Date (optional)</label>
+                            <input type="date" class="form-control" formControlName="date" />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Remarks (optional)</label>
+                            <input class="form-control" formControlName="remarks" placeholder="Optional notes..." />
+                        </div>
+                        <div class="col-12" *ngIf="reconcileAction === 'FAIL'">
+                            <label class="form-label fw-semibold">Failure Reason (optional)</label>
+                            <input class="form-control" formControlName="failureReason"
+                                placeholder="Cheque bounced..." />
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="closeReconcileModal()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn" [ngClass]="
+                reconcileAction === 'CLEAR' ? 'btn-success' : 'btn-danger'
+              ">
+                            Confirm {{ reconcileAction }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

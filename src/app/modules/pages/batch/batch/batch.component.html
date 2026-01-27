@@ -1,0 +1,269 @@
+<div class="batch-page">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h5 class="mb-0 fw-semibold">Batches (Classes)</h5>
+            <div class="text-muted small">
+                Create and manage batch, faculty mapping and student assignment.
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" (click)="refresh()">
+                <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+            <button class="btn btn-sm btn-saffron" (click)="openCreate()">
+                <i class="fa-solid fa-plus"></i> Create Batch
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12" [class.col-lg-8]="showAssignPanel" [class.col-lg-12]="!showAssignPanel">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0">
+                    <form [formGroup]="filterForm" class="row g-2 align-items-end">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small text-muted mb-1">Search</label>
+                            <input class="form-control form-control-sm" formControlName="search"
+                                placeholder="Batch name / code / program / center" />
+                        </div>
+
+                        <div class="col-6 col-md-2">
+                            <label class="form-label small text-muted mb-1">Status</label>
+                            <select class="form-select form-select-sm" formControlName="status">
+                                <option value="ALL">ALL</option>
+                                <option value="DRAFT">DRAFT</option>
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="CLOSED">CLOSED</option>
+                                <option value="INACTIVE">INACTIVE</option>
+                            </select>
+                        </div>
+
+                        <div class="col-6 col-md-2">
+                            <label class="form-label small text-muted mb-1">Academic Year</label>
+                            <select class="form-select form-select-sm" formControlName="academicYear">
+                                <option value="">All</option>
+                                <option *ngFor="let y of academicYears" [value]="y">{{ y }}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-6 col-md-2">
+                            <label class="form-label small text-muted mb-1">Program</label>
+                            <select class="form-select form-select-sm" formControlName="programId">
+                                <option value="">All</option>
+                                <option *ngFor="let p of programsFull" [value]="p.programId || p._id">
+                                    {{ p.programName || p.name }} ({{ p.programCode || p.code || '-' }})
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-6 col-md-2">
+                            <label class="form-label small text-muted mb-1">Center</label>
+                            <select class="form-select form-select-sm" formControlName="centerId">
+                                <option value="">All</option>
+                                <option *ngFor="let c of centersFull" [value]="c.centerId || c._id">
+                                    {{ c.centerName || c.name }} ({{ c.centerCode || c.code || '-' }})
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="
+                  filterForm.reset({
+                    search: '',
+                    status: 'ALL',
+                    academicYear: '',
+                    programId: '',
+                    centerId: ''
+                  });
+                  refresh()
+                ">
+                                Clear
+                            </button>
+                            <button type="button" class="btn btn-sm btn-primary" (click)="refresh()">
+                                Search
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card-body pt-0">
+                    <list-table [autoFitChars]="true" (requestData)="loadBatches($event)" [columns]="columns"
+                        [totalRecords]="totalRecords" [data]="batchRows" [actions]="actions"
+                        [showpageoptions]="true"></list-table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4" *ngIf="showAssignPanel">
+            <div class="card shadow-sm border-0 sticky-panel">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <div class="fw-semibold">Assign Students</div>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="closeAssignPanel()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="card-body">
+                    <div class="mb-2">
+                        <div class="fw-semibold">
+                            {{ activeBatchForAssign?.batchName }} ({{ activeBatchForAssign?.batchCode }})
+                        </div>
+                        <div class="text-muted small">
+                            Eligible students = ACTIVE + program/year/center match + batchId is null.
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mb-2">
+                        <input class="form-control form-control-sm"
+                            placeholder="Search student name / phone / admissionNo"
+                            [(ngModel)]="eligibleQuery.search" />
+                        <button class="btn btn-sm btn-outline-primary" (click)="eligibleQuery.page = 1; loadEligible()">
+                            Go
+                        </button>
+                    </div>
+
+                    <div class="eligible-box">
+                        <div class="text-muted small mb-1">Found: {{ eligibleCount }}</div>
+
+                        <div *ngIf="!eligibleRows.length" class="text-muted small">
+                            No eligible students.
+                        </div>
+
+                        <div *ngFor="let s of eligibleRows" class="d-flex align-items-center gap-2 py-1 border-bottom">
+                            <input type="checkbox" #cb (change)="toggleStudent(s.studentId, cb.checked)" />
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold small">
+                                    {{ s?.student?.name }}
+                                    <span class="text-muted">({{ s?.admissionNo }})</span>
+                                </div>
+                                <div class="text-muted small">
+                                    {{ s?.student?.phone }} • {{ s?.student?.parentPhone }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <div class="text-muted small">Selected: {{ selectedStudentIds.size }}</div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" (click)="closeAssignPanel()">
+                                Cancel
+                            </button>
+                            <button class="btn btn-sm btn-primary" (click)="assignSelected()" [disabled]="loading">
+                                Assign
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show" *ngIf="showEditorModal"></div>
+
+    <div class="modal fade show d-block" tabindex="-1" *ngIf="showEditorModal">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-semibold mb-0">
+                        {{ editorMode === 'create' ? 'Create Batch' : 'Update Batch' }}
+                    </h6>
+                    <button type="button" class="btn-close" (click)="closeEditorModal()"></button>
+                </div>
+
+                <div class="modal-body">
+                    <form [formGroup]="editorForm" class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small">Batch Name *</label>
+                            <input class="form-control form-control-sm" formControlName="batchName" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small">Batch Code *</label>
+                            <input class="form-control form-control-sm" formControlName="batchCode" />
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small">Academic Year *</label>
+                            <select class="form-select form-select-sm" formControlName="academicYear"
+                                [class.bg-light]="editorForm.get('academicYear')?.disabled">
+                                <option value="">Select</option>
+                                <option *ngFor="let y of academicYears" [value]="y">{{ y }}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small">Program *</label>
+                            <select class="form-select form-select-sm" formControlName="programId"
+                                (change)="onProgramChanged(editorForm.value.programId)"
+                                [class.bg-light]="editorForm.get('programId')?.disabled">
+                                <option value="">Select</option>
+                                <option *ngFor="let p of programsFull" [value]="p.programId || p._id">
+                                    {{ p.programCodes }} - {{ p.programName || p.name }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small">Center *</label>
+                            <select class="form-select form-select-sm" formControlName="centerId"
+                                (change)="onCenterChanged(editorForm.value.centerId)"
+                                [class.bg-light]="editorForm.get('centerId')?.disabled">
+                                <option value="">Select</option>
+                                <option *ngFor="let c of centersFull" [value]="c.centerId || c._id">
+                                    {{ c.centerName || c.name }} ({{ c.centerCode || c.code || '-' }})
+                                </option>
+                            </select>
+                        </div>
+
+                        <input type="hidden" formControlName="programName" />
+                        <input type="hidden" formControlName="programCode" />
+                        <input type="hidden" formControlName="centerName" />
+                        <input type="hidden" formControlName="centerCode" />
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small">Start Date *</label>
+                            <input class="form-control form-control-sm" type="date" formControlName="startDate" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small">End Date *</label>
+                            <input class="form-control form-control-sm" type="date" formControlName="endDate" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small">Status *</label>
+                            <select class="form-select form-select-sm" formControlName="status">
+                                <option value="DRAFT">DRAFT</option>
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="CLOSED">CLOSED</option>
+                                <option value="INACTIVE">INACTIVE</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small">Remarks</label>
+                            <input class="form-control form-control-sm" formControlName="remarks" />
+                        </div>
+
+                        <div class="col-12" *ngIf="editorForm.get('programId')?.disabled">
+                            <div class="alert alert-warning py-1 px-2 mb-0 small border-0">
+                                <i class="fa-solid fa-lock me-1"></i>
+                                Program, Center, and Academic Year are locked because students are assigned to this
+                                batch.
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-sm btn-outline-secondary" (click)="closeEditorModal()">Cancel</button>
+                    <button class="btn btn-sm btn-primary" (click)="saveBatch()" [disabled]="loading">
+                        <i class="fa-solid fa-floppy-disk"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

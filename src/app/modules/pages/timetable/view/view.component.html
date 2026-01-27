@@ -1,0 +1,131 @@
+<div class="timetable-view-page" *ngIf="timetable">
+
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Timetable View</h5>
+                <p class="mb-0 text-muted small">
+                    {{ timetable.batchCode }} • {{ timetable.centerCode }} • {{ timetable.phase || 'General' }}
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-secondary" (click)="back()">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back
+                </button>
+
+                <button class="btn btn-sm btn-outline-primary" (click)="openUpload()">
+                    <i class="fa-solid fa-upload me-1"></i> Update via CSV
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-2 small">
+                        <div class="text-muted">Week Starting</div>
+                        <div class="fw-semibold">{{ timetable.wkStartOn | date:'mediumDate' }}</div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-2 small">
+                        <div class="text-muted">Status</div>
+                        <span class="badge" [ngClass]="timetable.status==='Active'?'bg-success':'bg-secondary'">
+                            {{ timetable.status }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive border rounded-3">
+                <table class="table table-bordered mb-0 timetable-grid">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="text-uppercase small text-muted" style="width: 100px;">Day</th>
+                            <th *ngFor="let pNum of periodHeaders" class="text-center small text-muted">
+                                Period {{ pNum }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let row of sortedSchedule">
+                            <td class="fw-bold bg-light text-center align-middle">{{ row.day }}</td>
+
+                            <td *ngFor="let pNum of periodHeaders" class="p-0 position-relative tt-cell">
+                                <ng-container *ngIf="getPeriod(row, pNum) as p">
+                                    <div class="p-2 h-100 d-flex flex-column align-items-center justify-content-center"
+                                        [class.bg-danger-subtle]="p.isCancelled">
+
+                                        <div class="fw-bold small">{{ p.subjectCode || p.subjectName || '-' }}</div>
+                                        <div class="text-muted small" style="font-size: 0.75rem;">
+                                            {{ p.facultyName || p.facultyId }}
+                                        </div>
+                                        <div class="text-muted small" style="font-size: 0.7rem;">
+                                            {{ p.time?.startLabel }} - {{ p.time?.endLabel }}
+                                        </div>
+
+                                        <div *ngIf="p.isCancelled" class="badge bg-danger mt-1">Cancelled</div>
+                                        <div *ngIf="p.venue" class="badge bg-light text-dark border mt-1">{{ p.venue }}
+                                        </div>
+                                    </div>
+                                </ng-container>
+                                <ng-container *ngIf="!getPeriod(row, pNum)">
+                                    <div class="text-muted small text-center p-3 opacity-25">Free</div>
+                                </ng-container>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="app-modal-backdrop" *ngIf="showUpload">
+        <div class="app-modal timetable-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Update Timetable</h6>
+                    <span class="text-muted small">Upload modified CSV to update</span>
+                </div>
+                <button class="btn-close" (click)="closeUpload()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-link text-decoration-none" (click)="downloadSample()">
+                        <i class="fa-solid fa-download me-1"></i> Download Template
+                    </button>
+                </div>
+
+                <div class="border rounded-3 p-3 mb-3">
+                    <label class="form-label small text-muted">Select CSV File</label>
+                    <input type="file" class="form-control" accept=".csv" (change)="onFileChange($event)" />
+
+                    <div class="mt-2" *ngIf="parsedPayload">
+                        <div class="alert alert-success small mb-0">
+                            <strong>Ready to Update:</strong>
+                            <br>
+                            Batch: {{ uploadMeta.batchCode }} | Week: {{ uploadMeta.wkStartOn }}
+                            <br>
+                            Found {{ parseStats.periodsFound }} periods.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" (click)="closeUpload()">Cancel</button>
+                    <button class="btn btn-saffron" (click)="submitUpload()" [disabled]="!parsedPayload || loading">
+                        Confirm Update
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>

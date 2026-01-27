@@ -1,0 +1,46 @@
+<!-- <div
+  *ngIf="alert"
+  [ngClass]="{
+    alert: true,
+    'alert-subtle-success': alert.type === 'success',
+    'alert-subtle-danger': alert.type === 'danger',
+    'alert-subtle-warning': alert.type === 'warning',
+    'custom-alert': true
+  }"
+  role="alert"
+  style="position: fixed; top: 24px; right: 24px; z-index: 9999; width: auto; min-width: 150px; max-width: 500px; padding: 6px 16px"
+>
+  <span>{{ alert.text }}</span>
+  <button type="button" class="btn-close float-end" aria-label="Close" (click)="close()" style="font-size: 0.8em; margin-left: 10px; margin-top: 2px"></button>
+</div> -->
+
+<div class="toast-container" *ngIf="alert">
+  <div class="toast" [ngClass]="alert.type">
+    <div class="icon">
+      <span *ngIf="alert.type === 'success'">✔</span>
+      <span *ngIf="alert.type === 'danger'">✖</span>
+      <span *ngIf="alert.type === 'warning'">⚠</span>
+    </div>
+
+    <div class="message">
+      {{ alert.text }}
+    </div>
+
+    <button class="close-btn" (click)="close()">×</button>
+
+    <div
+      class="progress"
+      [style.animationDuration.ms]="alert.timeout || 2000">
+    </div>
+  </div>
+</div>
+
+
+<!-- Implementation -->
+<!-- 
+// Success
+this.alert.success('Record saved!'); 
+// Error 
+this.alert.error('Something went wrong.'); 
+// Warning 
+this.alert.warning('This is a warning!'); -->

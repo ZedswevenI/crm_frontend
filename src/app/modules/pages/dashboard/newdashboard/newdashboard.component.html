@@ -1,0 +1,58 @@
+<div class="dashboard-page">
+    <!-- QUICK ACTIONS -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-body d-flex gap-2 flex-wrap">
+            <button class="btn btn-saffron" (click)="go('/app/admissions/new')">
+                <i class="fa-solid fa-user-plus me-1"></i> New Admission
+            </button>
+            <button class="btn btn-outline-primary" (click)="go('/app/accounts/payments')">
+                <i class="fa-solid fa-indian-rupee-sign me-1"></i> All Payments
+            </button>
+            <button class="btn btn-outline-success" (click)="go('/app/attendance/entry')">
+                <i class="fa-solid fa-calendar-check me-1"></i> Attendance Entry
+            </button>
+            <button class="btn btn-outline-secondary" (click)="go('/app/accounts/cheques')">
+                <i class="fa-regular fa-note-sticky me-1"></i> Cheque Register
+            </button>
+            <button class="btn btn-outline-dark" (click)="go('/app/timetable')">
+                <i class="fa-regular fa-clock me-1"></i> Timetable
+            </button>
+            <button class="btn btn-outline-info" (click)="go('/app/students')">
+                <i class="fa-solid fa-users me-1"></i> Students
+            </button>
+        </div>
+    </div>
+
+    <!-- MENU CARDS -->
+    <div class="row g-3">
+        <div class="col-xl-3 col-md-6" *ngFor="let card of cards">
+            <div class="card shadow-sm border-0 h-100 dashboard-card" [ngClass]="card.accent">
+                <div class="card-body d-flex flex-column justify-content-start">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <div class="text-muted small text-uppercase dashboard-card-header">
+                                {{ card.category }}
+                            </div>
+                            <div class="fw-semibold">{{ card.title }}</div>
+                        </div>
+                        <div class="dashboard-card-icon">
+                            <i [class]="card.icon"></i>
+                        </div>
+                    </div>
+
+                    <p class="small text-muted mb-3">{{ card.description }}</p>
+
+                    <!-- removed mt-auto so links start just under description -->
+                    <div class="d-flex flex-column gap-1 mt-3">
+                        <button *ngFor="let link of card.links" type="button"
+                            class="btn btn-sm dashboard-link-btn d-flex align-items-center justify-content-between text-start"
+                            (click)="go(link.path)">
+                            <span>{{ link.label }}</span>
+                            <i class="fa-solid fa-arrow-right-long small text-muted"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

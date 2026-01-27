@@ -1,0 +1,205 @@
+<div class="institute-page">
+
+    <!-- Profile Card -->
+    <div class="card mb-3 institute-card shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-building-columns text-saffron"></i>
+                    <span>Institute Information</span>
+                </h5>
+                <p class="mb-0 text-muted small">
+                    View and update your institute’s core profile, contact and address details.
+                </p>
+            </div>
+            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="openEdit()">
+                <i class="fa-regular fa-pen-to-square"></i>
+                <span>Edit Details</span>
+            </button>
+        </div>
+
+        <div class="card-body pt-3">
+
+            <div class="row g-4">
+
+                <!-- Left column: Basic info -->
+                <div class="col-lg-6">
+                    <h6 class="section-title mb-2">
+                        Basic Details
+                    </h6>
+                    <dl class="info-grid">
+                        <div class="info-row">
+                            <dt>Institute Name</dt>
+                            <dd>{{ instituteInfo.name || '--' }}</dd>
+                        </div>
+
+                        <div class="info-row">
+                            <dt>Code</dt>
+                            <dd>{{ instituteInfo.code || '--' }}</dd>
+                        </div>
+
+                        <div class="info-row">
+                            <dt>City</dt>
+                            <dd>{{ instituteInfo.city || '--' }}</dd>
+                        </div>
+
+                        <div class="info-row">
+                            <dt>State</dt>
+                            <dd>{{ instituteInfo.state || '--' }}</dd>
+                        </div>
+
+                        <div class="info-row">
+                            <dt>Pincode</dt>
+                            <dd>{{ instituteInfo.pincode || '--' }}</dd>
+                        </div>
+
+                        <div class="info-row">
+                            <dt>Status</dt>
+                            <dd>
+                                <span class="status-pill" [class.status-pill-active]="instituteInfo.isActive"
+                                    [class.status-pill-inactive]="!instituteInfo.isActive">
+                                    {{ instituteInfo.isActive ? 'Active' : 'Inactive' }}
+                                </span>
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <!-- Right column: Contact + Address -->
+                <div class="col-lg-6">
+                    <h6 class="section-title mb-2">
+                        Contact & Address
+                    </h6>
+                    <dl class="info-grid">
+                        <div class="info-row">
+                            <dt>Contact Email</dt>
+                            <dd>{{ instituteInfo.contactEmail || '--' }}</dd>
+                        </div>
+
+                        <div class="info-row">
+                            <dt>Phone</dt>
+                            <dd>{{ instituteInfo.phone || '--' }}</dd>
+                        </div>
+
+                        <div class="info-row">
+                            <dt>Address Line 1</dt>
+                            <dd>{{ instituteInfo.addressLine1 || '--' }}</dd>
+                        </div>
+
+                        <div class="info-row">
+                            <dt>Address Line 2</dt>
+                            <dd>{{ instituteInfo.addressLine2 || '--' }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal (custom, Angular-controlled) -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal">
+
+            <!-- Modal header -->
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        Edit Institute Information
+                    </h6>
+                    <span class="text-muted small">
+                        Update basic, contact and address details of this institute.
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close">
+                </button>
+            </div>
+
+            <!-- Modal body -->
+            <div class="app-modal-body">
+                <form [formGroup]="instituteForm" (ngSubmit)="save()">
+                    <div class="row g-3">
+
+                        <!-- Basic -->
+                        <div class="col-md-6">
+                            <formfield label="Institute Name" [required]="true" [control]="instituteForm.get('name')"
+                                formControlName="name" placeholder="Enter institute name">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Code" [required]="true" [control]="instituteForm.get('code')"
+                                formControlName="code" placeholder="Z7I-HO">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3 d-flex align-items-center">
+                            <checkbox label="Active" [control]="instituteForm.get('isActive')"
+                                formControlName="isActive">
+                            </checkbox>
+                        </div>
+
+                        <!-- Address -->
+                        <div class="col-md-6">
+                            <formfield label="Address Line 1" [required]="true"
+                                [control]="instituteForm.get('addressLine1')" formControlName="addressLine1"
+                                placeholder="Building, Street">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-6">
+                            <formfield label="Address Line 2" [control]="instituteForm.get('addressLine2')"
+                                formControlName="addressLine2" placeholder="Landmark, Area (optional)">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="City" [required]="true" [control]="instituteForm.get('city')"
+                                formControlName="city" placeholder="Coimbatore">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="State" [required]="true" [control]="instituteForm.get('state')"
+                                formControlName="state" placeholder="Tamil Nadu">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Pincode" [required]="true" [control]="instituteForm.get('pincode')"
+                                formControlName="pincode" placeholder="6 digit pincode">
+                            </formfield>
+                        </div>
+
+                        <!-- Contact -->
+                        <div class="col-md-6">
+                            <formfield label="Contact Email" [required]="true"
+                                [control]="instituteForm.get('contactEmail')" formControlName="contactEmail"
+                                placeholder="info@z7iinstitute.com">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Phone" [required]="true" [control]="instituteForm.get('phone')"
+                                formControlName="phone" placeholder="10 digit phone">
+                            </formfield>
+                        </div>
+
+                    </div>
+
+                    <!-- Modal footer actions -->
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" [disabled]="instituteForm.invalid">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+</div>

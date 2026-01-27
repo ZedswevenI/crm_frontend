@@ -1,0 +1,97 @@
+.dashboard-page {
+  background: #f3f4f6;
+  padding-bottom: 1rem;
+}
+
+/* Card base */
+.dashboard-card {
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  border-top: 3px solid transparent;
+}
+
+.dashboard-card-header {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+/* Icon bubble */
+.dashboard-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+/* Link buttons */
+.dashboard-link-btn {
+  border-radius: 999px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+  padding: 6px 12px;
+  gap: 6px;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.dashboard-link-btn:hover {
+  background: #eef2ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.15);
+}
+
+/* Accent themes */
+.dashboard-card.accent-admissions {
+  border-top-color: #f97316;
+}
+.dashboard-card.accent-admissions .dashboard-card-icon {
+  background: rgba(249, 115, 22, 0.08);
+  color: #f97316;
+}
+
+.dashboard-card.accent-fees {
+  border-top-color: #16a34a;
+}
+.dashboard-card.accent-fees .dashboard-card-icon {
+  background: rgba(22, 163, 74, 0.08);
+  color: #16a34a;
+}
+
+.dashboard-card.accent-accounts {
+  border-top-color: #2563eb;
+}
+.dashboard-card.accent-accounts .dashboard-card-icon {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
+.dashboard-card.accent-students {
+  border-top-color: #8b5cf6;
+}
+.dashboard-card.accent-students .dashboard-card-icon {
+  background: rgba(139, 92, 246, 0.08);
+  color: #8b5cf6;
+}
+
+.dashboard-card.accent-timetable {
+  border-top-color: #0ea5e9;
+}
+.dashboard-card.accent-timetable .dashboard-card-icon {
+  background: rgba(14, 165, 233, 0.08);
+  color: #0ea5e9;
+}
+
+.dashboard-card.accent-org {
+  border-top-color: #111827;
+}
+.dashboard-card.accent-org .dashboard-card-icon {
+  background: rgba(17, 24, 39, 0.06);
+  color: #111827;
+}

@@ -1,0 +1,339 @@
+<div class="batch-view position-relative">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-light btn-sm border" (click)="back()">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div>
+                <h5 class="mb-0 fw-bold">{{ batch?.batchName || 'Loading...' }}</h5>
+                <div class="text-muted small">
+                    {{ batch?.batchCode }} • {{ batch?.academicYear }} • {{ batch?.centerName }}
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-white border btn-sm" (click)="openOffcanvas('edit')">
+                <i class="fa-regular fa-pen-to-square"></i> Edit Batch
+            </button>
+
+            <div class="dropdown">
+                <button class="btn btn-danger btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fa-solid fa-gear"></i> Actions
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                    <li><button class="dropdown-item text-danger" (click)="triggerConfirmation('closeBatch')">
+                            <i class="fa-solid fa-lock me-2"></i>Close Batch</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4 col-sm-6">
+            <div class="card h-100 border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3">
+                <div class="icon-box bg-primary-subtle text-primary rounded-circle p-3">
+                    <i class="fa-solid fa-users fa-lg"></i>
+                </div>
+                <div>
+                    <div class="text-muted small text-uppercase fw-bold">Total Students</div>
+                    <h4 class="mb-0 fw-bold">{{ batch?.studentCount || 0 }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <div class="card h-100 border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3">
+                <div class="icon-box bg-success-subtle text-success rounded-circle p-3">
+                    <i class="fa-solid fa-calendar-day fa-lg"></i>
+                </div>
+                <div>
+                    <div class="text-muted small text-uppercase fw-bold">Duration</div>
+                    <div class="fw-semibold">{{ batch?.startDate | date:'mediumDate' }}</div>
+                    <div class="small text-muted">to {{ batch?.endDate | date:'mediumDate' }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-sm-12">
+            <div class="card h-100 border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3">
+                <div class="icon-box bg-info-subtle text-info rounded-circle p-3">
+                    <i class="fa-solid fa-signal fa-lg"></i>
+                </div>
+                <div>
+                    <div class="text-muted small text-uppercase fw-bold">Status</div>
+                    <span class="badge rounded-pill" [ngClass]="{
+                            'bg-success': batch?.status === 'ACTIVE',
+                            'bg-secondary': batch?.status === 'DRAFT',
+                            'bg-danger': batch?.status === 'CLOSED'
+                        }">
+                        {{ batch?.status }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center pt-3 px-3">
+            <ul class="nav nav-tabs card-header-tabs">
+                <li class="nav-item">
+                    <a class="nav-link" [class.active]="activeTab==='students'" (click)="activeTab='students'"
+                        href="javascript:void(0)">
+                        <i class="fa-solid fa-user-graduate me-1"></i> Students
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" [class.active]="activeTab==='faculty'" (click)="activeTab='faculty'"
+                        href="javascript:void(0)">
+                        <i class="fa-solid fa-chalkboard-user me-1"></i> Faculty
+                    </a>
+                </li>
+            </ul>
+
+            <div class="d-flex gap-2" *ngIf="activeTab==='students'">
+                <button class="btn btn-sm btn-outline-danger" *ngIf="selected.size > 0"
+                    (click)="triggerConfirmation('removeStudents')">
+                    <i class="fa-regular fa-trash-can"></i> Remove ({{selected.size}})
+                </button>
+                <button class="btn btn-sm btn-outline-warning" *ngIf="selected.size > 0"
+                    (click)="openOffcanvas('shuffle')">
+                    <i class="fa-solid fa-shuffle"></i> Shuffle ({{selected.size}})
+                </button>
+                <button class="btn btn-sm btn-primary" (click)="openOffcanvas('assign')">
+                    <i class="fa-solid fa-user-plus"></i> Assign Students
+                </button>
+            </div>
+
+            <div class="d-flex gap-2" *ngIf="activeTab==='faculty'">
+                <button class="btn btn-sm btn-primary" (click)="openOffcanvas('staff')">
+                    <i class="fa-solid fa-pen"></i> Edit Faculty Map
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div *ngIf="activeTab==='students'">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-3" style="width: 40px;">
+                                    <input type="checkbox" class="form-check-input" #cbAll
+                                        (change)="selectAllCurrent(cbAll.checked)">
+                                </th>
+                                <th>Student Name</th>
+                                <th>Admission No</th>
+                                <th>Reg No</th>
+                                <th>Phone</th>
+                                <th>Parent Phone</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let s of studentRows">
+                                <td class="ps-3">
+                                    <input type="checkbox" class="form-check-input"
+                                        [checked]="selected.has(s.studentId)"
+                                        (change)="toggleSelect(s.studentId, $any($event.target).checked)">
+                                </td>
+                                <td class="fw-semibold">{{ s?.student?.name }}</td>
+                                <td>{{ s?.admissionNo }}</td>
+                                <td>{{ s?.registrationNumber || '-' }}</td>
+                                <td>{{ s?.student?.phone }}</td>
+                                <td>{{ s?.student?.parentPhone }}</td>
+                            </tr>
+                            <tr *ngIf="studentRows.length === 0">
+                                <td colspan="6" class="text-center py-5">
+                                    <div class="text-muted mb-2"><i class="fa-solid fa-users-slash fa-2x"></i></div>
+                                    <p class="text-muted mb-0">No students assigned to this batch.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div *ngIf="activeTab==='faculty'" class="p-3">
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-4" *ngFor="let f of batch?.staffMap">
+                        <div class="d-flex align-items-center border rounded p-2">
+                            <div class="bg-light rounded-circle p-2 me-3">
+                                <i class="fa-solid fa-book text-secondary"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">{{ f.subjectName || f.subjectId }}</div>
+                                <div class="text-muted small">{{ f.staffName || f.staffId }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 text-center py-4 text-muted" *ngIf="!batch?.staffMap?.length">
+                        No faculty mapped yet. Click "Edit Faculty Map" to add.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="offcanvas offcanvas-end" [class.show]="offcanvasMode !== 'none'"
+    [style.visibility]="offcanvasMode !== 'none' ? 'visible' : 'hidden'" style="width: 450px;">
+
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title">
+            <span *ngIf="offcanvasMode === 'edit'">Edit Batch</span>
+            <span *ngIf="offcanvasMode === 'staff'">Faculty Mapping</span>
+            <span *ngIf="offcanvasMode === 'assign'">Assign Students</span>
+            <span *ngIf="offcanvasMode === 'shuffle'">Shuffle Students</span>
+        </h5>
+        <button type="button" class="btn-close" (click)="closeOffcanvas()"></button>
+    </div>
+
+    <div class="offcanvas-body">
+
+        <form *ngIf="offcanvasMode === 'edit'" [formGroup]="editForm">
+            <div class="mb-3">
+                <label class="form-label small">Batch Name</label>
+                <input class="form-control" formControlName="batchName">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small">Batch Code</label>
+                <input class="form-control" formControlName="batchCode">
+            </div>
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label class="form-label small">Start Date</label>
+                    <input type="date" class="form-control" formControlName="startDate">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small">End Date</label>
+                    <input type="date" class="form-control" formControlName="endDate">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small">Status</label>
+                <select class="form-select" formControlName="status">
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="CLOSED">CLOSED</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                </select>
+            </div>
+            <div class="d-grid">
+                <button class="btn btn-primary" (click)="saveBatch()" [disabled]="loading">Save Changes</button>
+            </div>
+        </form>
+
+        <div *ngIf="offcanvasMode === 'staff'">
+            <form [formGroup]="staffForm">
+                <div formArrayName="staffMap">
+                    <div *ngFor="let g of staffFA.controls; let i=index" [formGroup]="asFormGroup(g)"
+                        class="card mb-2 bg-light border-0">
+                        <div class="card-body p-2 position-relative">
+                            <button class="btn btn-sm btn-link text-danger position-absolute top-0 end-0"
+                                (click)="removeStaffRow(i)">
+                                <i class="fa-solid fa-times"></i>
+                            </button>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label class="small text-muted">Subject</label>
+                                    <select class="form-select form-select-sm" formControlName="subjectId"
+                                        (change)="onSubjectChange(i)">
+                                        <option value="">-- Select Subject --</option>
+                                        <option *ngFor="let sub of subjectsList" [value]="sub.subjectId">
+                                            {{ sub.subjectName }} ({{ sub.subjectCode }})
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="small text-muted">Faculty</label>
+                                    <select class="form-select form-select-sm" formControlName="staffId"
+                                        (change)="onStaffChange(i)">
+                                        <option value="">-- Select Faculty --</option>
+                                        <option *ngFor="let s of staffList" [value]="s.staffId">
+                                            {{ s.staffName }} ({{ s.staffCode }})
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <input type="hidden" formControlName="subjectName">
+                                <input type="hidden" formControlName="staffName">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-primary w-100 mb-3" (click)="addStaffRow()">+ Add Mapping</button>
+                <div class="d-grid">
+                    <button class="btn btn-primary" (click)="saveStaffMap()" [disabled]="loading">Save Mapping</button>
+                </div>
+            </form>
+        </div>
+
+        <div *ngIf="offcanvasMode === 'assign'">
+            <div class="input-group mb-3">
+                <input class="form-control" placeholder="Search..." [(ngModel)]="eligibleQuery.search">
+                <button class="btn btn-outline-secondary" (click)="eligibleQuery.page=1; loadEligible()">Go</button>
+            </div>
+            <div class="list-group mb-3 overflow-auto" style="max-height: 400px;">
+                <label *ngFor="let s of eligibleRows" class="list-group-item d-flex gap-2">
+                    <input class="form-check-input flex-shrink-0" type="checkbox"
+                        [checked]="eligibleSelected.has(s.studentId)"
+                        (change)="toggleEligible(s.studentId, $any($event.target).checked)">
+                    <span>
+                        <div class="fw-bold small">{{ s.student?.name }}</div>
+                        <div class="text-muted small">{{ s.admissionNo }}</div>
+                    </span>
+                </label>
+                <div *ngIf="!eligibleRows.length" class="text-center p-3 text-muted">No students found</div>
+            </div>
+            <div class="d-grid">
+                <button class="btn btn-primary" (click)="assignEligibleSelected()"
+                    [disabled]="!eligibleSelected.size || loading">
+                    Assign {{ eligibleSelected.size }} Students
+                </button>
+            </div>
+        </div>
+
+        <div *ngIf="offcanvasMode === 'shuffle'">
+            <div class="alert alert-info small">
+                Moving <b>{{ selected.size }}</b> students from {{ batch?.batchName }}.
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Target Batch</label>
+                <select class="form-select" [(ngModel)]="shuffleToBatchId">
+                    <option value="">-- Select --</option>
+                    <option *ngFor="let b of batchesFull" [value]="b.batchId">
+                        {{ b.batchName }} ({{ b.batchCode }})
+                    </option>
+                </select>
+            </div>
+            <div class="d-grid">
+                <button class="btn btn-warning" (click)="shuffleSelected()" [disabled]="!shuffleToBatchId || loading">
+                    Confirm Shuffle
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+<div class="offcanvas-backdrop fade show" *ngIf="offcanvasMode !== 'none'" (click)="closeOffcanvas()"></div>
+
+
+<div class="modal fade" #confirmModal tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">{{ confirmData.title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-muted">
+                {{ confirmData.message }}
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn" [ngClass]="confirmData.btnClass" (click)="confirmAction()">
+                    {{ confirmData.btnText }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

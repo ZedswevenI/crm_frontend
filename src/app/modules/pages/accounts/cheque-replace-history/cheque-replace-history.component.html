@@ -1,0 +1,194 @@
+<div class="accounts-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Cheque Replacement History</h5>
+                <p class="mb-0 text-muted small">Search by paymentId and view full replacement chain.</p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <form [formGroup]="searchForm" (ngSubmit)="loadHistory()">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Payment ID</label>
+                        <input class="form-control" formControlName="paymentId" placeholder="Enter cheque paymentId" />
+                    </div>
+                    <div class="col-md-6 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary" (click)="reset()">Clear</button>
+                        <button type="submit" class="btn btn-primary"
+                            [disabled]="!searchForm.value?.paymentId">Search</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-body pt-1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mt-3 mb-2">
+                <div class="small text-muted">
+                    Records: <span class="fw-semibold">{{ chain.length || 0 }}</span>
+                </div>
+            </div>
+
+            <div class="rounded-3 overflow-hidden position-relative app-table-wrapper">
+                <div *ngIf="loading" class="table-overlay">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table mb-0 align-middle app-table-grid">
+                        <thead>
+                            <tr class="table-header">
+                                <th class="px-4 py-3 fw-semibold" style="width:80px;">#</th>
+                                <th class="px-4 py-3 fw-semibold">Payment ID</th>
+                                <th class="px-4 py-3 fw-semibold">Cheque No</th>
+                                <th class="px-4 py-3 fw-semibold">Due Date</th>
+                                <th class="px-4 py-3 fw-semibold">Planned Deposit</th>
+                                <th class="px-4 py-3 fw-semibold">Amount</th>
+                                <th class="px-4 py-3 fw-semibold">Status</th>
+                                <th class="px-4 py-3 fw-semibold text-center">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <ng-container *ngFor="let row of chain; let i=index">
+                                <tr class="app-table-row">
+                                    <td class="px-4 py-3">{{ i + 1 }}</td>
+                                    <td class="px-4 py-3"><span class="mono">{{ row.paymentId }}</span></td>
+                                    <td class="px-4 py-3">{{ row?.cheque?.chequeNo || '-' }}</td>
+
+                                    <!-- ✅ Due Date with date pipe -->
+                                    <td class="px-4 py-3">
+                                        {{
+                                        row?.cheque?.dueDate
+                                        ? (row?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                        : '-'
+                                        }}
+                                    </td>
+
+                                    <!-- ✅ Planned Deposit with date pipe + fallback to dueDate -->
+                                    <td class="px-4 py-3">
+                                        {{
+                                        row?.cheque?.plannedDepositDate
+                                        ? (row?.cheque?.plannedDepositDate | date:'dd/MM/yyyy')
+                                        : row?.cheque?.dueDate
+                                        ? (row?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                        : '-'
+                                        }}
+                                    </td>
+
+                                    <td class="px-4 py-3">₹{{ row?.amount || 0 | number:'1.0-0' }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="badge" [ngClass]="statusBadge(row?.status)">{{ row?.status || '-'
+                                            }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                            (click)="openView(row)">
+                                            <i class="fa-regular fa-eye me-1"></i> View
+                                        </button>
+                                    </td>
+                                </tr>
+                            </ng-container>
+
+                            <tr *ngIf="!loading && (!chain || chain.length === 0)">
+                                <td colspan="8" class="text-center py-4 text-muted">
+                                    No history loaded
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup View -->
+    <div class="app-modal-backdrop" *ngIf="showViewModal">
+        <div class="app-modal" style="max-width: 900px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Cheque Details</h6>
+                    <span class="text-muted small">Payment ID: <span class="mono">{{ viewRow?.paymentId }}</span></span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeView()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body" *ngIf="viewRow">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="fw-semibold mb-2">Cheque</div>
+                            <div class="small">
+                                <div><span class="text-muted">Cheque No: </span><span class="mono">{{
+                                        viewRow?.cheque?.chequeNo || '-' }}</span></div>
+                                <div><span class="text-muted">Mode: </span>{{ viewRow?.cheque?.mode || '-' }}</div>
+                                <div><span class="text-muted">Bank: </span>{{ viewRow?.cheque?.bankName || '-' }}</div>
+
+                                <!-- ✅ Due Date with date pipe -->
+                                <div>
+                                    <span class="text-muted">Due Date: </span>
+                                    {{
+                                    viewRow?.cheque?.dueDate
+                                    ? (viewRow?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                    : '-'
+                                    }}
+                                </div>
+
+                                <!-- ✅ Planned Deposit with date pipe + fallback -->
+                                <div>
+                                    <span class="text-muted">Planned Deposit: </span>
+                                    {{
+                                    viewRow?.cheque?.plannedDepositDate
+                                    ? (viewRow?.cheque?.plannedDepositDate | date:'dd/MM/yyyy')
+                                    : viewRow?.cheque?.dueDate
+                                    ? (viewRow?.cheque?.dueDate | date:'dd/MM/yyyy')
+                                    : '-'
+                                    }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="fw-semibold mb-2">Student</div>
+                            <div class="small">
+                                <div><span class="text-muted">Name: </span>{{ viewRow?.studentName || '-' }}</div>
+                                <div><span class="text-muted">Admission No: </span><span class="mono">{{
+                                        viewRow?.admissionNo || '-' }}</span></div>
+                                <div><span class="text-muted">Center: </span>{{ viewRow?.centerName || '-' }}</div>
+                                <div><span class="text-muted">Program: </span>{{ viewRow?.programName || '-' }}</div>
+                                <div><span class="text-muted">Amount: </span>₹{{ viewRow?.amount || 0 | number:'1.0-0'
+                                    }}</div>
+                                <div><span class="text-muted">Status: </span><span class="fw-semibold">{{
+                                        viewRow?.status || '-' }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12" *ngIf="viewRow?.cheque?.replacementOf || viewRow?.cheque?.replacedBy">
+                        <div class="border rounded p-3">
+                            <div class="fw-semibold mb-2">Replacement Links</div>
+                            <div class="small">
+                                <div><span class="text-muted">Replacement Of: </span><span class="mono">{{
+                                        viewRow?.cheque?.replacementOf || '-' }}</span></div>
+                                <div><span class="text-muted">Replaced By: </span><span class="mono">{{
+                                        viewRow?.cheque?.replacedBy || '-' }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary" (click)="closeView()">Close</button>
+                    <button type="button" class="btn btn-dark" (click)="openChequeView(viewRow?.paymentId)">
+                        <i class="fa-regular fa-eye me-1"></i> Open Cheque View
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
