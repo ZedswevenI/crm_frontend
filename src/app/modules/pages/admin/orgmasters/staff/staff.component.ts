@@ -218,7 +218,7 @@ export class StaffComponent implements OnInit {
       entiId: localStorage.getItem('tenantId')
     };
 
-    this.commonApi.fetchData(body, 'admi', `list?${queryString}`).subscribe({
+    this.commonApi.fetchData(body, 'ims', `staff/list?${queryString}`).subscribe({
       next: (res: any) => {
        this.totalRecords = res?.count || 0;
           this.staffData = (res?.data || []).map((s: any) => ({
