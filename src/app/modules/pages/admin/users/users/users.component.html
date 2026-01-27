@@ -1,0 +1,165 @@
+<div class="user-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">User & Role Management</h5>
+                <p class="mb-0 text-muted small">
+                    Manage application users and map them to role levels (L1–L4) with predefined permissions.
+                </p>
+            </div>
+            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add User</span>
+            </button>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="users" [actions]="actions"
+             [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- Create / Edit User Modal -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal">
+
+            <!-- Modal header -->
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        {{ formMode === 'create' ? 'Create User' : 'Edit User' }}
+                    </h6>
+                    <span class="text-muted small">
+                        {{ formMode === 'create'
+                        ? 'Create login user and assign appropriate role level.'
+                        : 'Update user details and role.' }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+            </div>
+
+            <!-- Modal body -->
+            <div class="app-modal-body">
+                <form [formGroup]="userForm" (ngSubmit)="save()">
+                    <div class="row g-3">
+                        <!-- Basic details -->
+                        <div class="col-md-4">
+                            <formfield label="Full Name" [required]="true" [control]="userForm.get('name')"
+                                formControlName="name" placeholder="Arun Kumar">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Email" [required]="true" [control]="userForm.get('email')"
+                                formControlName="email" placeholder="user@z7i.com">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Phone" [required]="true" [control]="userForm.get('phone')"
+                                formControlName="phone" placeholder="10 digit phone">
+                            </formfield>
+                        </div>
+
+                        <!-- Employee Code (Create only) -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <formfield label="Employee Code" [required]="true" [disabled]="true"
+                                [control]="userForm.get('empCode')" formControlName="empCode" placeholder="EMP-0004">
+                            </formfield>
+                        </div>
+
+                        <!-- Password (Create only) -->
+                        <div class="col-12 col-sm-6 col-lg-4" *ngIf="formMode === 'create'">
+                            <formfield label="Password" [required]="true" [control]="userForm.get('password')"
+                                formControlName="password" inputType="password" placeholder="Enter password">
+                            </formfield>
+                        </div>
+
+                        <!-- Login / role -->
+                        <div class="col-md-4">
+                            <formfield label="Login ID" [required]="true" [control]="userForm.get('loginId')"
+                                formControlName="loginId" placeholder="arun.kumar">
+                            </formfield>
+                        </div>
+                        <!-- Center -->
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <selectbox label="Center" [required]="true" [options]="centerOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="userForm.get('centerId')"
+                                formControlName="centerId">
+                            </selectbox>
+                        </div>
+
+
+                        <div class="col-md-4">
+                            <selectbox label="Role Level" [required]="true" [options]="roleOptions"
+                                [optionLabel]="'label'" [optionValue]="'value'" [control]="userForm.get('role')"
+                                formControlName="role">
+                            </selectbox>
+                            <button type="button" class="btn btn-link btn-sm px-0 mt-1 text-decoration-none"
+                                (click)="openRoleInfo(userForm.get('role')?.value || null)">
+                                <i class="fa-solid fa-circle-info me-1"></i>
+                                View role permissions
+                            </button>
+                        </div>
+
+                        <div class="col-md-4 d-flex align-items-center">
+                            <checkbox label="Active" [control]="userForm.get('isActive')" formControlName="isActive">
+                            </checkbox>
+                        </div>
+
+
+
+                    </div>
+
+                    <!-- Modal footer actions -->
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" [disabled]="userForm.invalid">
+                            {{ formMode === 'create' ? 'Save User' : 'Update User' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Role Permission Info Modal (for the "i" icon) -->
+    <div class="app-modal-backdrop" *ngIf="roleInfoVisible">
+        <div class="app-modal app-modal-sm">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        {{ currentRoleMeta?.title || 'Role Permissions' }}
+                    </h6>
+                    <span class="text-muted small">
+                        {{ currentRoleMeta?.subtitle }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeRoleInfo()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <ul class="list-unstyled mb-0 small">
+                    <li *ngFor="let p of currentRoleMeta?.permissions" class="mb-1 d-flex">
+                        <span class="me-2 mt-1">
+                            <i class="fa-solid fa-circle-dot text-muted icon-10"></i>
+                        </span>
+                        <span>{{ p }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation -->
+    <delete [title]="'Delete User'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+
+</div>

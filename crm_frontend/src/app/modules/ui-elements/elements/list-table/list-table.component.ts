@@ -1,5 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, input, ViewChild, ElementRef, HostListener } from '@angular/core';
 
+export interface TableFilterOption {
+  label: string;
+  value: string;
+}
+
 @Component({
   selector: 'list-table',
   standalone: false,
@@ -7,7 +12,7 @@ import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChange
   styleUrl: './list-table.component.scss'
 })
 export class ListTableComponent {
-// Table details
+  // Table details 
   @Input() columns: { key: string; label: string; sortable: boolean; date?: boolean; maxWidthPx?: number }[] = [];
   @Input() data: any[] = [];
   @Input() actions: any[] = [];
@@ -24,8 +29,18 @@ export class ListTableComponent {
   @Input() minChars = 12;
   @Input() hardMaxChars = 30;
 
+  // filter
+  @Input() filterLabel = 'Filter Based on';
+  @Input() filterOptions: TableFilterOption[] = [];
+  @Input() selectedFilter: string = 'all';
+
+  @Output() filterChange = new EventEmitter<string>();
+
   @ViewChild('tableWrap', { static: false }) tableWrap?: ElementRef<HTMLDivElement>;
   private containerWidth = 0;
+
+  // @Input() isPrimary: boolean = false;
+  // @Output() rowClick = new EventEmitter<any>();
 
   @Output() requestData = new EventEmitter<{
     page: number;
@@ -50,7 +65,7 @@ export class ListTableComponent {
     return Math.ceil(this.totalRecords / this.pageSize) || 1;
   }
 
-  constructor() {}
+  constructor() { }
 
   ngOnInit(): void {
     this.pageSize = this.pageSizeOptions[0];
@@ -64,8 +79,20 @@ export class ListTableComponent {
     this.updatePagination();
   }
 
+  // onRowClicked(row: any) {
+  //   this.rowClick.emit(row);
+  // }
+  // getColumnClass(column: any): string {
+  //   return this.isPrimary ? 'highlight-col' : '';
+  // }
+
   onOpenFilters() {
     this.filterClicked.emit();
+  }
+
+  //filter
+  onFilterChange(value: string) {
+    this.filterChange.emit(value);
   }
 
   clearSearch(): void {
@@ -205,7 +232,6 @@ export class ListTableComponent {
     if (v === null || v === undefined) return '--';
     if (typeof v === 'string') return v;
     if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-    // Fallback for objects/arrays (your getCellValue already flattens most cases)
     try {
       return JSON.stringify(v);
     } catch {
@@ -216,8 +242,8 @@ export class ListTableComponent {
   private getMaxChars(col?: any): number {
     if (!this.autoFitChars || !this.containerWidth) return this.hardMaxChars;
 
-    // Rough auto-fit: divide available width by number of visible data columns
-    const fixedCols = 1 + (this.showaction ? 1 : 0); // S.NO + optional ACTION
+
+    const fixedCols = 1 + (this.showaction ? 1 : 0);
     const numDataCols = Math.max(1, (this.columns?.length || 1) + fixedCols);
     const paddingGuard = 64; // safety px for paddings/scrollbar
     const perColPx = Math.max(80, Math.floor((this.containerWidth - paddingGuard) / numDataCols));
@@ -226,17 +252,17 @@ export class ListTableComponent {
     return Math.max(this.minChars, Math.min(this.hardMaxChars, approxChars));
   }
 
-  // --- New state for the inline expander ---
+
   expanded: { rowIndex: number; colKey: string; value: string } | null = null;
   private collapseTimer: any = null;
 
-  // How many columns to span in the expander row
+
   get fullColSpan(): number {
-    // S.NO (1) + data columns + ACTION (optional 1)
+
     return 1 + (this.columns?.length || 0) + (this.showaction ? 1 : 0);
   }
 
-  // Resolve a column label by key (for the little “label:” above content)
+
   columnLabel(key: string): string {
     const c = (this.columns || []).find((col) => col.key === key);
     return c?.label || key;
@@ -245,8 +271,8 @@ export class ListTableComponent {
   // Only expand when we would show a tooltip (i.e., content is long)
   maybeExpand(rowIndex: number, colKey: string, value: any, col?: any) {
     const text = this.stringify(value);
-    if (!this.needsTooltip(text, col)) return; // short text → no expander
-    // Cancel any pending collapse so we don't flicker
+    if (!this.needsTooltip(text, col)) return;
+
     if (this.collapseTimer) {
       clearTimeout(this.collapseTimer);
       this.collapseTimer = null;
@@ -254,7 +280,6 @@ export class ListTableComponent {
     this.expanded = { rowIndex, colKey, value: text };
   }
 
-  // Gentle close to allow moving mouse into expander area
   scheduleCollapse(delayMs: number = 180) {
     if (this.collapseTimer) clearTimeout(this.collapseTimer);
     this.collapseTimer = setTimeout(() => {
@@ -263,7 +288,6 @@ export class ListTableComponent {
     }, delayMs);
   }
 
-  // If you want the expander to stay open while hovering over it:
   onExpanderEnter() {
     if (this.collapseTimer) {
       clearTimeout(this.collapseTimer);

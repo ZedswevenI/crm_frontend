@@ -1,0 +1,90 @@
+<div class="fee-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Fee Reports</h5>
+                <p class="mb-0 text-muted small">
+                    Daily collection, pending summary, mode-wise breakup, and exports.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap align-items-end">
+                <div>
+                    <label class="form-label small text-muted mb-1">From</label>
+                    <input class="form-control form-control-sm" type="date" [(ngModel)]="from"
+                        [ngModelOptions]="{ standalone: true }" />
+                </div>
+                <div>
+                    <label class="form-label small text-muted mb-1">To</label>
+                    <input class="form-control form-control-sm" type="date" [(ngModel)]="to"
+                        [ngModelOptions]="{ standalone: true }" />
+                </div>
+                <div style="min-width: 220px;">
+                    <label class="form-label small text-muted mb-1">Centre</label>
+                    <select class="form-select form-select-sm" [(ngModel)]="center"
+                        [ngModelOptions]="{ standalone: true }">
+                        <option value="all">All Centres</option>
+                        <option *ngFor="let c of centers" [value]="c">{{ c }}</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="runReport()">
+                    <i class="fa-solid fa-chart-column"></i><span>Run</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+
+            <!-- Summary cards -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                        <div class="text-muted small">Total Collected</div>
+                        <div class="fw-bold fs-5">₹{{ summary.totalCollected | number:'1.0-0' }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                        <div class="text-muted small">Total Pending</div>
+                        <div class="fw-bold fs-5 text-danger">₹{{ summary.totalPending | number:'1.0-0' }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                        <div class="text-muted small">Receipts Count</div>
+                        <div class="fw-bold fs-5">{{ summary.receipts }}</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                        <div class="text-muted small">Students Paid Fully</div>
+                        <div class="fw-bold fs-5">{{ summary.fullyPaid }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mode wise -->
+            <div class="border rounded-3 p-3 mb-3">
+                <div class="fw-semibold mb-2">Mode-wise Collection</div>
+                <div class="row g-2">
+                    <div class="col-md-3" *ngFor="let m of modeSummary">
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">{{ m.mode }}</span>
+                            <span class="fw-semibold">₹{{ m.amount | number:'1.0-0' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed table -->
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="report" [actions]="actions"
+             [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
+            </list-table>
+
+        </div>
+    </div>
+
+</div>

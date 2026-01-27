@@ -1,0 +1,579 @@
+<div class="staff-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Staff Master</h5>
+                <p class="mb-0 text-muted small">
+                    Manage staff, roles, faculty mapping, department and weekoff.
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Staff</span>
+                </button>
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Staff</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+            <!-- <list-table [autoFitChars]="true" (requestData)="loadStaff($event)" [columns]="columns"
+                [totalRecords]="totalRecords" [data]="staffData" [actions]="actions" [showpageoptions]="true">
+            </list-table> -->
+             <list-table [autoFitChars]="true" (requestData)="fetchTableData($event)" [columns]="columns"
+                [totalRecords]="totalRecords" [data]="staffData" [actions]="actions" [showpageoptions]="true">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- Create / Edit Modal -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal" style="max-width: 980px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        {{ formMode === "create" ? "Create Staff" : "Edit Staff" }}
+                    </h6>
+                    <span class="text-muted small">
+                        {{
+                        formMode === "create"
+                        ? "Add a new staff record"
+                        : "Update staff details"
+                        }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="staffForm" (ngSubmit)="save()">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <formfield label="Staff Name" [required]="true" [control]="staffForm.get('staffName')"
+                                formControlName="staffName" placeholder="Staff Name">
+                            </formfield>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('staffName')?.touched &&
+                  staffForm.get('staffName')?.invalid
+                ">
+                                Staff Name is required (min 3 chars)
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Staff Code" [required]="true" [control]="staffForm.get('staffCode')"
+                                formControlName="staffCode" placeholder="STF001">
+                            </formfield>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('staffCode')?.touched &&
+                  staffForm.get('staffCode')?.invalid
+                ">
+                                Staff Code is required
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Employee ID" [required]="true" [control]="staffForm.get('employeeId')"
+                                formControlName="employeeId" placeholder="EMP001">
+                            </formfield>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('employeeId')?.touched &&
+                  staffForm.get('employeeId')?.invalid
+                ">
+                                Employee ID is required
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <selectbox label="Role" [required]="true" [options]="roleOptions" optionLabel="label"
+                                optionValue="value" [control]="staffForm.get('role')" formControlName="role">
+                            </selectbox>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('role')?.touched &&
+                  staffForm.get('role')?.invalid
+                ">
+                                Role is required
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Phone" [required]="true" [control]="staffForm.get('phone')"
+                                formControlName="phone" placeholder="9876543210">
+                            </formfield>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('phone')?.touched &&
+                  staffForm.get('phone')?.invalid
+                ">
+                                Phone is required (10 digits)
+                            </div>
+                        </div>
+
+                        <div class="col-md-5">
+                            <formfield label="Email" [required]="false" [control]="staffForm.get('email')"
+                                formControlName="email" placeholder="staff@email.com">
+                            </formfield>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('email')?.touched &&
+                  staffForm.get('email')?.invalid
+                ">
+                                Invalid email
+                            </div>
+                        </div>
+
+                        <!-- ✅ Center shows "CODE - NAME" -->
+                        <div class="col-md-4">
+                            <selectbox label="Center" [required]="true" [options]="centerOptions" optionLabel="label"
+                                optionValue="value" [control]="staffForm.get('centerId')" formControlName="centerId">
+                            </selectbox>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('centerId')?.touched &&
+                  staffForm.get('centerId')?.invalid
+                ">
+                                Center is required
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Joining Date <span
+                                    class="text-danger">*</span></label>
+                            <input type="date" class="form-control" formControlName="joiningDate" />
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('joiningDate')?.touched &&
+                  staffForm.get('joiningDate')?.invalid
+                ">
+                                Joining Date is required
+                            </div>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Relieving Date</label>
+                            <input type="date" class="form-control" formControlName="relievingDate" />
+                        </div>
+
+                        <div class="col-md-3">
+                            <selectbox label="Payroll" [required]="true" [options]="payrollOptions" optionLabel="label"
+                                optionValue="value" [control]="staffForm.get('payroll')" formControlName="payroll">
+                            </selectbox>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('payroll')?.touched &&
+                  staffForm.get('payroll')?.invalid
+                ">
+                                Payroll is required
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <selectbox label="Department" [required]="true" [options]="departmentOptions"
+                                optionLabel="label" optionValue="value" [control]="staffForm.get('department')"
+                                formControlName="department">
+                            </selectbox>
+                            <div class="text-danger small mt-1" *ngIf="
+                  staffForm.get('department')?.touched &&
+                  staffForm.get('department')?.invalid
+                ">
+                                Department is required
+                            </div>
+                        </div>
+
+                        <!-- ✅ Removed Status/Active select from form -->
+
+                        <ng-container *ngIf="staffForm.get('role')?.value === 'Faculty'">
+                            <div class="col-md-3">
+                                <selectbox label="Faculty Type" [required]="true" [options]="facultyTypeOptions"
+                                    optionLabel="label" optionValue="value" [control]="staffForm.get('facultyType')"
+                                    formControlName="facultyType">
+                                </selectbox>
+                                <div class="text-danger small mt-1" *ngIf="
+                    staffForm.get('facultyType')?.touched &&
+                    staffForm.get('facultyType')?.invalid
+                  ">
+                                    Faculty Type is required
+                                </div>
+                            </div>
+
+                            <div class="col-md-9" *ngIf="staffForm.get('facultyType')?.value === 'TEACHING'">
+                                <selectbox label="Subject" [required]="true" [options]="subjectOptions"
+                                    optionLabel="label" optionValue="value" [control]="staffForm.get('subject')"
+                                    formControlName="subject">
+                                </selectbox>
+                                <div class="text-danger small mt-1" *ngIf="
+                    staffForm.get('subject')?.touched &&
+                    staffForm.get('subject')?.invalid
+                  ">
+                                    Subject is required for Teaching faculty
+                                </div>
+                            </div>
+                        </ng-container>
+
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold">Weekoff</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <div class="form-check form-check-inline" *ngFor="let d of weekoffDays">
+                                    <input class="form-check-input" type="checkbox" [id]="'wk_' + d"
+                                        [checked]="isWeekoffSelected(d)" (change)="toggleWeekoff(d, $event)" />
+                                    <label class="form-check-label" [for]="'wk_' + d">{{
+                                        d
+                                        }}</label>
+                                </div>
+                            </div>
+                            <div class="form-text">You can select multiple weekoff days.</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" [disabled]="staffForm.invalid">
+                            {{ formMode === "create" ? "Save Staff" : "Update Staff" }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="app-modal-backdrop" *ngIf="showImport">
+        <div class="app-modal" style="max-width: 1100px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Import Staff (Excel)</h6>
+                    <span class="text-muted small">Upload Excel and import staff in bulk.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="alert alert-info py-2 small mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <div class="fw-semibold mb-1">Required columns in Excel:</div>
+                            <div class="text-muted">
+                                <span class="me-2">Staff Name</span> |
+                                <span class="mx-2">Staff Code</span> |
+                                <span class="mx-2">Employee ID</span> |
+                                <span class="mx-2">Role</span> |
+                                <span class="mx-2">Phone</span> |
+                                <span class="mx-2">Email</span> |
+                                <span class="mx-2">Center Code</span> |
+                                <span class="mx-2">Joining Date</span> |
+                                <span class="mx-2">Payroll</span> |
+                                <span class="mx-2">Department</span> |
+                                <span class="mx-2">Faculty Type</span> |
+                                <span class="mx-2">Subject</span> |
+                                <span class="mx-2">Weekoff</span> |
+                                <span class="mx-2">Status</span>
+                            </div>
+                            <div class="form-text mt-1">
+                                Joining Date should be yyyy-MM-dd. Center must be Center Code
+                                (no typos).
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()">
+                            <i class="fa-solid fa-download me-1"></i>
+                            Download Sample Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ✅ Removed insert/upsert dropdown (defaults to upsert in TS) -->
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Excel File</label>
+                        <input type="file" class="form-control" accept=".xlsx,.xls"
+                            (change)="onExcelSelected($event)" />
+                        <div class="form-text" *ngIf="importFileName">
+                            Selected: {{ importFileName }}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
+                            [disabled]="!importPreviewRows.length">
+                            Reset
+                        </button>
+                        <button type="button" class="btn btn-primary" (click)="confirmImport()"
+                            [disabled]="!importPreviewRows.length || importHasInvalidRows">
+                            Import Now
+                        </button>
+                    </div>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">
+                        Rows:
+                        <span class="fw-semibold">{{ importPreviewRows.length }}</span>
+                        <span class="ms-2" *ngIf="importHasInvalidRows">
+                            | Invalid:
+                            <span class="fw-semibold text-danger">{{
+                                importInvalidCount
+                                }}</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 60px">#</th>
+                                <th>Staff Name</th>
+                                <th>Staff Code</th>
+                                <th>Employee ID</th>
+                                <th>Role</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Center Code</th>
+                                <th>CenterId (resolved)</th>
+                                <th>Joining</th>
+                                <th>Payroll</th>
+                                <th>Department</th>
+                                <th>Faculty Type</th>
+                                <th>Subject</th>
+                                <th>Weekoff</th>
+                                <th>Status</th>
+                                <th style="width: 220px">Row Validation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let r of importPreviewRows; let i = index" [class.table-danger]="!r._valid">
+                                <td>{{ r._rowNo }}</td>
+                                <td>{{ r.staffName }}</td>
+                                <td>{{ r.staffCode }}</td>
+                                <td>{{ r.employeeId }}</td>
+                                <td>{{ r.role }}</td>
+                                <td>{{ r.phone }}</td>
+                                <td>{{ r.email || "-" }}</td>
+                                <td>{{ r.centerCode }}</td>
+                                <td>{{ r.centerId || "-" }}</td>
+                                <td>{{ r.joiningDate }}</td>
+                                <td>{{ r.payroll }}</td>
+                                <td>{{ r.department }}</td>
+                                <td>{{ r.facultyType || "-" }}</td>
+                                <td>{{ r.subject || "-" }}</td>
+                                <td>{{ r.weekoffText || "-" }}</td>
+                                <td>{{ r.status }}</td>
+                                <td>
+                                    <span *ngIf="r._valid" class="badge bg-success">OK</span>
+                                    <span *ngIf="!r._valid" class="badge bg-danger">{{
+                                        r._errors?.join(", ")
+                                        }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
+                    Fix invalid rows in Excel and upload again. Import is disabled until
+                    all rows are valid.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Modal (dates shown via date pipe from epoch ms) -->
+    <!-- DROP-IN: View Modal (POPUP ONLY) - show all fields + epoch(ms) rendered via date pipe -->
+    <div class="app-modal-backdrop" *ngIf="showView">
+        <div class="app-modal" style="max-width: 1100px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Staff Details</h6>
+                    <span class="text-muted small">View complete staff information and update relieving date /
+                        retire.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeView()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body" *ngIf="viewRec; else viewLoading">
+                <!-- Top badges -->
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge bg-light text-dark border">Role: {{ viewRec.role || "-" }}</span>
+                        <span class="badge bg-light text-dark border">Payroll: {{ viewRec.payroll || "-" }}</span>
+                        <span class="badge" [ngClass]="
+                viewRec.status === 'Inactive' ? 'bg-danger' : 'bg-success'
+              ">
+                            {{ viewRec.status || "Active" }}
+                        </span>
+                    </div>
+                    <div class="small text-muted">
+                        Created:
+                        <span class="fw-semibold">{{
+                            viewRec.createdAt
+                            ? (viewRec.createdAt
+                            | date
+                            : "dd-MMM-yyyy, hh:mm
+                            a")
+                            : "-"
+                            }}</span>
+                        <span class="mx-2">|</span>
+                        Updated:
+                        <span class="fw-semibold">{{
+                            viewRec.updatedAt
+                            ? (viewRec.updatedAt
+                            | date
+                            : "dd-MMM-yyyy, hh:mm
+                            a")
+                            : "-"
+                            }}</span>
+                    </div>
+                </div>
+
+                <!-- Core details -->
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Staff Name</div>
+                            <div class="fw-semibold">{{ viewRec.staffName || "-" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Staff Code</div>
+                            <div class="fw-semibold">{{ viewRec.staffCode || "-" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Employee ID</div>
+                            <div class="fw-semibold">{{ viewRec.employeeId || "-" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Phone</div>
+                            <div class="fw-semibold">{{ viewRec.phone || "-" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-5">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Email</div>
+                            <div class="fw-semibold">{{ viewRec.email || "-" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Center</div>
+                            <div class="fw-semibold">
+                                {{ viewRec.centerId?.centerCode || "-" }} -
+                                {{ viewRec.centerId?.centerName || "-" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Department</div>
+                            <div class="fw-semibold">
+                                {{
+                                viewRec.department?.departmentName ||
+                                viewRec.departmentName ||
+                                "-"
+                                }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Weekoff</div>
+                            <div class="fw-semibold">
+                                <ng-container *ngIf="(viewRec.weekoff || []).length; else wkEmpty">
+                                    {{ (viewRec.weekoff || []).join(", ") }}
+                                </ng-container>
+                                <ng-template #wkEmpty>-</ng-template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dates -->
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Joining Date</div>
+                            <div class="fw-semibold">
+                                {{
+                                viewRec.joiningDate
+                                ? (viewRec.joiningDate | date: "dd-MMM-yyyy")
+                                : "-"
+                                }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Relieving Date</div>
+                            <div class="fw-semibold">
+                                {{
+                                viewRec.relievingDate
+                                ? (viewRec.relievingDate | date: "dd-MMM-yyyy")
+                                : "-"
+                                }}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Faculty-specific -->
+                    <div class="col-md-4" *ngIf="viewRec.role === 'Faculty'">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Faculty Type</div>
+                            <div class="fw-semibold">{{ viewRec.facultyType || "-" }}</div>
+                            <div class="mt-2" *ngIf="viewRec.facultyType === 'TEACHING'">
+                                <div class="small text-muted">Subject</div>
+                                <div class="fw-semibold">
+                                    {{
+                                    viewRec.subject?.subjectName || viewRec.subjectName || "-"
+                                    }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-top pt-3 mt-3">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Update Relieving Date</label>
+                            <input type="date" class="form-control" [(ngModel)]="viewRelievingDate"
+                                [ngModelOptions]="{ standalone: true }" />
+                        </div>
+                        <div class="col-md-8 d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-outline-primary" (click)="updateRelievingDate()">
+                                Update Relieving Date
+                            </button>
+
+                            <button type="button" class="btn btn-danger" (click)="openRetire()"
+                                [disabled]="viewRec.status === 'Inactive'">
+                                Retire Employee
+                            </button>
+
+                            <button type="button" class="btn btn-outline-secondary" (click)="closeView()">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning small mt-3 mb-0" *ngIf="viewRec.status === 'Inactive'">
+                        This staff is already inactive (retired). You can still update
+                        relieving date if needed.
+                    </div>
+                </div>
+            </div>
+            <ng-template #viewLoading>
+                <div class="p-4 text-center text-muted">Loading staff details...</div>
+            </ng-template>
+        </div>
+    </div>
+    <delete [title]="'Delete Staff'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+</div>

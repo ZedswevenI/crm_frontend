@@ -1,0 +1,136 @@
+<div class="student-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Students</h5>
+                <p class="mb-0 text-muted small">
+                    Manage student profiles, enrolment and academic information.
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" [class.active]="viewMode === 'list'"
+                        (click)="setView('list')">
+                        <i class="fa-solid fa-list-ul me-1"></i> List
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" [class.active]="viewMode === 'grid'"
+                        (click)="setView('grid')">
+                        <i class="fa-solid fa-border-all me-1"></i> Grid
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body pt-0">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <div class="position-relative student-search">
+                    <!-- <i class="fa-solid fa-magnifying-glass position-absolute text-muted"
+                        style="top: 10px; left: 10px;"></i>
+                    <input [(ngModel)]="searchText" (keyup.enter)="applyFilters()" class="form-control ps-5"
+                        placeholder="Search by name, enrolment, phone..." [disabled]="loading" />
+                    <button *ngIf="searchText" type="button"
+                        class="btn btn-link text-muted px-0 clear-btn position-absolute" style="top: 2px; right: 10px;"
+                        (click)="clearSearch()">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button> -->
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <select class="form-select form-select-sm filter-select" [(ngModel)]="selectedProgram"
+                        (ngModelChange)="onProgramChange($event)">
+                        <!-- (change)="applyFilters()" -->
+                        <option value="">All Programs</option>
+                        <option *ngFor="let p of programsFull" [value]="p.programId || p._id">
+                            {{p.programCodes}} - {{ p.programName }}
+                        </option>
+                    </select>
+
+                    <select class="form-select form-select-sm filter-select" [(ngModel)]="selectedCenter"
+                        (ngModelChange)="onCenterChange($event)">
+                        <option value="">All Centers</option>
+                        <option *ngFor="let c of centersFull" [value]="c.centerId || c._id">
+                            {{ c.centerCode }} - {{ c.centerName }}
+                        </option>
+                    </select>
+
+                    <select class="form-select form-select-sm filter-select" [(ngModel)]="selectedStatus"
+                        (ngModelChange)="onStatusChange($event)">
+                        <option value="">All Status</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="DROPOUT">Dropout</option>
+                    </select>
+                </div>
+            </div>
+
+            <div *ngIf="viewMode === 'list'">
+                <!-- <list-table [autoFitChars]="true" [columns]="columns" [data]="students" [totalRecords]="totalRecords"
+                    [actions]="actions" [showsearch]="false" [showfilter]="false" [showpageoptions]="true"
+                    (requestData)="loadStudents($event)">
+                </list-table> -->
+                <list-table [autoFitChars]="true" [columns]="columns" [data]="students"
+                    [actions]="actions" [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords"
+                    (requestData)="fetchTableData($event)">
+                </list-table>
+            </div>
+            <div *ngIf="viewMode === 'grid'">
+                <div class="row g-3">
+                    <div class="col-12" *ngIf="!students.length && !loading">
+                        <div class="text-center text-muted py-5 small">
+                            <i class="fa-solid fa-users-slash fa-2x mb-2"></i>
+                            <div>No students found for the selected filters.</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-4 col-lg-3" *ngFor="let s of students">
+                        <div class="card student-card h-100 shadow-sm border-0" (click)="openDetail(s)"
+                            style="cursor: pointer;">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="avatar-circle me-2 bg-light rounded-circle d-flex align-items-center justify-content-center"
+                                        style="width: 40px; height: 40px;">
+                                        <span class="avatar-initials fw-bold text-primary">
+                                            {{ getInitials(s.student?.name) }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1 overflow-hidden">
+                                        <div class="fw-semibold text-truncate" [title]="s.student?.name">
+                                            {{ s.student?.name }}
+                                        </div>
+                                        <div class="text-muted small text-truncate">{{ s.admissionNo }}</div>
+                                    </div>
+                                    <span class="badge rounded-pill" [ngClass]="{
+                                        'bg-success-subtle text-success': s.status === 'ACTIVE',
+                                        'bg-secondary-subtle text-secondary': s.status === 'INACTIVE',
+                                        'bg-danger-subtle text-danger': s.status === 'DROPOUT'
+                                    }">
+                                        {{ s.status }}
+                                    </span>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-truncate" style="max-width: 50%;">{{ s.programCode ||
+                                            s.programName }}</span>
+                                        <span class="fw-medium text-truncate" style="max-width: 45%;">{{ s.centerName
+                                            }}</span>
+                                    </div>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <div><i class="fa-solid fa-phone me-1"></i>{{ s.student?.phone }}</div>
+                                    <div class="text-truncate" *ngIf="s.batchCode">
+                                        <i class="fa-solid fa-layer-group me-1"></i>{{ s.batchCode }}
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-end align-items-center mt-2 pt-2 border-top">
+                                    <button type="button" class="btn btn-link btn-sm p-0 small text-decoration-none"
+                                        (click)="openDetail(s); $event.stopPropagation()">
+                                        View Profile <i class="fa-solid fa-arrow-right-long ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

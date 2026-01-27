@@ -1,0 +1,50 @@
+<div class="admission-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Admissions</h5>
+            </div>
+            <button class="btn btn-sm btn-saffron d-flex align-items-center gap-1" (click)="newAdmission()">
+                <i class="fa-solid fa-plus"></i>
+                <span>New Admission</span>
+            </button>
+        </div>
+        <div class="mt-3">
+            <!-- <div class="row g-2 mb-2 align-items-end">
+                <div class="col-12 col-sm-6 col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input #regInput type="text" class="form-control" placeholder="Search by Registration No"
+                            [value]="searchRegNo" (keyup.enter)="onSearch(regInput.value)" />
+                        <button class="btn btn-outline-secondary" type="button" (click)="onSearch(regInput.value)">
+                            Search
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" *ngIf="searchRegNo"
+                            (click)="clearSearch(regInput)">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-md-6"></div>
+                <div class="col-12 col-sm-4 col-md-2">
+                    <label class="form-label mb-1 fw-bold">Filter Based on:</label>
+                    <select class="form-select form-select-sm" [(ngModel)]="statusFilter" (change)="onStatusChange()">
+                        <option value="all">All</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="waiting">Waiting for approval</option>
+                    </select>
+                </div>
+            </div> -->
+            <div class="mt-3 p-3">
+                <list-table [autoFitChars]="true" [columns]="columns" [data]="admissions" [actions]="actions"
+                    [showfilter]="true" [filterLabel]="'Filter Based on:'" [filterOptions]="statusFilterOptions"
+                    [selectedFilter]="statusFilter" (filterChange)="onStatusFilterChange($event)" [loading]="loading"
+                    [totalRecords]="totalRecords" (requestData)="fetchTableData($event)" (change)="onStatusChange()">
+                </list-table>
+            </div>
+        </div>
+    </div>
+</div>

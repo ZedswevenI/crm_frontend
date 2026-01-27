@@ -1,0 +1,174 @@
+<div class="fee-page">
+
+    <!-- List Card -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Fee Collection</h5>
+                <p class="mb-0 text-muted small">
+                    Search student, collect NEFT/Cash/Card/Cheque, and generate receipt.
+                </p>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <div style="min-width: 260px;">
+                    <input class="form-control form-control-sm" placeholder="Search by Reg No / Name / Phone"
+                        [(ngModel)]="search" [ngModelOptions]="{ standalone: true }" (input)="applyFilter()" />
+                </div>
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" (click)="reload()">
+                    <i class="fa-solid fa-rotate"></i><span>Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="collection" [actions]="actions"
+             [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- Collect Fee Modal -->
+    <div class="app-modal-backdrop" *ngIf="showCollect">
+        <div class="app-modal fee-modal">
+
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Collect Fee</h6>
+                    <span class="text-muted small" *ngIf="selected">
+                        {{ selected.name }} • {{ selected.regNo }} • {{ selected.programName }} • {{ selected.centerName
+                        }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeCollect()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="row g-3">
+
+                    <!-- Summary -->
+                    <div class="col-lg-5">
+                        <div class="border rounded-3 p-3 bg-light-subtle h-100">
+                            <div class="fw-semibold mb-2">Fee Summary</div>
+
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">Final Fee</span>
+                                <span class="fw-semibold">₹{{ selected?.finalFee | number:'1.0-0' }}</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between small mt-1">
+                                <span class="text-muted">Collected</span>
+                                <span class="fw-semibold">₹{{ selected?.paidAmount | number:'1.0-0' }}</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between small mt-1">
+                                <span class="text-muted">Pending</span>
+                                <span class="fw-bold text-danger">₹{{ (selected?.pendingAmount || 0) | number:'1.0-0'
+                                    }}</span>
+                            </div>
+
+                            <hr class="my-2" />
+
+                            <div class="text-muted tiny">
+                                Tip: For cheque, collect Cheque No + Bank + Date. For NEFT, UTR mandatory.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collection Form -->
+                    <div class="col-lg-7">
+                        <form [formGroup]="collectForm" (ngSubmit)="submitCollection()">
+                            <div class="border rounded-3 p-3">
+                                <div class="row g-3">
+
+                                    <div class="col-md-4">
+                                        <label class="form-label small text-muted">Amount (₹)</label>
+                                        <input class="form-control" type="number" formControlName="amount"
+                                            [class.is-invalid]="f('amount').touched && f('amount').invalid" />
+                                        <div class="invalid-feedback">Enter valid amount</div>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label small text-muted">Mode</label>
+                                        <select class="form-select" formControlName="mode">
+                                            <option value="NEFT">NEFT</option>
+                                            <option value="CASH">Cash</option>
+                                            <option value="CARD">Card</option>
+                                            <option value="CHEQUE">Cheque</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label small text-muted">Paid On</label>
+                                        <input class="form-control" type="date" formControlName="paidOn" />
+                                    </div>
+
+                                    <!-- NEFT -->
+                                    <div class="col-md-6" *ngIf="collectForm.get('mode')?.value === 'NEFT'">
+                                        <label class="form-label small text-muted">UTR Number</label>
+                                        <input class="form-control" formControlName="utrNo"
+                                            [class.is-invalid]="f('utrNo').touched && f('utrNo').invalid" />
+                                        <div class="invalid-feedback">UTR required</div>
+                                    </div>
+
+                                    <!-- CARD -->
+                                    <div class="col-md-6" *ngIf="collectForm.get('mode')?.value === 'CARD'">
+                                        <label class="form-label small text-muted">Txn Ref</label>
+                                        <input class="form-control" formControlName="txnRef" />
+                                    </div>
+
+                                    <!-- CHEQUE -->
+                                    <ng-container *ngIf="collectForm.get('mode')?.value === 'CHEQUE'">
+                                        <div class="col-md-4">
+                                            <label class="form-label small text-muted">Cheque No</label>
+                                            <input class="form-control" formControlName="chequeNo"
+                                                [class.is-invalid]="f('chequeNo').touched && f('chequeNo').invalid" />
+                                            <div class="invalid-feedback">Required</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small text-muted">Bank</label>
+                                            <input class="form-control" formControlName="bank"
+                                                [class.is-invalid]="f('bank').touched && f('bank').invalid" />
+                                            <div class="invalid-feedback">Required</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small text-muted">Cheque Date</label>
+                                            <input class="form-control" type="date" formControlName="chequeDate"
+                                                [class.is-invalid]="f('chequeDate').touched && f('chequeDate').invalid" />
+                                            <div class="invalid-feedback">Required</div>
+                                        </div>
+                                    </ng-container>
+
+                                    <div class="col-12">
+                                        <label class="form-label small text-muted">Remarks</label>
+                                        <input class="form-control" formControlName="remarks" placeholder="optional" />
+                                    </div>
+
+                                </div>
+
+                                <div class="d-flex justify-content-end gap-2 mt-3">
+                                    <button type="button" class="btn btn-outline-secondary"
+                                        (click)="closeCollect()">Cancel</button>
+                                    <button type="submit" class="btn btn-saffron"
+                                        [disabled]="collectForm.invalid || saving">
+                                        Collect & Save
+                                    </button>
+                                </div>
+
+                                <div class="alert alert-light small mt-3 mb-0" *ngIf="lastReceiptNo">
+                                    Receipt generated: <b>{{ lastReceiptNo }}</b>
+                                    <button class="btn btn-link btn-sm p-0 ms-2" type="button" (click)="printReceipt()">
+                                        Print
+                                    </button>
+                                </div>
+
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
