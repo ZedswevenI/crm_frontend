@@ -26,11 +26,24 @@
         </select>
       </div>
 
-      <button *ngIf="showfilter" class="btn app-table-filter-btn d-flex align-items-center gap-2" type="button"
+      <!-- <button *ngIf="showfilter" class="btn app-table-filter-btn d-flex align-items-center gap-2" type="button"
         (click)="onOpenFilters()">
         <img src="assets/icons/filtericon.svg" alt="filter" width="20" height="20" />
         <span>Filters</span>
-      </button>
+      </button> -->
+      <div *ngIf="showfilter && filterOptions.length" class="d-flex flex-column">
+        <label class="form-label mb-1 fw-bold">
+          {{ filterLabel }}
+        </label>
+
+        <select class="form-select form-select-sm" [(ngModel)]="selectedFilter"
+          (change)="onFilterChange(selectedFilter)">
+          <option *ngFor="let opt of filterOptions" [value]="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+      </div>
+
     </div>
   </div>
 

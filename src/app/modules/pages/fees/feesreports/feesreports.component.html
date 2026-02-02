@@ -80,7 +80,8 @@
             </div>
 
             <!-- Detailed table -->
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="rows" [actions]="actions">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="report" [actions]="actions"
+             [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
             </list-table>
 
         </div>

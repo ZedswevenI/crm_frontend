@@ -16,7 +16,8 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="users" [actions]="actions">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="users" [actions]="actions"
+             [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
             </list-table>
         </div>
     </div>

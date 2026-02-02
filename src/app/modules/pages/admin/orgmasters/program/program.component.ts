@@ -38,6 +38,7 @@ export class ProgramComponent implements OnInit {
   importHasInvalidRows = false;
   importInvalidCount = 0;
   programData: any[] = [];
+  loading = false;
   private moduleName = 'ims';
   columns = [
     { key: 'name', label: 'Program Name', sortable: true },
@@ -104,7 +105,71 @@ export class ProgramComponent implements OnInit {
     this.initForm();
     this.loadMasters();
     this.bindDerivedFields();
-    this.loadPrograms({ page: 1, pageSize: 10 });
+    // this.loadPrograms({ page: 1, pageSize: 10 });
+  }
+
+  // programList
+  // studentlist
+  fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.commonApi.fetchData(body, 'ims', `program/list?${queryString}`).subscribe({
+      next: (res: any) => {
+        this.programData = (res?.data || []).map((p: any) => ({
+          recId: p._id,
+          name: p.programName,
+          code: p.programCodes || '-',
+          stream: p.target || '-',
+          eligibleToClass: p.eligibleToClass ?? '-',
+          startingClass: p.startingClass ?? '-',
+          endingClass: p.endingClass ?? '-',
+          duration: p.duration ?? '-',
+          version: p.version || '-',
+          subjects: Array.isArray(p.subjects) ? p.subjects.length : 0,
+          isActive: p.status === 'Active',
+          _raw: p,
+        }));
+        this.totalRecords = res?.count || 0;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error('Error loading admissions');
+      }
+    });
   }
 
   // ---------------- FORM ----------------
@@ -392,8 +457,8 @@ export class ProgramComponent implements OnInit {
 
     const subs = Array.isArray(p.subjects)
       ? p.subjects
-          .map((x: any) => (typeof x === 'string' ? x : x?._id))
-          .filter(Boolean)
+        .map((x: any) => (typeof x === 'string' ? x : x?._id))
+        .filter(Boolean)
       : [];
 
     this.existingSubjectIds = new Set(subs.map((x: any) => String(x)));

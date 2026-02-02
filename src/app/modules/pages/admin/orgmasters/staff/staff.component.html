@@ -20,7 +20,10 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" (requestData)="loadStaff($event)" [columns]="columns"
+            <!-- <list-table [autoFitChars]="true" (requestData)="loadStaff($event)" [columns]="columns"
+                [totalRecords]="totalRecords" [data]="staffData" [actions]="actions" [showpageoptions]="true">
+            </list-table> -->
+             <list-table [autoFitChars]="true" (requestData)="fetchTableData($event)" [columns]="columns"
                 [totalRecords]="totalRecords" [data]="staffData" [actions]="actions" [showpageoptions]="true">
             </list-table>
         </div>

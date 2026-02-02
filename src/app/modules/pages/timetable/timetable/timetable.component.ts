@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
+import { forkJoin } from 'rxjs';
 
 const safeTrim = (v: any) =>
   v === undefined || v === null ? '' : String(v).trim();
@@ -82,8 +83,9 @@ export class TimetableComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    this.loadDropdowns();
-    this.loadTimetables();
+    // this.loadDropdowns();
+    // this.loadTimetables();
+    this.loadAllLookupsAndInit()
   }
 
   initForm() {
@@ -95,30 +97,102 @@ export class TimetableComponent implements OnInit {
     });
   }
 
-  loadDropdowns() {
-    this.commonApi
-      .fetchData({ entiId: this.entiId }, 'ims', 'program/list?list=full')
-      .subscribe({
-        next: (res: any) => {
-          this.programsFull = res?.data || [];
-        },
-      });
-    this.commonApi
-      .fetchData({ entiId: this.entiId }, 'ims', 'center/list?list=full')
-      .subscribe({
-        next: (res: any) => {
-          this.centersFull = res?.data || [];
-        },
-      });
-    this.commonApi
-      .fetchData({ entiId: this.entiId }, 'batch', 'list?list=full')
-      .subscribe({
-        next: (res: any) => {
-          this.batchesFull = res?.data || [];
-          this.filteredBatches = this.batchesFull;
-        },
-      });
+  // timetable List
+  fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.commonApi.fetchData(body, 'timetable', `list?${queryString}`).subscribe({
+      next: (res: any) => {
+        this.timetables = res.data;
+        this.totalRecords = res?.count || 0;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error('Error loading admissions');
+      }
+    });
   }
+
+  // program, batch, center List
+    loadAllLookupsAndInit() {
+      const entiId = this.entiId;
+      this.loading = true;
+  
+      forkJoin({
+        program: this.commonApi.fetchData({ entiId }, 'ims', 'program/list?list=full'),
+        batch: this.commonApi.fetchData({ entiId }, 'batch', 'list?list=full'),
+        center: this.commonApi.fetchData({ entiId }, 'ims', 'center/list?list=full'),
+      }).subscribe({
+        next: ({ program, batch, center }) => {
+          this.programsFull = program.data || [];
+          this.filteredBatches = batch.data || [];
+          this.centersFull = center.data || [];
+        },
+        error: (err) => {
+          this.loading = false;
+          this.alert.error(`Unable to load initial data!`);
+        }
+      });
+    }
+
+  // loadDropdowns() {
+  //   this.commonApi
+  //     .fetchData({ entiId: this.entiId }, 'ims', 'program/list?list=full')
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         this.programsFull = res?.data || [];
+  //       },
+  //     });
+  //   this.commonApi
+  //     .fetchData({ entiId: this.entiId }, 'ims', 'center/list?list=full')
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         this.centersFull = res?.data || [];
+  //       },
+  //     });
+  //   this.commonApi
+  //     .fetchData({ entiId: this.entiId }, 'batch', 'list?list=full')
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         this.batchesFull = res?.data || [];
+  //         this.filteredBatches = this.batchesFull;
+  //       },
+  //     });
+  // }
 
   // --- Filter Logic ---
   onProgramFilterChange() {
@@ -136,44 +210,44 @@ export class TimetableComponent implements OnInit {
   }
 
   applyFilters() {
-    this.loadTimetables({ page: 1, pageSize: this.pageSize });
+    this.fetchTableData({ page: 1, pageSize: this.pageSize });
   }
 
   // --- List API ---
-  loadTimetables(event?: { page: number; pageSize: number }) {
-    this.loading = true;
-    this.currentPage = event?.page || 1;
-    this.pageSize = event?.pageSize || 20;
+  // loadTimetables(event?: { page: number; pageSize: number }) {
+  //   this.loading = true;
+  //   this.currentPage = event?.page || 1;
+  //   this.pageSize = event?.pageSize || 20;
 
-    const queryParams: any = {
-      page: this.currentPage,
-      limit: this.pageSize,
-    };
+  //   const queryParams: any = {
+  //     page: this.currentPage,
+  //     limit: this.pageSize,
+  //   };
 
-    if (this.selectedBatch) queryParams.batchCode = this.selectedBatch;
-    if (this.selectedCenter) queryParams.centerCode = this.selectedCenter;
+  //   if (this.selectedBatch) queryParams.batchCode = this.selectedBatch;
+  //   if (this.selectedCenter) queryParams.centerCode = this.selectedCenter;
 
-    const qs = Object.keys(queryParams)
-      .map((k) => `${k}=${encodeURIComponent(queryParams[k])}`)
-      .join('&');
+  //   const qs = Object.keys(queryParams)
+  //     .map((k) => `${k}=${encodeURIComponent(queryParams[k])}`)
+  //     .join('&');
 
-    this.commonApi
-      .fetchData({ entiId: this.entiId }, this.moduleName, `list?${qs}`)
-      .subscribe({
-        next: (res: any) => {
-          this.loading = false;
-          this.timetables = (res?.data || []).map((t: any) => ({
-            ...t,
-            _raw: t,
-          }));
-          this.totalRecords = res?.count || 0;
-        },
-        error: (err: any) => {
-          this.loading = false;
-          this.alert.error(err?.error?.message || 'Failed to load timetables');
-        },
-      });
-  }
+  //   this.commonApi
+  //     .fetchData({ entiId: this.entiId }, this.moduleName, `list?${qs}`)
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         this.loading = false;
+  //         this.timetables = (res?.data || []).map((t: any) => ({
+  //           ...t,
+  //           _raw: t,
+  //         }));
+  //         this.totalRecords = res?.count || 0;
+  //       },
+  //       error: (err: any) => {
+  //         this.loading = false;
+  //         this.alert.error(err?.error?.message || 'Failed to load timetables');
+  //       },
+  //     });
+  // }
 
   // --- CSV / Upload Handling ---
   openUpload(): void {
@@ -374,7 +448,7 @@ export class TimetableComponent implements OnInit {
         this.loading = false;
         this.alert.success('Timetable created successfully');
         this.closeUpload();
-        this.loadTimetables();
+        // this.loadTimetables();
       },
       error: (err: any) => {
         this.loading = false;

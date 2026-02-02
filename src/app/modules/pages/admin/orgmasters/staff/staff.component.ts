@@ -16,6 +16,7 @@ export class StaffComponent implements OnInit {
 
   totalRecords = 0;
   staffData: any[] = [];
+  loading = false;
 
   showForm = false;
   formMode: 'create' | 'edit' = 'create';
@@ -131,10 +132,11 @@ export class StaffComponent implements OnInit {
   ngOnInit(): void {
     this.initForm();
     this.loadMasters();
-    this.loadStaff({ page: 1, pageSize: 10 });
+    // this.loadStaff({ page: 1, pageSize: 10 });
     this.setupFacultyRules();
   }
 
+ 
   private initForm() {
     this.staffForm = this.fb.group({
       staffName: ['', [Validators.required, Validators.minLength(3)]],
@@ -180,43 +182,45 @@ export class StaffComponent implements OnInit {
   // ======================================
   // LIST
   // ======================================
-  loadStaff(event?: {
+    fetchTableData(params: {
     page: number;
     pageSize: number;
     search?: string;
     sortKey?: string;
-    sortDirection?: 'asc' | 'desc';
+    sortDirection?: string;
   }) {
-    const page = event?.page || 1;
-    const limit = event?.pageSize || 10;
-    const search = (event?.search || '').toString().trim();
+    this.loading = true;
 
-    const sortMap: any = {
-      staffName: 'staffName',
-      staffCode: 'staffCode',
-      employeeId: 'employeeId',
-      role: 'role',
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
     };
 
-    const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
-    const sort = sortKey
-      ? event?.sortDirection === 'asc'
-        ? sortKey
-        : `-${sortKey}`
-      : '';
-
-    const qp = this.buildQueryParams({
-      page,
-      limit,
-      ...(search ? { search } : {}),
-      ...(sort ? { sort } : {}),
-    });
-
-    this.commonApi
-      .fetchData({ entiId: this.entiId }, this.moduleName, `staff/list${qp}`)
-      .subscribe({
-        next: (res: any) => {
-          this.totalRecords = res?.count || 0;
+    this.commonApi.fetchData(body, 'ims', `staff/list?${queryString}`).subscribe({
+      next: (res: any) => {
+       this.totalRecords = res?.count || 0;
           this.staffData = (res?.data || []).map((s: any) => ({
             recId: s._id,
             staffId: s.staffId,
@@ -230,10 +234,68 @@ export class StaffComponent implements OnInit {
             status: s.status,
             _raw: s,
           }));
-        },
-        error: () => this.alert.error('Failed to load staff'),
-      });
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error('Error loading admissions');
+      }
+    });
   }
+
+  // loadStaff(event?: {
+  //   page: number;
+  //   pageSize: number;
+  //   search?: string;
+  //   sortKey?: string;
+  //   sortDirection?: 'asc' | 'desc';
+  // }) {
+  //   const page = event?.page || 1;
+  //   const limit = event?.pageSize || 10;
+  //   const search = (event?.search || '').toString().trim();
+
+  //   const sortMap: any = {
+  //     staffName: 'staffName',
+  //     staffCode: 'staffCode',
+  //     employeeId: 'employeeId',
+  //     role: 'role',
+  //   };
+
+  //   const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
+  //   const sort = sortKey
+  //     ? event?.sortDirection === 'asc'
+  //       ? sortKey
+  //       : `-${sortKey}`
+  //     : '';
+
+  //   const qp = this.buildQueryParams({
+  //     page,
+  //     limit,
+  //     ...(search ? { search } : {}),
+  //     ...(sort ? { sort } : {}),
+  //   });
+
+  //   this.commonApi
+  //     .fetchData({ entiId: this.entiId }, this.moduleName, `staff/list${qp}`)
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         this.totalRecords = res?.count || 0;
+  //         this.staffData = (res?.data || []).map((s: any) => ({
+  //           recId: s._id,
+  //           staffId: s.staffId,
+  //           staffName: s.staffName,
+  //           staffCode: s.staffCode,
+  //           employeeId: s.employeeId,
+  //           role: s.role,
+  //           phone: s.phone,
+  //           email: s.email,
+  //           centerId: s.centerId,
+  //           status: s.status,
+  //           _raw: s,
+  //         }));
+  //       },
+  //       error: () => this.alert.error('Failed to load staff'),
+  //     });
+  // }
 
   // ======================================
   // CREATE / EDIT
@@ -374,7 +436,8 @@ export class StaffComponent implements OnInit {
           this.formMode === 'create' ? 'Staff created' : 'Staff updated',
         );
         this.showForm = false;
-        this.loadStaff({ page: 1, pageSize: 10 });
+        this.fetchTableData({ page: 1, pageSize: 10 });
+        // this.loadStaff({ page: 1, pageSize: 10 });
       },
       error: (err: any) =>
         this.alert.error(err?.error?.message || 'Operation failed'),
@@ -504,7 +567,8 @@ export class StaffComponent implements OnInit {
       .subscribe({
         next: () => {
           this.alert.success('Employee retired successfully');
-          this.loadStaff({ page: 1, pageSize: 10 });
+          this.fetchTableData({ page: 1, pageSize: 10 })
+          // this.loadStaff({ page: 1, pageSize: 10 });
           this.openView({ recId: this.retireTarget._id });
         },
         error: (err: any) =>
@@ -533,7 +597,8 @@ export class StaffComponent implements OnInit {
       .subscribe({
         next: () => {
           this.alert.success('Staff deleted successfully');
-          this.loadStaff({ page: 1, pageSize: 10 });
+          this.fetchTableData({ page: 1, pageSize: 10 });
+          // this.loadStaff({ page: 1, pageSize: 10 });
         },
         error: (err: any) =>
           this.alert.error(err?.error?.message || 'Delete failed'),
@@ -755,7 +820,8 @@ export class StaffComponent implements OnInit {
             `Import completed. Inserted: ${s.inserted || 0}, Updated: ${s.upserted || 0}`,
           );
           this.closeImport();
-          this.loadStaff({ page: 1, pageSize: 10 });
+          this.fetchTableData({ page: 1, pageSize: 10 });
+          // this.loadStaff({ page: 1, pageSize: 10 });
         },
         error: (err: any) => {
           const msg = err?.error?.message || 'Import failed';

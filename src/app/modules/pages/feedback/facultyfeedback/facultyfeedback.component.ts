@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 
 type Status = 'open' | 'resolved';
 
@@ -47,7 +48,11 @@ export class FacultyfeedbackComponent implements OnInit {
     }
   ];
 
-  filtered: FacultyFeedback[] = [];
+  //list
+  // filtered: FacultyFeedback[] = [];
+  filtered: any[] = [];
+  totalRecords = 0;
+  loading = false;
 
   columns = [
     { key: 'date', label: 'Date', sortable: true, date: true },
@@ -81,7 +86,8 @@ export class FacultyfeedbackComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private alert: AlertService,
-    private breadcrumb: BredcrumpService
+    private breadcrumb: BredcrumpService,
+    private api: CommonapiService
   ) {
     this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Feedback' }, { label: 'Faculty' }]);
   }
@@ -101,7 +107,57 @@ export class FacultyfeedbackComponent implements OnInit {
       actionNotes: ['']
     });
 
-    this.applyFilter();
+    // this.applyFilter();
+  }
+
+  // list
+  fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.api.fetchData(body, 'ims/user', `list?list=full`).subscribe({
+      next: (res: any) => {
+        this.filtered = res.data;
+        this.totalRecords = res.data?.total || 0;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error('Error loading admissions');
+      }
+    });
   }
 
   applyFilter(): void {

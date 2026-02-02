@@ -128,14 +128,16 @@
                 <!-- Student Feedback -->
                 <ng-container *ngIf="tab === 'student'">
                     <list-table [autoFitChars]="true" [columns]="studentColumns" [data]="studentFiltered"
-                        [actions]="studentActions">
+                        [actions]="studentActions"
+                         [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
                     </list-table>
                 </ng-container>
 
                 <!-- Faculty Feedback -->
                 <ng-container *ngIf="tab === 'faculty'">
                     <list-table [autoFitChars]="true" [columns]="facultyColumns" [data]="facultyFiltered"
-                        [actions]="facultyActions">
+                        [actions]="facultyActions"
+                         [loading]="loading1" [totalRecords]="totalRecords1" (requestData)="fetchFacultyTable($event)">
                     </list-table>
                 </ng-container>
             </div>

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 
 type PayMode = 'NEFT' | 'CASH' | 'CARD' | 'CHEQUE';
 
@@ -25,6 +26,11 @@ export class FeesComponent implements OnInit {
     { id: 'STD-2', regNo: 'JEE26-0001', name: 'Rohit Sharma', programName: 'JEE 2 Year', centerName: 'Gandhipuram', finalFee: 500000, paidAmount: 500000, pendingAmount: 0, status: 'paid' }
   ];
   filtered = [...this.students];
+  
+  //list
+  collection = [];
+  totalRecords = 0;
+  loading = false;
 
   columns = [
     { key: 'regNo', label: 'Reg No', sortable: true },
@@ -52,7 +58,8 @@ export class FeesComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private alert: AlertService,
-    private breadcrumb: BredcrumpService
+    private breadcrumb: BredcrumpService,
+    private api: CommonapiService
   ) {
     this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Fees' }, { label: 'Fee Collection' }]);
   }
@@ -91,6 +98,55 @@ export class FeesComponent implements OnInit {
       this.collectForm.get('chequeNo')?.updateValueAndValidity();
       this.collectForm.get('bank')?.updateValueAndValidity();
       this.collectForm.get('chequeDate')?.updateValueAndValidity();
+    });
+  }
+
+   fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.api.fetchData(body, 'ims/user', `list?list=full`).subscribe({
+      next: (res: any) => {
+        this.collection = res.data;
+        this.totalRecords = res.data?.total || 0;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error('Error loading admissions');
+      }
     });
   }
 
@@ -151,32 +207,32 @@ export class FeesComponent implements OnInit {
   }
 
   openCollect(row: any): void {
-  this.selected = row;
-  this.lastReceiptNo = null;
+    this.selected = row;
+    this.lastReceiptNo = null;
 
-  document.body.classList.add('modal-open'); // ✅ add
+    document.body.classList.add('modal-open'); // ✅ add
 
-  this.collectForm.reset({
-    amount: row.pendingAmount > 0 ? Math.min(50000, row.pendingAmount) : null,
-    mode: 'NEFT',
-    paidOn: this.todayISO(),
-    utrNo: '',
-    txnRef: '',
-    chequeNo: '',
-    bank: '',
-    chequeDate: null,
-    remarks: ''
-  });
+    this.collectForm.reset({
+      amount: row.pendingAmount > 0 ? Math.min(50000, row.pendingAmount) : null,
+      mode: 'NEFT',
+      paidOn: this.todayISO(),
+      utrNo: '',
+      txnRef: '',
+      chequeNo: '',
+      bank: '',
+      chequeDate: null,
+      remarks: ''
+    });
 
-  this.showCollect = true;
-}
+    this.showCollect = true;
+  }
 
   closeCollect(): void {
-  this.showCollect = false;
-  this.selected = null;
-  this.lastReceiptNo = null;
+    this.showCollect = false;
+    this.selected = null;
+    this.lastReceiptNo = null;
 
-  document.body.classList.remove('modal-open'); // ✅ remove
-}
+    document.body.classList.remove('modal-open'); // ✅ remove
+  }
 
 }

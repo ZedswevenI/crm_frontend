@@ -22,7 +22,7 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" (requestData)="loadBankAccounts($event)" [columns]="columns"
+            <list-table [autoFitChars]="true" (requestData)="fetchTableData($event)" [columns]="columns"
                 [totalRecords]="totalRecords" [data]="bankData" [actions]="actions" [showpageoptions]="true">
             </list-table>
         </div>

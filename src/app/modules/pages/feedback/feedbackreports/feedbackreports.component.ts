@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../service/alert/alert.service';
+import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 
 type Status = 'open' | 'resolved';
 
@@ -88,7 +89,16 @@ export class FeedbackreportsComponent implements OnInit {
   ];
 
   studentFiltered: StudentFeedbackRow[] = [];
+  //student List
+  student= [];
+  totalRecords = 0;
+  loading = false;
+
   facultyFiltered: FacultyFeedbackRow[] = [];
+    //student List
+  faculty= [];
+  totalRecords1 = 0;
+  loading1 = false;
 
   summary = {
     total: 0,
@@ -135,7 +145,7 @@ export class FeedbackreportsComponent implements OnInit {
     }
   ];
 
-  constructor(private breadcrumb: BredcrumpService, private alert: AlertService) {
+  constructor(private breadcrumb: BredcrumpService, private alert: AlertService, private api: CommonapiService) {
     this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Reports' }, { label: 'Feedback' }]);
   }
 
@@ -144,6 +154,106 @@ export class FeedbackreportsComponent implements OnInit {
     this.fromDate = today;
     this.toDate = today;
     this.applyFilters();
+  }
+
+  //list
+    fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.api.fetchData(body, 'ims/user', `list?list=full`).subscribe({
+      next: (res: any) => {
+        this.student = res.data;
+        this.totalRecords = res.data?.total || 0;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error('Error loading admissions');
+      }
+    });
+  }
+
+  //faculy List
+    fetchFacultyTable(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.api.fetchData(body, 'ims/user', `list?list=full`).subscribe({
+      next: (res: any) => {
+        this.faculty = res.data;
+        this.totalRecords = res.data?.total || 0;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error('Error loading admissions');
+      }
+    });
   }
 
   reload(): void {

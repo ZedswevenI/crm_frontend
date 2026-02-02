@@ -64,7 +64,7 @@ export class DepartmentComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    this.loadDepartments({ page: 1, pageSize: 10 });
+    // this.loadDepartments({ page: 1, pageSize: 10 });
   }
 
   // ---------------- FORM ----------------

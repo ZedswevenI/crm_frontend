@@ -33,6 +33,7 @@ export class NewdashboardComponent {
       links: [
         { label: 'New Admission', path: '/app/admissions/new' },
         { label: 'Search Enrollment', path: '/app/admissions' },
+        { label: 'Wait for Approval', path: '/app/admissions/waitforapproval' },
         { label: 'Admission Reports', path: '/app/admissions/reports' },
         { label: 'Communication', path: '/app/admissions/communication' },
         { label: 'Fee Calculator', path: '/app/admissions/fee-calculator' },

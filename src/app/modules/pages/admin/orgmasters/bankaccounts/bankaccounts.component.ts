@@ -78,7 +78,7 @@ export class BankaccountsComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    this.loadBankAccounts({ page: 1, pageSize: 10 });
+    // this.fetchTableData({ page: 1, pageSize: 10 });
   }
 
   // ---------------- FORM ----------------
@@ -105,7 +105,7 @@ export class BankaccountsComponent implements OnInit {
     return `?${qs}`;
   }
 
-  loadBankAccounts(event?: {
+  fetchTableData(event?: {
     page: number;
     pageSize: number;
     search?: string;
@@ -212,7 +212,7 @@ export class BankaccountsComponent implements OnInit {
       next: () => {
         this.alert.success(this.formMode === 'create' ? 'Bank account created successfully' : 'Bank account updated successfully');
         this.showForm = false;
-        this.loadBankAccounts({ page: 1, pageSize: 10 });
+        this.fetchTableData({ page: 1, pageSize: 10 });
       },
       error: (err: any) => this.alert.error(err?.error?.message || 'Operation failed'),
     });
@@ -241,7 +241,7 @@ export class BankaccountsComponent implements OnInit {
     this.commonApi.fetchData(payload, this.moduleName, 'bankac/delete').subscribe({
       next: () => {
         this.alert.success('Bank account deleted successfully');
-        this.loadBankAccounts({ page: 1, pageSize: 10 });
+        this.fetchTableData({ page: 1, pageSize: 10 });
       },
       error: (err: any) => this.alert.error(err?.error?.message || 'Delete failed'),
     });
@@ -375,7 +375,7 @@ export class BankaccountsComponent implements OnInit {
           this.alert.success('Import completed');
         }
         this.closeImport();
-        this.loadBankAccounts({ page: 1, pageSize: 10 });
+        this.fetchTableData({ page: 1, pageSize: 10 });
       },
       error: (err: any) => {
         this.importing = false;

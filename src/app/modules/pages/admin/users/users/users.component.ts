@@ -4,6 +4,7 @@ import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.ser
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { UserService } from '../../../../../service/admin/user.service';
 import { CenterService } from '../../../../../service/admin/orgmasters/center.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 
 type RoleKey = 'L1' | 'L2' | 'L3' | 'L4';
 
@@ -34,13 +35,17 @@ export class UsersComponent implements OnInit {
   roleInfoVisible = false;
   roleInfoKey: RoleKey | null = null;
 
-  entiId : any
+  entiId: any
 
-  users: any[] = [];
+  // users: any[] = [];
 
   centers: any[] = [];
 
   centerOptions: any[] = [];
+
+  users: any[] = [];
+  totalRecords = 0;
+  loading = false;
 
 
   columns = [
@@ -141,7 +146,8 @@ export class UsersComponent implements OnInit {
     private breadcrumb: BredcrumpService,
     private alertService: AlertService,
     private userService: UserService,
-    private centerService: CenterService
+    private centerService: CenterService,
+    private api: CommonapiService
 
   ) {
     this.entiId = localStorage.getItem('tenantId')
@@ -168,7 +174,7 @@ export class UsersComponent implements OnInit {
       isActive: [true]
     });
 
-    this.loadUsers();
+    // this.loadUsers();s
     this.loadCenters()
   }
 
@@ -198,16 +204,65 @@ export class UsersComponent implements OnInit {
   // ===============================
   // LIST
   // ===============================
-  loadUsers(): void {
-    this.userService.listUsers(this.entiId).subscribe({
+  // loadUsers(): void {
+  //   this.userService.listUsers(this.entiId).subscribe({
+  //     next: (res: any) => {
+  //       if (res?.status === false) {
+  //         this.alertService.error(res?.message || 'Failed to load users');
+  //         return;
+  //       }
+  //       this.users = res?.data || [];
+  //     },
+  //     error: () => this.alertService.error('Server error while loading users')
+  //   });
+  // }
+
+  fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.api.fetchData(body, 'ims/user', `list?list=full`).subscribe({
       next: (res: any) => {
-        if (res?.status === false) {
-          this.alertService.error(res?.message || 'Failed to load users');
-          return;
-        }
-        this.users = res?.data || [];
+        this.users = res.data;
+        this.totalRecords = res.data?.total || 0;
+        this.loading = false;
       },
-      error: () => this.alertService.error('Server error while loading users')
+      error: (err) => {
+        this.loading = false;
+        this.alertService.error('Error loading admissions');
+      }
     });
   }
 
@@ -227,7 +282,6 @@ export class UsersComponent implements OnInit {
   edit(row: any): void {
     this.formMode = 'edit';
     this.editingId = row._id;
-
     this.userForm.patchValue({
       name: row.name,
       email: row.email,
@@ -253,10 +307,10 @@ export class UsersComponent implements OnInit {
       return;
     }
 
-    console.log("Centeres ",this.centers);
-    
+    console.log("Centeres ", this.centers);
+
     const f = this.userForm.value;
-    
+
     const selectedCenter = this.centers.find(
       (c: any) => c.centerId === f.centerId
     );
@@ -302,7 +356,7 @@ export class UsersComponent implements OnInit {
         );
 
         this.showForm = false;
-        this.loadUsers();
+        // this.loadUsers();
       },
       error: () => this.alertService.error('Server error')
     });
@@ -342,7 +396,7 @@ export class UsersComponent implements OnInit {
             return;
           }
           this.alertService.success('User deleted');
-          this.loadUsers();
+          // this.loadUsers();
         },
         error: () => this.alertService.error('Server error')
       });

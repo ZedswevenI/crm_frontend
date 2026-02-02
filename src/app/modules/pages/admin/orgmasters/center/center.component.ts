@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CenterService } from '../../../../../service/admin/orgmasters/center.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 
 @Component({
   selector: 'app-center',
@@ -13,7 +14,7 @@ import { CenterService } from '../../../../../service/admin/orgmasters/center.se
 export class CenterComponent implements OnInit {
 
   centerForm!: FormGroup;
-  centerData: any[] = [];
+  // centerData: any[] = [];
 
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
@@ -23,8 +24,12 @@ export class CenterComponent implements OnInit {
   deleteTarget: any | null = null;
   deleteMessage = '';
 
+  loading = false;
+  totalRecords = 0;
+  centerData: any[] = [];
+
   // Static entiId (as per backend requirement)
-  entiId : any;
+  entiId: any;
 
   // Dummy institute data (replace with API later if needed)
   institutes = [
@@ -65,7 +70,8 @@ export class CenterComponent implements OnInit {
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alertService: AlertService,
-    private centerService: CenterService
+    private centerService: CenterService,
+    private api: CommonapiService
   ) {
     this.entiId = localStorage.getItem('tenantId')
     this.breadcrumb.set([
@@ -87,17 +93,18 @@ export class CenterComponent implements OnInit {
       state: ['', Validators.required],
       isActive: [true],
       // Dynamic additional fields
-     
       contactName: ['', Validators.required],
       address1: ['', Validators.required],
       address2: ['', Validators.required],
       area: ['', Validators.required],
-       phone: ['', Validators.required],
+      phone: ['', Validators.required],
       pincode: ['', Validators.required]
     });
 
-    this.loadCenters();
+    // this.loadCenters();
   }
+
+
 
   // ===============================
   // LIST
@@ -110,6 +117,56 @@ export class CenterComponent implements OnInit {
       error: (err) => this.alertService.error(err)
     });
   }
+
+  fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.api.fetchData(body, 'ims/center', `list?list=full`).subscribe({
+      next: (res: any) => {
+        this.centerData = res.data;
+        this.totalRecords = res.data?.total || 0;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alertService.error('Error loading admissions');
+      }
+    });
+  }
+
 
   // ===============================
   // ADD
@@ -195,11 +252,11 @@ export class CenterComponent implements OnInit {
         });
     api$.subscribe({
       next: (res: any) => {
-        console.log("respons ",res);
-        
+        console.log("respons ", res);
+
         if (res?.status === false || res?.success === false && !res.data) {
           this.alertService.error(res?.message || 'Operation failed');
-          return; 
+          return;
         }
         this.alertService.success(
           this.formMode === 'create'

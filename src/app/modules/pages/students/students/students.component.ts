@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
+import { forkJoin } from 'rxjs';
 
 type ViewMode = 'list' | 'grid';
 
@@ -30,6 +31,7 @@ export class StudentsComponent implements OnInit {
   selectedStatus = '';
   programsFull: any[] = [];
   centersFull: any[] = [];
+  statusFilter = 'all';
   columns = [
     { key: 'student.name', label: 'Name', sortable: true },
     { key: 'admissionNo', label: 'Admission No', sortable: true },
@@ -71,9 +73,91 @@ export class StudentsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadPrograms();
-    this.loadCenters();
-    this.loadStudents();
+    this.loadAllLookupsAndInit();
+    // this.loadPrograms();
+    // this.loadCenters();
+    // this.loadStudents();
+  }
+
+  // studentlist
+  fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
+    this.loading = true;
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    //filter (optional)
+    if (this.statusFilter && this.statusFilter !== 'all') {
+      query.status = this.statusFilter;
+    }
+    if (this.selectedProgram) {
+      query.programId = this.selectedProgram;
+    }
+    if (this.selectedCenter) {
+      query.centerId = this.selectedCenter;
+    }
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.commonApi.fetchData(body, 'student', `list?${queryString}`).subscribe({
+      next: (res: any) => {
+        this.students = res.data;
+        this.totalRecords = res?.count || 0;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error('Error loading admissions');
+      }
+    });
+  }
+
+  //program & center list
+  loadAllLookupsAndInit() {
+    const entiId = this.entiId;
+    this.loading = true;
+
+    forkJoin({
+      program: this.commonApi.fetchData({ entiId }, 'ims', 'program/list?list=full'),
+      center: this.commonApi.fetchData({ entiId }, 'ims', 'center/list?list=full'),
+    }).subscribe({
+      next: ({ program, center }) => {
+        this.programsFull = program.data || [];
+        this.centersFull = center.data || [];
+      },
+      error: (err) => {
+        this.loading = false;
+        this.alert.error(`Unable to load initial data!`);
+      }
+    });
   }
 
   loadPrograms() {
@@ -97,60 +181,97 @@ export class StudentsComponent implements OnInit {
   }
 
   // --- Load Data ---
-  loadStudents(event?: {
-    page: number;
-    pageSize: number;
-    search?: string;
-    sortKey?: string;
-    sortDirection?: 'asc' | 'desc';
-  }) {
-    this.loading = true;
-    this.currentPage = event?.page || 1;
-    this.pageSize = event?.pageSize || 20;
-    const queryParams: any = {
-      page: this.currentPage,
-      limit: this.pageSize,
-    };
-    if (this.searchText) queryParams.search = safeTrim(this.searchText);
-    if (this.selectedProgram) queryParams.programId = this.selectedProgram;
-    if (this.selectedCenter) queryParams.centerId = this.selectedCenter;
-    if (this.selectedStatus) queryParams.status = this.selectedStatus;
-    if (event?.sortKey) {
-      const dir = event.sortDirection === 'asc' ? '' : '-';
-      queryParams.sort = `${dir}${event.sortKey}`;
-    }
-    const qs = Object.keys(queryParams)
-      .map((k) => `${k}=${encodeURIComponent(queryParams[k])}`)
-      .join('&');
-    this.commonApi
-      .fetchData({ entiId: this.entiId }, this.moduleName, `list?${qs}`)
-      .subscribe({
-        next: (res: any) => {
-          this.loading = false;
-          this.students = (res?.data || []).map((s: any) => ({
-            ...s,
-            _raw: s,
-          }));
-          this.totalRecords = res?.count || 0;
-        },
-        error: (err: any) => {
-          this.loading = false;
-          this.alert.error(err?.error?.message || 'Failed to load students');
-        },
-      });
-  }
+  // loadStudents(event?: {
+  //   page: number;
+  //   pageSize: number;
+  //   search?: string;
+  //   sortKey?: string;
+  //   sortDirection?: 'asc' | 'desc';
+  // }) {
+  //   this.loading = true;
+  //   this.currentPage = event?.page || 1;
+  //   this.pageSize = event?.pageSize || 20;
+  //   const queryParams: any = {
+  //     page: this.currentPage,
+  //     limit: this.pageSize,
+  //   };
+  //   if (this.searchText) queryParams.search = safeTrim(this.searchText);
+  //   if (this.selectedProgram) queryParams.programId = this.selectedProgram;
+  //   if (this.selectedCenter) queryParams.centerId = this.selectedCenter;
+  //   if (this.selectedStatus) queryParams.status = this.selectedStatus;
+  //   if (event?.sortKey) {
+  //     const dir = event.sortDirection === 'asc' ? '' : '-';
+  //     queryParams.sort = `${dir}${event.sortKey}`;
+  //   }
+  //   const qs = Object.keys(queryParams)
+  //     .map((k) => `${k}=${encodeURIComponent(queryParams[k])}`)
+  //     .join('&');
+
+  //   this.commonApi
+  //     .fetchData({ entiId: this.entiId }, this.moduleName, `list?${qs}`)
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         this.loading = false;
+  //         this.students = (res?.data || []).map((s: any) => ({
+  //           ...s,
+  //           _raw: s,
+  //         }));
+  //         this.totalRecords = res?.count || 0;
+  //       },
+  //       error: (err: any) => {
+  //         this.loading = false;
+  //         this.alert.error(err?.error?.message || 'Failed to load students');
+  //       },
+  //     });
+  // }
 
   setView(mode: ViewMode): void {
     this.viewMode = mode;
   }
 
   applyFilters(): void {
-    this.loadStudents({ page: 1, pageSize: this.pageSize });
+    // this.loadStudents({ page: 1, pageSize: this.pageSize });
+    this.fetchTableData({ page: 1, pageSize: this.pageSize });
   }
+
+  onStatusChange(value: string) {
+    this.statusFilter = value;
+
+    // reload table
+    this.fetchTableData({
+      page: 1,
+      pageSize: this.pageSize,
+      search: this.searchText
+    });
+  }
+  onProgramChange(value: string) {
+    this.selectedProgram = value;
+
+    // reload table
+    this.fetchTableData({
+      page: 1,
+      pageSize: this.pageSize,
+      search: this.searchText
+    });
+  }
+
+  onCenterChange(value: string) {
+     this.selectedCenter = value;
+
+    // reload table
+    this.fetchTableData({
+      page: 1,
+      pageSize: this.pageSize,
+      search: this.searchText
+    });
+  }
+
+
 
   clearSearch() {
     this.searchText = '';
-    this.loadStudents({ page: 1, pageSize: this.pageSize });
+    // this.loadStudents({ page: 1, pageSize: this.pageSize });
+    this.fetchTableData({ page: 1, pageSize: this.pageSize });
   }
 
   getInitials(name: string): string {

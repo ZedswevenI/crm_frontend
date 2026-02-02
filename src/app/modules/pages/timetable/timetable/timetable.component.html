@@ -46,9 +46,12 @@
                 </div>
             </div>
 
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [totalRecords]="totalRecords"
+            <!-- <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [totalRecords]="totalRecords"
                 [actions]="actions" [showpageoptions]="true" (requestData)="loadTimetables($event)">
-            </list-table>
+            </list-table> -->
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [totalRecords]="totalRecords"
+                [actions]="actions" [showpageoptions]="true"  (requestData)="fetchTableData($event)">
+            </list-table> 
         </div>
     </div>
 

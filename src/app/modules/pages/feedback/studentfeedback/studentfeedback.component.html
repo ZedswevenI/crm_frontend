@@ -68,7 +68,8 @@
                 </div>
             </div>
 
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="filtered" [actions]="actions">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="filtered" [actions]="actions"
+             [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
             </list-table>
 
         </div>

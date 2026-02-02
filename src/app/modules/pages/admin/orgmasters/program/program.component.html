@@ -22,8 +22,12 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" (requestData)="loadPrograms($event)" [columns]="columns"
+            <!-- <list-table [autoFitChars]="true" (requestData)="loadPrograms($event)" [columns]="columns"
                 [totalRecords]="totalRecords" [data]="programData" [actions]="actions" [showpageoptions]="true">
+            </list-table> -->
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="programData" [actions]="actions"
+                [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords"
+                (requestData)="fetchTableData($event)">
             </list-table>
         </div>
     </div>

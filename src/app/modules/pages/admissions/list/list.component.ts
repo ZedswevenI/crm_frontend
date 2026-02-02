@@ -19,11 +19,25 @@ type ListStatusFilter = 'all' | 'approved' | 'rejected' | 'waiting';
   styleUrl: './list.component.scss',
 })
 export class ListComponent implements OnInit {
-  admissions: any[] = [];
+  // admissions: any[] = [];
+  admissions = []
   loading = false;
   searchRegNo = '';
-  totalRecords=0;
-  statusFilter: ListStatusFilter = 'all';
+  totalRecords = 0;
+  // statusFilter: ListStatusFilter = 'all';
+
+  //filter
+  pageSize = 5;
+  searchText = '';
+  statusFilter = 'all';
+  
+  statusFilterOptions = [
+    { label: 'All', value: 'all' },
+    { label: 'Approved', value: 'approved' },
+    { label: 'Rejected', value: 'rejected' },
+    { label: 'Waiting for approval', value: 'waiting' }
+  ];
+
   columns = [
     { key: 'regNo', label: 'Reg No', sortable: false },
     { key: 'name', label: 'Student', sortable: false },
@@ -53,62 +67,149 @@ export class ListComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadAdmissions();
+    // this.loadAdmissions();
   }
 
   onStatusChange(): void {
-    this.loadAdmissions();
+    // this.loadAdmissions();
   }
 
-  private loadAdmissions(regNo?: string): void {
+  onStatusFilterChange(value: string) {
+    this.statusFilter = value;
+
+    // reload table
+    this.fetchTableData({
+      page: 1,
+      pageSize: this.pageSize,
+      search: this.searchText
+    });
+  }
+
+  fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
     this.loading = true;
-    const body: any = { entiId: localStorage.getItem('tenantId') };
-    const search = (regNo ?? this.searchRegNo ?? '').trim();
-    let route = 'list?page=1&limit=5';
+
+    // Pagination & Sort
+    let sortParam = '';
+    if (params.sortKey) {
+      sortParam =
+        params.sortDirection === 'desc'
+          ? `-${params.sortKey}`
+          : params.sortKey;
+    }
+
+    const query: any = {
+      page: params.page,
+      limit: params.pageSize
+    };
+    if (sortParam) query.sort = sortParam;
+    if (params.search) query.search = params.search;
+
+    //filter (optional)
     if (this.statusFilter && this.statusFilter !== 'all') {
-      route += `&status=${encodeURIComponent(this.statusFilter)}`;
-    } else {
+      query.status = this.statusFilter;
     }
-    if (search) {
-      this.searchRegNo = search;
-      route += `&search=${encodeURIComponent(search)}`;
-    }
-    this.api.fetchData(body, 'admi', route).subscribe({
+
+    // Build query string
+    const queryString = Object.keys(query)
+      .map(
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+      )
+      .join('&');
+
+    const body = {
+      entiId: localStorage.getItem('tenantId')
+    };
+
+    this.api.fetchData(body, 'admi', `list?${queryString}`).subscribe({
       next: (res: any) => {
         this.loading = false;
-        if (!res?.status) {
-          this.alert.error(res?.message || 'Failed to load admissions');
-          this.admissions = [];
-          return;
-        }
-        this.totalRecords = res.data.total
-        const raw = Array.isArray(res.data)
-          ? res.data
-          : res.data?.rows || res.data?.items || res.data?.rows || [];
-        const list = Array.isArray(raw) ? raw : [];
-        this.admissions = list.map((a: any) => ({
+        this.totalRecords = res.data?.total || 0;
+
+        const raw =
+          Array.isArray(res.data)
+            ? res.data
+            : res.data?.rows || res.data?.items || [];
+
+        this.admissions = raw.map((a: any) => ({
           id: a.admissionId || a._id || a.id,
           regNo: a.registrationNumber || a.studentRegNo || a.regNo || '',
           admissionNo: a.admissionNo,
           name: a?.student?.name || '',
           programName: a.programName || '',
           centerName: a.centerName || '',
-          finalFee: a.fee.finalFee ?? 0,
+          finalFee: a?.fee?.finalFee ?? 0,
           status: this.mapDisplayStatus(
             (a?.workflow?.stage ||
               a.status ||
               a.admissionStatus ||
               'draft') as AdmissionStatus
-          ),
+          )
         }));
       },
       error: (err) => {
         this.loading = false;
-        console.error('Error loading admissions', err);
         this.alert.error('Error loading admissions');
-      },
+      }
     });
   }
+
+
+
+  // private loadAdmissions(regNo?: string): void {
+  //   this.loading = true;
+  //   const body: any = { entiId: localStorage.getItem('tenantId') };
+  //   const search = (regNo ?? this.searchRegNo ?? '').trim();
+  //   let route = 'list?page=1&limit=5';
+  //   if (this.statusFilter && this.statusFilter !== 'all') {
+  //     route += `&status=${encodeURIComponent(this.statusFilter)}`;
+  //   } else {
+  //   }
+  //   if (search) {
+  //     this.searchRegNo = search;
+  //     route += `&search=${encodeURIComponent(search)}`;
+  //   }
+  //   this.api.fetchData(body, 'admi', route).subscribe({
+  //     next: (res: any) => {
+  //       this.loading = false;
+  //       if (!res?.status) {
+  //         this.alert.error(res?.message || 'Failed to load admissions');
+  //         this.admissions = [];
+  //         return;
+  //       }
+  //       this.totalRecords = res.data.total
+  //       const raw = Array.isArray(res.data)
+  //         ? res.data
+  //         : res.data?.rows || res.data?.items || res.data?.rows || [];
+  //       const list = Array.isArray(raw) ? raw : [];
+  //       this.admissions = list.map((a: any) => ({
+  //         id: a.admissionId || a._id || a.id,
+  //         regNo: a.registrationNumber || a.studentRegNo || a.regNo || '',
+  //         admissionNo: a.admissionNo,
+  //         name: a?.student?.name || '',
+  //         programName: a.programName || '',
+  //         centerName: a.centerName || '',
+  //         finalFee: a.fee.finalFee ?? 0,
+  //         status: this.mapDisplayStatus(
+  //           (a?.workflow?.stage ||
+  //             a.status ||
+  //             a.admissionStatus ||
+  //             'draft') as AdmissionStatus
+  //         ),
+  //       }));
+  //     },
+  //     error: (err) => {
+  //       this.loading = false;
+  //       console.error('Error loading admissions', err);
+  //       this.alert.error('Error loading admissions');
+  //     },
+  //   });
+  // }
 
   private mapDisplayStatus(stage: string): string {
     const s = String(stage || '').toLowerCase();
@@ -119,16 +220,16 @@ export class ListComponent implements OnInit {
     return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  onSearch(value: string): void {
-    this.searchRegNo = (value || '').trim();
-    this.loadAdmissions(this.searchRegNo);
-  }
+  // onSearch(value: string): void {
+  //   this.searchRegNo = (value || '').trim();
+  //   this.loadAdmissions(this.searchRegNo);
+  // }
 
-  clearSearch(input: HTMLInputElement): void {
-    this.searchRegNo = '';
-    if (input) input.value = '';
-    this.loadAdmissions('');
-  }
+  // clearSearch(input: HTMLInputElement): void {
+  //   this.searchRegNo = '';
+  //   if (input) input.value = '';
+  //   this.loadAdmissions('');
+  // }
 
   newAdmission(): void {
     this.router.navigate(['/app/admissions/new']);

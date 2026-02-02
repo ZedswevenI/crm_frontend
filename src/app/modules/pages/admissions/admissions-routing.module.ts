@@ -10,9 +10,11 @@ import { AdmissionfeecalComponent } from './admissionfeecal/admissionfeecal.comp
 import { AdmissionpaymentsEditorComponent } from './admissionpayments-editor/admissionpayments-editor.component';
 import { AdmissionEditComponent } from './admission-edit/admission-edit.component';
 import { AdmissionbugComponent } from './admissionbug/admissionbug.component';
+import { AdmissionWaitComponent } from './admission-wait/admission-wait.component';
 
 const routes: Routes = [
   { path: '', component: ListComponent },
+  { path: 'waitforapproval', component: AdmissionWaitComponent },
   { path: 'new1', component: AdmissionsComponent },
   { path: 'new', component: AdmissionbugComponent },
   { path: 'view/:id', component: AdmissionviewComponent },

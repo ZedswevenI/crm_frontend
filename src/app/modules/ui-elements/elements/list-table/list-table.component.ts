@@ -1,5 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, input, ViewChild, ElementRef, HostListener } from '@angular/core';
 
+export interface TableFilterOption {
+  label: string;
+  value: string;
+}
+
 @Component({
   selector: 'list-table',
   standalone: false,
@@ -7,6 +12,7 @@ import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChange
   styleUrl: './list-table.component.scss'
 })
 export class ListTableComponent {
+  // Table details 
   @Input() columns: { key: string; label: string; sortable: boolean; date?: boolean; maxWidthPx?: number }[] = [];
   @Input() data: any[] = [];
   @Input() actions: any[] = [];
@@ -21,8 +27,20 @@ export class ListTableComponent {
   @Input() baseCharWidth = 8;
   @Input() minChars = 12;
   @Input() hardMaxChars = 30;
+
+  // filter
+  @Input() filterLabel = 'Filter Based on';
+  @Input() filterOptions: TableFilterOption[] = [];
+  @Input() selectedFilter: string = 'all';
+
+  @Output() filterChange = new EventEmitter<string>();
+
   @ViewChild('tableWrap', { static: false }) tableWrap?: ElementRef<HTMLDivElement>;
   private containerWidth = 0;
+
+  // @Input() isPrimary: boolean = false;
+  // @Output() rowClick = new EventEmitter<any>();
+
   @Output() requestData = new EventEmitter<{
     page: number;
     pageSize: number;
@@ -42,7 +60,7 @@ export class ListTableComponent {
     return Math.ceil(this.totalRecords / this.pageSize) || 1;
   }
 
-  constructor() {}
+  constructor() { }
 
   ngOnInit(): void {
     this.pageSize = this.pageSizeOptions[0];
@@ -56,8 +74,20 @@ export class ListTableComponent {
     this.updatePagination();
   }
 
+  // onRowClicked(row: any) {
+  //   this.rowClick.emit(row);
+  // }
+  // getColumnClass(column: any): string {
+  //   return this.isPrimary ? 'highlight-col' : '';
+  // }
+
   onOpenFilters() {
     this.filterClicked.emit();
+  }
+
+  //filter
+  onFilterChange(value: string) {
+    this.filterChange.emit(value);
   }
 
   clearSearch(): void {
@@ -199,6 +229,8 @@ export class ListTableComponent {
 
   private getMaxChars(col?: any): number {
     if (!this.autoFitChars || !this.containerWidth) return this.hardMaxChars;
+
+
     const fixedCols = 1 + (this.showaction ? 1 : 0);
     const numDataCols = Math.max(1, (this.columns?.length || 1) + fixedCols);
     const paddingGuard = 64;
@@ -207,11 +239,16 @@ export class ListTableComponent {
     return Math.max(this.minChars, Math.min(this.hardMaxChars, approxChars));
   }
 
+
   expanded: { rowIndex: number; colKey: string; value: string } | null = null;
   private collapseTimer: any = null;
+
+
   get fullColSpan(): number {
+
     return 1 + (this.columns?.length || 0) + (this.showaction ? 1 : 0);
   }
+
 
   columnLabel(key: string): string {
     const c = (this.columns || []).find((col) => col.key === key);
