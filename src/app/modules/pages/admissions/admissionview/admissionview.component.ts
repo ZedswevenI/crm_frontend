@@ -1775,7 +1775,7 @@ export class AdmissionviewComponent implements OnInit {
 
     // const courseStart = this.esc(ac.courseStart || ac.startMonth || 'Apr 2026');
     const centerName = this.esc(ac.centreName || '');
-    // const gstin = this.esc(ac.gstin || '33AAACF2659M2ZH');
+    const gstin = this.esc( '33AACCZ5769Q1ZF');
 
     // Fee Info
     const feePlanName = this.esc(fee.feePlanName || '');
@@ -1948,7 +1948,7 @@ export class AdmissionviewComponent implements OnInit {
                </tr>
                <tr>
                  <td>GSTIN</td>
-                 <td></td>
+                 <td>${gstin}</td>
                </tr>
             </tbody>
           </table>
