@@ -22,9 +22,6 @@
         </div>
 
         <div class="card-body pt-0">
-            <!-- <list-table [autoFitChars]="true" (requestData)="loadPrograms($event)" [columns]="columns"
-                [totalRecords]="totalRecords" [data]="programData" [actions]="actions" [showpageoptions]="true">
-            </list-table> -->
             <list-table [autoFitChars]="true" [columns]="columns" [data]="programData" [actions]="actions"
                 [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords"
                 (requestData)="fetchTableData($event)">
@@ -104,7 +101,6 @@
         </div>
     </div>
 
-    <!-- ================= Create / Edit Modal ================= -->
     <div class="app-modal-backdrop" *ngIf="showForm">
         <div class="app-modal" style="max-width: 1020px;">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
@@ -118,64 +114,52 @@
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
             </div>
-
             <div class="app-modal-body">
                 <form [formGroup]="programForm" (ngSubmit)="save()">
                     <div class="row g-3">
-
                         <div class="col-md-5">
                             <formfield label="Program Name" [required]="true" [control]="programForm.get('name')"
                                 formControlName="name" placeholder="ARISE - One Year Foundation"></formfield>
                         </div>
-
                         <div class="col-md-4">
                             <formfield label="Program Code" [required]="true" [control]="programForm.get('code')"
                                 formControlName="code" placeholder="C6053"></formfield>
                         </div>
-
                         <div class="col-md-3">
                             <selectbox label="Stream" [required]="true" [options]="streamOptions" optionLabel="label"
                                 optionValue="value" [control]="programForm.get('stream')" formControlName="stream">
                             </selectbox>
                         </div>
-
                         <div class="col-md-3">
                             <selectbox label="Eligible Class" [required]="true" [options]="eligibleClassOptions"
                                 [optionLabel]="'label'" [optionValue]="'value'"
                                 [control]="programForm.get('eligibleToClass')" formControlName="eligibleToClass">
                             </selectbox>
                         </div>
-
                         <div class="col-md-3">
                             <selectbox label="Starting Class" [required]="true" [options]="startingClassOptions"
                                 [optionLabel]="'label'" [optionValue]="'value'"
                                 [control]="programForm.get('startingClass')" formControlName="startingClass">
                             </selectbox>
                         </div>
-
                         <div class="col-md-2">
                             <selectbox label="Duration (Years)" [required]="true" [options]="durationOptions"
                                 [optionLabel]="'label'" [optionValue]="'value'" [control]="programForm.get('duration')"
                                 formControlName="duration"></selectbox>
                         </div>
-
                         <div class="col-md-2">
                             <appreadonly label="Ending Class" [required]="false"
                                 [control]="programForm.get('endingClass')" formControlName="endingClass"
                                 placeholder="-"></appreadonly>
                         </div>
-
                         <div class="col-md-5">
                             <formfield label="Version" [required]="true" [control]="programForm.get('version')"
                                 formControlName="version" placeholder="Special Sunday / Regular"></formfield>
                         </div>
-
                         <div class="col-md-3 d-flex align-items-center">
                             <checkbox label="Active" [control]="programForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
-
-                        <!-- ✅ Subjects checkbox group -->
                         <div class="col-12">
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                                 <div class="fw-semibold">Subjects</div>
@@ -185,7 +169,6 @@
                                     Add Subjects to Program
                                 </button>
                             </div>
-
                             <div class="border rounded p-2" style="max-height: 210px; overflow: auto;">
                                 <div class="row g-2">
                                     <div class="col-md-4" *ngFor="let s of subjectOptions">
@@ -200,19 +183,103 @@
                                         </div>
                                     </div>
                                 </div>
-
                                 <div class="small text-muted mt-2" *ngIf="!subjectOptions.length">
                                     No subjects available. Please create subjects first.
                                 </div>
                             </div>
-
                             <div class="small text-muted mt-1">
                                 Note: In edit, <span class="fw-semibold">Add Subjects</span> will only append newly
                                 selected subjects (won’t remove existing).
                             </div>
                         </div>
+                        <div class="col-12" *ngIf="formMode === 'edit'">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                <div class="fw-semibold">Exam Category Mapping</div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                        (click)="addExamMappingRow()">
+                                        <i class="fa-solid fa-plus me-1"></i>
+                                        Add Mapping Row
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-primary" (click)="saveExamMappings()"
+                                        [disabled]="examMappingsFA.length === 0">
+                                        <i class="fa-solid fa-floppy-disk me-1"></i>
+                                        Save Exam Mappings
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="border rounded p-2">
+                                <div *ngIf="!examCategoryOptions.length" class="small text-muted">
+                                    No exam categories found. Create exam categories first.
+                                </div>
+                                <div class="table-responsive" *ngIf="examCategoryOptions.length">
+                                    <table class="table table-sm table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 48px;">#</th>
+                                                <th style="min-width: 240px;">Exam Category</th>
+                                                <th style="min-width: 260px;">Exam Sub Category</th>
+                                                <th style="width: 140px;">Sort Order</th>
+                                                <th style="width: 80px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody formArrayName="examMappings">
+                                            <tr *ngFor="let g of examMappingsFA.controls; let i = index"
+                                                [formGroupName]="i">
+                                                <td>{{ i + 1 }}</td>
+                                                <td>
+                                                    <select class="form-select form-select-sm"
+                                                        formControlName="categoryId"
+                                                        (change)="onExamCategoryChanged(i)">
+                                                        <option value="">-- Select --</option>
+                                                        <option *ngFor="let c of examCategoryOptions" [value]="c.value">
+                                                            {{ c.label }}
+                                                        </option>
+                                                    </select>
+                                                    <div class="small text-danger mt-1"
+                                                        *ngIf="g.get('categoryId')?.touched && g.get('categoryId')?.invalid">
+                                                        Category required
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <select class="form-select form-select-sm"
+                                                        formControlName="subCategoryId">
+                                                        <option value="">-- Select --</option>
+                                                        <option *ngFor="let s of getSubCategoryOptionsForRow(i)"
+                                                            [value]="s.value">
+                                                            {{ s.label }}
+                                                        </option>
+                                                    </select>
+                                                    <div class="small text-danger mt-1"
+                                                        *ngIf="g.get('subCategoryId')?.touched && g.get('subCategoryId')?.invalid">
+                                                        Sub category required
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <input type="number" class="form-control form-control-sm"
+                                                        formControlName="sortOrder" placeholder="0" />
+                                                </td>
+                                                <td class="text-end">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                                        (click)="removeExamMappingRow(i)">
+                                                        <i class="fa-regular fa-trash-can"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr *ngIf="examMappingsFA.length === 0">
+                                                <td colspan="5" class="text-muted small py-3 text-center">
+                                                    No mappings added.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="small text-muted mt-2">
+                                    Note: Mappings are saved separately (won’t affect Program Save button).
+                                </div>
+                            </div>
+                        </div>
                     </div>
-
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
                         <button type="submit" class="btn btn-primary" [disabled]="programForm.invalid">

@@ -1,0 +1,74 @@
+<div class="exam-category-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Exam Category</h5>
+                <p class="mb-0 text-muted small">Create and manage exam categories.</p>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Category</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="tableData" [actions]="actions"
+                [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords"
+                (requestData)="fetchTableData($event)">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- ================= Create / Edit Modal ================= -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal" style="max-width: 760px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">{{ formMode === 'create' ? 'Create Exam Category' : 'Edit Exam
+                        Category' }}</h6>
+                    <span class="text-muted small">{{ formMode === 'create' ? 'Add a new category' : 'Update category
+                        details' }}</span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="form" (ngSubmit)="save()">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <formfield label="Category Name" [required]="true" [control]="form.get('categoryName')"
+                                formControlName="categoryName" placeholder="Unit Test / Board Exam">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-6">
+                            <formfield label="Category Code" [required]="false" [control]="form.get('categoryCode')"
+                                formControlName="categoryCode" placeholder="UT / BE">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4 d-flex align-items-center">
+                            <checkbox label="Active" [control]="form.get('isActive')" formControlName="isActive">
+                            </checkbox>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+                        <button type="submit" class="btn btn-primary" [disabled]="form.invalid">
+                            {{ formMode === 'create' ? 'Save' : 'Update' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation -->
+    <delete [title]="'Delete Exam Category'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+</div>

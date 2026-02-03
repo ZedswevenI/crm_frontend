@@ -11,9 +11,13 @@ import { ProgramComponent } from './program/program.component';
 import { DepartmentComponent } from './department/department.component';
 import { SubjectComponent } from './subject/subject.component';
 import { BankaccountsComponent } from './bankaccounts/bankaccounts.component';
+import { TopicComponent } from './topic/topic.component';
+import { SubtopicComponent } from './subtopic/subtopic.component';
+import { ExamcategoryComponent } from './examcategory/examcategory.component';
+import { ExamsubcategoryComponent } from './examsubcategory/examsubcategory.component';
 
 @NgModule({
-  declarations: [InstituteComponent, CenterComponent, StaffComponent, ProgramComponent, DepartmentComponent, SubjectComponent, BankaccountsComponent],
+  declarations: [InstituteComponent, CenterComponent, StaffComponent, ProgramComponent, DepartmentComponent, SubjectComponent, BankaccountsComponent, TopicComponent, SubtopicComponent, ExamcategoryComponent, ExamsubcategoryComponent],
   imports: [CommonModule, OrgmastersRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })
 export class OrgmastersModule {}

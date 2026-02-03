@@ -7,6 +7,10 @@ import { ProgramComponent } from './program/program.component';
 import { DepartmentComponent } from './department/department.component';
 import { SubjectComponent } from './subject/subject.component';
 import { BankaccountsComponent } from './bankaccounts/bankaccounts.component';
+import { TopicComponent } from './topic/topic.component';
+import { SubtopicComponent } from './subtopic/subtopic.component';
+import { ExamcategoryComponent } from './examcategory/examcategory.component';
+import { ExamsubcategoryComponent } from './examsubcategory/examsubcategory.component';
 
 const routes: Routes = [
   {
@@ -36,6 +40,22 @@ const routes: Routes = [
   {
     path: 'bankaccounts',
     component: BankaccountsComponent
+  },
+  {
+    path: 'exam/category',
+    component: ExamcategoryComponent
+  },
+  {
+    path: 'exam/subcategory',
+    component: ExamsubcategoryComponent
+  },
+  {
+    path: 'topics',
+    component: TopicComponent
+  },
+  {
+    path: 'subtopics',
+    component: SubtopicComponent
   }
 ];
 

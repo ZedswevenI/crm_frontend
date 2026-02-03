@@ -1,0 +1,90 @@
+<div class="topic-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-1 fw-semibold">Topic Master</h5>
+                <p class="mb-0 text-muted small">Manage topics mapped to Class & Subject.</p>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add Topic</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body pt-0">
+            <!-- NO FILTERS — DIRECT LIST -->
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="tableData" [actions]="actions"
+                [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords"
+                (requestData)="fetchTableData($event)">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- ================= MODAL ================= -->
+    <div class="app-modal-backdrop" *ngIf="showForm">
+        <div class="app-modal" style="max-width: 700px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">{{ formMode === 'create' ? 'Create Topic' : 'Edit Topic' }}</h6>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="form" (ngSubmit)="save()">
+                    <div class="row g-3">
+
+                        <!-- CLASS -->
+                        <div class="col-md-4">
+                            <selectbox label="Class" [required]="true" [options]="classOptions" optionLabel="label"
+                                optionValue="value" formControlName="classNo">
+                            </selectbox>
+                        </div>
+
+                        <!-- SUBJECT -->
+                        <div class="col-md-8">
+                            <selectbox label="Subject" [required]="true" [options]="subjectOptions" optionLabel="label"
+                                optionValue="value" formControlName="subjectId">
+                            </selectbox>
+                        </div>
+
+                        <!-- TOPIC NAME -->
+                        <div class="col-md-6">
+                            <formfield label="Topic Name" [required]="true" formControlName="topicName"
+                                placeholder="Trigonometry">
+                            </formfield>
+                        </div>
+
+                        <!-- TOPIC CODE -->
+                        <div class="col-md-3">
+                            <formfield label="Topic Code" formControlName="topicCode" placeholder="TRI">
+                            </formfield>
+                        </div>
+
+                        <!-- SORT ORDER -->
+                        <div class="col-md-3">
+                            <formfield label="Sort Order" formControlName="sortOrder" placeholder="1">
+                            </formfield>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
+                        <button type="submit" class="btn btn-primary" [disabled]="form.invalid">
+                            {{ formMode === 'create' ? 'Save' : 'Update' }}
+                        </button>
+                    </div>
+
+                    <div class="small text-muted mt-2">
+                        Uses <b>bulkUpsertTopics</b> API internally.
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <delete [title]="'Delete Topic'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
+        (closed)="onDeleteModalClosed($event)">
+    </delete>
+</div>
