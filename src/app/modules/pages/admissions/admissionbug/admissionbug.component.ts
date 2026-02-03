@@ -2035,10 +2035,6 @@ export class AdmissionbugComponent implements OnInit {
       <div class="header">
         <img src="${this.esc(this.PRINT_LOGO_URL)}" class="logo" />
         <div class="inst-name">ZEDSWEVEN I Private Limited, Coimbatore</div>
-        <div class="inst-addr">
-          47D2, Nehru Nagar West, Civil Aerodrome Post,
-          Kalapatti Road, Coimbatore - 641014
-        </div>
       </div>
       <div class="ack-title">ACKNOWLEDGEMENT</div>
       <div class="row"><b>Date:</b> ${dateStr}</div>
@@ -2094,6 +2090,11 @@ export class AdmissionbugComponent implements OnInit {
       <div class="contact">
         For any support on a later stage please contact us on contact 9159241133 / 9626292233
       </div>
+      <div class="inst-name" style="margin-top : 25px">ZEDSWEVEN I Private Limited, Coimbatore</div>
+        <div class="inst-addr">
+          47D2, Nehru Nagar West, Civil Aerodrome Post,
+          Kalapatti Road, Coimbatore - 641014
+        </div>
     </div>
   `;
     return `

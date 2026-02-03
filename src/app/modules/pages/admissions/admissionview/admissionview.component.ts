@@ -1060,7 +1060,6 @@ export class AdmissionviewComponent implements OnInit {
       </div>
       <div class="ack-org">
         <div class="ack-org1">${this.esc(orgLine1)}</div>
-        <div class="ack-org2">${this.esc(orgLine2)}</div>
       </div>
       <div class="ack-title">ACKNOWLEDGEMENT</div>
       <div class="ack-date"><b>Date: ${this.esc(dateText)}</b></div>
@@ -1133,6 +1132,10 @@ export class AdmissionviewComponent implements OnInit {
         <div class="ack-support">
           For any support on a later stage please contact us on 9159241133 / 9626292233
         </div>
+      </div>
+      <div class="ack-org" style="margin-top:25px">
+        <div class="ack-org1">${this.esc(orgLine1)}</div>
+        <div class="ack-org2">${this.esc(orgLine2)}</div>
       </div>
     </div>
   `;
