@@ -46,6 +46,16 @@ interface ChequeRow {
   remarks?: string | null;
 }
 
+interface OtherPaymentRow {
+  mode: string;
+  refNo: string;
+  amount: number;
+  paidOn: number | null;
+  bankName: string | null;
+  remarks: string | null;
+  status: string;
+}
+
 interface AdmissionViewModel {
   admissionId: string;
   admissionNo: string;
@@ -59,12 +69,23 @@ interface AdmissionViewModel {
     parentName: string;
     parentPhone: string;
     email?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    pincode?: string | null;
+    dateOfBirth?: number | null;
+    gender?: string | null;
+    fatherName?: string | null;
+    motherName?: string | null;
   };
   academics: {
     centreName: string;
     programName: string;
     batchName?: string | null;
     className?: string | null;
+    duration?: string | number | null;
+    courseStart?: string | null;
+    startMonth?: string | null;
   };
   test: {
     testDate?: string | null;
@@ -89,6 +110,7 @@ interface AdmissionViewModel {
     neftSplitAmount: number;
     neftTotalEntered: number;
     neftRefs: NefRef[];
+    otherPayments: OtherPaymentRow[];
     chequeSummary: {
       totalCheques: number;
       totalAmount: number;
@@ -98,6 +120,7 @@ interface AdmissionViewModel {
     };
     cheques: ChequeRow[];
   };
+  portalStudentId: string;
   workflowStage?: string | null;
   schoolMarks?: {
     overallPct?: any | null;
@@ -297,6 +320,23 @@ export class AdmissionviewComponent implements OnInit {
         remarks: p.remarks || null,
       }))
       .filter((x: any) => x.amount > 0);
+    const otherPayments: OtherPaymentRow[] = (payments || [])
+      .filter((p: any) => String(p.paymentType || '').toUpperCase() === 'OTHER')
+      .map((p: any) => ({
+        mode: String(p.other?.mode || 'OTHER').toUpperCase(),
+        refNo: String(p.other?.refNo || '—'),
+        amount: Number(p.amount || 0),
+        paidOn:
+          typeof p.other?.paidOn === 'number' ? p.other.paidOn : p.submittedOn,
+        bankName: p.other?.bankName || null,
+        remarks: p.remarks || null,
+        status: String(p.status || 'SUBMITTED').toUpperCase(),
+      }))
+      .filter((x: any) => x.amount > 0);
+    let duration: any = null;
+    if (adm.programId && typeof adm.programId === 'object') {
+      duration = adm.programId.duration;
+    }
     return {
       workflowStage: String(adm?.workflow?.stage || ''),
       admissionId: String(adm.admissionId || ''),
@@ -304,6 +344,7 @@ export class AdmissionviewComponent implements OnInit {
       status: this.mapStageToStatus(adm?.workflow?.stage, adm?.status),
       createdAt: adm.createdAt || '',
       updatedAt: adm.updatedAt || null,
+      portalStudentId: adm.portalStudentId,
       student: {
         name: adm.student?.name || '',
         regNo: adm.registrationNumber || null,
@@ -311,12 +352,23 @@ export class AdmissionviewComponent implements OnInit {
         parentName: adm.student?.parentName || adm.student?.fatherName || '',
         parentPhone: adm.student?.parentPhone || '',
         email: adm.student?.email || null,
+        address: adm.student?.address || null,
+        city: adm.student?.city || null,
+        state: adm.student?.state || null,
+        pincode: adm.student?.pincode || null,
+        dateOfBirth: adm.student?.dateOfBirth || null,
+        gender: adm.student?.gender || null,
+        fatherName: adm.student?.fatherName || null,
+        motherName: adm.student?.motherName || null,
       },
       academics: {
         centreName: adm.centerName || '',
         programName: adm.programName || '',
         batchName: adm.batchName || null,
         className: adm.classLabel || adm.student?.className || null,
+        duration: duration,
+        courseStart: adm.academicYear ? adm.academicYear.split(' - ')[0] : null,
+        startMonth: null,
       },
       test: {
         testDate: adm.test?.testDate || null,
@@ -358,10 +410,18 @@ export class AdmissionviewComponent implements OnInit {
         neftSplitAmount,
         neftTotalEntered,
         neftRefs,
+        otherPayments,
         chequeSummary,
         cheques: chequeRows,
       },
     };
+  }
+
+  get otherTotal(): number {
+    return (this.admission?.payments?.otherPayments || []).reduce(
+      (s, n) => s + Number(n.amount || 0),
+      0,
+    );
   }
 
   private mapStageToStatus(
@@ -1329,330 +1389,1194 @@ export class AdmissionviewComponent implements OnInit {
     this.router.navigate(['/app/admissions']);
   }
 
+  // private buildContractHtml(): string {
+  //   const a = this.admission;
+  //   if (!a) {
+  //     console.error('No admission loaded');
+  //     return '<p>No data available</p>';
+  //   }
+  //   const today = new Date();
+  //   const s: any = a.student || {};
+  //   const ac: any = a.academics || {};
+  //   const fee: any = a.fee || {};
+  //   const anyAdm: any = a;
+  //   const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
+  //   const headOfficeAddress =
+  //     '13/1 Maharaja Avenue extension, Kalapatti Main Rd, beside Suguna pip school, GKD Nagar, Nehru Nagar West, Coimbatore, Tamil Nadu 641014'; // TODO: replace with real office address
+  //   const centreAddress = ac.centreName || 'Study Centre';
+  //   const studentName = this.esc(s.name || '');
+  //   const parentName = this.esc(s.parentName || '');
+  //   const studentDob = this.esc(s.dob || '');
+  //   const studentSex = this.esc(s.gender || '');
+  //   const studentAddress =
+  //     this.esc(s.address || s.addressLine1 || anyAdm.studentAddress || '') ||
+  //     '__________________________';
+  //   const enrolmentNumber = this.esc(
+  //     s.regNo || anyAdm.registrationNumber || anyAdm.enrolmentNo || '',
+  //   );
+  //   const registrationNumber = this.esc(anyAdm.registrationNumber || '');
+  //   const studentId = this.esc(anyAdm.studentId || '');
+  //   const studentEmail = this.esc(s.email || '');
+  //   const studentMobile = this.esc(s.phone || '');
+  //   const parentMobile = this.esc(s.parentPhone || '');
+  //   const programName = this.esc(ac.programName || '');
+  //   const programDuration = this.esc(ac.duration || '');
+  //   const courseCommencement = this.esc(ac.courseStart || ac.startMonth || '');
+  //   const gstin = this.esc(ac.gstin || '________________');
+  //   const feePlanText = `${this.esc(fee.feePlanCode || '')} ${
+  //     fee.feePlanName ? ' - ' + this.esc(fee.feePlanName) : ''
+  //   }`;
+  //   const baseFee = Number(fee.baseFee || 0);
+  //   const finalFee = this.finalFee || Number(fee.finalFee || 0);
+  //   const totalDiscountPct = Number(fee.totalDiscountPct || 0);
+  //   const neftRowsHtml = (a.payments.neftRefs || [])
+  //     .map(
+  //       (n: any, idx: number) => `
+  //       <tr>
+  //         <td class="text-center">${idx + 1}</td>
+  //         <td>NEFT</td>
+  //         <td>${this.esc(n.utrNo || '')}</td>
+  //         <td>${this.esc(
+  //           n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : '',
+  //         )}</td>
+  //         <td class="text-right">${Number(n.amount || 0).toLocaleString(
+  //           'en-IN',
+  //         )}</td>
+  //       </tr>
+  //     `,
+  //     )
+  //     .join('');
+  //   const chequeRowsHtml = (a.payments.cheques || [])
+  //     .map(
+  //       (c: any, idx: number) => `
+  //       <tr>
+  //         <td class="text-center">${
+  //           (a.payments.neftRefs?.length || 0) + idx + 1
+  //         }</td>
+  //         <td>${this.esc(c.mode || 'PDC')}</td>
+  //         <td>${this.esc(c.chequeNo || '')}</td>
+  //         <td>${this.esc(
+  //           c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : '',
+  //         )}</td>
+  //         <td class="text-right">${Number(c.amount || 0).toLocaleString(
+  //           'en-IN',
+  //         )}</td>
+  //       </tr>
+  //     `,
+  //     )
+  //     .join('');
+  //   const paymentTableBody =
+  //     neftRowsHtml || chequeRowsHtml
+  //       ? neftRowsHtml + chequeRowsHtml
+  //       : '<tr><td colspan="5" class="text-center">No payment schedule captured</td></tr>';
+
+  //   return `
+  //     <div class="page">
+  //     <div class="brand">
+  //             <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
+  //           </div>
+  //       <!-- Header -->
+  //       <div class="header-row">
+  //         <div>
+  //           <div class="title-main">ENROLMENT CONTRACT</div>
+  //           <div class="small">
+  //             (Prepared in line with the requirements for point of taxation / fee contracts)
+  //           </div>
+  //         </div>
+  //         <div class="meta">
+  //           <div><b>Date:</b> ${today.toLocaleDateString('en-IN')}</div>
+  //           <div><b>Admission ID:</b> ${this.esc(a.admissionId || '')}</div>
+  //           ${
+  //             enrolmentNumber
+  //               ? `<div><b>Enrolment No:</b> ${enrolmentNumber}</div>`
+  //               : ''
+  //           }
+  //         </div>
+  //       </div>
+  //       <div class="section small">
+  //         This contract is between <b>${providerName}</b>, having its registered / head office at
+  //         <b>${this.esc(headOfficeAddress)}</b>, and
+  //         <b>${parentName}</b> (Parent / Guardian) of <b>${studentName}</b> (Student),
+  //         for enrolment into the below mentioned classroom / coaching program, for the
+  //         duration indicated and as per the terms listed in this document.
+  //       </div>
+  //       <!-- 1. STUDENT / PROGRAM DETAILS -->
+  //       <div class="section">
+  //         <div class="section-title">1. STUDENT / PROGRAM DETAILS</div>
+  //         <div class="small">
+  //           The details of the Student’s enrolment, program, fee and other relevant information are as follows:
+  //         </div>
+  //         <table>
+  //           <tbody>
+  //             <tr>
+  //               <th colspan="2">i) Details of Education Provider</th>
+  //             </tr>
+  //             <tr>
+  //               <td style="width:45%;">Full Name of Education Provider</td>
+  //               <td>${this.esc(providerName)}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Head Office Address</td>
+  //               <td>${this.esc(headOfficeAddress)}</td>
+  //             </tr>
+
+  //             <tr>
+  //               <th colspan="2">ii) Details of Student / Parent / Guardian</th>
+  //             </tr>
+  //             <tr>
+  //               <td>Full Name of Student</td>
+  //               <td>${studentName}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Date of Birth (DD-MMM-YYYY)</td>
+  //               <td>${studentDob || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Sex</td>
+  //               <td>${studentSex || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Permanent Address</td>
+  //               <td>${studentAddress}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Enrolment Number</td>
+  //               <td>${enrolmentNumber || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Registration Number</td>
+  //               <td>${registrationNumber || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Student ID</td>
+  //               <td>${studentId || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Email ID of Student</td>
+  //               <td>${studentEmail || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Contact Number</td>
+  //               <td>${studentMobile || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Full Name of Parent / Guardian</td>
+  //               <td>${parentName || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Parent / Guardian Mobile</td>
+  //               <td>${parentMobile || '__________________________'}</td>
+  //             </tr>
+
+  //             <tr>
+  //               <th colspan="2">iii) Program / Centre related information</th>
+  //             </tr>
+  //             <tr>
+  //               <td>Full Name of Program</td>
+  //               <td>${programName}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Duration of Program</td>
+  //               <td>${programDuration || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Course commencement (MMM-YYYY)</td>
+  //               <td>${courseCommencement || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Study Centre</td>
+  //               <td>${this.esc(centreAddress)}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>GSTIN</td>
+  //               <td>${gstin}</td>
+  //             </tr>
+  //           </tbody>
+  //         </table>
+  //       </div>
+  //       <!-- 2. COURSE FEE, SCHOLARSHIPS / WAIVERS AND PAYMENT SCHEDULE -->
+  //       <div class="section">
+  //         <div class="section-title">
+  //           2. DETAILS OF COURSE FEE, SCHOLARSHIPS / WAIVERS AND PAYMENT SCHEDULE
+  //         </div>
+  //         <div class="small">
+  //           The details of fee plan, scholarship / waivers and instalment schedule for the chosen program are
+  //           summarised below:
+  //         </div>
+  //         <table>
+  //           <tbody>
+  //             <tr>
+  //               <td style="width:45%;">Fee Plan</td>
+  //               <td>${feePlanText || '__________________________'}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Base Fee (before discounts)</td>
+  //               <td>₹ ${baseFee.toLocaleString('en-IN')}</td>
+  //             </tr>
+  //             <tr>
+  //               <td>Total Scholarship / Discount (%)</td>
+  //               <td>${totalDiscountPct.toFixed(2)}%</td>
+  //             </tr>
+  //             <tr>
+  //               <td><b>Final Payable Fee</b></td>
+  //               <td><b>₹ ${finalFee.toLocaleString('en-IN')}</b></td>
+  //             </tr>
+  //           </tbody>
+  //         </table>
+  //         <div class="mt-2 small">
+  //           <b>Payment Schedule (as per current records)</b>
+  //         </div>
+  //         <table>
+  //           <thead>
+  //             <tr>
+  //               <th style="width:40px;" class="text-center">#</th>
+  //               <th>Mode</th>
+  //               <th>UTR / Cheque No.</th>
+  //               <th>Due / Paid Date</th>
+  //               <th class="text-right">Amount (₹)</th>
+  //             </tr>
+  //           </thead>
+  //           <tbody>
+  //             ${paymentTableBody}
+  //           </tbody>
+  //         </table>
+  //       </div>
+  //       <!-- 3. MISCELLANEOUS TERMS & CONDITIONS -->
+  //       <div class="section small">
+  //         <div class="section-title">3. MISCELLANEOUS TERMS AND CONDITIONS</div>
+  //         <ul class="note-list">
+  //           <li>
+  //             Post-dated cheques / scheduled electronic payments shall be deposited or initiated on the
+  //             agreed due dates. Any delay or rejection may attract additional charges and late fees as per
+  //             the institute’s policy.
+  //           </li>
+  //           <li>
+  //             If a cheque or transaction is not honoured, the Parent / Guardian agrees to clear the amount
+  //             through an alternate mode along with applicable bank and administrative charges and any
+  //             late fee specified by the institute.
+  //           </li>
+  //           <li>
+  //             Repeated defaults in payment may result in temporary suspension of classroom access or
+  //             termination of enrolment, without any claim on the missed classes.
+  //           </li>
+  //           <li>
+  //             All official communication will be sent to the contact details recorded in this contract /
+  //             enrolment form. Any change in address, email or phone must be informed in writing within a
+  //             reasonable time.
+  //           </li>
+  //           <li>
+  //             Refunds, withdrawals and exit options (if any) shall be governed strictly by the written
+  //             policies of the institute in force on the date of enrolment.
+  //           </li>
+  //         </ul>
+  //       </div>
+
+  //       <!-- 4. JURISDICTION -->
+  //       <div class="section small">
+  //         <div class="section-title">4. JURISDICTION</div>
+  //         <p class="small">
+  //           Any dispute arising out of or in connection with this enrolment shall be subject to the
+  //           exclusive jurisdiction of the courts having jurisdiction over the registered office of the
+  //           institute. Disputes, if any, may be referred to arbitration as per the policy notified by the
+  //           institute from time to time.
+  //         </p>
+  //       </div>
+  //       <!-- Signatures -->
+  //       <div class="section mt-4 small">
+  //         <table style="border:none; width:100%; margin-top:24px;">
+  //           <tr>
+  //             <td style="border:none; width:33%; vertical-align:top;">
+  //               <div style="height:180px; border:1px solid #e5e7eb; margin-bottom:4px; font-size:9px; display:flex;align-items:center;justify-content:center;text-align:center;">
+  //                 Photograph of Parent / Guardian
+  //               </div>
+  //               ___________________________<br/>
+  //               Signature of Parent / Guardian<br/>
+  //               Name: ${parentName || '________________'}
+  //             </td>
+  //             <td style="border:none; width:33%; text-align:center; vertical-align:top;">
+  //               <div style="height:180px; border:1px solid #e5e7eb; margin-bottom:4px; font-size:9px; display:flex;align-items:center;justify-content:center;text-align:center;">
+  //                 Photograph of Student
+  //               </div>
+  //               ___________________________<br/>
+  //               Signature of Student<br/>
+  //               Name: ${studentName || '________________'}
+  //             </td>
+  //             <td style="border:none; width:33%; text-align:right; vertical-align:bottom;">
+  //               ___________________________<br/>
+  //               Authorised Signatory<br/>
+  //               For ${this.esc(providerName)}
+  //             </td>
+  //           </tr>
+  //         </table>
+  //         <div class="small mt-2">
+  //           * Valid only if signed and sealed by the institute office.
+  //         </div>
+  //       </div>
+  //     </div>
+  //   `;
+  // }
+
   private buildContractHtml(): string {
     const a = this.admission;
     if (!a) {
       console.error('No admission loaded');
       return '<p>No data available</p>';
     }
+
     const today = new Date();
-    const s: any = a.student || {};
-    const ac: any = a.academics || {};
-    const fee: any = a.fee || {};
-    const anyAdm: any = a;
+    // TODO: You might want to fetch these from a central config or the Center object if available
     const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
     const headOfficeAddress =
-      '13/1 Maharaja Avenue extension, Kalapatti Main Rd, beside Suguna pip school, GKD Nagar, Nehru Nagar West, Coimbatore, Tamil Nadu 641014'; // TODO: replace with real office address
-    const centreAddress = ac.centreName || 'Study Centre';
+      '47D2, Nehru Nagar West, Civil Aerodrome Post, Kalapatti Road, Coimbatore - 641014';
+
+    // --- 1. Data Preparation ---
+    const s = a.student || ({} as any);
+    const ac = a.academics || ({} as any);
+    const fee = a.fee || ({} as any);
+    const anyAdm = a as any;
+
     const studentName = this.esc(s.name || '');
     const parentName = this.esc(s.parentName || '');
-    const studentDob = this.esc(s.dob || '');
-    const studentSex = this.esc(s.gender || '');
-    const studentAddress =
-      this.esc(s.address || s.addressLine1 || anyAdm.studentAddress || '') ||
-      '__________________________';
-    const enrolmentNumber = this.esc(
-      s.regNo || anyAdm.registrationNumber || anyAdm.enrolmentNo || '',
-    );
-    const registrationNumber = this.esc(anyAdm.registrationNumber || '');
-    const studentId = this.esc(anyAdm.studentId || '');
-    const studentEmail = this.esc(s.email || '');
-    const studentMobile = this.esc(s.phone || '');
-    const parentMobile = this.esc(s.parentPhone || '');
+
+    // Address Construction
+    const addrParts = [];
+    if (s.address) addrParts.push(s.address);
+    if (s.city) addrParts.push(s.city);
+    if (s.state) addrParts.push(s.state);
+    if (s.pincode) addrParts.push(s.pincode);
+
+    const fullAddress =
+      addrParts.length > 0
+        ? this.esc(addrParts.join(', '))
+        : '__________________________________________________';
+
+    // Identifiers
+    const admissionNo = this.esc(a.admissionNo || '');
+    const regNo = this.esc(s.regNo || anyAdm.registrationNumber || '');
+    const studentId = this.esc(anyAdm.portalStudentId || '');
+    const email = this.esc(s.email || '—');
+    const phone = this.esc(s.phone || '—');
+    const parentPhone = this.esc(s.parentPhone || '—');
+
+    // Program Info
     const programName = this.esc(ac.programName || '');
-    const programDuration = this.esc(ac.duration || '');
-    const courseCommencement = this.esc(ac.courseStart || ac.startMonth || '');
-    const gstin = this.esc(ac.gstin || '________________');
-    const feePlanText = `${this.esc(fee.feePlanCode || '')} ${
-      fee.feePlanName ? ' - ' + this.esc(fee.feePlanName) : ''
-    }`;
-    const baseFee = Number(fee.baseFee || 0);
-    const finalFee = this.finalFee || Number(fee.finalFee || 0);
-    const totalDiscountPct = Number(fee.totalDiscountPct || 0);
-    const neftRowsHtml = (a.payments.neftRefs || [])
-      .map(
-        (n: any, idx: number) => `
+
+    // Duration Logic
+    let durationText = '—';
+    if (ac.duration) {
+      const dVal = Number(ac.duration);
+      durationText = !isNaN(dVal)
+        ? `${dVal} Year${dVal > 1 ? 's' : ''}`
+        : String(ac.duration);
+    }
+
+    // const courseStart = this.esc(ac.courseStart || ac.startMonth || 'Apr 2026');
+    const centerName = this.esc(ac.centreName || '');
+    // const gstin = this.esc(ac.gstin || '33AAACF2659M2ZH');
+
+    // Fee Info
+    const feePlanName = this.esc(fee.feePlanName || '');
+    const feeBreakup = fee.breakup || [];
+
+    const totalBase = feeBreakup.reduce(
+      (acc: number, item: any) =>
+        acc + (item.total || 0) + (item.scholBenefits || 0),
+      0,
+    );
+    const totalWaiver = feeBreakup.reduce(
+      (acc: number, item: any) => acc + (item.scholBenefits || 0),
+      0,
+    );
+    const totalPayable = feeBreakup.reduce(
+      (acc: number, item: any) => acc + (item.total || 0),
+      0,
+    );
+
+    // --- 2. Payment Schedule Logic (Merging NEFT, CHEQUE, and OTHER from raw API data) ---
+    // We access 'this.rawPayments' to ensure we see all types (UPI, CASH, etc.) which might not be in the view model 'payments' object depending on filtering.
+    const allPayments = (this.rawPayments || [])
+      .map((p: any) => {
+        const type = String(p.paymentType || '').toUpperCase();
+        let mode = type;
+        let dateRaw = p.submittedOn;
+        let refNo = '';
+
+        if (type === 'NEFT') {
+          mode = 'NEFT/IMPS';
+          dateRaw = p.neft?.paidOn || p.submittedOn;
+          refNo = p.neft?.utr || '';
+        } else if (type === 'CHEQUE') {
+          // Handle PDC vs converted NEFT if applicable
+          const isPdc = (p.cheque?.mode || '').includes('PDC');
+          mode = p.cheque?.mode || 'CHEQUE';
+          dateRaw = p.cheque?.dueDate || p.cheque?.chequeDate;
+          refNo = p.cheque?.chequeNo || '';
+        } else {
+          // Handle UPI, CASH, OTHER
+          mode = String(p.other?.mode || type).toUpperCase();
+          dateRaw = p.other?.paidOn || p.submittedOn;
+          refNo = p.other?.refNo || '';
+        }
+
+        return {
+          mode: mode,
+          ref: refNo,
+          date: dateRaw,
+          amount: Number(p.amount || 0),
+        };
+      })
+      .filter((x) => x.amount > 0)
+      .sort((x, y) => (x.date || 0) - (y.date || 0));
+
+    const paymentRowsHtml =
+      allPayments.length > 0
+        ? allPayments
+            .map(
+              (p, i) => `
         <tr>
-          <td class="text-center">${idx + 1}</td>
-          <td>NEFT</td>
-          <td>${this.esc(n.utrNo || '')}</td>
-          <td>${this.esc(
-            n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : '',
-          )}</td>
-          <td class="text-right">${Number(n.amount || 0).toLocaleString(
-            'en-IN',
-          )}</td>
+          <td class="text-center">${i + 1}</td>
+          <td>${this.esc(p.mode)}</td>
+          <td>${this.esc(p.ref || '—')}</td>
+          <td class="text-center">${p.date ? new Date(p.date).toLocaleDateString('en-IN') : '—'}</td>
+          <td class="text-right">${p.amount.toLocaleString('en-IN')}</td>
         </tr>
       `,
-      )
-      .join('');
-    const chequeRowsHtml = (a.payments.cheques || [])
+            )
+            .join('')
+        : `<tr><td colspan="5" class="text-center">No payment schedule found</td></tr>`;
+
+    // --- 3. HTML Generation ---
+    return `
+      <div class="page">
+        <div class="print-header">
+           <div>
+              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" style="height:50px;" />
+           </div>
+           <div class="title-wrap mt-1">
+              <div class="title-main" style="font-size:16px; border-bottom:1px solid #000; display:inline-block; padding-bottom:2px;">ENROLMENT CONTRACT</div>
+              <div class="tiny text-center mt-1">(Pursuant to Rule 6 of Point of Taxation Rules, 2011)</div>
+           </div>
+        </div>
+
+        <div class="section small" style="margin-top:10px; line-height:1.4;">
+          This contract is executed on <b>${today.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</b> between 
+          <b>${this.esc(providerName)}</b>, having its registered office at ${this.esc(headOfficeAddress)} 
+          and <b>Mr./Ms. ${parentName}</b> (Name of Parent / Guardian), resident of 
+          <b>${fullAddress}</b>, hereinafter referred to as "Parent / Guardian" of the "Student" 
+          for a period of about <b>${durationText}</b> and as per the terms and conditions specified.
+        </div>
+
+        <div class="section mt-3">
+          <div class="section-title">1. STUDENT / PROGRAM DETAILS</div>
+          <div class="small mb-1">The details of the "Student's" Enrolment, Course, Program fees, duration of the course and other relevant details shall be as under:</div>
+          
+          <table class="table-bordered">
+            <tbody>
+               <tr>
+                 <td colspan="2" style="background:#eee;"><b>i. Details of Education Provider</b></td>
+               </tr>
+               <tr>
+                 <td width="40%">Full Name</td>
+                 <td>${this.esc(providerName)}</td>
+               </tr>
+               <tr>
+                 <td>Head Office Address</td>
+                 <td>${this.esc(headOfficeAddress)}</td>
+               </tr>
+
+               <tr>
+                 <td colspan="2" style="background:#eee;"><b>ii. Details of "Student" / "Parent" / "Guardian"</b></td>
+               </tr>
+               <tr>
+                 <td>Full Name of "Student"</td>
+                 <td><b>${studentName}</b></td>
+               </tr>
+               <tr>
+                 <td>Enrolment Number</td>
+                 <td><b>${admissionNo}</b></td>
+               </tr>
+                <tr>
+                 <td>Registration Number</td>
+                 <td>${regNo}</td>
+               </tr>
+               <tr>
+                 <td>Student ID</td>
+                 <td>${studentId}</td>
+               </tr>
+               <tr>
+                 <td>Email ID</td>
+                 <td>${email}</td>
+               </tr>
+               <tr>
+                 <td>Contact Number</td>
+                 <td>${phone}</td>
+               </tr>
+               <tr>
+                 <td>Full Name of "Parent/Guardian"</td>
+                 <td><b>${parentName}</b></td>
+               </tr>
+               <tr>
+                 <td>Parent Mobile</td>
+                 <td>${parentPhone}</td>
+               </tr>
+               <tr>
+                 <td>Permanent Address</td>
+                 <td>${fullAddress}</td>
+               </tr>
+
+               <tr>
+                 <td colspan="2" style="background:#eee;"><b>iii. Program / Centre related information</b></td>
+               </tr>
+               <tr>
+                 <td>Full Name of Program</td>
+                 <td><b>${programName}</b></td>
+               </tr>
+               <tr>
+                 <td>Duration of Program</td>
+                 <td>${durationText}</td>
+               </tr>
+               <tr>
+                 <td>Course Commencement</td>
+                <td></td>
+               </tr>
+               <tr>
+                 <td>Study Centre</td>
+                 <td>${centerName}</td>
+               </tr>
+               <tr>
+                 <td>GSTIN</td>
+                 <td></td>
+               </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="page-break-after: always;"></div>
+
+        <div class="section mt-3">
+           <div class="section-title">2. DETAILS ABOUT THE COURSE FEE, SCHOLARSHIPS / WAIVERS AND PAYMENT SCHEDULE:</div>
+           <div class="small mb-2">
+             The details of the Course fees <b>(Fee Plan: ${feePlanName})</b>, Scholarship / Fee waivers / reward offered and the payment schedule for the program selected by you for the "Student" is as follows:
+           </div>
+
+           <table class="table-bordered mb-3">
+             <thead>
+               <tr style="background:#eee;">
+                 <th>Fee Head</th>
+                 <th class="text-right">Gross Amount (₹)</th>
+                 <th class="text-right">Scholarship / Waiver (₹)</th>
+                 <th class="text-right">Net Fee Payable (₹)</th>
+               </tr>
+             </thead>
+             <tbody>
+               ${feeBreakup
+                 .map((row: any) => {
+                   const base = (row.total || 0) + (row.scholBenefits || 0);
+                   return `
+                 <tr>
+                   <td>${this.esc(row.label)}</td>
+                   <td class="text-right">${base.toLocaleString('en-IN')}</td>
+                   <td class="text-right">${(row.scholBenefits || 0).toLocaleString('en-IN')}</td>
+                   <td class="text-right"><b>${(row.total || 0).toLocaleString('en-IN')}</b></td>
+                 </tr>`;
+                 })
+                 .join('')}
+             </tbody>
+             <tfoot>
+                <tr style="background:#f9f9f9;">
+                  <td><b>Total</b></td>
+                  <td class="text-right"><b>${totalBase.toLocaleString('en-IN')}</b></td>
+                  <td class="text-right"><b>${totalWaiver.toLocaleString('en-IN')}</b></td>
+                  <td class="text-right"><b>${totalPayable.toLocaleString('en-IN')}</b></td>
+                </tr>
+             </tfoot>
+           </table>
+           <div class="small mb-1"><b>Payment Schedule (Installments):</b></div>
+           <table class="table-bordered">
+              <thead>
+                <tr style="background:#eee;">
+                  <th width="30">S.No</th>
+                  <th>Installment</th>
+                  <th class="text-center">Due Date</th>
+                  <th class="text-right">Amount (₹)</th>
+                  <th>Mode</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${paymentRowsHtml}
+              </tbody>
+           </table>
+           <div class="tiny mt-1 text-muted">
+             * The GST has been calculated @18.00% (wherever applicable) as per the current prevailing tax rates/laws and is subject to revision with change in governing GST laws/rules.
+           </div>
+        </div>
+        <div style="page-break-after: always;"></div>
+
+        <div class="section mt-3">
+           <div class="section-title">3. MISCELLANEOUS TERMS AND CONDITIONS:</div>
+           <div class="small" style="line-height:1.5;">
+             <ol type="a" style="margin-top:4px; padding-left:15px;">
+               <li class="mb-1">
+                 The "Parent" / "Guardian" shall have to deposit the Local Post dated cheque(s) for prescribed dates as per the policy.
+               </li>
+               <li class="mb-1">
+                 In case any of the Post dated cheque(s) are dishonoured for any reason whatsoever, the student has to submit a demand draft / Pay Order / NEFT inclusive of Administrative Charges Rs 500/- (Rupees Five Hundred only) and in addition to this a late fine of Rs 50/- per day from due date of PDC, for a maximum period of ten days.The total Amount of Demand Draft or Payorder or NEFT has to be inclusive of the amount of dishonoured PDC, admisinistrative charges and the late fine as applicable.
+               </li>
+               <li class="mb-1">
+                 Only Demand Draft or NEFT shall be accepted against any dishonoured cheque and the dishonoured cheque shall not be represented under any circumstance.
+               </li>
+               <li class="mb-1">
+                 After ten days the student may be debarred from attending classes till he/she makes full payment. The student shall have no claim for the missed classes. A student may not be debarred from the classes despite no payment even after the 10 days period if the parent assures in writing to pay the fee dues within 20 days from the due date and the centre head accepts in writing, the request and assurance given by the parent.In this situationthe bouncing charges will be rupees hundres (Rs 100/-)per day.
+               </li>
+               <li class="mb-1">
+                 If the parent fails to honour his commitment then enrolment & all the rights of the student & the parent shall stand terminated and the institute shall proceed to recover the fee due by the process of law as well as proceed with complaint under section 139 for the dishonour of the said cheque(s).
+               </li>
+               <li class="mb-1">
+                 All Communications will be sent to the above mentioned email Address / Mobile / mailing address only and in the event of any change, the "student" / "parent"/ "Guardian" is required to submit the information to the office within 7 days. The institute shall not be responsible for any loss of correspondence(s) on account of change in information submitted at the time of enrolment.
+               </li>
+               <li class="mb-1">
+                 "Enrolment Form" is filled and signed by the "student" / "parent"/ "Guardian" at the time of enrolling for the above mentioned Course. All the terms & conditions stipulated in the "Enrolment Form" are obligatory on part of the "student" / "parent"/ "Guardian".
+               </li>
+             </ol>
+           </div>
+        </div>
+
+        <div class="section mt-3">
+           <div class="section-title">4. JURISDICTION:</div>
+           <div class="small" style="line-height:1.5;">
+             The registered office of <b>${this.esc(providerName)}</b> is at Coimbatore. In case of any dispute, student / parents subject to the exclusive jurisdiction of appropriate courts in Coimbatore / Tamil Nadu only. All Disputes shall be referred to the sole arbitrator appointed by the management. The decision of the arbitrator shall be final and binding.The Arbitrator so appointed shall not be incapacitated for reasons of their being the emplyoee of ${this.esc(providerName)} or its sister concerns, and for reason of having any prior linkage with the company.
+           </div>
+        </div>
+
+        <div class="section mt-5">
+           <table style="width:100%; border:none;">
+             <tr>
+                <td style="width:33%; border:none; vertical-align:bottom; text-align:right;">
+                  <div style="margin-bottom:40px;">For <b>${this.esc(providerName)}</b></div>
+                  <div style="border-top:1px solid #000; width:80%; margin-left:auto; padding-top:20px; text-align:center;">Authorised Signatory</div>
+               </td>
+               <td style="width:33%; border:none; vertical-align:top; text-align:center;">
+                  <div style="height:120px; width:100px; border:1px solid #ccc; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:9px;">
+                     Affix Photo<br>Parent
+                  </div>
+                  <div style="border-top:1px solid #000; width:80%; margin:0 auto; padding-top:20px;">Signature of Parent</div>
+               </td>
+               <td style="width:33%; border:none; vertical-align:top; text-align:center;">
+                  <div style="height:120px; width:100px; border:1px solid #ccc; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:9px;">
+                     Affix Photo<br>Student
+                  </div>
+                  <div style="border-top:1px solid #000; width:80%; margin:0 auto; padding-top:20px;">Signature of Student</div>
+               </td>
+             </tr>
+           </table>
+           <div class="tiny text-center mt-3">* Valid only if signed and sealed by the Institute office</div>
+        </div>
+
+      </div>
+    `;
+  }
+
+  printEnrollmentReport(): void {
+    const html = this.buildEnrollmentReportHtml();
+    this.openPrintWindow('Enrollment Report', html);
+  }
+
+  // private buildEnrollmentReportHtml(): string {
+  //   const a = this.admission;
+  //   if (!a) return '<p>No data available</p>';
+  //   const s = a.student || {} as any;
+  //   const ac = a.academics || {} as any;
+  //   const fee = a.fee || {} as any;
+  //   const anyAdm = a as any;
+  //   const today = new Date();
+  //   const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
+  //   const studentName = this.esc(s.name || '');
+  //   const regNo = this.esc(s.regNo || anyAdm.registrationNumber || '—');
+  //   const enrollNo = this.esc(a.admissionNo || '—');
+  //   const studentId = this.esc(anyAdm.portalStudentId || '—');
+  //   const enrollDate = this.esc(a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN') : '—');
+  //   const enrolledBy = this.esc('Admin');
+  //   const dob = s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+  //   const sex = this.esc(s.gender || '—');
+  //   const mobile = this.esc(s.phone || '—');
+  //   const email = this.esc(s.email || '—');
+  //   const father = this.esc(s.fatherName || s.parentName || '—');
+  //   const mother = this.esc(s.motherName || '—');
+  //   const program = this.esc(ac.programName || '—');
+  //   const center = this.esc(ac.centreName || '—');
+  //   const feePlan = this.esc(fee.feePlanName || '—');
+  //   const batch = this.esc(ac.batchName || '—');
+  //   const courseStart = this.esc(ac.courseStart || ac.startMonth || '—');
+  //   const addrParts = [];
+  //   if (s.address) addrParts.push(s.address);
+  //   if (s.city) addrParts.push(s.city);
+  //   if (s.state) addrParts.push(s.state);
+  //   if (s.pincode) addrParts.push(s.pincode);
+  //   const address = addrParts.length > 0 ? this.esc(addrParts.join(', ')) : '—';
+  //   const feeBreakup = fee.breakup || [];
+  //   const totalFee = feeBreakup.reduce((acc: number, item: any) => acc + (item.total || 0), 0);
+  //   const feeRows = feeBreakup.map((r: any) => `
+  //     <tr>
+  //       <td>${this.esc(r.label)}</td>
+  //       <td class="text-right">${Number(r.total || 0).toLocaleString('en-IN')}</td>
+  //     </tr>
+  //   `).join('');
+  //   const allPayments = (this.rawPayments || []).map((p: any) => {
+  //     const type = String(p.paymentType || '').toUpperCase();
+  //     let mode = type;
+  //     let dateRaw = p.submittedOn;
+  //     let refNo = '';
+  //     let bank = '';
+  //     if (type === 'NEFT') {
+  //       mode = 'NEFT/IMPS';
+  //       dateRaw = p.neft?.paidOn || p.submittedOn;
+  //       refNo = p.neft?.utr || '';
+  //       bank = p.neft?.bankName || '';
+  //     } else if (type === 'CHEQUE') {
+  //       const isPdc = (p.cheque?.mode || '').includes('PDC');
+  //       mode = p.cheque?.mode || 'PDC';
+  //       dateRaw = p.cheque?.chequeDate;
+  //       refNo = p.cheque?.chequeNo || '';
+  //       bank = p.cheque?.bankName || '';
+  //     } else {
+  //       mode = String(p.other?.mode || type).toUpperCase();
+  //       dateRaw = p.other?.paidOn || p.submittedOn;
+  //       refNo = p.other?.refNo || '';
+  //       bank = p.other?.bankName || '';
+  //     }
+  //     return {
+  //       mode,
+  //       date: dateRaw,
+  //       ref: refNo,
+  //       bank,
+  //       amount: Number(p.amount || 0)
+  //     };
+  //   })
+  //   .filter((x: any) => x.amount > 0)
+  //   .sort((a: any, b: any) => (a.date || 0) - (b.date || 0));
+
+  //   const totalPaid = allPayments.reduce((s: number, x: any) => s + x.amount, 0);
+
+  //   const payRows = allPayments.length ? allPayments.map((p: any, i: number) => `
+  //     <tr>
+  //       <td class="text-center">${i + 1}</td>
+  //       <td>${this.esc(p.mode)}</td>
+  //       <td>${p.date ? new Date(p.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '-'}</td>
+  //       <td>${this.esc(p.ref)}</td>
+  //       <td>${this.esc(p.bank)}</td>
+  //       <td class="text-right">${p.amount.toLocaleString('en-IN')}</td>
+  //     </tr>
+  //   `).join('') : `<tr><td colspan="6" class="text-center">No payments found</td></tr>`;
+  //   return `
+  //     <div class="page">
+  //       <div class="print-header" style="border:none; margin-bottom:20px;">
+  //          <div class="brand-center">
+  //             <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" style="height:50px;" />
+  //          </div>
+  //          <div class="title-wrap">
+  //             <div class="title-main" style="text-decoration:underline;">ENROLMENT REPORT</div>
+  //          </div>
+  //       </div>
+  //       <div class="section">
+  //          <div class="section-title">Student, Program and Study Centre Details (Part 1)</div>
+  //          <div class="kv-grid" style="grid-template-columns: 1fr 1fr; border:1px solid #000;">
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Enrollment No.</span><br>
+  //                <b>${enrollNo}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Registration No.</span><br>
+  //                <b>${regNo}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Student ID</span><br>
+  //                <b>${studentId}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Enrollment Date</span><br>
+  //                <b>${enrollDate}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Name of the Student</span><br>
+  //                <b>${studentName}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Enrolled by</span><br>
+  //                <b>${enrolledBy}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Date of Birth</span><br>
+  //                <b>${dob}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Sex</span><br>
+  //                <b>${sex}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Mobile Number</span><br>
+  //                <b>${mobile}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Email ID</span><br>
+  //                <b>${email}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Father Name</span><br>
+  //                <b>${father}</b>
+  //             </div>
+  //             <div class="kv-cell">
+  //                <span class="kv-key">Mother Name</span><br>
+  //                <b>${mother}</b>
+  //             </div>
+  //             <div class="kv-cell" style="grid-column: span 2;">
+  //                <span class="kv-key">Program</span><br>
+  //                <b>${program}</b>
+  //             </div>
+  //             <div class="kv-cell" style="grid-column: span 2;">
+  //                <span class="kv-key">Study Centre</span><br>
+  //                <b>${center}</b>
+  //             </div>
+  //             <div class="kv-cell" style="grid-column: span 2;">
+  //                <span class="kv-key">Fee Plan</span><br>
+  //                <b>${feePlan}</b>
+  //             </div>
+  //             <div class="kv-cell" style="grid-column: span 2;">
+  //                <span class="kv-key">Course Commencement</span><br>
+  //                <b>${courseStart}</b>
+  //             </div>
+  //             <div class="kv-cell" style="grid-column: span 2;">
+  //                <span class="kv-key">Mailing Address</span><br>
+  //                <b>${address}</b>
+  //             </div>
+  //          </div>
+  //       </div>
+  //       <div class="section mt-3">
+  //          <div class="section-title">Payment Schedule (Part 3)</div>
+  //          <table style="border:1px solid #000;">
+  //             <thead>
+  //                <tr style="background:#fff;">
+  //                   <th style="border:1px solid #000; width:40px;">S.No</th>
+  //                   <th style="border:1px solid #000;">Mode</th>
+  //                   <th style="border:1px solid #000;">Dated</th>
+  //                   <th style="border:1px solid #000;">DD/Chg. No / Ref</th>
+  //                   <th style="border:1px solid #000;">Bank</th>
+  //                   <th style="border:1px solid #000; text-align:right;">Amount (₹)</th>
+  //                </tr>
+  //             </thead>
+  //             <tbody>
+  //                ${payRows}
+  //             </tbody>
+  //             <tfoot>
+  //                <tr>
+  //                   <td colspan="5" style="border:1px solid #000; text-align:right; font-weight:bold;">Total payments made so far</td>
+  //                   <td style="border:1px solid #000; text-align:right; font-weight:bold;">${totalPaid.toLocaleString('en-IN')}</td>
+  //                </tr>
+  //             </tfoot>
+  //          </table>
+  //       </div>
+
+  //       <div class="section mt-3 small">
+  //          <div style="font-weight:bold; margin-bottom:4px;">Note:</div>
+  //          <div>This dues are to be cleared on or before duedate subject to scholarship awarded if any.</div>
+
+  //          <div style="font-weight:bold; margin-top:10px; margin-bottom:4px;">Important</div>
+  //          <ul style="padding-left:15px; margin:0;">
+  //             <li>Your invoice/payment receipt will be issued online within 14 days of payment realisation.</li>
+  //             <li>All communications, Performance report etc., will be sent to the email address/mobile/mailing address updated by you online.</li>
+  //             <li>Cheques/DDs subject to realisation.</li>
+  //             <li>The GST has been calculated @18.00% (wherever applicable) as per the current prevailing tax rates/laws.</li>
+  //          </ul>
+  //       </div>
+
+  //       <div class="small text-right mt-3" style="border-top:1px solid #ccc; padding-top:5px;">
+  //          Printed on ${today.toLocaleString('en-IN')}
+  //       </div>
+  //     </div>
+
+  //     <style>
+  //        .kv-cell { border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; }
+  //        .kv-cell:nth-child(2n) { border-right: none; }
+  //        .kv-key { font-size: 10px; color: #555; }
+  //        table { width: 100%; border-collapse: collapse; }
+  //        th, td { padding: 5px; font-size:11px; }
+  //     </style>
+  //   `;
+  // }
+
+  private buildEnrollmentReportHtml(): string {
+    const a = this.admission;
+    if (!a) return '<p>No data available</p>';
+    const s = a.student;
+    const ac = a.academics;
+    const fee = a.fee;
+    const anyAdm = a as any; // fallback for loose typing
+    const today = new Date();
+
+    const providerName = 'ZEDSWEVEN I PRIVATE LIMITED'; // Or dynamic
+    const studentName = this.esc(s.name || '');
+    const regNo = this.esc(s.regNo || anyAdm.registrationNumber || '—');
+    const enrollNo = this.esc(a.admissionNo || '—');
+    // For student ID, check various possible locations
+    const studentId = this.esc(
+      anyAdm.portalStudentId || anyAdm.studentId || '—',
+    );
+    const enrollDate = this.esc(
+      a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN') : '—',
+    );
+    const enrolledBy = this.esc('Admin');
+
+    const dob = s.dateOfBirth
+      ? new Date(s.dateOfBirth).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '—';
+    const sex = this.esc(s.gender || '—');
+    const mobile = this.esc(s.phone || '—');
+    const email = this.esc(s.email || '—');
+    const father = this.esc(s.fatherName || s.parentName || '—');
+    const mother = this.esc(s.motherName || '—');
+
+    const program = this.esc(ac.programName || '—');
+    const center = this.esc(ac.centreName || '—');
+    const feePlan = this.esc(fee.feePlanName || '—');
+    const batch = this.esc(ac.batchName || '—');
+    const courseStart = this.esc(ac.courseStart || ac.startMonth || '—');
+
+    const addrParts = [];
+    if (s.address) addrParts.push(s.address);
+    if (s.city) addrParts.push(s.city);
+    if (s.state) addrParts.push(s.state);
+    if (s.pincode) addrParts.push(s.pincode);
+    const address = addrParts.length > 0 ? this.esc(addrParts.join(', ')) : '—';
+
+    // Fee
+    const feeBreakup = fee.breakup || [];
+    const totalFee = feeBreakup.reduce(
+      (acc: number, item: any) => acc + (item.total || 0),
+      0,
+    );
+    const feeRows = feeBreakup
       .map(
-        (c: any, idx: number) => `
-        <tr>
-          <td class="text-center">${
-            (a.payments.neftRefs?.length || 0) + idx + 1
-          }</td>
-          <td>${this.esc(c.mode || 'PDC')}</td>
-          <td>${this.esc(c.chequeNo || '')}</td>
-          <td>${this.esc(
-            c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : '',
-          )}</td>
-          <td class="text-right">${Number(c.amount || 0).toLocaleString(
-            'en-IN',
-          )}</td>
-        </tr>
-      `,
+        (r: any) => `
+      <tr>
+        <td>${this.esc(r.label)}</td>
+        <td class="text-right">${Number(r.total || 0).toLocaleString('en-IN')}</td>
+      </tr>
+    `,
       )
       .join('');
-    const paymentTableBody =
-      neftRowsHtml || chequeRowsHtml
-        ? neftRowsHtml + chequeRowsHtml
-        : '<tr><td colspan="5" class="text-center">No payment schedule captured</td></tr>';
+
+    // Payments (Merge all types)
+    const allPayments = (this.rawPayments || [])
+      .map((p: any) => {
+        const type = String(p.paymentType || '').toUpperCase();
+        let mode = type;
+        let dateRaw = p.submittedOn;
+        let refNo = '';
+        let bank = '';
+
+        if (type === 'NEFT') {
+          mode = 'NEFT/IMPS';
+          dateRaw = p.neft?.paidOn || p.submittedOn;
+          refNo = p.neft?.utr || '';
+          bank = p.neft?.bankName || '';
+        } else if (type === 'CHEQUE') {
+          const isPdc = (p.cheque?.mode || '').includes('PDC');
+          mode = p.cheque?.mode || 'PDC';
+          dateRaw = p.cheque?.chequeDate;
+          refNo = p.cheque?.chequeNo || '';
+          bank = p.cheque?.bankName || '';
+        } else {
+          mode = String(p.other?.mode || type).toUpperCase();
+          dateRaw = p.other?.paidOn || p.submittedOn;
+          refNo = p.other?.refNo || '';
+          bank = p.other?.bankName || '';
+        }
+
+        return {
+          mode,
+          date: dateRaw,
+          ref: refNo,
+          bank,
+          amount: Number(p.amount || 0),
+        };
+      })
+      .filter((x: any) => x.amount > 0)
+      .sort((a: any, b: any) => (a.date || 0) - (b.date || 0));
+
+    const totalPaid = allPayments.reduce(
+      (s: number, x: any) => s + x.amount,
+      0,
+    );
+
+    const payRows = allPayments.length
+      ? allPayments
+          .map(
+            (p: any, i: number) => `
+      <tr>
+        <td class="text-center">${i + 1}</td>
+        <td>${this.esc(p.mode)}</td>
+        <td>${p.date ? new Date(p.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
+        <td>${this.esc(p.ref)}</td>
+        <td>${this.esc(p.bank)}</td>
+        <td class="text-right">${p.amount.toLocaleString('en-IN')}</td>
+      </tr>
+    `,
+          )
+          .join('')
+      : `<tr><td colspan="6" class="text-center">No payments found</td></tr>`;
 
     return `
       <div class="page">
-      <div class="brand">
-              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
-            </div>
-        <!-- Header -->
-        <div class="header-row">
-          <div>
-            <div class="title-main">ENROLMENT CONTRACT</div>
-            <div class="small">
-              (Prepared in line with the requirements for point of taxation / fee contracts)
-            </div>
-          </div>
-          <div class="meta">
-            <div><b>Date:</b> ${today.toLocaleDateString('en-IN')}</div>
-            <div><b>Admission ID:</b> ${this.esc(a.admissionId || '')}</div>
-            ${
-              enrolmentNumber
-                ? `<div><b>Enrolment No:</b> ${enrolmentNumber}</div>`
-                : ''
-            }
-          </div>
+        <div class="print-header" style="border:none; margin-bottom:20px;">
+           <div class="brand-center">
+              <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" style="height:50px;" />
+           </div>
+           <div class="title-wrap">
+              <div class="title-main" style="text-decoration:underline;">ENROLMENT REPORT</div>
+           </div>
         </div>
-        <div class="section small">
-          This contract is between <b>${providerName}</b>, having its registered / head office at
-          <b>${this.esc(headOfficeAddress)}</b>, and
-          <b>${parentName}</b> (Parent / Guardian) of <b>${studentName}</b> (Student),
-          for enrolment into the below mentioned classroom / coaching program, for the
-          duration indicated and as per the terms listed in this document.
-        </div>
-        <!-- 1. STUDENT / PROGRAM DETAILS -->
+
         <div class="section">
-          <div class="section-title">1. STUDENT / PROGRAM DETAILS</div>
-          <div class="small">
-            The details of the Student’s enrolment, program, fee and other relevant information are as follows:
-          </div>
-          <table>
-            <tbody>
-              <tr>
-                <th colspan="2">i) Details of Education Provider</th>
-              </tr>
-              <tr>
-                <td style="width:45%;">Full Name of Education Provider</td>
-                <td>${this.esc(providerName)}</td>
-              </tr>
-              <tr>
-                <td>Head Office Address</td>
-                <td>${this.esc(headOfficeAddress)}</td>
-              </tr>
+           <div class="section-title">Student, Program and Study Centre Details</div>
+           <div class="kv-grid">
+              <div class="kv-cell">
+                 <span class="kv-key">Enrollment No.</span><br>
+                 <b>${enrollNo}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Registration No.</span><br>
+                 <b>${regNo}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Student ID</span><br>
+                 <b>${studentId}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Enrollment Date</span><br>
+                 <b>${enrollDate}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Name of the Student</span><br>
+                 <b>${studentName}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Enrolled by</span><br>
+                 <b>${enrolledBy}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Date of Birth</span><br>
+                 <b>${dob}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Sex</span><br>
+                 <b>${sex}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Mobile Number</span><br>
+                 <b>${mobile}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Email ID</span><br>
+                 <b>${email}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Father Name</span><br>
+                 <b>${father}</b>
+              </div>
+              <div class="kv-cell">
+                 <span class="kv-key">Mother Name</span><br>
+                 <b>${mother}</b>
+              </div>
+              <div class="kv-cell full-width">
+                 <span class="kv-key">Program</span><br>
+                 <b>${program}</b>
+              </div>
+              <div class="kv-cell full-width">
+                 <span class="kv-key">Study Centre</span><br>
+                 <b>${center}</b>
+              </div>
+              <div class="kv-cell full-width">
+                 <span class="kv-key">Fee Plan</span><br>
+                 <b>${feePlan}</b>
+              </div>
+              <div class="kv-cell full-width">
+                 <span class="kv-key">Course Commencement</span><br>
+                 <b>${courseStart}</b>
+              </div>
 
-              <tr>
-                <th colspan="2">ii) Details of Student / Parent / Guardian</th>
-              </tr>
-              <tr>
-                <td>Full Name of Student</td>
-                <td>${studentName}</td>
-              </tr>
-              <tr>
-                <td>Date of Birth (DD-MMM-YYYY)</td>
-                <td>${studentDob || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Sex</td>
-                <td>${studentSex || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Permanent Address</td>
-                <td>${studentAddress}</td>
-              </tr>
-              <tr>
-                <td>Enrolment Number</td>
-                <td>${enrolmentNumber || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Registration Number</td>
-                <td>${registrationNumber || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Student ID</td>
-                <td>${studentId || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Email ID of Student</td>
-                <td>${studentEmail || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Contact Number</td>
-                <td>${studentMobile || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Full Name of Parent / Guardian</td>
-                <td>${parentName || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Parent / Guardian Mobile</td>
-                <td>${parentMobile || '__________________________'}</td>
-              </tr>
-
-              <tr>
-                <th colspan="2">iii) Program / Centre related information</th>
-              </tr>
-              <tr>
-                <td>Full Name of Program</td>
-                <td>${programName}</td>
-              </tr>
-              <tr>
-                <td>Duration of Program</td>
-                <td>${programDuration || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Course commencement (MMM-YYYY)</td>
-                <td>${courseCommencement || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Study Centre</td>
-                <td>${this.esc(centreAddress)}</td>
-              </tr>
-              <tr>
-                <td>GSTIN</td>
-                <td>${gstin}</td>
-              </tr>
-            </tbody>
-          </table>
+              <div class="kv-cell full-width">
+                 <span class="kv-key">Mailing Address</span><br>
+                 <b>${address}</b>
+              </div>
+           </div>
         </div>
-        <!-- 2. COURSE FEE, SCHOLARSHIPS / WAIVERS AND PAYMENT SCHEDULE -->
-        <div class="section">
-          <div class="section-title">
-            2. DETAILS OF COURSE FEE, SCHOLARSHIPS / WAIVERS AND PAYMENT SCHEDULE
-          </div>
-          <div class="small">
-            The details of fee plan, scholarship / waivers and instalment schedule for the chosen program are
-            summarised below:
-          </div>
-          <table>
-            <tbody>
-              <tr>
-                <td style="width:45%;">Fee Plan</td>
-                <td>${feePlanText || '__________________________'}</td>
-              </tr>
-              <tr>
-                <td>Base Fee (before discounts)</td>
-                <td>₹ ${baseFee.toLocaleString('en-IN')}</td>
-              </tr>
-              <tr>
-                <td>Total Scholarship / Discount (%)</td>
-                <td>${totalDiscountPct.toFixed(2)}%</td>
-              </tr>
-              <tr>
-                <td><b>Final Payable Fee</b></td>
-                <td><b>₹ ${finalFee.toLocaleString('en-IN')}</b></td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="mt-2 small">
-            <b>Payment Schedule (as per current records)</b>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width:40px;" class="text-center">#</th>
-                <th>Mode</th>
-                <th>UTR / Cheque No.</th>
-                <th>Due / Paid Date</th>
-                <th class="text-right">Amount (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${paymentTableBody}
-            </tbody>
-          </table>
-        </div>
-        <!-- 3. MISCELLANEOUS TERMS & CONDITIONS -->
-        <div class="section small">
-          <div class="section-title">3. MISCELLANEOUS TERMS AND CONDITIONS</div>
-          <ul class="note-list">
-            <li>
-              Post-dated cheques / scheduled electronic payments shall be deposited or initiated on the
-              agreed due dates. Any delay or rejection may attract additional charges and late fees as per
-              the institute’s policy.
-            </li>
-            <li>
-              If a cheque or transaction is not honoured, the Parent / Guardian agrees to clear the amount
-              through an alternate mode along with applicable bank and administrative charges and any
-              late fee specified by the institute.
-            </li>
-            <li>
-              Repeated defaults in payment may result in temporary suspension of classroom access or
-              termination of enrolment, without any claim on the missed classes.
-            </li>
-            <li>
-              All official communication will be sent to the contact details recorded in this contract /
-              enrolment form. Any change in address, email or phone must be informed in writing within a
-              reasonable time.
-            </li>
-            <li>
-              Refunds, withdrawals and exit options (if any) shall be governed strictly by the written
-              policies of the institute in force on the date of enrolment.
-            </li>
-          </ul>
+        <div class="section mt-3">
+           <div class="section-title">Payment Schedule</div>
+           <table class="data-table">
+              <thead>
+                 <tr>
+                    <th style="width:40px;">S.No</th>
+                    <th>Mode</th>
+                    <th>Dated</th>
+                    <th>DD/Chg. No / Ref</th>
+                    <th>Bank</th>
+                    <th style="text-align:right;">Amount (₹)</th>
+                 </tr>
+              </thead>
+              <tbody>
+                 ${payRows}
+              </tbody>
+              <tfoot>
+                 <tr>
+                    <td colspan="5" style="text-align:right; font-weight:bold;">Total payments made so far</td>
+                    <td style="text-align:right; font-weight:bold;">${totalPaid.toLocaleString('en-IN')}</td>
+                 </tr>
+              </tfoot>
+           </table>
         </div>
 
-        <!-- 4. JURISDICTION -->
-        <div class="section small">
-          <div class="section-title">4. JURISDICTION</div>
-          <p class="small">
-            Any dispute arising out of or in connection with this enrolment shall be subject to the
-            exclusive jurisdiction of the courts having jurisdiction over the registered office of the
-            institute. Disputes, if any, may be referred to arbitration as per the policy notified by the
-            institute from time to time.
-          </p>
+        <div class="section mt-3 small">
+           <div style="font-weight:bold; margin-bottom:4px;">Note:</div>
+           <div>This dues are to be cleared on or before duedate subject to scholarship awarded if any.</div>
+           
+           <div style="font-weight:bold; margin-top:10px; margin-bottom:4px;">Important</div>
+           <ul style="padding-left:15px; margin:0;">
+              <li>Your invoice/payment receipt will be issued online within 14 days of payment realisation.</li>
+              <li>All communications, Performance report etc., will be sent to the email address/mobile/mailing address updated by you online.</li>
+              <li>Cheques/DDs subject to realisation.</li>
+              <li>The GST has been calculated @18.00% (wherever applicable) as per the current prevailing tax rates/laws.</li>
+           </ul>
         </div>
-        <!-- Signatures -->
-        <div class="section mt-4 small">
-          <table style="border:none; width:100%; margin-top:24px;">
-            <tr>
-              <td style="border:none; width:33%; vertical-align:top;">
-                <div style="height:180px; border:1px solid #e5e7eb; margin-bottom:4px; font-size:9px; display:flex;align-items:center;justify-content:center;text-align:center;">
-                  Photograph of Parent / Guardian
-                </div>
-                ___________________________<br/>
-                Signature of Parent / Guardian<br/>
-                Name: ${parentName || '________________'}
-              </td>
-              <td style="border:none; width:33%; text-align:center; vertical-align:top;">
-                <div style="height:180px; border:1px solid #e5e7eb; margin-bottom:4px; font-size:9px; display:flex;align-items:center;justify-content:center;text-align:center;">
-                  Photograph of Student
-                </div>
-                ___________________________<br/>
-                Signature of Student<br/>
-                Name: ${studentName || '________________'}
-              </td>
-              <td style="border:none; width:33%; text-align:right; vertical-align:bottom;">
-                ___________________________<br/>
-                Authorised Signatory<br/>
-                For ${this.esc(providerName)}
-              </td>
-            </tr>
-          </table>
-          <div class="small mt-2">
-            * Valid only if signed and sealed by the institute office.
-          </div>
+
+        <div class="small text-right mt-3" style="border-top:1px solid #ccc; padding-top:5px;">
+           Printed on ${today.toLocaleString('en-IN')}
         </div>
       </div>
+
+      <style>
+         /* Grid Logic: Container draws Top+Left. Cells draw Bottom+Right. Prevents double borders. */
+         .kv-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            border-bottom: 0.5px solid #555;  
+            border-right: 0.5px solid #555;  
+         }
+         .kv-cell { 
+            border: 0.5px solid #555;  
+            padding: 6px; 
+         }
+         .kv-cell.full-width {
+            grid-column: span 2;
+         }
+         .kv-key { font-size: 10px; color: #555; }
+         /* Standard Table Logic */
+         .data-table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
+         .data-table th, .data-table td { border: 1px solid #000; padding: 5px; font-size:11px; vertical-align:top; }
+         .data-table th { background: #fff; }
+      </style>
     `;
   }
 }

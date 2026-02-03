@@ -16,11 +16,13 @@
                 <span class="step-pill" [class.active]="step === 2">2</span>
             </div>
         </div>
+
         <div *ngIf="alert$ | async as msg" class="alert alert-{{ msg.type }} alert-dismissible fade show mb-3"
             role="alert">
             {{ msg.text }}
             <button type="button" class="btn-close" aria-label="Close" (click)="clearAlert()"></button>
         </div>
+
         <div class="card-body pt-2">
             <!-- STEP 0 -->
             <ng-container *ngIf="step === 0">
@@ -30,6 +32,7 @@
                             <div class="fw-semibold mb-1">
                                 Choose how you want to enrol the student
                             </div>
+
                             <div class="border rounded-3 p-3 mb-3 bg-light-subtle">
                                 <div class="fw-semibold">
                                     For People Who Completed Scholarship Completed
@@ -54,11 +57,13 @@
                                     </div>
                                 </form>
                             </div>
+
                             <div class="border rounded-3 p-3">
                                 <div class="fw-semibold">Direct Enrolment</div>
                                 <div class="text-muted small mb-2">If you don’t have an enrolment number.</div>
                                 <div class="text-muted small mb-2">Choose how you want to proceed without/with test
                                     details.</div>
+
                                 <div class="d-flex flex-column gap-2 mb-3">
                                     <label class="form-check">
                                         <input class="form-check-input" type="checkbox"
@@ -74,6 +79,7 @@
                                         <span class="form-check-label fw-semibold">Direct Enrollment with Test</span>
                                     </label>
                                 </div>
+
                                 <div *ngIf="directMode === 'WITH_TEST'"
                                     class="border rounded-3 p-3 mb-3 bg-light-subtle">
                                     <div class="fw-semibold mb-1">Enter Registration Number</div>
@@ -98,6 +104,7 @@
                                         </div>
                                     </form>
                                 </div>
+
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-outline-primary w-100" type="button"
                                         (click)="startDirectEnrolmentNoTest()" [disabled]="directMode !== 'NO_TEST'">
@@ -109,6 +116,7 @@
                                     Tip: Select a mode above. Only one can be active at a time.
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -153,6 +161,22 @@
                                             [control]="step1Form.get('parentName')" formControlName="parentName">
                                         </formfield>
                                     </div>
+                                    <div class="col-md-8">
+                                        <formfield label="Address" [control]="step1Form.get('address')"
+                                            formControlName="address" placeholder="House No, Street, Area"></formfield>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <formfield label="City" [control]="step1Form.get('city')"
+                                            formControlName="city"></formfield>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <formfield label="State" [control]="step1Form.get('state')"
+                                            formControlName="state"></formfield>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <formfield label="Pincode" [control]="step1Form.get('pincode')"
+                                            formControlName="pincode"></formfield>
+                                    </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Program</label>
                                         <select class="form-select" formControlName="programId"
@@ -174,8 +198,8 @@
                                     <div class="col-md-4">
                                         <formfield label="Program Code" [control]="step1Form.get('programCode')"
                                             formControlName="programCode" readonly="'true'"></formfield>
-                                        <div class="text-muted tiny mt-1">Auto-filled from portal / selected program.
-                                        </div>
+                                        <!-- <div class="text-muted tiny mt-1">Auto-filled from portal / selected program.
+                                        </div> -->
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Academic Year</label>
@@ -253,6 +277,7 @@
                                         </select>
                                     </div>
                                 </div>
+
                             </div>
                         </div>
                         <div class="col-lg-4">
@@ -337,9 +362,9 @@
                             <i class="fa-solid fa-xmark me-1"></i> Cancel
                         </button>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-primary" (click)="printReportStep1()">
+                            <!-- <button type="button" class="btn btn-outline-primary" (click)="printReportStep1()">
                                 <i class="fa-solid fa-calculator me-1"></i> Generate Fee Calculation
-                            </button>
+                            </button> -->
                             <button class="btn btn-saffron" type="button" (click)="next()" [disabled]="submitting">
                                 Proceed to Payments <i class="fa-solid fa-arrow-right-long ms-1"></i>
                             </button>
@@ -347,14 +372,22 @@
                     </div>
                 </form>
             </ng-container>
-
             <!-- STEP 2 -->
             <ng-container *ngIf="step === 2">
                 <div class="alert alert-warning small mb-3">
                     <b>Important:</b> NEFT can have multiple refs, but total should not exceed the NEFT split amount.
-                    Cheques can be PDC/CDC.
+                    Cheques can be PDC/CDC. If you split a cheque row, total of split rows cannot exceed the allowed
+                    amount for that instalment date.
                 </div>
+
                 <form [formGroup]="step2Form">
+
+                    <!-- single datalist for both NEFT and Cheque bank inputs -->
+                    <datalist id="bankList">
+                        <option *ngFor="let b of bankNames" [value]="b"></option>
+                    </datalist>
+
+                    <!-- NEFT -->
                     <div class="border rounded-3 p-3 mb-3">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
@@ -369,6 +402,7 @@
                                 <i class="fa-solid fa-plus me-1"></i> Add Ref
                             </button>
                         </div>
+
                         <div class="table-responsive mt-2">
                             <table class="table table-sm align-middle mb-0">
                                 <thead class="table-light">
@@ -378,11 +412,12 @@
                                         <th style="width: 160px">Amount (₹)</th>
                                         <th style="width: 160px">Paid On</th>
                                         <th style="width: 220px">Bank</th>
-                                        <th style="width: 240px">Reference Note</th>
+                                        <th style="width: 220px">Branch</th>
                                         <th>Remarks</th>
                                         <th style="width: 60px"></th>
                                     </tr>
                                 </thead>
+
                                 <tbody formArrayName="neftRefs">
                                     <tr *ngFor="let r of neftRefsFA.controls; let i = index; trackBy: trackByIndex"
                                         [formGroupName]="i">
@@ -408,9 +443,10 @@
                                                 placeholder="Type bank name" list="bankList" />
                                         </td>
                                         <td>
-                                            <input class="form-control form-control-sm" placeholder="optional"
-                                                formControlName="referenceNote" />
+                                            <input class="form-control form-control-sm" formControlName="branchName"
+                                                placeholder="optional" />
                                         </td>
+
                                         <td>
                                             <input class="form-control form-control-sm" placeholder="optional"
                                                 formControlName="remarks" />
@@ -423,34 +459,50 @@
                                         </td>
                                     </tr>
                                 </tbody>
+
                                 <tfoot class="table-light">
                                     <tr>
                                         <th colspan="2" class="text-end">Total Entered</th>
-                                        <th colspan="5" class="fw-bold">
+                                        <th colspan="7" class="fw-bold">
                                             ₹{{ (neftTotalEntered$() | async) | number:"1.0-0" }}
                                         </th>
                                     </tr>
                                 </tfoot>
                             </table>
-                            <div class="text-danger small mt-1" *ngIf="neftRefsFA.errors?.['splitExceeded']">
-                                Total entered exceeds NEFT split amount.
+
+                            <!-- ✅ validator key fixed -->
+                            <div class="text-danger small mt-1" *ngIf="neftRefsFA.errors?.['neftSumExceed'] as e">
+                                Total entered (₹{{ (e.entered || 0) | number:'1.0-0' }}) exceeds NEFT split
+                                (₹{{ (e.split || 0) | number:'1.0-0' }}).
                             </div>
+                            <ng-container
+                                *ngIf="(neftRefsFA.errors?.['neftSumExceed'] || neftRefsFA.errors?.['splitExceeded']) as e">
+                                <div class="text-danger small mt-1">
+                                    Total entered
+                                    (₹{{ ((e?.entered ?? e?.total ?? (neftTotalEntered$() | async) ?? 0)) |
+                                    number:'1.0-0' }})
+                                    exceeds NEFT split
+                                    (₹{{ ((e?.split ?? step2Form.getRawValue().neftAmount ?? 0)) | number:'1.0-0' }}).
+                                </div>
+                            </ng-container>
 
                         </div>
                     </div>
+
+                    <!-- CHEQUES -->
                     <div class="border rounded-3 p-3">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
-                                <div class="fw-semibold">Cheques</div>
+                                <div class="fw-semibold">Cheque Details</div>
                             </div>
                             <span class="badge bg-secondary-subtle text-secondary">Cheques</span>
                         </div>
+
                         <div class="table-responsive mt-2">
                             <table class="table table-sm align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
                                         <th style="width: 70px">S.no</th>
-                                        <th style="width: 260px">Description</th>
                                         <th style="width: 160px">Instalment Date</th>
                                         <th style="width: 150px" class="text-end">Amount (₹)</th>
                                         <th style="width: 240px">Favour of</th>
@@ -458,24 +510,30 @@
                                         <th style="width: 150px">Cheque Date</th>
                                         <th style="width: 170px">Cheque No</th>
                                         <th style="width: 220px">Bank</th>
+                                        <th style="width: 200px">Branch</th>
                                         <th>Remarks</th>
+                                        <th style="width: 90px"></th>
                                     </tr>
                                 </thead>
+
                                 <tbody formArrayName="cheques">
                                     <tr *ngFor="let row of chequesFA.controls; let idx = index; trackBy: trackByIndex"
                                         [formGroupName]="idx">
                                         <td class="fw-semibold">{{ row.get('sno')?.value }}</td>
                                         <td>
-                                            <span class="fw-medium">{{ row.get('description')?.value || '—' }}</span>
-                                        </td>
-                                        <td>
                                             <span class="text-muted">
-                                                {{ row.get('instalmentDate')?.value ? (row.get('instalmentDate')?.value
-                                                | date:'dd-MM-yyyy') : '—' }}
+                                                {{
+                                                row.get('instalmentDate')?.value
+                                                ? (row.get('instalmentDate')?.value | date:'dd-MM-yyyy')
+                                                : '—'
+                                                }}
                                             </span>
                                         </td>
-                                        <td class="text-center">
-                                            ₹{{ row.get('amount')?.value | number:'1.0-0' }}
+                                        <td class="text-end">
+                                            <input class="form-control form-control-sm text-end" type="number"
+                                                formControlName="amount"
+                                                [class.is-invalid]="row.get('amount')?.touched && row.get('amount')?.invalid" />
+                                            <div class="invalid-feedback">Required</div>
                                         </td>
                                         <td>
                                             <input class="form-control form-control-sm" formControlName="favourOf"
@@ -485,6 +543,8 @@
                                             <select class="form-select form-select-sm" formControlName="mode">
                                                 <option value="PDC">PDC</option>
                                                 <option value="CDC">CDC</option>
+                                                <option value="DD">DD</option>
+                                                <option value="NEFT">NEFT</option>
                                             </select>
                                         </td>
                                         <td>
@@ -494,7 +554,7 @@
                                             <div class="invalid-feedback">Required</div>
                                         </td>
                                         <td>
-                                            <input class="form-control form-control-sm" placeholder="Cheque Number"
+                                            <input class="form-control form-control-sm" placeholder="Cheque No / UTR"
                                                 formControlName="chequeNo"
                                                 [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
                                             <div class="invalid-feedback">Required</div>
@@ -503,14 +563,21 @@
                                             <input class="form-control form-control-sm" formControlName="bankName"
                                                 placeholder="Type bank name" list="bankList"
                                                 [class.is-invalid]="row.get('bankName')?.touched && row.get('bankName')?.invalid" />
-                                            <datalist id="bankList">
-                                                <option *ngFor="let b of bankNames" [value]="b"></option>
-                                            </datalist>
                                             <div class="invalid-feedback">Required</div>
+                                        </td>
+                                        <td>
+                                            <input class="form-control form-control-sm" formControlName="branchName"
+                                                placeholder="optional" />
                                         </td>
                                         <td>
                                             <input class="form-control form-control-sm" placeholder="optional"
                                                 formControlName="remarks" />
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                (click)="splitChequeRow(idx)">
+                                                Split
+                                            </button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -518,14 +585,112 @@
                                     <tr>
                                         <th colspan="2" class="text-end">Total Cheques</th>
                                         <th class="fw-bold">{{ chequesFA.length }}</th>
-                                        <th colspan="8" class="fw-bold">
+                                        <th colspan="9" class="fw-bold text-end">
                                             Amount: ₹{{ (chequeTotal$() | async) | number:"1.0-0" }}
                                         </th>
                                     </tr>
                                 </tfoot>
                             </table>
+
+                            <!-- ✅ cheque split validator error -->
+                            <div class="text-danger small mt-2" *ngIf="chequesFA.errors?.['chequeSplitExceed'] as e">
+                                Split exceeds allowed amount for
+                                <b>{{ e.instalmentDate | date:'dd-MM-yyyy' }}</b>.
+                                Entered: ₹{{ (e.sum || 0) | number:'1.0-0' }},
+                                Allowed: ₹{{ (e.allowed || 0) | number:'1.0-0' }}.
+                            </div>
                         </div>
                     </div>
+
+                    <!-- OTHER PAYMENTS (NEW) -->
+                    <div class="border rounded-3 p-3 mt-3">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <div class="fw-semibold">Additional Payments</div>
+                                <div class="text-muted small">Use this only if you collect extra payments like
+                                    CASH/UPI/etc.</div>
+                            </div>
+
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox"
+                                    [checked]="step2Form.getRawValue().additionalPaymentsEnabled"
+                                    (change)="toggleAdditionalPayments($event)" />
+                                <label class="form-check-label">Enable</label>
+                            </div>
+                        </div>
+
+                        <ng-container *ngIf="step2Form.getRawValue().additionalPaymentsEnabled">
+                            <div class="d-flex justify-content-end mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                    (click)="addOtherPaymentRow()">
+                                    <i class="fa-solid fa-plus me-1"></i> Add Row
+                                </button>
+                            </div>
+
+                            <div class="table-responsive mt-2">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 160px">Mode</th>
+                                            <th style="width: 160px">Amount (₹)</th>
+                                            <th style="width: 160px">Paid On</th>
+                                            <th style="width: 180px">Ref No</th>
+                                            <th style="width: 220px">Bank</th>
+                                            <th style="width: 220px">Branch</th>
+                                            <th style="width: 240px">Reference Note</th>
+                                            <th>Remarks</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody formArrayName="otherPayments">
+                                        <tr *ngFor="let o of otherPaymentsFA.controls; let i = index; trackBy: trackByIndex"
+                                            [formGroupName]="i">
+                                            <td>
+                                                <select class="form-select form-select-sm" formControlName="mode">
+                                                    <option value="CASH">CASH</option>
+                                                    <option value="UPI">UPI</option>
+                                                    <option value="CARD">CARD</option>
+                                                    <option value="NEFT">NEFT</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <input class="form-control form-control-sm" type="number"
+                                                    formControlName="amount"
+                                                    [class.is-invalid]="o.get('amount')?.touched && o.get('amount')?.invalid" />
+                                                <div class="invalid-feedback">Required</div>
+                                            </td>
+                                            <td>
+                                                <input class="form-control form-control-sm" type="date"
+                                                    formControlName="paidOn" />
+                                            </td>
+                                            <td>
+                                                <input class="form-control form-control-sm" formControlName="refNo"
+                                                    placeholder="optional" />
+                                            </td>
+                                            <td>
+                                                <input class="form-control form-control-sm" formControlName="bankName"
+                                                    placeholder="optional" list="bankList" />
+                                            </td>
+                                            <td>
+                                                <input class="form-control form-control-sm" formControlName="branchName"
+                                                    placeholder="optional" />
+                                            </td>
+                                            <td>
+                                                <input class="form-control form-control-sm"
+                                                    formControlName="referenceNote" placeholder="optional" />
+                                            </td>
+                                            <td>
+                                                <input class="form-control form-control-sm" formControlName="remarks"
+                                                    placeholder="optional" />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </ng-container>
+                    </div>
+
+                    <!-- SUMMARY -->
                     <div class="border rounded-3 p-3 bg-light-subtle mb-3 mt-3">
                         <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center">
                             <div class="small text-muted">Payment Summary</div>
@@ -554,10 +719,13 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- FOOTER -->
                     <div class="admission-footer mt-3">
                         <button type="button" class="btn btn-outline-secondary" (click)="back()">
                             <i class="fa-solid fa-arrow-left-long me-1"></i> Back
                         </button>
+
                         <div class="d-flex gap-2 flex-wrap justify-content-end admission-footer-actions"
                             *ngIf="!submittedForAck">
                             <button type="button" class="btn btn-saffron" (click)="submitPayments()"
@@ -565,6 +733,7 @@
                                 <i class="fa-solid fa-paperclip me-1"></i> Submit
                             </button>
                         </div>
+
                         <div class="d-flex gap-2 flex-wrap justify-content-end admission-footer-actions"
                             *ngIf="submittedForAck">
                             <button class="btn btn-outline-primary" type="button"
@@ -581,6 +750,7 @@
                             </button>
                         </div>
                     </div>
+
                     <div class="small text-muted mt-2">
                         Status:
                         <span class="badge bg-light text-muted">

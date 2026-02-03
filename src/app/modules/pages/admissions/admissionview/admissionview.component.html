@@ -34,14 +34,16 @@
                 <button class="btn btn-print btn-sm" *ngIf="isApproved" (click)="printContract()">
                     <i class="fa-solid fa-file-signature me-1"></i> Contract
                 </button>
-
+                <button class="btn btn-print btn-sm" *ngIf="isSubmittedOrApproved" (click)="printEnrollmentReport()">
+                    <i class="fa-solid fa-file-invoice me-1"></i> Enrollment Report
+                </button>
                 <button class="btn btn-print btn-sm" *ngIf="isSubmittedOrApproved" (click)="printFeeAcknowledgement()">
-                    <i class="fa-solid fa-receipt me-1"></i> Fee Acknowledgement
+                    <i class="fa-solid fa-receipt me-1"></i> Acknowledgement
                 </button>
 
-                <button class="btn btn-print-outline btn-sm" (click)="printFeeCalculation()">
+                <!-- <button class="btn btn-print-outline btn-sm" (click)="printFeeCalculation()">
                     <i class="fa-solid fa-calculator me-1"></i> Fee Calculation
-                </button>
+                </button> -->
 
                 <button class="btn btn-back btn-sm" (click)="goBack()">
                     <i class="fa-solid fa-arrow-left me-1"></i> Back
@@ -319,6 +321,48 @@
                                         <td colspan="8" class="text-center text-muted small">
                                             No cheque entries
                                         </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-3 mt-3" *ngIf="admission.payments.otherPayments.length !== 0">
+                <div class="col-12">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold">Other Payments (UPI / CASH / CARD)</div>
+                                <div class="text-muted small">
+                                    Total Count: <b>{{ admission.payments.otherPayments.length }}</b>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="text-muted small">Total Amount</div>
+                                <div class="fw-bold">₹{{ otherTotal | number : "1.0-0" }}</div>
+                            </div>
+                        </div>
+                        <div class="table-responsive mt-2">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 60px">#</th>
+                                        <th>Mode</th>
+                                        <th>Ref No</th>
+                                        <th style="width: 140px">Paid On</th>
+                                        <th class="text-end" style="width: 140px">Amount</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let o of admission.payments.otherPayments; let i = index">
+                                        <td class="fw-semibold">{{ i + 1 }}</td>
+                                        <td><span class="badge bg-light text-dark border">{{ o.mode }}</span></td>
+                                        <td>{{ o.refNo || '—' }}</td>
+                                        <td>{{ o.paidOn ? (o.paidOn | date:'dd-MMM-yyyy') : '—' }}</td>
+                                        <td class="text-end fw-bold">₹{{ o.amount | number : "1.0-0" }}</td>
+                                        <td>{{ o.remarks || "—" }}</td>
                                     </tr>
                                 </tbody>
                             </table>
