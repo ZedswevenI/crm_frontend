@@ -27,7 +27,7 @@ export class ListComponent implements OnInit {
   // statusFilter: ListStatusFilter = 'all';
 
   //filter
-  pageSize = 5;
+  pageSize = 10;
   searchText = '';
   statusFilter = 'all';
   

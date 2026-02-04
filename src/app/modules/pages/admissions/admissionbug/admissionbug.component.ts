@@ -163,6 +163,7 @@ export class AdmissionbugComponent implements OnInit {
   splitModalInstance: any;
   splitRowIndex: number = -1;
   splitOriginalAmount: number = 0;
+  selectedChequeIndices: Set<number> = new Set();
 
   constructor(
     private fb: UntypedFormBuilder,
@@ -245,17 +246,23 @@ export class AdmissionbugComponent implements OnInit {
       shareReplay(1),
     );
 
+
   readonly neftTotalEntered$ = () =>
     this.neftRefsFA.valueChanges.pipe(
       startWith(this.neftRefsFA.getRawValue()),
-      map((rows: any[]) =>
-        this.roundRupee(
-          (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0),
-        ),
-      ),
+      map(() => {
+        let total = 0;
+        this.neftRefsFA.controls.forEach((control) => {
+          if (control.valid) {
+            const val = control.getRawValue();
+            total += (Number(val.amount) || 0);
+          }
+        });
+        return this.roundRupee(total);
+      }),
       shareReplay(1),
     );
-
+  
   readonly chequeTotal$ = () =>
     this.chequesFA.valueChanges.pipe(
       startWith(this.chequesFA.getRawValue()),
@@ -283,6 +290,12 @@ export class AdmissionbugComponent implements OnInit {
       shareReplay(1),
     );
 
+  readonly grandTotalView$ = () =>
+    combineLatest([this.totalCollected$(), this.otherTotal$()]).pipe(
+      map(([neft, other]) => this.roundRupee((Number(neft) || 0) + (Number(other) || 0))),
+      shareReplay(1)
+    );
+  
   readonly regNoView$ = () =>
     this.step1Form.get('regNo')!.valueChanges.pipe(
       startWith(this.step1Form.get('regNo')!.value),
@@ -972,216 +985,6 @@ export class AdmissionbugComponent implements OnInit {
     return `${dd}.${mm}.${yyyy}`;
   }
 
-  // submitPayments(): void {
-  //   const tenantId = this.pickTenantId();
-  //   if (!tenantId) {
-  //     this.alert.error('tenantId (entiId) is missing. Please login again.');
-  //     return;
-  //   }
-  //   if (!this.admissionId) {
-  //     this.alert.error(
-  //       'Admission draft not created. Go back and proceed again.',
-  //     );
-  //     return;
-  //   }
-  //   if (this.step2Form.invalid) {
-  //     this.step2Form.markAllAsTouched();
-  //     this.alert.error('Please fill all required NEFT/cheque details.');
-  //     return;
-  //   }
-  //   if (this.neftError) {
-  //     this.alert.error(`NEFT Amount Mismatch: ${this.neftError}`);
-  //     return;
-  //   }
-  //   const entered = (this.neftRefsFA.getRawValue() || []).reduce(
-  //     (s: number, r: any) => s + (Number(r.amount) || 0),
-  //     0,
-  //   );
-  //   const enteredRounded = this.roundRupee(entered);
-  //   const neftAmount =
-  //     Number(this.step2Form.getRawValue().neftAmount ?? 0) || 0;
-  //   if (entered <= 0) {
-  //     this.alert.error('Please add at least one NEFT reference amount.');
-  //     return;
-  //   }
-  //   if (enteredRounded > this.roundRupee(neftAmount)) {
-  //     this.alert.error(
-  //       `NEFT total (₹${enteredRounded}) cannot exceed NEFT split (₹${this.roundRupee(neftAmount)}).`,
-  //     );
-  //     return;
-  //   }
-  //   const chequeTotal = (this.chequesFA.getRawValue() || []).reduce(
-  //     (s: number, r: any) => s + (Number(r.amount) || 0),
-  //     0,
-  //   );
-  //   const chequeTotalRounded = this.roundRupee(chequeTotal);
-  //   const plan =
-  //     this.feePlansSub
-  //       .getValue()
-  //       .find(
-  //         (p) =>
-  //           p.id ===
-  //           String(this.step1Form.get('feePlanId')?.value || '').trim(),
-  //       ) || null;
-
-  //   const s1 = this.step1Form.getRawValue();
-  //   const feePreview = this.computeFeeHeadPreview(
-  //     plan,
-  //     Number(s1.testScholarshipPct || 0),
-  //     Number(s1.scholarshipPct || 0),
-  //     Number(s1.additionalScholarshipPct || 0),
-  //   );
-  //   const finalFee = feePreview.reduce(
-  //     (sum, r) => sum + (Number(this.roundRupee(r.total)) || 0),
-  //     0,
-  //   );
-  //   const totalPaid = this.roundRupee(enteredRounded + chequeTotalRounded);
-  //   const totalDue = this.roundRupee(finalFee || 0);
-  //   // if (totalDue > 0 && totalPaid !== totalDue) {
-  //   //   this.alert.error(
-  //   //     `Total of NEFT and cheques (₹${totalPaid}) must match final fee (₹${totalDue}).`,
-  //   //   );
-  //   //   return;
-  //   // }
-  //   const diff = this.roundRupee(totalPaid - totalDue);
-  //   const TOL = 2;
-
-  //   if (totalDue > 0 && Math.abs(diff) > TOL) {
-  //     const sign = diff > 0 ? '+' : '';
-  //     this.alert.error(
-  //       `Total of NEFT and cheques (₹${totalPaid}) should be within ₹${TOL} of final fee (₹${totalDue}). Difference: ${sign}${diff}.`,
-  //     );
-  //     return;
-  //   }
-
-  //   const neftRefs = (this.neftRefsFA.getRawValue() || [])
-  //     .map((r: any) => ({
-  //       utr: String(r.utr || '').trim(),
-  //       amount: Number(r.amount || 0),
-  //       paidOn: this.dateInputToEpoch(r.paidOn),
-  //       bankName:
-  //         String(r.bankName || '')
-  //           .trim()
-  //           .toUpperCase() || null,
-  //       branchName:
-  //         String(r.branchName || '')
-  //           .trim()
-  //           .toUpperCase() || null,
-  //       referenceNote: String(r.referenceNote || '').trim() || null,
-  //       remarks: String(r.remarks || '').trim() || null,
-  //     }))
-  //     .filter((x: any) => !!x.utr && x.amount > 0);
-  //   const finalCheques: any[] = [];
-  //   const convertedNefts: any[] = [];
-  //   const chequeRowsRaw = this.chequesFA.getRawValue() || [];
-  //   chequeRowsRaw.forEach((r: any) => {
-  //     const amt = Number(r.amount || 0);
-  //     if (amt <= 0) return;
-  //     const mode = String(r.mode || 'PDC').toUpperCase();
-  //     const dueDate = Number(r.instalmentDate || 0) || 0;
-  //     const chequeNoOrRef = String(r.chequeNo || '').trim();
-  //     const txnDate = this.dateInputToEpoch(r.chequeDate);
-  //     const bank =
-  //       String(r.bankName || '')
-  //         .trim()
-  //         .toUpperCase() || null;
-  //     const branch =
-  //       String(r.branchName || '')
-  //         .trim()
-  //         .toUpperCase() || null;
-  //     const userRemarks = String(r.remarks || '').trim();
-  //     if (mode === 'NEFT') {
-  //       const dueStr = this.formatDateForRemark(dueDate);
-  //       const autoRemark = `${dueStr} installment paid over NEFT`;
-  //       const finalRemark = userRemarks
-  //         ? `${autoRemark}. ${userRemarks}`
-  //         : autoRemark;
-
-  //       convertedNefts.push({
-  //         utr: chequeNoOrRef,
-  //         amount: amt,
-  //         paidOn: txnDate,
-  //         bankName: bank,
-  //         branchName: branch,
-  //         referenceNote: 'Installment Payment (Converted)',
-  //         remarks: finalRemark,
-  //       });
-  //     } else {
-  //       finalCheques.push({
-  //         sno: Number(r.sno || 0) || 0,
-  //         description: String(r.description || '').trim() || null,
-  //         dueDate: dueDate,
-  //         chequeNo: chequeNoOrRef,
-  //         chequeDate: txnDate,
-  //         favourOf: String(this.DEFAULT_FAVOUR_OF || '').trim(), // or r.favourOf
-  //         mode: mode as ChequeMode, // 'DD' will pass here, ensure backend accepts it or map to 'CDC' if needed
-  //         bankName: bank,
-  //         branchName: branch,
-  //         amount: amt,
-  //         remarks: userRemarks || null,
-  //       });
-  //     }
-  //   });
-
-  //   const otherEnabled =
-  //     !!this.step2Form.getRawValue().additionalPaymentsEnabled;
-
-  //   const otherPayments = otherEnabled
-  //     ? (this.otherPaymentsFA.getRawValue() || [])
-  //         .map((o: any) => ({
-  //           mode: String(o.mode || '')
-  //             .trim()
-  //             .toUpperCase(),
-  //           amount: Number(o.amount || 0),
-  //           paidOn: this.dateInputToEpoch(o.paidOn),
-  //           refNo: String(o.refNo || '').trim() || null,
-  //           bankName:
-  //             String(o.bankName || '')
-  //               .trim()
-  //               .toUpperCase() || null,
-  //           branchName:
-  //             String(o.branchName || '')
-  //               .trim()
-  //               .toUpperCase() || null,
-  //           referenceNote: String(o.referenceNote || '').trim() || null,
-  //           remarks: String(o.remarks || '').trim() || null,
-  //         }))
-  //         .filter((x: any) => !!x.mode && x.amount > 0)
-  //     : [];
-  //   const allNefts = [...neftRefs, ...convertedNefts];
-  //   this.submitting = true;
-  //   const body: any = {
-  //     entiId: tenantId,
-  //     admissionId: this.admissionId,
-  //     neftRefs: allNefts,
-  //     cheques: finalCheques,
-  //     otherPayments,
-  //   };
-  //   this.api
-  //     .fetchData(body, 'admi', 'payments/save')
-  //     .pipe(
-  //       catchError(() => {
-  //         this.submitting = false;
-  //         this.alert.error('Failed to save payments');
-  //         return of(null);
-  //       }),
-  //       takeUntilDestroyed(this.destroyRef),
-  //     )
-  //     .subscribe((res: any) => {
-  //       if (!res) return;
-  //       this.submitting = false;
-
-  //       if (!res?.status) {
-  //         this.alert.error(
-  //           res?.message || res?.error || 'Failed to save payments',
-  //         );
-  //         return;
-  //       }
-  //       this.submittedForAck = true;
-  //       this.alert.success('Payment details saved.');
-  //     });
-  // }
-
   submitPayments(): void {
     const tenantId = this.pickTenantId();
     if (!tenantId) {
@@ -1193,6 +996,20 @@ export class AdmissionbugComponent implements OnInit {
         'Admission draft not created. Go back and proceed again.',
       );
       return;
+    }
+    if (this.step2Form.invalid) {
+      const invalidControls = [];
+      const controls = this.chequesFA.controls;
+      for (let i = 0; i < controls.length; i++) {
+        if (controls[i].invalid) {
+          const row = controls[i] as UntypedFormGroup;
+          const errors = Object.keys(row.controls)
+            .filter((key) => row.get(key)?.invalid)
+            .map((key) => `${key} (${JSON.stringify(row.get(key)?.errors)})`);
+          invalidControls.push(`Row ${i + 1}: ${errors.join(', ')}`);
+        }
+      }
+      console.log('Invalid Cheque Rows:', invalidControls);
     }
     if (this.step2Form.invalid) {
       this.step2Form.markAllAsTouched();
@@ -1224,6 +1041,7 @@ export class AdmissionbugComponent implements OnInit {
             p.id ===
             String(this.step1Form.get('feePlanId')?.value || '').trim(),
         ) || null;
+
     const s1 = this.step1Form.getRawValue();
     const feePreview = this.computeFeeHeadPreview(
       plan,
@@ -1234,10 +1052,11 @@ export class AdmissionbugComponent implements OnInit {
     let finalFee = this.roundRupee(
       feePreview.reduce((sum, r) => sum + (Number(r.total) || 0), 0),
     );
-    finalFee = finalFee + otherTotal;
-    if (Math.abs(totalPaid - finalFee) > 2) {
+    finalFee = finalFee + this.roundRupee(otherTotal);
+    const diff = Math.abs(totalPaid - finalFee);
+    if (diff > 2) {
       this.alert.error(
-        `Total Mismatch. Paid: ₹${totalPaid}, Due: ₹${finalFee}`,
+        `Total Mismatch. Paid: ₹${totalPaid}, Due: ₹${finalFee} (Diff: ₹${diff})`,
       );
       return;
     }
@@ -1246,44 +1065,49 @@ export class AdmissionbugComponent implements OnInit {
     const convertedNefts: any[] = [];
     rawCheques.forEach((r: any) => {
       const mode = String(r.mode || '').toUpperCase();
+      const amt = Number(r.amount || 0);
+      const chequeNo = String(r.chequeNo || '').trim();
+      const paidOn = this.dateInputToEpoch(r.chequeDate);
+      const bank = String(r.bankName || '').trim();
+      const branch = String(r.branchName || '').trim();
+      const userRemark = String(r.remarks || '').trim();
       if (mode === 'NEFT') {
         convertedNefts.push({
-          utr: r.chequeNo,
-          amount: r.amount,
-          paidOn: this.dateInputToEpoch(r.chequeDate),
-          remarks: `${this.formatDateForRemark(r.instalmentDate)} installment paid via NEFT. ${r.remarks || ''}`,
-          bankName: r.bankName,
-          branchName: r.branchName,
+          utr: chequeNo,
+          amount: amt,
+          paidOn: paidOn,
+          remarks: `${this.formatDateForRemark(r.instalmentDate)} installment paid via NEFT. ${userRemark}`,
+          bankName: bank,
+          branchName: branch,
         });
       } else {
         finalCheques.push({
           sno: r.sno,
           description: r.description,
           dueDate: r.instalmentDate,
-          amount: r.amount,
-          chequeNo: r.chequeNo,
-          chequeDate: this.dateInputToEpoch(r.chequeDate),
+          amount: amt,
+          chequeNo: chequeNo,
+          chequeDate: paidOn,
           favourOf: r.favourOf,
           mode: mode,
-          bankName: r.bankName,
-          branchName: r.branchName,
-          remarks: r.remarks,
+          bankName: bank,
+          branchName: branch,
+          remarks: userRemark,
         });
       }
     });
     const standardNefts = this.neftRefsFA.getRawValue().map((r: any) => ({
-      utr: r.utr,
-      amount: r.amount,
+      utr: String(r.utr || '').trim(),
+      amount: Number(r.amount || 0),
       paidOn: this.dateInputToEpoch(r.paidOn),
       bankName: r.bankName,
       branchName: r.branchName,
       referenceNote: r.referenceNote,
       remarks: r.remarks,
     }));
-    const finalNeftRefs = [...standardNefts, ...convertedNefts];
     const finalOther = this.otherPaymentsFA.getRawValue().map((o: any) => ({
       mode: o.mode,
-      amount: o.amount,
+      amount: Number(o.amount || 0),
       paidOn: this.dateInputToEpoch(o.paidOn),
       refNo: o.refNo,
       bankName: o.bankName,
@@ -1291,9 +1115,10 @@ export class AdmissionbugComponent implements OnInit {
       referenceNote: o.referenceNote,
       remarks: o.remarks,
     }));
+    const finalNeftRefs = [...standardNefts, ...convertedNefts];
     this.submitting = true;
     const body: any = {
-      entiId: this.pickTenantId(),
+      entiId: tenantId,
       admissionId: this.admissionId,
       neftRefs: finalNeftRefs,
       cheques: finalCheques,
@@ -1707,34 +1532,19 @@ export class AdmissionbugComponent implements OnInit {
     this.pendingPortalProgramName = null;
   }
 
-  // private buildEmptyPayments(): void {
-  //   this.step2Form.get('neftAmount')?.setValue(0, { emitEvent: false });
-  //   this.step2Form.setControl('neftRefs', this.fb.array([]));
-  //   this.step2Form.setControl('cheques', this.fb.array([]));
-  // }
-
   private buildEmptyPayments(): void {
     this.step2Form.get('neftAmount')?.setValue(0, { emitEvent: false });
-
     this.step2Form.setControl('neftRefs', this.fb.array([]));
     this.step2Form.setControl('cheques', this.fb.array([]));
-
-    // ✅ NEW
     this.step2Form.patchValue(
       { additionalPaymentsEnabled: false },
       { emitEvent: false },
     );
     this.step2Form.setControl('otherPayments', this.fb.array([]));
-
-    // ✅ reset allowed map
     this.chequeAllowedByDate.clear();
   }
 
   printReportStep1(): void {
-    if (this.step !== 1) {
-      this.alert.error('Step 1 report can be printed from Step 1 only.');
-      return;
-    }
     this.step1Form.markAllAsTouched();
     if (this.step1Form.invalid) {
       this.alert.error('Please fill the required student and program details.');
@@ -1790,7 +1600,7 @@ export class AdmissionbugComponent implements OnInit {
           .filter(Boolean)
           .join(', ') || 'Admission',
       )}</td>
-      <td>ZEDSWEVEN I Private Limited</td>
+      <td>ZEDSWEVEN I PRIVATE LIMITED</td>
       <td class="text-right">${neftAmt.toLocaleString('en-IN')}</td>
     </tr>
   `);
@@ -1809,7 +1619,7 @@ export class AdmissionbugComponent implements OnInit {
         <td>${this.esc(due)}</td>
         <td>(${this.esc(mode)})</td>
         <td>${this.esc(desc)}</td>        
-      <td>ZEDSWEVEN I Private Limited</td>
+      <td>ZEDSWEVEN I PRIVATE LIMITED</td>
         <td class="text-right">${this.roundRupee(g.amount).toLocaleString('en-IN')}</td>
       </tr>
     `);
@@ -1823,7 +1633,7 @@ export class AdmissionbugComponent implements OnInit {
       <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
     </div>
 
-    <div class="title-main">ADMISSION DETAILS PREVIEW</div>
+    <div class="title-main">FEE CALCULATION SHEET</div>
     <div class="subtitle">Step 1 preview (Payment split shown as per fee plan instalments).</div>
 
     <div class="meta-row">
@@ -2197,7 +2007,7 @@ export class AdmissionbugComponent implements OnInit {
 
       <div class="header">
         <img src="${this.esc(this.PRINT_LOGO_URL)}" class="logo" />
-        <div class="inst-name">ZEDSWEVEN I Private Limited, Coimbatore</div>
+        <div class="inst-name">ZEDSWEVEN I PRIVATE LIMITED, Coimbatore</div>
       </div>
       <div class="ack-title">ACKNOWLEDGEMENT</div>
       <div class="row"><b>Date:</b> ${dateStr}</div>
@@ -2249,11 +2059,11 @@ export class AdmissionbugComponent implements OnInit {
         <b>Note:</b> This is not an Enrolment FEE Receipt.<br/>
         Proper Enrolment Report will be provided at a later stage along with an enrolment Number.
       </div>
-      <div class="sign">Signature of Staff</div>
+      <div class="sign">Authorised Signatory</div>
       <div class="contact">
         For any support on a later stage please contact us on contact 9159241133 / 9626292233
       </div>
-      <div class="inst-name" style="margin-top : 25px">ZEDSWEVEN I Private Limited, Coimbatore</div>
+      <div class="inst-name" style="margin-top : 25px">ZEDSWEVEN I PRIVATE LIMITED, Coimbatore</div>
         <div class="inst-addr">
           47D2, Nehru Nagar West, Civil Aerodrome Post,
           Kalapatti Road, Coimbatore - 641014
@@ -2536,7 +2346,7 @@ export class AdmissionbugComponent implements OnInit {
               Validators.maxLength(40),
             ],
           ],
-          amount: [neftAmt, [Validators.required, Validators.min(1)]],
+          amount: [0, [Validators.required, Validators.min(1)]],
           paidOn: [new Date().toISOString().split('T')[0], Validators.required],
           bankName: [''],
           branchName: [''],
@@ -2834,6 +2644,7 @@ export class AdmissionbugComponent implements OnInit {
       );
       return;
     }
+    currentControl.patchValue({ amount: balanceAmt });
     currentControl.get('amount')?.setValue(balanceAmt);
     const splitRowData = {
       ...currentValues,
@@ -2850,8 +2661,13 @@ export class AdmissionbugComponent implements OnInit {
     const splitFG = this.createChequeFormGroup(splitRowData);
     this.chequesFA.insert(this.splitRowIndex + 1, splitFG);
     this.reindexCheques();
+    this.selectedChequeIndices.clear();
+    this.rebuildAllowedMap();
+    this.step2Form.updateValueAndValidity();
     this.splitModalInstance.hide();
-    this.alert.success('Installment split successfully.');
+    this.alert.success(
+      'Installment split. Please fill details for the new row.',
+    );
   }
 
   readonly otherTotal$ = () =>
@@ -2864,4 +2680,87 @@ export class AdmissionbugComponent implements OnInit {
       ),
       shareReplay(1),
     );
+
+  toggleChequeSelection(idx: number, event: any): void {
+    if (event.target.checked) {
+      this.selectedChequeIndices.add(idx);
+    } else {
+      this.selectedChequeIndices.delete(idx);
+    }
+  }
+
+  initiateSplit(): void {
+    if (this.selectedChequeIndices.size !== 1) return;
+    const idx = this.selectedChequeIndices.values().next().value;
+    if (idx !== undefined) {
+      this.openSplitModal(idx);
+    }
+  }
+
+  mergeSelectedCheques(): void {
+    const indices = Array.from(this.selectedChequeIndices).sort(
+      (a, b) => a - b,
+    );
+    if (indices.length < 2) return;
+    const selectedRowsData = indices.map((i) =>
+      this.chequesFA.at(i).getRawValue(),
+    );
+    const minDate = selectedRowsData.reduce(
+      (min, curr) => {
+        const d = Number(curr.instalmentDate || 0);
+        return d < min && d > 0 ? d : min;
+      },
+      Number(selectedRowsData[0].instalmentDate || 0),
+    );
+    const totalAmount = selectedRowsData.reduce(
+      (sum, curr) => sum + (Number(curr.amount) || 0),
+      0,
+    );
+    const baseRow = selectedRowsData[0];
+    const mergedData = {
+      ...baseRow,
+      instalmentDate: minDate,
+      amount: totalAmount,
+      chequeNo: '',
+      chequeDate: null,
+      remarks: `Merged ${indices.length} installments`,
+      description: `Merged Installment`,
+    };
+    for (let i = indices.length - 1; i >= 0; i--) {
+      this.chequesFA.removeAt(indices[i]);
+    }
+    const insertIndex = indices[0];
+    this.chequesFA.insert(insertIndex, this.createChequeFormGroup(mergedData));
+    this.selectedChequeIndices.clear();
+    this.reindexCheques();
+    this.rebuildAllowedMap();
+    this.step2Form.updateValueAndValidity();
+    this.alert.success(`Merged. Please fill details for the new row.`);
+  }
+
+  resetCheques(): void {
+    const planId = this.step1Form.get('feePlanId')?.value;
+    const plan = this.feePlansSub.getValue().find((p) => p.id === planId);
+    if (plan) {
+      this.buildPaymentsFromFeePlanInstalments(plan);
+      this.selectedChequeIndices.clear();
+      this.alert.success('Installments reset to initial fee plan.');
+    } else {
+      this.alert.error('Fee Plan not found. Cannot reset.');
+    }
+  }
+
+  private rebuildAllowedMap(): void {
+    const rows = this.chequesFA.getRawValue();
+    this.chequeAllowedByDate.clear();
+    rows.forEach((r: any) => {
+      const dt = Number(r.instalmentDate || 0);
+      const amt = Number(r.amount || 0);
+      if (dt > 0 && amt > 0) {
+        const prev = this.chequeAllowedByDate.get(dt) || 0;
+        this.chequeAllowedByDate.set(dt, prev + amt);
+      }
+    });
+    this.chequesFA.updateValueAndValidity({ emitEvent: false });
+  }
 }

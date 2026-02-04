@@ -51,7 +51,7 @@ export class ListTableComponent {
   paginationItems: Array<{ page: number | '...'; isActive?: boolean }> = [];
   @Output() filterClicked = new EventEmitter<void>();
   currentPage = 1;
-  pageSize = 5;
+  pageSize = 10;
   sortKey: string = '';
   sortDirection: 'asc' | 'desc' = 'asc';
   searchText = '';

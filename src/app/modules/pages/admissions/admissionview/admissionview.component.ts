@@ -127,6 +127,7 @@ interface AdmissionViewModel {
     coreSubjectPct?: any | null;
     remarks?: string | null;
   };
+  createdByName?: string;
 }
 
 @Component({
@@ -337,6 +338,7 @@ export class AdmissionviewComponent implements OnInit {
     if (adm.programId && typeof adm.programId === 'object') {
       duration = adm.programId.duration;
     }
+    const creatorName = adm.createdBy?.name || 'Admin';
     return {
       workflowStage: String(adm?.workflow?.stage || ''),
       admissionId: String(adm.admissionId || ''),
@@ -393,6 +395,7 @@ export class AdmissionviewComponent implements OnInit {
             : null,
         remarks: adm?.schoolMarks?.remarks || null,
       },
+      createdByName: creatorName,
       fee: {
         feePlanCode: adm.feePlanCode || '—',
         feePlanName: adm.feePlanName || '',
@@ -938,7 +941,7 @@ export class AdmissionviewComponent implements OnInit {
           <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
         </div>
         <div class="title-wrap">
-          <div class="title-main">FEE CALCULATION</div>
+          <div class="title-main">FEE CALCULATION SHEET</div>
           <div class="subtitle">Fee plan breakup (as per selected plan and scholarships)</div>
         </div>
         <div class="meta-row">
@@ -1016,6 +1019,7 @@ export class AdmissionviewComponent implements OnInit {
       if (isNaN(d.getTime())) return '';
       return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
     };
+    const enrolledBy = this.esc(a.createdByName || 'Admin');
     const studentName = String(a?.student?.name || '').trim();
     const regNo =
       String(a?.student?.regNo || '').trim() ||
@@ -1078,6 +1082,10 @@ export class AdmissionviewComponent implements OnInit {
           Fee Plan Opted:
           <b><u>${this.esc(feePlanName || '—')}</u></b>
         </div>
+        <div class="mt-6">
+          Enrolled by:
+          <b><u>${enrolledBy}</u></b>
+        </div>
       </div>
       <table class="ack-table">
         <thead>
@@ -1126,12 +1134,13 @@ export class AdmissionviewComponent implements OnInit {
       <div class="ack-warn2"><b>Proper Enrolment Report will be provided at a later stage along with an enrolment Number</b></div>
       <!-- signature at the end (bottom-right) -->
       <div class="ack-signwrap">
-        <div class="ack-sign">Signature of Staff</div>
+        <div class="ack-sign">Authorised Signatory</div>
       </div>
       <div class="ack-footer">
         <div class="ack-support">
           For any support on a later stage please contact us on 9159241133 / 9626292233
         </div>
+        
       </div>
       <div class="ack-org" style="margin-top:25px">
         <div class="ack-org1">${this.esc(orgLine1)}</div>
@@ -1392,346 +1401,17 @@ export class AdmissionviewComponent implements OnInit {
     this.router.navigate(['/app/admissions']);
   }
 
-  // private buildContractHtml(): string {
-  //   const a = this.admission;
-  //   if (!a) {
-  //     console.error('No admission loaded');
-  //     return '<p>No data available</p>';
-  //   }
-  //   const today = new Date();
-  //   const s: any = a.student || {};
-  //   const ac: any = a.academics || {};
-  //   const fee: any = a.fee || {};
-  //   const anyAdm: any = a;
-  //   const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
-  //   const headOfficeAddress =
-  //     '13/1 Maharaja Avenue extension, Kalapatti Main Rd, beside Suguna pip school, GKD Nagar, Nehru Nagar West, Coimbatore, Tamil Nadu 641014'; // TODO: replace with real office address
-  //   const centreAddress = ac.centreName || 'Study Centre';
-  //   const studentName = this.esc(s.name || '');
-  //   const parentName = this.esc(s.parentName || '');
-  //   const studentDob = this.esc(s.dob || '');
-  //   const studentSex = this.esc(s.gender || '');
-  //   const studentAddress =
-  //     this.esc(s.address || s.addressLine1 || anyAdm.studentAddress || '') ||
-  //     '__________________________';
-  //   const enrolmentNumber = this.esc(
-  //     s.regNo || anyAdm.registrationNumber || anyAdm.enrolmentNo || '',
-  //   );
-  //   const registrationNumber = this.esc(anyAdm.registrationNumber || '');
-  //   const studentId = this.esc(anyAdm.studentId || '');
-  //   const studentEmail = this.esc(s.email || '');
-  //   const studentMobile = this.esc(s.phone || '');
-  //   const parentMobile = this.esc(s.parentPhone || '');
-  //   const programName = this.esc(ac.programName || '');
-  //   const programDuration = this.esc(ac.duration || '');
-  //   const courseCommencement = this.esc(ac.courseStart || ac.startMonth || '');
-  //   const gstin = this.esc(ac.gstin || '________________');
-  //   const feePlanText = `${this.esc(fee.feePlanCode || '')} ${
-  //     fee.feePlanName ? ' - ' + this.esc(fee.feePlanName) : ''
-  //   }`;
-  //   const baseFee = Number(fee.baseFee || 0);
-  //   const finalFee = this.finalFee || Number(fee.finalFee || 0);
-  //   const totalDiscountPct = Number(fee.totalDiscountPct || 0);
-  //   const neftRowsHtml = (a.payments.neftRefs || [])
-  //     .map(
-  //       (n: any, idx: number) => `
-  //       <tr>
-  //         <td class="text-center">${idx + 1}</td>
-  //         <td>NEFT</td>
-  //         <td>${this.esc(n.utrNo || '')}</td>
-  //         <td>${this.esc(
-  //           n.paidOn ? new Date(n.paidOn).toLocaleDateString('en-IN') : '',
-  //         )}</td>
-  //         <td class="text-right">${Number(n.amount || 0).toLocaleString(
-  //           'en-IN',
-  //         )}</td>
-  //       </tr>
-  //     `,
-  //     )
-  //     .join('');
-  //   const chequeRowsHtml = (a.payments.cheques || [])
-  //     .map(
-  //       (c: any, idx: number) => `
-  //       <tr>
-  //         <td class="text-center">${
-  //           (a.payments.neftRefs?.length || 0) + idx + 1
-  //         }</td>
-  //         <td>${this.esc(c.mode || 'PDC')}</td>
-  //         <td>${this.esc(c.chequeNo || '')}</td>
-  //         <td>${this.esc(
-  //           c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-IN') : '',
-  //         )}</td>
-  //         <td class="text-right">${Number(c.amount || 0).toLocaleString(
-  //           'en-IN',
-  //         )}</td>
-  //       </tr>
-  //     `,
-  //     )
-  //     .join('');
-  //   const paymentTableBody =
-  //     neftRowsHtml || chequeRowsHtml
-  //       ? neftRowsHtml + chequeRowsHtml
-  //       : '<tr><td colspan="5" class="text-center">No payment schedule captured</td></tr>';
-
-  //   return `
-  //     <div class="page">
-  //     <div class="brand">
-  //             <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
-  //           </div>
-  //       <!-- Header -->
-  //       <div class="header-row">
-  //         <div>
-  //           <div class="title-main">ENROLMENT CONTRACT</div>
-  //           <div class="small">
-  //             (Prepared in line with the requirements for point of taxation / fee contracts)
-  //           </div>
-  //         </div>
-  //         <div class="meta">
-  //           <div><b>Date:</b> ${today.toLocaleDateString('en-IN')}</div>
-  //           <div><b>Admission ID:</b> ${this.esc(a.admissionId || '')}</div>
-  //           ${
-  //             enrolmentNumber
-  //               ? `<div><b>Enrolment No:</b> ${enrolmentNumber}</div>`
-  //               : ''
-  //           }
-  //         </div>
-  //       </div>
-  //       <div class="section small">
-  //         This contract is between <b>${providerName}</b>, having its registered / head office at
-  //         <b>${this.esc(headOfficeAddress)}</b>, and
-  //         <b>${parentName}</b> (Parent / Guardian) of <b>${studentName}</b> (Student),
-  //         for enrolment into the below mentioned classroom / coaching program, for the
-  //         duration indicated and as per the terms listed in this document.
-  //       </div>
-  //       <!-- 1. STUDENT / PROGRAM DETAILS -->
-  //       <div class="section">
-  //         <div class="section-title">1. STUDENT / PROGRAM DETAILS</div>
-  //         <div class="small">
-  //           The details of the Student’s enrolment, program, fee and other relevant information are as follows:
-  //         </div>
-  //         <table>
-  //           <tbody>
-  //             <tr>
-  //               <th colspan="2">i) Details of Education Provider</th>
-  //             </tr>
-  //             <tr>
-  //               <td style="width:45%;">Full Name of Education Provider</td>
-  //               <td>${this.esc(providerName)}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Head Office Address</td>
-  //               <td>${this.esc(headOfficeAddress)}</td>
-  //             </tr>
-
-  //             <tr>
-  //               <th colspan="2">ii) Details of Student / Parent / Guardian</th>
-  //             </tr>
-  //             <tr>
-  //               <td>Full Name of Student</td>
-  //               <td>${studentName}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Date of Birth (DD-MMM-YYYY)</td>
-  //               <td>${studentDob || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Sex</td>
-  //               <td>${studentSex || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Permanent Address</td>
-  //               <td>${studentAddress}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Enrolment Number</td>
-  //               <td>${enrolmentNumber || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Registration Number</td>
-  //               <td>${registrationNumber || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Student ID</td>
-  //               <td>${studentId || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Email ID of Student</td>
-  //               <td>${studentEmail || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Contact Number</td>
-  //               <td>${studentMobile || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Full Name of Parent / Guardian</td>
-  //               <td>${parentName || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Parent / Guardian Mobile</td>
-  //               <td>${parentMobile || '__________________________'}</td>
-  //             </tr>
-
-  //             <tr>
-  //               <th colspan="2">iii) Program / Centre related information</th>
-  //             </tr>
-  //             <tr>
-  //               <td>Full Name of Program</td>
-  //               <td>${programName}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Duration of Program</td>
-  //               <td>${programDuration || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Course commencement (MMM-YYYY)</td>
-  //               <td>${courseCommencement || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Study Centre</td>
-  //               <td>${this.esc(centreAddress)}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>GSTIN</td>
-  //               <td>${gstin}</td>
-  //             </tr>
-  //           </tbody>
-  //         </table>
-  //       </div>
-  //       <!-- 2. COURSE FEE, SCHOLARSHIPS / WAIVERS AND PAYMENT SCHEDULE -->
-  //       <div class="section">
-  //         <div class="section-title">
-  //           2. DETAILS OF COURSE FEE, SCHOLARSHIPS / WAIVERS AND PAYMENT SCHEDULE
-  //         </div>
-  //         <div class="small">
-  //           The details of fee plan, scholarship / waivers and instalment schedule for the chosen program are
-  //           summarised below:
-  //         </div>
-  //         <table>
-  //           <tbody>
-  //             <tr>
-  //               <td style="width:45%;">Fee Plan</td>
-  //               <td>${feePlanText || '__________________________'}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Base Fee (before discounts)</td>
-  //               <td>₹ ${baseFee.toLocaleString('en-IN')}</td>
-  //             </tr>
-  //             <tr>
-  //               <td>Total Scholarship / Discount (%)</td>
-  //               <td>${totalDiscountPct.toFixed(2)}%</td>
-  //             </tr>
-  //             <tr>
-  //               <td><b>Final Payable Fee</b></td>
-  //               <td><b>₹ ${finalFee.toLocaleString('en-IN')}</b></td>
-  //             </tr>
-  //           </tbody>
-  //         </table>
-  //         <div class="mt-2 small">
-  //           <b>Payment Schedule (as per current records)</b>
-  //         </div>
-  //         <table>
-  //           <thead>
-  //             <tr>
-  //               <th style="width:40px;" class="text-center">#</th>
-  //               <th>Mode</th>
-  //               <th>UTR / Cheque No.</th>
-  //               <th>Due / Paid Date</th>
-  //               <th class="text-right">Amount (₹)</th>
-  //             </tr>
-  //           </thead>
-  //           <tbody>
-  //             ${paymentTableBody}
-  //           </tbody>
-  //         </table>
-  //       </div>
-  //       <!-- 3. MISCELLANEOUS TERMS & CONDITIONS -->
-  //       <div class="section small">
-  //         <div class="section-title">3. MISCELLANEOUS TERMS AND CONDITIONS</div>
-  //         <ul class="note-list">
-  //           <li>
-  //             Post-dated cheques / scheduled electronic payments shall be deposited or initiated on the
-  //             agreed due dates. Any delay or rejection may attract additional charges and late fees as per
-  //             the institute’s policy.
-  //           </li>
-  //           <li>
-  //             If a cheque or transaction is not honoured, the Parent / Guardian agrees to clear the amount
-  //             through an alternate mode along with applicable bank and administrative charges and any
-  //             late fee specified by the institute.
-  //           </li>
-  //           <li>
-  //             Repeated defaults in payment may result in temporary suspension of classroom access or
-  //             termination of enrolment, without any claim on the missed classes.
-  //           </li>
-  //           <li>
-  //             All official communication will be sent to the contact details recorded in this contract /
-  //             enrolment form. Any change in address, email or phone must be informed in writing within a
-  //             reasonable time.
-  //           </li>
-  //           <li>
-  //             Refunds, withdrawals and exit options (if any) shall be governed strictly by the written
-  //             policies of the institute in force on the date of enrolment.
-  //           </li>
-  //         </ul>
-  //       </div>
-
-  //       <!-- 4. JURISDICTION -->
-  //       <div class="section small">
-  //         <div class="section-title">4. JURISDICTION</div>
-  //         <p class="small">
-  //           Any dispute arising out of or in connection with this enrolment shall be subject to the
-  //           exclusive jurisdiction of the courts having jurisdiction over the registered office of the
-  //           institute. Disputes, if any, may be referred to arbitration as per the policy notified by the
-  //           institute from time to time.
-  //         </p>
-  //       </div>
-  //       <!-- Signatures -->
-  //       <div class="section mt-4 small">
-  //         <table style="border:none; width:100%; margin-top:24px;">
-  //           <tr>
-  //             <td style="border:none; width:33%; vertical-align:top;">
-  //               <div style="height:180px; border:1px solid #e5e7eb; margin-bottom:4px; font-size:9px; display:flex;align-items:center;justify-content:center;text-align:center;">
-  //                 Photograph of Parent / Guardian
-  //               </div>
-  //               ___________________________<br/>
-  //               Signature of Parent / Guardian<br/>
-  //               Name: ${parentName || '________________'}
-  //             </td>
-  //             <td style="border:none; width:33%; text-align:center; vertical-align:top;">
-  //               <div style="height:180px; border:1px solid #e5e7eb; margin-bottom:4px; font-size:9px; display:flex;align-items:center;justify-content:center;text-align:center;">
-  //                 Photograph of Student
-  //               </div>
-  //               ___________________________<br/>
-  //               Signature of Student<br/>
-  //               Name: ${studentName || '________________'}
-  //             </td>
-  //             <td style="border:none; width:33%; text-align:right; vertical-align:bottom;">
-  //               ___________________________<br/>
-  //               Authorised Signatory<br/>
-  //               For ${this.esc(providerName)}
-  //             </td>
-  //           </tr>
-  //         </table>
-  //         <div class="small mt-2">
-  //           * Valid only if signed and sealed by the institute office.
-  //         </div>
-  //       </div>
-  //     </div>
-  //   `;
-  // }
-
   private buildContractHtml(): string {
     const a = this.admission;
     if (!a) {
       console.error('No admission loaded');
       return '<p>No data available</p>';
     }
-
     const today = new Date();
-    // TODO: You might want to fetch these from a central config or the Center object if available
     const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
     const headOfficeAddress =
       '47D2, Nehru Nagar West, Civil Aerodrome Post, Kalapatti Road, Coimbatore - 641014';
-
+    const preparedBy = this.esc(a.createdByName || 'Admin');
     // --- 1. Data Preparation ---
     const s = a.student || ({} as any);
     const ac = a.academics || ({} as any);
@@ -1741,7 +1421,7 @@ export class AdmissionviewComponent implements OnInit {
     const studentName = this.esc(s.name || '');
     const parentName = this.esc(s.parentName || '');
 
-    // Address Construction
+    // Address
     const addrParts = [];
     if (s.address) addrParts.push(s.address);
     if (s.city) addrParts.push(s.city);
@@ -1773,9 +1453,8 @@ export class AdmissionviewComponent implements OnInit {
         : String(ac.duration);
     }
 
-    // const courseStart = this.esc(ac.courseStart || ac.startMonth || 'Apr 2026');
     const centerName = this.esc(ac.centreName || '');
-    const gstin = this.esc( '33AACCZ5769Q1ZF');
+    const gstin = this.esc('33AACCZ5769Q1ZF');
 
     // Fee Info
     const feePlanName = this.esc(fee.feePlanName || '');
@@ -1795,8 +1474,7 @@ export class AdmissionviewComponent implements OnInit {
       0,
     );
 
-    // --- 2. Payment Schedule Logic (Merging NEFT, CHEQUE, and OTHER from raw API data) ---
-    // We access 'this.rawPayments' to ensure we see all types (UPI, CASH, etc.) which might not be in the view model 'payments' object depending on filtering.
+    // --- 2. Payment Schedule Logic ---
     const allPayments = (this.rawPayments || [])
       .map((p: any) => {
         const type = String(p.paymentType || '').toUpperCase();
@@ -1809,13 +1487,10 @@ export class AdmissionviewComponent implements OnInit {
           dateRaw = p.neft?.paidOn || p.submittedOn;
           refNo = p.neft?.utr || '';
         } else if (type === 'CHEQUE') {
-          // Handle PDC vs converted NEFT if applicable
-          const isPdc = (p.cheque?.mode || '').includes('PDC');
           mode = p.cheque?.mode || 'CHEQUE';
           dateRaw = p.cheque?.dueDate || p.cheque?.chequeDate;
           refNo = p.cheque?.chequeNo || '';
         } else {
-          // Handle UPI, CASH, OTHER
           mode = String(p.other?.mode || type).toUpperCase();
           dateRaw = p.other?.paidOn || p.submittedOn;
           refNo = p.other?.refNo || '';
@@ -1856,12 +1531,12 @@ export class AdmissionviewComponent implements OnInit {
               <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" style="height:50px;" />
            </div>
            <div class="title-wrap mt-1">
-              <div class="title-main" style="font-size:16px; border-bottom:1px solid #000; display:inline-block; padding-bottom:2px;">ENROLMENT CONTRACT</div>
+              <div class="title-main" style="font-size:18px; border-bottom:1px solid #000; display:inline-block; padding-bottom:2px;">ENROLMENT CONTRACT</div>
               <div class="tiny text-center mt-1">(Pursuant to Rule 6 of Point of Taxation Rules, 2011)</div>
            </div>
         </div>
 
-        <div class="section small" style="margin-top:10px; line-height:1.4;">
+        <div class="section" style="margin-top:15px; line-height:1.5; font-size:14px;">
           This contract is executed on <b>${today.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</b> between 
           <b>${this.esc(providerName)}</b>, having its registered office at ${this.esc(headOfficeAddress)} 
           and <b>Mr./Ms. ${parentName}</b> (Name of Parent / Guardian), resident of 
@@ -1869,11 +1544,11 @@ export class AdmissionviewComponent implements OnInit {
           for a period of about <b>${durationText}</b> and as per the terms and conditions specified.
         </div>
 
-        <div class="section mt-3">
-          <div class="section-title">1. STUDENT / PROGRAM DETAILS</div>
-          <div class="small mb-1">The details of the "Student's" Enrolment, Course, Program fees, duration of the course and other relevant details shall be as under:</div>
+        <div class="section mt-4" style="font-size:14px;">
+          <div class="section-title" style="font-size:15px;">1. STUDENT / PROGRAM DETAILS</div>
+          <div class="mb-2">The details of the "Student's" Enrolment, Course, Program fees, duration of the course and other relevant details shall be as under:</div>
           
-          <table class="table-bordered">
+          <table class="table-bordered" style="font-size:14px;">
             <tbody>
                <tr>
                  <td colspan="2" style="background:#eee;"><b>i. Details of Education Provider</b></td>
@@ -1949,6 +1624,10 @@ export class AdmissionviewComponent implements OnInit {
                <tr>
                  <td>GSTIN</td>
                  <td>${gstin}</td>
+               </tr>
+               <tr>
+                 <td>Prepared By</td>
+                 <td>${preparedBy}</td>
                </tr>
             </tbody>
           </table>
@@ -2054,24 +1733,30 @@ export class AdmissionviewComponent implements OnInit {
         <div class="section mt-5">
            <table style="width:100%; border:none;">
              <tr>
-                <td style="width:33%; border:none; vertical-align:bottom; text-align:right;">
-                  <div style="margin-bottom:40px;">For <b>${this.esc(providerName)}</b></div>
-                  <div style="border-top:1px solid #000; width:80%; margin-left:auto; padding-top:20px; text-align:center;">Authorised Signatory</div>
-               </td>
-               <td style="width:33%; border:none; vertical-align:top; text-align:center;">
-                  <div style="height:120px; width:100px; border:1px solid #ccc; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:9px;">
+               <td style="width:50%; border:none; vertical-align:top; text-align:center; padding-bottom:40px;">
+                  <div style="height:200px; width:140px; border:1px solid #ccc; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:10px;">
                      Affix Photo<br>Parent
                   </div>
-                  <div style="border-top:1px solid #000; width:80%; margin:0 auto; padding-top:20px;">Signature of Parent</div>
+                  <div style="border-top:1px solid #000; width:60%; margin:0 auto; padding-top:10px;">Signature of Parent</div>
                </td>
-               <td style="width:33%; border:none; vertical-align:top; text-align:center;">
-                  <div style="height:120px; width:100px; border:1px solid #ccc; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:9px;">
+               <td style="width:50%; border:none; vertical-align:top; text-align:center; padding-bottom:40px;">
+                  <div style="height:200px; width:140px; border:1px solid #ccc; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:10px;">
                      Affix Photo<br>Student
                   </div>
-                  <div style="border-top:1px solid #000; width:80%; margin:0 auto; padding-top:20px;">Signature of Student</div>
+                  <div style="border-top:1px solid #000; width:60%; margin:0 auto; padding-top:10px;">Signature of Student</div>
+               </td>
+             </tr>
+             
+             <tr>
+               <td colspan="2" style="border:none; text-align:right; padding-top:20px;">
+                  <div style="margin-bottom:50px;">For <b>${this.esc(providerName)}</b></div>
+                  <div style="display:inline-block; text-align:center; width:200px;">
+                    <div style="border-top:1px solid #000; padding-top:10px;">Authorised Signatory</div>
+                  </div>
                </td>
              </tr>
            </table>
+           
            <div class="tiny text-center mt-3">* Valid only if signed and sealed by the Institute office</div>
         </div>
 
@@ -2084,250 +1769,24 @@ export class AdmissionviewComponent implements OnInit {
     this.openPrintWindow('Enrollment Report', html);
   }
 
-  // private buildEnrollmentReportHtml(): string {
-  //   const a = this.admission;
-  //   if (!a) return '<p>No data available</p>';
-  //   const s = a.student || {} as any;
-  //   const ac = a.academics || {} as any;
-  //   const fee = a.fee || {} as any;
-  //   const anyAdm = a as any;
-  //   const today = new Date();
-  //   const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
-  //   const studentName = this.esc(s.name || '');
-  //   const regNo = this.esc(s.regNo || anyAdm.registrationNumber || '—');
-  //   const enrollNo = this.esc(a.admissionNo || '—');
-  //   const studentId = this.esc(anyAdm.portalStudentId || '—');
-  //   const enrollDate = this.esc(a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN') : '—');
-  //   const enrolledBy = this.esc('Admin');
-  //   const dob = s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '—';
-  //   const sex = this.esc(s.gender || '—');
-  //   const mobile = this.esc(s.phone || '—');
-  //   const email = this.esc(s.email || '—');
-  //   const father = this.esc(s.fatherName || s.parentName || '—');
-  //   const mother = this.esc(s.motherName || '—');
-  //   const program = this.esc(ac.programName || '—');
-  //   const center = this.esc(ac.centreName || '—');
-  //   const feePlan = this.esc(fee.feePlanName || '—');
-  //   const batch = this.esc(ac.batchName || '—');
-  //   const courseStart = this.esc(ac.courseStart || ac.startMonth || '—');
-  //   const addrParts = [];
-  //   if (s.address) addrParts.push(s.address);
-  //   if (s.city) addrParts.push(s.city);
-  //   if (s.state) addrParts.push(s.state);
-  //   if (s.pincode) addrParts.push(s.pincode);
-  //   const address = addrParts.length > 0 ? this.esc(addrParts.join(', ')) : '—';
-  //   const feeBreakup = fee.breakup || [];
-  //   const totalFee = feeBreakup.reduce((acc: number, item: any) => acc + (item.total || 0), 0);
-  //   const feeRows = feeBreakup.map((r: any) => `
-  //     <tr>
-  //       <td>${this.esc(r.label)}</td>
-  //       <td class="text-right">${Number(r.total || 0).toLocaleString('en-IN')}</td>
-  //     </tr>
-  //   `).join('');
-  //   const allPayments = (this.rawPayments || []).map((p: any) => {
-  //     const type = String(p.paymentType || '').toUpperCase();
-  //     let mode = type;
-  //     let dateRaw = p.submittedOn;
-  //     let refNo = '';
-  //     let bank = '';
-  //     if (type === 'NEFT') {
-  //       mode = 'NEFT/IMPS';
-  //       dateRaw = p.neft?.paidOn || p.submittedOn;
-  //       refNo = p.neft?.utr || '';
-  //       bank = p.neft?.bankName || '';
-  //     } else if (type === 'CHEQUE') {
-  //       const isPdc = (p.cheque?.mode || '').includes('PDC');
-  //       mode = p.cheque?.mode || 'PDC';
-  //       dateRaw = p.cheque?.chequeDate;
-  //       refNo = p.cheque?.chequeNo || '';
-  //       bank = p.cheque?.bankName || '';
-  //     } else {
-  //       mode = String(p.other?.mode || type).toUpperCase();
-  //       dateRaw = p.other?.paidOn || p.submittedOn;
-  //       refNo = p.other?.refNo || '';
-  //       bank = p.other?.bankName || '';
-  //     }
-  //     return {
-  //       mode,
-  //       date: dateRaw,
-  //       ref: refNo,
-  //       bank,
-  //       amount: Number(p.amount || 0)
-  //     };
-  //   })
-  //   .filter((x: any) => x.amount > 0)
-  //   .sort((a: any, b: any) => (a.date || 0) - (b.date || 0));
-
-  //   const totalPaid = allPayments.reduce((s: number, x: any) => s + x.amount, 0);
-
-  //   const payRows = allPayments.length ? allPayments.map((p: any, i: number) => `
-  //     <tr>
-  //       <td class="text-center">${i + 1}</td>
-  //       <td>${this.esc(p.mode)}</td>
-  //       <td>${p.date ? new Date(p.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '-'}</td>
-  //       <td>${this.esc(p.ref)}</td>
-  //       <td>${this.esc(p.bank)}</td>
-  //       <td class="text-right">${p.amount.toLocaleString('en-IN')}</td>
-  //     </tr>
-  //   `).join('') : `<tr><td colspan="6" class="text-center">No payments found</td></tr>`;
-  //   return `
-  //     <div class="page">
-  //       <div class="print-header" style="border:none; margin-bottom:20px;">
-  //          <div class="brand-center">
-  //             <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" style="height:50px;" />
-  //          </div>
-  //          <div class="title-wrap">
-  //             <div class="title-main" style="text-decoration:underline;">ENROLMENT REPORT</div>
-  //          </div>
-  //       </div>
-  //       <div class="section">
-  //          <div class="section-title">Student, Program and Study Centre Details (Part 1)</div>
-  //          <div class="kv-grid" style="grid-template-columns: 1fr 1fr; border:1px solid #000;">
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Enrollment No.</span><br>
-  //                <b>${enrollNo}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Registration No.</span><br>
-  //                <b>${regNo}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Student ID</span><br>
-  //                <b>${studentId}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Enrollment Date</span><br>
-  //                <b>${enrollDate}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Name of the Student</span><br>
-  //                <b>${studentName}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Enrolled by</span><br>
-  //                <b>${enrolledBy}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Date of Birth</span><br>
-  //                <b>${dob}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Sex</span><br>
-  //                <b>${sex}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Mobile Number</span><br>
-  //                <b>${mobile}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Email ID</span><br>
-  //                <b>${email}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Father Name</span><br>
-  //                <b>${father}</b>
-  //             </div>
-  //             <div class="kv-cell">
-  //                <span class="kv-key">Mother Name</span><br>
-  //                <b>${mother}</b>
-  //             </div>
-  //             <div class="kv-cell" style="grid-column: span 2;">
-  //                <span class="kv-key">Program</span><br>
-  //                <b>${program}</b>
-  //             </div>
-  //             <div class="kv-cell" style="grid-column: span 2;">
-  //                <span class="kv-key">Study Centre</span><br>
-  //                <b>${center}</b>
-  //             </div>
-  //             <div class="kv-cell" style="grid-column: span 2;">
-  //                <span class="kv-key">Fee Plan</span><br>
-  //                <b>${feePlan}</b>
-  //             </div>
-  //             <div class="kv-cell" style="grid-column: span 2;">
-  //                <span class="kv-key">Course Commencement</span><br>
-  //                <b>${courseStart}</b>
-  //             </div>
-  //             <div class="kv-cell" style="grid-column: span 2;">
-  //                <span class="kv-key">Mailing Address</span><br>
-  //                <b>${address}</b>
-  //             </div>
-  //          </div>
-  //       </div>
-  //       <div class="section mt-3">
-  //          <div class="section-title">Payment Schedule (Part 3)</div>
-  //          <table style="border:1px solid #000;">
-  //             <thead>
-  //                <tr style="background:#fff;">
-  //                   <th style="border:1px solid #000; width:40px;">S.No</th>
-  //                   <th style="border:1px solid #000;">Mode</th>
-  //                   <th style="border:1px solid #000;">Dated</th>
-  //                   <th style="border:1px solid #000;">DD/Chg. No / Ref</th>
-  //                   <th style="border:1px solid #000;">Bank</th>
-  //                   <th style="border:1px solid #000; text-align:right;">Amount (₹)</th>
-  //                </tr>
-  //             </thead>
-  //             <tbody>
-  //                ${payRows}
-  //             </tbody>
-  //             <tfoot>
-  //                <tr>
-  //                   <td colspan="5" style="border:1px solid #000; text-align:right; font-weight:bold;">Total payments made so far</td>
-  //                   <td style="border:1px solid #000; text-align:right; font-weight:bold;">${totalPaid.toLocaleString('en-IN')}</td>
-  //                </tr>
-  //             </tfoot>
-  //          </table>
-  //       </div>
-
-  //       <div class="section mt-3 small">
-  //          <div style="font-weight:bold; margin-bottom:4px;">Note:</div>
-  //          <div>This dues are to be cleared on or before duedate subject to scholarship awarded if any.</div>
-
-  //          <div style="font-weight:bold; margin-top:10px; margin-bottom:4px;">Important</div>
-  //          <ul style="padding-left:15px; margin:0;">
-  //             <li>Your invoice/payment receipt will be issued online within 14 days of payment realisation.</li>
-  //             <li>All communications, Performance report etc., will be sent to the email address/mobile/mailing address updated by you online.</li>
-  //             <li>Cheques/DDs subject to realisation.</li>
-  //             <li>The GST has been calculated @18.00% (wherever applicable) as per the current prevailing tax rates/laws.</li>
-  //          </ul>
-  //       </div>
-
-  //       <div class="small text-right mt-3" style="border-top:1px solid #ccc; padding-top:5px;">
-  //          Printed on ${today.toLocaleString('en-IN')}
-  //       </div>
-  //     </div>
-
-  //     <style>
-  //        .kv-cell { border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; }
-  //        .kv-cell:nth-child(2n) { border-right: none; }
-  //        .kv-key { font-size: 10px; color: #555; }
-  //        table { width: 100%; border-collapse: collapse; }
-  //        th, td { padding: 5px; font-size:11px; }
-  //     </style>
-  //   `;
-  // }
-
   private buildEnrollmentReportHtml(): string {
     const a = this.admission;
     if (!a) return '<p>No data available</p>';
     const s = a.student;
     const ac = a.academics;
     const fee = a.fee;
-    const anyAdm = a as any; // fallback for loose typing
+    const anyAdm = a as any;
     const today = new Date();
-
-    const providerName = 'ZEDSWEVEN I PRIVATE LIMITED'; // Or dynamic
+    const providerName = 'ZEDSWEVEN I PRIVATE LIMITED';
     const studentName = this.esc(s.name || '');
     const regNo = this.esc(s.regNo || anyAdm.registrationNumber || '—');
     const enrollNo = this.esc(a.admissionNo || '—');
-    // For student ID, check various possible locations
     const studentId = this.esc(
       anyAdm.portalStudentId || anyAdm.studentId || '—',
     );
     const enrollDate = this.esc(
       a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN') : '—',
     );
-    const enrolledBy = this.esc('Admin');
-
     const dob = s.dateOfBirth
       ? new Date(s.dateOfBirth).toLocaleDateString('en-IN', {
           day: '2-digit',
@@ -2346,6 +1805,7 @@ export class AdmissionviewComponent implements OnInit {
     const feePlan = this.esc(fee.feePlanName || '—');
     const batch = this.esc(ac.batchName || '—');
     const courseStart = this.esc(ac.courseStart || ac.startMonth || '—');
+    const enrolledBy = this.esc(a.createdByName || 'Admin');
 
     const addrParts = [];
     if (s.address) addrParts.push(s.address);
@@ -2370,8 +1830,6 @@ export class AdmissionviewComponent implements OnInit {
     `,
       )
       .join('');
-
-    // Payments (Merge all types)
     const allPayments = (this.rawPayments || [])
       .map((p: any) => {
         const type = String(p.paymentType || '').toUpperCase();
@@ -2379,7 +1837,6 @@ export class AdmissionviewComponent implements OnInit {
         let dateRaw = p.submittedOn;
         let refNo = '';
         let bank = '';
-
         if (type === 'NEFT') {
           mode = 'NEFT/IMPS';
           dateRaw = p.neft?.paidOn || p.submittedOn;
@@ -2397,7 +1854,6 @@ export class AdmissionviewComponent implements OnInit {
           refNo = p.other?.refNo || '';
           bank = p.other?.bankName || '';
         }
-
         return {
           mode,
           date: dateRaw,
@@ -2413,7 +1869,6 @@ export class AdmissionviewComponent implements OnInit {
       (s: number, x: any) => s + x.amount,
       0,
     );
-
     const payRows = allPayments.length
       ? allPayments
           .map(
@@ -2543,7 +1998,7 @@ export class AdmissionviewComponent implements OnInit {
 
         <div class="section mt-3 small">
            <div style="font-weight:bold; margin-bottom:4px;">Note:</div>
-           <div>This dues are to be cleared on or before duedate subject to scholarship awarded if any.</div>
+           <div>This dues are to be cleared on or before due date subject to scholarship awarded if any.</div>
            
            <div style="font-weight:bold; margin-top:10px; margin-bottom:4px;">Important</div>
            <ul style="padding-left:15px; margin:0;">
@@ -2557,6 +2012,7 @@ export class AdmissionviewComponent implements OnInit {
         <div class="small text-right mt-3" style="border-top:1px solid #ccc; padding-top:5px;">
            Printed on ${today.toLocaleString('en-IN')}
         </div>
+         <div class="sign">Authorised Signatory</div>
       </div>
 
       <style>
@@ -2579,6 +2035,10 @@ export class AdmissionviewComponent implements OnInit {
          .data-table { width: 100%; border-collapse: collapse; border: 1px solid #000; }
          .data-table th, .data-table td { border: 1px solid #000; padding: 5px; font-size:11px; vertical-align:top; }
          .data-table th { background: #fff; }
+          .sign {
+            margin-top: 50px;
+            text-align: right;
+          }
       </style>
     `;
   }
