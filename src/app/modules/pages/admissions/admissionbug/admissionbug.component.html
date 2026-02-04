@@ -198,19 +198,13 @@
                                     <div class="col-md-4">
                                         <formfield label="Program Code" [control]="step1Form.get('programCode')"
                                             formControlName="programCode" readonly="'true'"></formfield>
-                                        <!-- <div class="text-muted tiny mt-1">Auto-filled from portal / selected program.
-                                        </div> -->
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label">Academic Year</label>
-                                        <select class="form-select" formControlName="academicYear">
-                                            <option value="" disabled>Select academic year</option>
-                                            <option *ngFor="let y of academicYearOptions" [value]="y">{{ y }}</option>
-                                        </select>
-                                        <div class="invalid-feedback d-block"
-                                            *ngIf="step1Form.get('academicYear')?.touched && step1Form.get('academicYear')?.invalid">
-                                            Required
-                                        </div>
+                                        <selectbox label="Course Start Year" placeholder="Select Year" [required]="true"
+                                            [options]="courseStartYearOptions" optionLabel="label" optionValue="value"
+                                            [control]="step1Form.get('courseStartYear')"
+                                            formControlName="courseStartYear">
+                                        </selectbox>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Centre</label>
@@ -362,9 +356,6 @@
                             <i class="fa-solid fa-xmark me-1"></i> Cancel
                         </button>
                         <div class="d-flex gap-2">
-                            <!-- <button type="button" class="btn btn-outline-primary" (click)="printReportStep1()">
-                                <i class="fa-solid fa-calculator me-1"></i> Generate Fee Calculation
-                            </button> -->
                             <button class="btn btn-saffron" type="button" (click)="next()" [disabled]="submitting">
                                 Proceed to Payments <i class="fa-solid fa-arrow-right-long ms-1"></i>
                             </button>
@@ -381,13 +372,9 @@
                 </div>
 
                 <form [formGroup]="step2Form">
-
-                    <!-- single datalist for both NEFT and Cheque bank inputs -->
                     <datalist id="bankList">
                         <option *ngFor="let b of bankNames" [value]="b"></option>
                     </datalist>
-
-                    <!-- NEFT -->
                     <div class="border rounded-3 p-3 mb-3">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
@@ -402,7 +389,6 @@
                                 <i class="fa-solid fa-plus me-1"></i> Add Ref
                             </button>
                         </div>
-
                         <div class="table-responsive mt-2">
                             <table class="table table-sm align-middle mb-0">
                                 <thead class="table-light">
@@ -417,7 +403,6 @@
                                         <th style="width: 60px"></th>
                                     </tr>
                                 </thead>
-
                                 <tbody formArrayName="neftRefs">
                                     <tr *ngFor="let r of neftRefsFA.controls; let i = index; trackBy: trackByIndex"
                                         [formGroupName]="i">
@@ -459,7 +444,6 @@
                                         </td>
                                     </tr>
                                 </tbody>
-
                                 <tfoot class="table-light">
                                     <tr>
                                         <th colspan="2" class="text-end">Total Entered</th>
@@ -469,27 +453,11 @@
                                     </tr>
                                 </tfoot>
                             </table>
-
-                            <!-- ✅ validator key fixed -->
-                            <div class="text-danger small mt-1" *ngIf="neftRefsFA.errors?.['neftSumExceed'] as e">
-                                Total entered (₹{{ (e.entered || 0) | number:'1.0-0' }}) exceeds NEFT split
-                                (₹{{ (e.split || 0) | number:'1.0-0' }}).
+                            <div *ngIf="neftError" class="alert alert-danger mt-2 py-1 small">
+                                <i class="fa fa-exclamation-triangle me-1"></i> {{ neftError }}
                             </div>
-                            <ng-container
-                                *ngIf="(neftRefsFA.errors?.['neftSumExceed'] || neftRefsFA.errors?.['splitExceeded']) as e">
-                                <div class="text-danger small mt-1">
-                                    Total entered
-                                    (₹{{ ((e?.entered ?? e?.total ?? (neftTotalEntered$() | async) ?? 0)) |
-                                    number:'1.0-0' }})
-                                    exceeds NEFT split
-                                    (₹{{ ((e?.split ?? step2Form.getRawValue().neftAmount ?? 0)) | number:'1.0-0' }}).
-                                </div>
-                            </ng-container>
-
                         </div>
                     </div>
-
-                    <!-- CHEQUES -->
                     <div class="border rounded-3 p-3">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
@@ -497,43 +465,42 @@
                             </div>
                             <span class="badge bg-secondary-subtle text-secondary">Cheques</span>
                         </div>
-
                         <div class="table-responsive mt-2">
                             <table class="table table-sm align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width: 70px">S.no</th>
-                                        <th style="width: 160px">Instalment Date</th>
-                                        <th style="width: 150px" class="text-end">Amount (₹)</th>
-                                        <th style="width: 240px">Favour of</th>
-                                        <th style="width: 140px">Mode</th>
-                                        <th style="width: 150px">Cheque Date</th>
-                                        <th style="width: 170px">Cheque No</th>
-                                        <th style="width: 220px">Bank</th>
-                                        <th style="width: 200px">Branch</th>
+                                        <th style="width: 40px" class="text-center">Split</th>
+                                        <th style="width: 60px">S.no</th>
+                                        <th style="width: 140px">Instalment Date</th>
+                                        <th style="width: 140px" class="text-end">Amount (₹)</th>
+                                        <th style="width: 220px">Favour of</th>
+                                        <th style="width: 120px">Mode</th>
+                                        <th style="width: 140px">Cheque Date</th>
+                                        <th style="width: 160px">Cheque No / UTR</th>
+                                        <th style="width: 200px">Bank</th>
+                                        <th style="width: 180px">Branch</th>
                                         <th>Remarks</th>
-                                        <th style="width: 90px"></th>
                                     </tr>
                                 </thead>
 
                                 <tbody formArrayName="cheques">
-                                    <tr *ngFor="let row of chequesFA.controls; let idx = index; trackBy: trackByIndex"
-                                        [formGroupName]="idx">
+                                    <tr *ngFor="let row of chequesFA.controls; let idx = index" [formGroupName]="idx">
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" [checked]="false"
+                                                (change)="onSplitCheckboxChange(idx, $event)">
+                                        </td>
+
                                         <td class="fw-semibold">{{ row.get('sno')?.value }}</td>
                                         <td>
                                             <span class="text-muted">
-                                                {{
-                                                row.get('instalmentDate')?.value
-                                                ? (row.get('instalmentDate')?.value | date:'dd-MM-yyyy')
-                                                : '—'
-                                                }}
+                                                {{ row.get('instalmentDate')?.value ? (row.get('instalmentDate')?.value
+                                                | date:'dd-MM-yyyy') : '—' }}
                                             </span>
                                         </td>
                                         <td class="text-end">
                                             <input class="form-control form-control-sm text-end" type="number"
-                                                formControlName="amount"
+                                                formControlName="amount" readonly
                                                 [class.is-invalid]="row.get('amount')?.touched && row.get('amount')?.invalid" />
-                                            <div class="invalid-feedback">Required</div>
                                         </td>
                                         <td>
                                             <input class="form-control form-control-sm" formControlName="favourOf"
@@ -551,19 +518,16 @@
                                             <input class="form-control form-control-sm" type="date"
                                                 formControlName="chequeDate"
                                                 [class.is-invalid]="row.get('chequeDate')?.touched && row.get('chequeDate')?.invalid" />
-                                            <div class="invalid-feedback">Required</div>
                                         </td>
                                         <td>
-                                            <input class="form-control form-control-sm" placeholder="Cheque No / UTR"
+                                            <input class="form-control form-control-sm" placeholder="No / UTR"
                                                 formControlName="chequeNo"
                                                 [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
-                                            <div class="invalid-feedback">Required</div>
                                         </td>
                                         <td>
                                             <input class="form-control form-control-sm" formControlName="bankName"
-                                                placeholder="Type bank name" list="bankList"
+                                                placeholder="Bank" list="bankList"
                                                 [class.is-invalid]="row.get('bankName')?.touched && row.get('bankName')?.invalid" />
-                                            <div class="invalid-feedback">Required</div>
                                         </td>
                                         <td>
                                             <input class="form-control form-control-sm" formControlName="branchName"
@@ -573,35 +537,20 @@
                                             <input class="form-control form-control-sm" placeholder="optional"
                                                 formControlName="remarks" />
                                         </td>
-                                        <td class="text-end">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary"
-                                                (click)="splitChequeRow(idx)">
-                                                Split
-                                            </button>
-                                        </td>
                                     </tr>
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
-                                        <th colspan="2" class="text-end">Total Cheques</th>
-                                        <th class="fw-bold">{{ chequesFA.length }}</th>
-                                        <th colspan="9" class="fw-bold text-end">
-                                            Amount: ₹{{ (chequeTotal$() | async) | number:"1.0-0" }}
+                                        <th colspan="3" class="text-end">Total Cheques</th>
+                                        <th class="fw-bold text-end">
+                                            ₹{{ (chequeTotal$() | async) | number:"1.0-0" }}
                                         </th>
+                                        <th colspan="7"></th>
                                     </tr>
                                 </tfoot>
                             </table>
-
-                            <!-- ✅ cheque split validator error -->
-                            <div class="text-danger small mt-2" *ngIf="chequesFA.errors?.['chequeSplitExceed'] as e">
-                                Split exceeds allowed amount for
-                                <b>{{ e.instalmentDate | date:'dd-MM-yyyy' }}</b>.
-                                Entered: ₹{{ (e.sum || 0) | number:'1.0-0' }},
-                                Allowed: ₹{{ (e.allowed || 0) | number:'1.0-0' }}.
-                            </div>
                         </div>
                     </div>
-
                     <!-- OTHER PAYMENTS (NEW) -->
                     <div class="border rounded-3 p-3 mt-3">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -647,7 +596,6 @@
                                             [formGroupName]="i">
                                             <td>
                                                 <select class="form-select form-select-sm" formControlName="mode">
-                                                    <option value="CASH">CASH</option>
                                                     <option value="UPI">UPI</option>
                                                     <option value="CARD">CARD</option>
                                                     <option value="NEFT">NEFT</option>
@@ -708,6 +656,10 @@
                                     <div class="fw-bold">₹{{ (totalCollected$() | async) | number:"1.0-0" }}</div>
                                 </div>
                                 <div>
+                                    <div class="text-muted small">Other Total</div>
+                                    <div class="fw-semibold">₹{{ (otherTotal$() | async) | number:"1.0-0" }}</div>
+                                </div>
+                                <div>
                                     <div class="text-muted small">Balance</div>
                                     <ng-container *ngIf="balanceAmount$() | async as bal">
                                         <div class="fw-bold" [class.text-success]="(bal ?? 0) === 0"
@@ -736,6 +688,9 @@
 
                         <div class="d-flex gap-2 flex-wrap justify-content-end admission-footer-actions"
                             *ngIf="submittedForAck">
+                            <button type="button" class="btn btn-outline-primary" (click)="printReportStep1()">
+                                <i class="fa-solid fa-calculator me-1"></i> Generate Fee Calculation
+                            </button>
                             <button class="btn btn-outline-primary" type="button"
                                 (click)="generateAcknowledgementStep2()">
                                 <i class="fa-solid fa-file-circle-check me-1"></i> Acknowledgement (Provision)
@@ -765,6 +720,47 @@
                     </div>
                 </form>
             </ng-container>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" #splitModal tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content" [formGroup]="splitForm">
+            <div class="modal-header">
+                <h5 class="modal-title h6">Split Installment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2">
+                    <label class="small text-muted">Original Amount</label>
+                    <input type="number" formControlName="originalAmount" class="form-control form-control-sm">
+                </div>
+                <div class="mb-2">
+                    <label class="small fw-bold">Split Amount (Part 1)</label>
+                    <input type="number" formControlName="splitAmount" class="form-control form-control-sm">
+                </div>
+                <div class="mb-2">
+                    <label class="small">Mode for Part 1</label>
+                    <select formControlName="splitMode" class="form-select form-select-sm">
+                        <option value="NEFT">NEFT</option>
+                        <option value="UPI">UPI</option>
+                        <option value="CASH">CASH</option>
+                        <option value="PDC">PDC</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="small">Remarks</label>
+                    <input formControlName="remarks" class="form-control form-control-sm">
+                </div>
+                <div class="alert alert-info small py-1 mb-0">
+                    Remaining Balance: ₹{{ (splitForm.get('originalAmount')?.value -
+                    splitForm.get('splitAmount')?.value) | number }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary btn-sm" (click)="saveSplit()">Split & Save</button>
+            </div>
         </div>
     </div>
 </div>
