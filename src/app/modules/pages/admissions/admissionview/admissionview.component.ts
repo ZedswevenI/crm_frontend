@@ -1625,10 +1625,6 @@ export class AdmissionviewComponent implements OnInit {
                  <td>GSTIN</td>
                  <td>${gstin}</td>
                </tr>
-               <tr>
-                 <td>Prepared By</td>
-                 <td>${preparedBy}</td>
-               </tr>
             </tbody>
           </table>
         </div>
@@ -1730,36 +1726,35 @@ export class AdmissionviewComponent implements OnInit {
            </div>
         </div>
 
-        <div class="section mt-5">
+        <div class="section" style="margin-top:30px;">
            <table style="width:100%; border:none;">
              <tr>
-               <td style="width:50%; border:none; vertical-align:top; text-align:center; padding-bottom:40px;">
+               <td style="width:28%; border:none; vertical-align:top; text-align:center; padding-bottom:40px;">
                   <div style="height:200px; width:140px; border:1px solid #ccc; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:10px;">
                      Affix Photo<br>Parent
                   </div>
                   <div style="border-top:1px solid #000; width:60%; margin:0 auto; padding-top:10px;">Signature of Parent</div>
                </td>
-               <td style="width:50%; border:none; vertical-align:top; text-align:center; padding-bottom:40px;">
+               <td style="width:28%; border:none; vertical-align:top; text-align:center; padding-bottom:40px;">
                   <div style="height:200px; width:140px; border:1px solid #ccc; margin:0 auto 10px auto; display:flex; align-items:center; justify-content:center; color:#999; font-size:10px;">
                      Affix Photo<br>Student
                   </div>
                   <div style="border-top:1px solid #000; width:60%; margin:0 auto; padding-top:10px;">Signature of Student</div>
                </td>
+               <td style="width:44%; border:none; vertical-align:top; text-align:center; padding-bottom:40px;"><?td>
              </tr>
              
              <tr>
-               <td colspan="2" style="border:none; text-align:right; padding-top:20px;">
+               <td colspan="3" style="border:none; text-align:right; padding-top:20px;">
                   <div style="margin-bottom:50px;">For <b>${this.esc(providerName)}</b></div>
                   <div style="display:inline-block; text-align:center; width:200px;">
                     <div style="border-top:1px solid #000; padding-top:10px;">Authorised Signatory</div>
                   </div>
+                  <div class="tiny text-end mt-3">* Valid only if signed and sealed by the Institute office</div>
                </td>
              </tr>
            </table>
-           
-           <div class="tiny text-center mt-3">* Valid only if signed and sealed by the Institute office</div>
         </div>
-
       </div>
     `;
   }
