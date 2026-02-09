@@ -1398,7 +1398,8 @@ export class AdmissionviewComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/app/admissions']);
+    // this.router.navigate(['/app/admissions']);
+    window.history.back();
   }
 
   private buildContractHtml(): string {

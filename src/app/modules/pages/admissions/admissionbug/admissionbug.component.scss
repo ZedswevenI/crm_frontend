@@ -1,0 +1,30 @@
+/* Primary CTA */
+.btn-saffron {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #111827;
+  font-weight: 600;
+}
+
+.btn-saffron:hover,
+.btn-saffron:focus {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  filter: brightness(0.95);
+}
+
+.btn-saffron:disabled,
+.btn-saffron.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* Make all action buttons feel consistent */
+.admission-page .btn {
+  border-radius: 0.65rem;
+}
+
+.admission-page .btn.btn-sm {
+  border-radius: 0.55rem;
+}

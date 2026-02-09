@@ -246,7 +246,6 @@ export class AdmissionbugComponent implements OnInit {
       shareReplay(1),
     );
 
-
   readonly neftTotalEntered$ = () =>
     this.neftRefsFA.valueChanges.pipe(
       startWith(this.neftRefsFA.getRawValue()),
@@ -255,14 +254,14 @@ export class AdmissionbugComponent implements OnInit {
         this.neftRefsFA.controls.forEach((control) => {
           if (control.valid) {
             const val = control.getRawValue();
-            total += (Number(val.amount) || 0);
+            total += Number(val.amount) || 0;
           }
         });
         return this.roundRupee(total);
       }),
       shareReplay(1),
     );
-  
+
   readonly chequeTotal$ = () =>
     this.chequesFA.valueChanges.pipe(
       startWith(this.chequesFA.getRawValue()),
@@ -292,10 +291,12 @@ export class AdmissionbugComponent implements OnInit {
 
   readonly grandTotalView$ = () =>
     combineLatest([this.totalCollected$(), this.otherTotal$()]).pipe(
-      map(([neft, other]) => this.roundRupee((Number(neft) || 0) + (Number(other) || 0))),
-      shareReplay(1)
+      map(([neft, other]) =>
+        this.roundRupee((Number(neft) || 0) + (Number(other) || 0)),
+      ),
+      shareReplay(1),
     );
-  
+
   readonly regNoView$ = () =>
     this.step1Form.get('regNo')!.valueChanges.pipe(
       startWith(this.step1Form.get('regNo')!.value),
@@ -1172,14 +1173,6 @@ export class AdmissionbugComponent implements OnInit {
       this.alert.error('Admission not available.');
       return;
     }
-    if (!this.submittedForAck) {
-      this.alert.error('Submit payments first.');
-      return;
-    }
-    if (!this.feeCalcGenerated) {
-      this.alert.error('Generate fee calculation first.');
-      return;
-    }
     this.submitting = true;
     const body: any = { entiId: tenantId, admissionId: this.admissionId };
     this.api
@@ -1204,6 +1197,7 @@ export class AdmissionbugComponent implements OnInit {
         }
         this.approvalSent = true;
         this.alert.success('Sent for approval.');
+        this.router.navigate(['app/admissions/new']);
       });
   }
 
@@ -2346,7 +2340,7 @@ export class AdmissionbugComponent implements OnInit {
               Validators.maxLength(40),
             ],
           ],
-          amount: [0, [Validators.required, Validators.min(1)]],
+          amount: [neftAmt, [Validators.required, Validators.min(1)]],
           paidOn: [new Date().toISOString().split('T')[0], Validators.required],
           bankName: [''],
           branchName: [''],
@@ -2762,5 +2756,25 @@ export class AdmissionbugComponent implements OnInit {
       }
     });
     this.chequesFA.updateValueAndValidity({ emitEvent: false });
+  }
+
+  get canSubmitPayments(): boolean {
+    return (
+      !this.submitting &&
+      !this.loading &&
+      !!this.admissionId &&
+      !this.submittedForAck &&
+      this.step === 2 &&
+      !this.neftError &&
+      this.step2Form.valid
+    );
+  }
+
+  get canSendForApproval(): boolean {
+    return (
+      !this.submitting &&
+      !!this.admissionId &&
+      !this.approvalSent
+    );
   }
 }

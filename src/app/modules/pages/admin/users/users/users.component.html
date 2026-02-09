@@ -9,15 +9,22 @@
                     Manage application users and map them to role levels (L1–L4) with predefined permissions.
                 </p>
             </div>
-            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
-                <i class="fa-solid fa-plus"></i>
-                <span>Add User</span>
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Users</span>
+                </button>
+
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Add User</span>
+                </button>
+            </div>
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="users" [actions]="actions"
-             [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="users" [actions]="actions" [loading]="loading"
+                [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
             </list-table>
         </div>
     </div>
@@ -162,4 +169,99 @@
         (closed)="onDeleteModalClosed($event)">
     </delete>
 
+</div>
+
+<!-- ================= Import Users Modal ================= -->
+<div class="app-modal-backdrop" *ngIf="showImport">
+    <div class="app-modal" style="max-width: 980px;">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Import Users</h6>
+                <span class="text-muted small">
+                    Upload Excel and import users. New users password will be <span
+                        class="fw-semibold">Welcome&#64;123</span>.
+                </span>
+            </div>
+            <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+        </div>
+
+        <div class="app-modal-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1">Import Mode</label>
+                    <select class="form-select form-select-sm" [(ngModel)]="importMode">
+                        <option value="upsert">Upsert (Update if exists, else Insert)</option>
+                        <option value="insert">Insert only (Skip existing)</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 d-flex align-items-end justify-content-end gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="downloadSampleExcel()">
+                        <i class="fa-regular fa-file-excel me-1"></i> Sample
+                    </button>
+
+                    <label class="btn btn-sm btn-outline-primary mb-0">
+                        <i class="fa-solid fa-upload me-1"></i> Choose Excel
+                        <input type="file" accept=".xlsx,.xls" class="d-none" (change)="onExcelSelected($event)" />
+                    </label>
+                </div>
+
+                <div class="col-12" *ngIf="importFileName">
+                    <div class="small text-muted">Selected: <span class="fw-semibold">{{ importFileName }}</span></div>
+                </div>
+
+                <div class="col-12" *ngIf="importPreviewRows.length">
+                    <div class="border rounded p-2" style="max-height: 360px; overflow:auto;">
+                        <div class="small text-muted mb-2">
+                            Rows: <span class="fw-semibold">{{ importPreviewRows.length }}</span>
+                            <span class="mx-2">•</span>
+                            Invalid: <span class="fw-semibold text-danger">{{ importInvalidCount }}</span>
+                        </div>
+
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:60px;">Row</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Role</th>
+                                    <th>Center</th>
+                                    <th style="width:220px;">Errors</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let r of importPreviewRows">
+                                    <td>{{ r._rowNo }}</td>
+                                    <td>{{ r.name }}</td>
+                                    <td>{{ r.email }}</td>
+                                    <td>{{ r.phone }}</td>
+                                    <td>{{ r.roleLevel }}</td>
+                                    <td>{{ r.centerName || '-' }}</td>
+                                    <td class="small">
+                                        <span class="text-danger" *ngIf="!r._valid">{{ (r._errors || []).join(', ')
+                                            }}</span>
+                                        <span class="text-muted" *ngIf="r._valid">OK</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="small text-muted mt-2">
+                        Note: Existing users are matched by <span class="fw-semibold">Email</span>.
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button type="button" class="btn btn-outline-secondary" (click)="closeImport()">Cancel</button>
+                <button type="button" class="btn btn-primary" (click)="confirmImport()"
+                    [disabled]="!importPreviewRows.length || importHasInvalidRows || importing">
+                    <i class="fa-solid fa-cloud-arrow-up me-1"></i>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
