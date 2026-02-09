@@ -1,0 +1,168 @@
+<div class="center-view-page">
+
+    <!-- Center Info -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1 fw-semibold">Center Details</h5>
+                <p class="mb-0 text-muted small">View center and manage venues</p>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" (click)="back()">
+                <i class="fa-solid fa-arrow-left me-1"></i> Back
+            </button>
+        </div>
+
+        <div class="card-body">
+            <div *ngIf="loadingCenter" class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-primary"></div>
+            </div>
+
+            <div class="row g-3" *ngIf="!loadingCenter">
+                <div class="col-md-6">
+                    <appreadonly label="Center Name" [required]="false" [options]="[]" optionLabel="label"
+                        optionValue="value" [control]="null" [ngModel]="center?.centerName">
+                    </appreadonly>
+                </div>
+
+                <div class="col-md-3">
+                    <appreadonly label="Code" [required]="false" [options]="[]" optionLabel="label" optionValue="value"
+                        [control]="null" [ngModel]="center?.centerCode">
+                    </appreadonly>
+                </div>
+
+                <div class="col-md-3">
+                    <appreadonly label="Status" [required]="false" [options]="[]" optionLabel="label"
+                        optionValue="value" [control]="null" [ngModel]="center?.status">
+                    </appreadonly>
+                </div>
+
+                <div class="col-md-4">
+                    <appreadonly label="City" [required]="false" [options]="[]" optionLabel="label" optionValue="value"
+                        [control]="null" [ngModel]="center?.city">
+                    </appreadonly>
+                </div>
+
+                <div class="col-md-4">
+                    <appreadonly label="State" [required]="false" [options]="[]" optionLabel="label" optionValue="value"
+                        [control]="null" [ngModel]="center?.state">
+                    </appreadonly>
+                </div>
+
+                <div class="col-md-4">
+                    <appreadonly label="Phone" [required]="false" [options]="[]" optionLabel="label" optionValue="value"
+                        [control]="null" [ngModel]="center?.phone">
+                    </appreadonly>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Venues -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Venues</h6>
+                <div class="text-muted small">Add multiple venues under this center</div>
+            </div>
+
+            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="addVenue()">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add Venue</span>
+            </button>
+        </div>
+
+        <div class="card-body pt-0">
+            <list-table [autoFitChars]="true" [columns]="venueColumns" [data]="venues" [actions]="venueActions"
+                [loading]="venueLoading" [totalRecords]="venueTotalRecords" [pageSizeOptions]="[10,20,50]"
+                (requestData)="fetchVenues($event)">
+            </list-table>
+        </div>
+    </div>
+
+    <!-- Venue Create/Edit Modal -->
+    <div class="app-modal-backdrop" *ngIf="showVenueForm">
+        <div class="app-modal">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">{{ venueFormMode === 'create' ? 'Add Venue' : 'Edit Venue' }}</h6>
+                    <span class="text-muted small">Venue details for this center</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeVenueModal()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="venueForm" (ngSubmit)="saveVenue()">
+                    <div class="row g-3">
+
+                        <div class="col-md-6">
+                            <formfield label="Venue Name" [required]="true" formControlName="venueName"
+                                [control]="venueForm.get('venueName')">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-3">
+                            <formfield label="Capacity" [required]="false" formControlName="capacity"
+                                [control]="venueForm.get('capacity')" placeholder="Optional">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-6">
+                            <formfield label="Address Line 1" [required]="false" formControlName="address1"
+                                [control]="venueForm.get('address1')">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-6">
+                            <formfield label="Address Line 2" [required]="false" formControlName="address2"
+                                [control]="venueForm.get('address2')">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Area" [required]="false" formControlName="area"
+                                [control]="venueForm.get('area')">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="City" [required]="false" formControlName="city"
+                                [control]="venueForm.get('city')">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="State" [required]="false" formControlName="state"
+                                [control]="venueForm.get('state')">
+                            </formfield>
+                        </div>
+
+                        <div class="col-md-4">
+                            <formfield label="Pincode" [required]="false" formControlName="pincode"
+                                [control]="venueForm.get('pincode')" placeholder="6 digit pincode">
+                            </formfield>
+                        </div>
+
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="closeVenueModal()"
+                            [disabled]="venueSaving">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" [disabled]="venueForm.invalid || venueSaving">
+                            <span *ngIf="venueSaving" class="spinner-border spinner-border-sm me-2" role="status"
+                                aria-hidden="true"></span>
+                            {{ venueFormMode === 'create' ? 'Save Venue' : 'Update Venue' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Venue Delete -->
+    <delete [title]="'Delete Venue'" [message]="deleteVenueMessage" [(visible)]="deleteVenueModalVisible"
+        (closed)="onDeleteVenueClosed($event)">
+    </delete>
+
+</div>

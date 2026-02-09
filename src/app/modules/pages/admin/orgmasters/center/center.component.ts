@@ -4,6 +4,8 @@ import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.ser
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CenterService } from '../../../../../service/admin/orgmasters/center.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { Router } from '@angular/router';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-center',
@@ -14,24 +16,16 @@ import { CommonapiService } from '../../../../../service/commonapi/commonapi.ser
 export class CenterComponent implements OnInit {
 
   centerForm!: FormGroup;
-  // centerData: any[] = [];
-
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   editingId: string | null = null;
-
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
-
   loading = false;
   totalRecords = 0;
   centerData: any[] = [];
-
-  // Static entiId (as per backend requirement)
   entiId: any;
-
-  // Dummy institute data (replace with API later if needed)
   institutes = [
     { id: 1, name: 'Z7i Institute - Main' },
     { id: 2, name: 'Z7i Institute - Chennai' }
@@ -51,27 +45,35 @@ export class CenterComponent implements OnInit {
   ];
 
   actions = [
-    {
-      type: 'icon',
-      icon: 'fa-regular fa-pen-to-square',
-      tooltip: 'Edit',
-      callback: (row: any) => this.edit(row)
-    },
-    {
-      type: 'icon',
-      icon: 'fa-regular fa-trash-can',
-      tooltip: 'Delete',
-      hoverColor: '#D42B2B',
-      callback: (row: any) => this.openDelete(row)
-    }
+  {
+    type: 'icon',
+    icon: 'fa-regular fa-eye',
+    tooltip: 'View',
+    callback: (row: any) => this.view(row)
+  },
+  {
+    type: 'icon',
+    icon: 'fa-regular fa-pen-to-square',
+    tooltip: 'Edit',
+    callback: (row: any) => this.edit(row)
+  },
+  {
+    type: 'icon',
+    icon: 'fa-regular fa-trash-can',
+    tooltip: 'Delete',
+    hoverColor: '#D42B2B',
+    callback: (row: any) => this.openDelete(row)
+  }
   ];
+  saving = false;
 
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alertService: AlertService,
     private centerService: CenterService,
-    private api: CommonapiService
+    private api: CommonapiService,
+    private router : Router
   ) {
     this.entiId = localStorage.getItem('tenantId')
     this.breadcrumb.set([
@@ -81,34 +83,22 @@ export class CenterComponent implements OnInit {
     ]);
   }
 
-  // ===============================
-  // INIT
-  // ===============================
   ngOnInit(): void {
     this.centerForm = this.fb.group({
-      name: ['', Validators.required],
+       name: ['', Validators.required],
       code: ['', Validators.required],
-      // instituteId: [null, Validators.required],
       city: ['', Validators.required],
       state: ['', Validators.required],
       isActive: [true],
-      // Dynamic additional fields
       contactName: ['', Validators.required],
       address1: ['', Validators.required],
       address2: ['', Validators.required],
       area: ['', Validators.required],
-      phone: ['', Validators.required],
-      pincode: ['', Validators.required]
+      phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
+      pincode: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]]
     });
-
-    // this.loadCenters();
   }
 
-
-
-  // ===============================
-  // LIST
-  // ===============================
   loadCenters(): void {
     this.centerService.listCenters(this.entiId).subscribe({
       next: (res) => {
@@ -167,10 +157,6 @@ export class CenterComponent implements OnInit {
     });
   }
 
-
-  // ===============================
-  // ADD
-  // ===============================
   add(): void {
     this.formMode = 'create';
     this.editingId = null;
@@ -182,15 +168,9 @@ export class CenterComponent implements OnInit {
     this.showForm = true;
   }
 
-  // ===============================
-  // EDIT
-  // ===============================
   edit(row: any): void {
-    console.log("Row data ", row);
-
     this.formMode = 'edit';
     this.editingId = row.recId || row._id;
-
     this.centerForm.patchValue({
       name: row.centerName,
       code: row.centerCode,
@@ -205,28 +185,17 @@ export class CenterComponent implements OnInit {
       area: row.area,
       pincode: row.pincode
     });
-
     this.showForm = true;
   }
 
-  // ===============================
-  // CANCEL
-  // ===============================
-  cancel(): void {
-    this.showForm = false;
-  }
-
-  // ===============================
-  // SAVE (CREATE / UPDATE)
-  // ===============================
   save(): void {
+    if (this.saving) return;
     if (this.centerForm.invalid) {
       this.centerForm.markAllAsTouched();
       return;
     }
-
+    this.saving = true;
     const f = this.centerForm.value;
-
     const payload: any = {
       entiId: this.entiId,
       centerName: f.name,
@@ -242,41 +211,37 @@ export class CenterComponent implements OnInit {
       pincode: f.pincode,
       status: f.isActive ? 'Active' : 'Inactive'
     };
-
     const api$ =
       this.formMode === 'create'
         ? this.centerService.createCenter(payload)
-        : this.centerService.updateCenter({
-          ...payload,
-          recId: this.editingId
-        });
-    api$.subscribe({
-      next: (res: any) => {
-        console.log("respons ", res);
-
-        if (res?.status === false || res?.success === false && !res.data) {
-          this.alertService.error(res?.message || 'Operation failed');
-          return;
+        : this.centerService.updateCenter({ ...payload, recId: this.editingId });
+    api$
+      .pipe(finalize(() => (this.saving = false)))
+      .subscribe({
+        next: (res: any) => {
+          if (res?.status === false || (res?.success === false && !res.data)) {
+            this.alertService.error(res?.message || 'Operation failed');
+            return;
+          }
+          this.alertService.success(
+            this.formMode === 'create'
+              ? 'Center created successfully'
+              : 'Center updated successfully'
+          );
+          this.showForm = false;
+          this.loadCenters();
+        },
+        error: (err) => {
+          this.alertService.error(err || 'Server error');
         }
-        this.alertService.success(
-          this.formMode === 'create'
-            ? 'Center created successfully'
-            : 'Center updated successfully'
-        );
-
-        this.showForm = false;
-        this.loadCenters();
-      },
-      error: (err) => {
-        this.alertService.error(err || 'Server error');
-      }
-    });
-
+      });
   }
 
-  // ===============================
-  // DELETE
-  // ===============================
+  cancel(): void {
+    if (this.saving) return;
+    this.showForm = false;
+  }
+
   openDelete(row: any): void {
     this.deleteTarget = row;
     this.deleteMessage = `Are you sure you want to delete center "${row.centerName}"?`;
@@ -285,9 +250,7 @@ export class CenterComponent implements OnInit {
 
   onDeleteModalClosed(confirmed: boolean): void {
     this.deleteModalVisible = false;
-
     if (!confirmed || !this.deleteTarget) return;
-
     this.centerService
       .deleteCenter(this.entiId, this.deleteTarget._id)
       .subscribe({
@@ -297,7 +260,12 @@ export class CenterComponent implements OnInit {
         },
         error: (err) => this.alertService.error(err)
       });
-
     this.deleteTarget = null;
   }
+
+  view(row: any) {
+  const id = row?._id || row?.recId;
+  if (!id) return;
+  this.router.navigate(['/app/admin/masters/centers/view', id]);
+}
 }

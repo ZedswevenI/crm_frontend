@@ -136,7 +136,6 @@ export class StaffComponent implements OnInit {
     this.setupFacultyRules();
   }
 
- 
   private initForm() {
     this.staffForm = this.fb.group({
       staffName: ['', [Validators.required, Validators.minLength(3)]],
@@ -179,10 +178,7 @@ export class StaffComponent implements OnInit {
     return `?${qs}`;
   }
 
-  // ======================================
-  // LIST
-  // ======================================
-    fetchTableData(params: {
+  fetchTableData(params: {
     page: number;
     pageSize: number;
     search?: string;
@@ -191,36 +187,42 @@ export class StaffComponent implements OnInit {
   }) {
     this.loading = true;
 
-    // Pagination & Sort
+    // map UI columns to backend fields (optional safety)
+    const sortMap: any = {
+      staffName: 'staffName',
+      staffCode: 'staffCode',
+      employeeId: 'employeeId',
+      role: 'role',
+      phone: 'phone',
+      email: 'email',
+    };
+
     let sortParam = '';
     if (params.sortKey) {
-      sortParam =
-        params.sortDirection === 'desc'
-          ? `-${params.sortKey}`
-          : params.sortKey;
+      const k = sortMap[params.sortKey] || params.sortKey;
+      sortParam = params.sortDirection === 'desc' ? `-${k}` : k;
     }
 
     const query: any = {
       page: params.page,
-      limit: params.pageSize
+      limit: params.pageSize,
     };
     if (sortParam) query.sort = sortParam;
     if (params.search) query.search = params.search;
 
-    // Build query string
     const queryString = Object.keys(query)
       .map(
-        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`,
       )
       .join('&');
 
-    const body = {
-      entiId: localStorage.getItem('tenantId')
-    };
+    const body = { entiId: this.entiId };
 
-    this.commonApi.fetchData(body, 'ims', `staff/list?${queryString}`).subscribe({
-      next: (res: any) => {
-       this.totalRecords = res?.count || 0;
+    this.commonApi
+      .fetchData(body, 'ims', `staff/list?${queryString}`)
+      .subscribe({
+        next: (res: any) => {
+          this.totalRecords = res?.count || 0;
           this.staffData = (res?.data || []).map((s: any) => ({
             recId: s._id,
             staffId: s.staffId,
@@ -230,76 +232,19 @@ export class StaffComponent implements OnInit {
             role: s.role,
             phone: s.phone,
             email: s.email,
-            centerId: s.centerId,
+            centerId: s.centerId, // populated object (centerCode/centerName)
             status: s.status,
             _raw: s,
           }));
-      },
-      error: (err) => {
-        this.loading = false;
-        this.alert.error('Error loading admissions');
-      }
-    });
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.alert.error('Failed to load staff');
+        },
+      });
   }
 
-  // loadStaff(event?: {
-  //   page: number;
-  //   pageSize: number;
-  //   search?: string;
-  //   sortKey?: string;
-  //   sortDirection?: 'asc' | 'desc';
-  // }) {
-  //   const page = event?.page || 1;
-  //   const limit = event?.pageSize || 10;
-  //   const search = (event?.search || '').toString().trim();
-
-  //   const sortMap: any = {
-  //     staffName: 'staffName',
-  //     staffCode: 'staffCode',
-  //     employeeId: 'employeeId',
-  //     role: 'role',
-  //   };
-
-  //   const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
-  //   const sort = sortKey
-  //     ? event?.sortDirection === 'asc'
-  //       ? sortKey
-  //       : `-${sortKey}`
-  //     : '';
-
-  //   const qp = this.buildQueryParams({
-  //     page,
-  //     limit,
-  //     ...(search ? { search } : {}),
-  //     ...(sort ? { sort } : {}),
-  //   });
-
-  //   this.commonApi
-  //     .fetchData({ entiId: this.entiId }, this.moduleName, `staff/list${qp}`)
-  //     .subscribe({
-  //       next: (res: any) => {
-  //         this.totalRecords = res?.count || 0;
-  //         this.staffData = (res?.data || []).map((s: any) => ({
-  //           recId: s._id,
-  //           staffId: s.staffId,
-  //           staffName: s.staffName,
-  //           staffCode: s.staffCode,
-  //           employeeId: s.employeeId,
-  //           role: s.role,
-  //           phone: s.phone,
-  //           email: s.email,
-  //           centerId: s.centerId,
-  //           status: s.status,
-  //           _raw: s,
-  //         }));
-  //       },
-  //       error: () => this.alert.error('Failed to load staff'),
-  //     });
-  // }
-
-  // ======================================
-  // CREATE / EDIT
-  // ======================================
   add() {
     this.formMode = 'create';
     this.editingRecId = null;
@@ -374,10 +319,7 @@ export class StaffComponent implements OnInit {
       this.alert.error('Please fix validations and submit');
       return;
     }
-
     const form = this.staffForm.getRawValue() || {};
-
-    // Faculty rules (same as your backend)
     if (form.role === 'Faculty') {
       if (!form.facultyType) {
         this.alert.error('Faculty Type is required for Faculty role');
@@ -388,30 +330,24 @@ export class StaffComponent implements OnInit {
         return;
       }
     }
-
     const joiningMs = this.dateInputToMs(form.joiningDate);
     if (!joiningMs) {
       this.alert.error('Joining Date is required');
       return;
     }
     const relievingMs = this.dateInputToMs(form.relievingDate);
-
     const payload: any = {
       entiId: this.entiId,
-
+      userId: localStorage.getItem('userId') || '',
       staffName: (form.staffName || '').toString().trim(),
       staffCode: (form.staffCode || '').toString().trim().toUpperCase(),
       employeeId: (form.employeeId || '').toString().trim(),
-
       role: form.role,
       phone: (form.phone || '').toString().trim(),
       email: (form.email || '').toString().trim() || null,
       centerId: form.centerId,
-
-      // ✅ send epoch ms
       joiningDate: joiningMs,
       relievingDate: relievingMs || null,
-
       payroll: form.payroll,
       department: form.department,
       facultyType: form.role === 'Faculty' ? form.facultyType : null,
@@ -421,15 +357,11 @@ export class StaffComponent implements OnInit {
           : null,
       weekoff: Array.isArray(form.weekoff) ? form.weekoff : [],
     };
-
-    // ✅ STATUS: remove from UI. Create always Active. Edit keeps existing status.
     payload.status =
       this.formMode === 'create' ? 'Active' : this.editingStatus || 'Active';
-
     const endpoint =
       this.formMode === 'create' ? 'staff/create' : 'staff/update';
     if (this.formMode === 'edit') payload.recId = this.editingRecId;
-
     this.commonApi.fetchData(payload, this.moduleName, endpoint).subscribe({
       next: () => {
         this.alert.success(
@@ -437,7 +369,6 @@ export class StaffComponent implements OnInit {
         );
         this.showForm = false;
         this.fetchTableData({ page: 1, pageSize: 10 });
-        // this.loadStaff({ page: 1, pageSize: 10 });
       },
       error: (err: any) =>
         this.alert.error(err?.error?.message || 'Operation failed'),
@@ -463,24 +394,35 @@ export class StaffComponent implements OnInit {
 
   private setupFacultyRules() {
     this.staffForm.get('role')?.valueChanges.subscribe((role) => {
+      const ftCtrl = this.staffForm.get('facultyType');
+      const subCtrl = this.staffForm.get('subject');
+
       if (role !== 'Faculty') {
-        this.staffForm.patchValue(
-          { facultyType: null, subject: null },
-          { emitEvent: false },
-        );
+        ftCtrl?.setValue(null, { emitEvent: false });
+        subCtrl?.setValue(null, { emitEvent: false });
+        ftCtrl?.clearValidators();
+        subCtrl?.clearValidators();
+        ftCtrl?.updateValueAndValidity({ emitEvent: false });
+        subCtrl?.updateValueAndValidity({ emitEvent: false });
+        return;
       }
+      ftCtrl?.setValidators([Validators.required]);
+      ftCtrl?.updateValueAndValidity({ emitEvent: false });
     });
 
     this.staffForm.get('facultyType')?.valueChanges.subscribe((ft) => {
+      const subCtrl = this.staffForm.get('subject');
       if (ft !== 'TEACHING') {
-        this.staffForm.patchValue({ subject: null }, { emitEvent: false });
+        subCtrl?.setValue(null, { emitEvent: false });
+        subCtrl?.clearValidators();
+        subCtrl?.updateValueAndValidity({ emitEvent: false });
+        return;
       }
+      subCtrl?.setValidators([Validators.required]);
+      subCtrl?.updateValueAndValidity({ emitEvent: false });
     });
   }
 
-  // ======================================
-  // VIEW
-  // ======================================
   openView(row: any) {
     const recId = row?.recId || row?._raw?._id;
     if (!recId) return;
@@ -567,7 +509,7 @@ export class StaffComponent implements OnInit {
       .subscribe({
         next: () => {
           this.alert.success('Employee retired successfully');
-          this.fetchTableData({ page: 1, pageSize: 10 })
+          this.fetchTableData({ page: 1, pageSize: 10 });
           // this.loadStaff({ page: 1, pageSize: 10 });
           this.openView({ recId: this.retireTarget._id });
         },
@@ -629,16 +571,13 @@ export class StaffComponent implements OnInit {
   onExcelSelected(ev: any) {
     const file: File = ev?.target?.files?.[0];
     if (!file) return;
-
     const name = (file.name || '').toLowerCase();
     if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
       this.alert.error('Please upload a valid Excel file (.xlsx / .xls)');
       return;
     }
-
     this.importFileName = file.name;
     const reader = new FileReader();
-
     reader.onload = (e: any) => {
       try {
         const data: ArrayBuffer = e.target.result;
@@ -659,7 +598,6 @@ export class StaffComponent implements OnInit {
         this.computeImportValidation();
       }
     };
-
     reader.onerror = () => this.alert.error('Unable to read file');
     reader.readAsArrayBuffer(file);
   }
@@ -669,7 +607,6 @@ export class StaffComponent implements OnInit {
     Object.keys(r || {}).forEach(
       (k) => (map[String(k).trim().toLowerCase()] = r[k]),
     );
-
     const get = (...keys: string[]) => {
       for (const k of keys) {
         const v = map[String(k).trim().toLowerCase()];
@@ -678,30 +615,21 @@ export class StaffComponent implements OnInit {
       }
       return '';
     };
-
     const staffName = get('staff name', 'staffname');
     const staffCode = (get('staff code', 'staffcode') || '').toUpperCase();
     const employeeId = get('employee id', 'employeeid', 'emp id', 'empid');
-
     const role = get('role');
     const phone = get('phone');
     const email = get('email') || null;
-
-    // ✅ Use center CODE only (avoid typo center name)
     const centerCode = (get('center code', 'centercode') || '').toUpperCase();
-
-    const department = get('department', 'departmentid'); // keep as-is (id / code / name handled by backend)
+    const department = get('department', 'departmentid');
     const subject = get('subject', 'subjectid');
-
-    const joiningDate = get('joining date', 'joiningdate'); // yyyy-MM-dd
+    const joiningDate = get('joining date', 'joiningdate');
     const relievingDate = get('relieving date', 'relievingdate') || null;
-
     const payroll = get('payroll');
     const facultyType = get('faculty type', 'facultytype') || null;
-
     const weekoffText = get('weekoff') || '';
     const status = get('status') === 'Inactive' ? 'Inactive' : 'Active';
-
     const errors: string[] = [];
     if (!staffName) errors.push('Staff Name required');
     if (!staffCode) errors.push('Staff Code required');
@@ -712,7 +640,6 @@ export class StaffComponent implements OnInit {
     if (!joiningDate) errors.push('Joining Date required');
     if (!payroll) errors.push('Payroll required');
     if (!department) errors.push('Department required');
-
     if (role === 'Faculty') {
       if (!facultyType) errors.push('Faculty Type required');
       if (facultyType === 'TEACHING' && !subject)
@@ -721,28 +648,21 @@ export class StaffComponent implements OnInit {
 
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       errors.push('Invalid email');
-
-    // resolve centerId in frontend (optional, helps backend, no backend change)
     const resolvedCenterId = this.resolveCenterIdByCode(centerCode);
-
     return {
       _rowNo: rowNo,
       _valid: errors.length === 0,
       _errors: errors,
-
       staffName,
       staffCode,
       employeeId,
       role,
       phone,
       email,
-
       centerCode,
       centerId: resolvedCenterId || null,
-
       joiningDate,
       relievingDate,
-
       payroll,
       department,
       facultyType,
@@ -767,35 +687,24 @@ export class StaffComponent implements OnInit {
       this.alert.error('Fix invalid rows before importing');
       return;
     }
-
-    // ✅ DEFAULT upsert (no dropdown)
     const mode = 'upsert';
-
     const rows = this.importPreviewRows.map((r) => {
       const joiningMs = this.dateInputToMs(r.joiningDate);
       const relievingMs = this.dateInputToMs(r.relievingDate);
-
-      // resolve centerId (send both)
       const centerCode = (r.centerCode || '').toString().trim().toUpperCase();
       const centerId =
         r.centerId || this.resolveCenterIdByCode(centerCode) || null;
-
       return {
         staffName: r.staffName,
         staffCode: r.staffCode,
         employeeId: r.employeeId,
-
         role: r.role,
         phone: r.phone,
         email: r.email,
-
-        // ✅ send centerCode (as center) and also centerId to reduce mismatch
         center: centerCode,
         centerId: centerId,
-
         joiningDate: joiningMs,
         relievingDate: relievingMs || null,
-
         facultyType: r.role === 'Faculty' ? r.facultyType : null,
         subject: r.subject,
         payroll: r.payroll,
@@ -804,13 +713,11 @@ export class StaffComponent implements OnInit {
         status: r.status,
       };
     });
-
     const payload = {
       entiId: this.entiId,
       mode,
       rows,
     };
-
     this.commonApi
       .fetchData(payload, this.moduleName, 'staff/import')
       .subscribe({
@@ -821,7 +728,6 @@ export class StaffComponent implements OnInit {
           );
           this.closeImport();
           this.fetchTableData({ page: 1, pageSize: 10 });
-          // this.loadStaff({ page: 1, pageSize: 10 });
         },
         error: (err: any) => {
           const msg = err?.error?.message || 'Import failed';

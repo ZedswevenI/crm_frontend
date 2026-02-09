@@ -1,6 +1,4 @@
 <div class="center-page">
-
-    <!-- List Card -->
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
             <div>
@@ -14,10 +12,10 @@
                 <span>Add Center</span>
             </button>
         </div>
-
         <div class="card-body pt-0">
             <list-table [autoFitChars]="true" [columns]="columns" [data]="centerData" [actions]="actions"
-             [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)" >
+                [loading]="loading" [totalRecords]="totalRecords" [pageSizeOptions]="[10,20,50]"
+                (requestData)="fetchTableData($event)">
             </list-table>
         </div>
     </div>
@@ -25,8 +23,6 @@
     <!-- Create / Edit Modal -->
     <div class="app-modal-backdrop" *ngIf="showForm">
         <div class="app-modal">
-
-            <!-- Modal header -->
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">
@@ -40,38 +36,29 @@
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
             </div>
-
-            <!-- Modal body -->
             <div class="app-modal-body">
                 <form [formGroup]="centerForm" (ngSubmit)="save()">
                     <div class="row g-3">
-
-                        <!-- Row 1 -->
                         <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="Center Name" [required]="true" [control]="centerForm.get('name')"
                                 formControlName="name">
                             </formfield>
                         </div>
-
                         <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="Code" [required]="true" [control]="centerForm.get('code')"
                                 formControlName="code">
                             </formfield>
                         </div>
-
                         <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="City" [required]="true" [control]="centerForm.get('city')"
                                 formControlName="city">
                             </formfield>
                         </div>
-
-                        <!-- Row 2 -->
                         <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="State" [required]="true" [control]="centerForm.get('state')"
                                 formControlName="state">
                             </formfield>
                         </div>
-
                         <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="Phone" [required]="true" [control]="centerForm.get('phone')"
                                 formControlName="phone" inputType="tel" pattern="[0-9]*" maxlength="10"
@@ -79,24 +66,20 @@
                             </formfield>
 
                         </div>
-
                         <div class="col-12 col-sm-6 col-lg-4 d-flex align-items-center">
                             <checkbox label="Active" [control]="centerForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
-
-                        <!-- Row 3 -->
                         <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="Contact Person" [required]="true"
                                 [control]="centerForm.get('contactName')" formControlName="contactName">
                             </formfield>
                         </div>
-
                         <div class="col-12 col-sm-6 col-lg-4">
-                            <formfield label="Area"  [required]="true" [control]="centerForm.get('area')" formControlName="area">
+                            <formfield label="Area" [required]="true" [control]="centerForm.get('area')"
+                                formControlName="area">
                             </formfield>
                         </div>
-
                         <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="Pincode" [required]="true" [control]="centerForm.get('pincode')"
                                 formControlName="pincode" inputType="text" pattern="[0-9]*" maxlength="6"
@@ -104,28 +87,25 @@
                             </formfield>
 
                         </div>
-
-                        <!-- Row 4 (Address – wider fields) -->
                         <div class="col-12 col-lg-6">
-                            <formfield label="Address Line 1"  [required]="true" [control]="centerForm.get('address1')"
+                            <formfield label="Address Line 1" [required]="true" [control]="centerForm.get('address1')"
                                 formControlName="address1">
                             </formfield>
                         </div>
-
                         <div class="col-12 col-lg-6">
-                            <formfield label="Address Line 2"  [required]="true" [control]="centerForm.get('address2')"
+                            <formfield label="Address Line 2" [required]="true" [control]="centerForm.get('address2')"
                                 formControlName="address2">
                             </formfield>
                         </div>
-
                     </div>
-
-                    <!-- Footer -->
                     <div class="d-flex justify-content-end gap-2 mt-4">
-                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="saving">
                             Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary" [disabled]="centerForm.invalid">
+
+                        <button type="submit" class="btn btn-primary" [disabled]="centerForm.invalid || saving">
+                            <span *ngIf="saving" class="spinner-border spinner-border-sm me-2" role="status"
+                                aria-hidden="true"></span>
                             {{ formMode === 'create' ? 'Save Center' : 'Update Center' }}
                         </button>
                     </div>

@@ -20,9 +20,7 @@
       <div class="position-relative" *ngIf="showpageoptions">
         <select [(ngModel)]="pageSize" (change)="onPageSizeChange(pageSize)" class="form-select app-table-page-size"
           aria-label="Rows per page">
-          <option value="5">5 Rows</option>
-          <option value="10">10 Rows</option>
-          <option value="20">20 Rows</option>
+          <option *ngFor="let opt of pageSizeOptions" [value]="opt">{{ opt }} Rows</option>
         </select>
       </div>
 
@@ -174,8 +172,7 @@
   </div>
 
   <!-- Pagination -->
-  <div *ngIf="totalRecords > 5"
-    class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
+  <div *ngIf="totalPages > 1" class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
     <button class="btn btn-link app-table-page-link" [disabled]="currentPage <= 1"
       (click)="onPageChange(currentPage - 1)">
       <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20" />

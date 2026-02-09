@@ -15,9 +15,10 @@ import { TopicComponent } from './topic/topic.component';
 import { SubtopicComponent } from './subtopic/subtopic.component';
 import { ExamcategoryComponent } from './examcategory/examcategory.component';
 import { ExamsubcategoryComponent } from './examsubcategory/examsubcategory.component';
+import { CenterviewComponent } from './centerview/centerview.component';
 
 @NgModule({
-  declarations: [InstituteComponent, CenterComponent, StaffComponent, ProgramComponent, DepartmentComponent, SubjectComponent, BankaccountsComponent, TopicComponent, SubtopicComponent, ExamcategoryComponent, ExamsubcategoryComponent],
+  declarations: [InstituteComponent, CenterComponent, StaffComponent, ProgramComponent, DepartmentComponent, SubjectComponent, BankaccountsComponent, TopicComponent, SubtopicComponent, ExamcategoryComponent, ExamsubcategoryComponent, CenterviewComponent],
   imports: [CommonModule, OrgmastersRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })
 export class OrgmastersModule {}

@@ -3,7 +3,8 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
-
+import * as XLSX from 'xlsx';
+import { finalize } from 'rxjs/operators';
 @Component({
   selector: 'app-topic',
   standalone: false,
@@ -17,7 +18,9 @@ export class TopicComponent implements OnInit {
   form!: FormGroup;
 
   subjectOptions: any[] = [];
-  subjectById = new Map<string, any>();
+  private subjectById = new Map<string, any>();
+  private subjectNameToId = new Map<string, string>();
+  private subjectCodeToId = new Map<string, string>();
 
   classOptions = Array.from({ length: 8 }, (_, i) => 6 + i).map((n) => ({
     label: String(n),
@@ -30,17 +33,25 @@ export class TopicComponent implements OnInit {
 
   showForm = false;
   formMode: 'create' | 'edit' = 'create';
+  saving = false;
 
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
 
+  // import
+  showImport = false;
+  importFileName = '';
+  importPreviewRows: any[] = [];
+  importHasInvalidRows = false;
+  importInvalidCount = 0;
+  importGroupCount = 0;
+  importing = false;
+
   columns = [
     { key: 'classNo', label: 'Class', sortable: true },
     { key: 'subjectName', label: 'Subject', sortable: true },
     { key: 'topicName', label: 'Topic', sortable: true },
-    { key: 'topicCode', label: 'Code', sortable: false },
-    { key: 'sortOrder', label: 'Sort', sortable: true },
   ];
 
   actions = [
@@ -82,8 +93,9 @@ export class TopicComponent implements OnInit {
     this.form = this.fb.group({
       classNo: [null, Validators.required],
       subjectId: [null, Validators.required],
-      topicName: ['', Validators.required],
-      topicCode: [''],
+      topicId: [null], // only for edit
+      topicName: ['', [Validators.required, Validators.maxLength(120)]],
+      topicCode: ['', [Validators.maxLength(30)]],
       sortOrder: [0],
     });
   }
@@ -98,71 +110,140 @@ export class TopicComponent implements OnInit {
       )
       .subscribe({
         next: (res: any) => {
-          const rows = res?.data || [];
+          const rows = Array.isArray(res?.data) ? res.data : [];
 
           this.subjectOptions = rows.map((s: any) => ({
             label: s.subjectName,
             value: s._id,
           }));
 
-          for (const s of rows) this.subjectById.set(String(s._id), s);
+          this.subjectById.clear();
+          this.subjectNameToId.clear();
+          this.subjectCodeToId.clear();
+
+          for (const s of rows) {
+            const id = String(s._id || '');
+            this.subjectById.set(id, s);
+
+            const nm = String(s.subjectName || '')
+              .trim()
+              .toUpperCase();
+            const cd = String(s.subjectCode || '')
+              .trim()
+              .toUpperCase();
+
+            if (nm) this.subjectNameToId.set(nm, id);
+            if (cd) this.subjectCodeToId.set(cd, id);
+          }
         },
         error: () => {
           this.subjectOptions = [];
           this.subjectById.clear();
+          this.subjectNameToId.clear();
+          this.subjectCodeToId.clear();
         },
       });
   }
 
+  private buildQueryParams(params: Record<string, any>) {
+    const keys = Object.keys(params || {}).filter(
+      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
+    );
+    if (!keys.length) return '';
+    const qs = keys
+      .map(
+        (k) =>
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
+      )
+      .join('&');
+    return `?${qs}`;
+  }
+
   // ---------------- LISTING ---------------------
-  fetchTableData(params: { page: number; pageSize: number; search?: string }) {
+  fetchTableData(event?: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: 'asc' | 'desc';
+  }) {
+    const page = event?.page || 1;
+    const limit = event?.pageSize || 10;
+    const search = (event?.search || '').toString().trim();
+
+    const sortMap: any = {
+      classNo: 'classNo',
+      subjectName: 'subjectId', // backend sorts on fields; we keep stable
+      topicName: 'topicName',
+      sortOrder: 'sortOrder',
+    };
+    const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
+    const sort = sortKey
+      ? event?.sortDirection === 'asc'
+        ? sortKey
+        : `-${sortKey}`
+      : '';
+
+    const qp = this.buildQueryParams({
+      page,
+      limit,
+      ...(search ? { search } : {}),
+      ...(sort ? { sort } : {}),
+    });
+
     this.loading = true;
 
-    const qs =
-      `page=${params.page}&limit=${params.pageSize}` +
-      (params.search ? '&search=' + encodeURIComponent(params.search) : '');
-
     this.commonApi
-      .fetchData({ entiId: this.entiId }, this.moduleName, `topic/list?${qs}`)
+      .fetchData({ entiId: this.entiId }, this.moduleName, `topic/list${qp}`)
+      .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (res: any) => {
-          const rows = res?.data || [];
-
-          this.tableData = rows.map((x: any) => ({
-            recId: x._id,
-            topicId: x.topicId,
-            classNo: x.classNo,
-            subjectId: x.subjectId,
-            subjectName:
-              this.subjectById.get(String(x.subjectId))?.subjectName || '-',
-            topicName: x.topicName,
-            topicCode: x.topicCode || '-',
-            sortOrder: x.sortOrder,
-            _raw: x,
-          }));
-
+          const rows = Array.isArray(res?.data) ? res.data : [];
           this.totalRecords = res?.count || 0;
-          this.loading = false;
+
+          this.tableData = rows.map((x: any) => {
+            // backend listTopics populates subjectId sometimes
+            const subjObj =
+              x?.subjectId && typeof x.subjectId === 'object'
+                ? x.subjectId
+                : null;
+            const subjectId = subjObj
+              ? String(subjObj?._id || '')
+              : String(x.subjectId || '');
+
+            const subjectName =
+              subjObj?.subjectName ||
+              this.subjectById.get(subjectId)?.subjectName ||
+              '-';
+
+            return {
+              recId: x._id,
+              topicId: x.topicId,
+              classNo: x.classNo,
+              subjectId: subjectId,
+              subjectName,
+              topicName: x.topicName,
+              topicCode: x.topicCode || '-',
+              sortOrder: x.sortOrder ?? 0,
+              _raw: x,
+            };
+          });
         },
-        error: () => {
-          this.loading = false;
-          this.alert.error('Failed to load topics');
-        },
+        error: () => this.alert.error('Failed to load topics'),
       });
   }
 
   // ---------------- ADD ---------------------
   add() {
     this.formMode = 'create';
-
     this.form.reset({
       classNo: null,
       subjectId: null,
+      topicId: null,
       topicName: '',
       topicCode: '',
       sortOrder: 0,
     });
-
     this.showForm = true;
     this.deleteTarget = null;
   }
@@ -171,51 +252,99 @@ export class TopicComponent implements OnInit {
   edit(row: any) {
     const x = row?._raw || row;
 
+    const subjObj =
+      x?.subjectId && typeof x.subjectId === 'object' ? x.subjectId : null;
+    const subjectId = subjObj
+      ? String(subjObj?._id || '')
+      : String(x.subjectId || '');
+
     this.formMode = 'edit';
 
     this.form.patchValue({
       classNo: x.classNo,
-      subjectId: x.subjectId,
+      subjectId: subjectId,
+      topicId: x.topicId, // IMPORTANT: backend updateTopic uses topicId
       topicName: x.topicName,
-      topicCode: x.topicCode,
-      sortOrder: x.sortOrder,
+      topicCode: x.topicCode || '',
+      sortOrder: x.sortOrder ?? 0,
     });
 
-    this.deleteTarget = x;
+    this.deleteTarget = {
+      classNo: x.classNo,
+      subjectId: subjectId,
+      topicId: x.topicId,
+      topicName: x.topicName,
+    };
+
     this.showForm = true;
   }
 
   // ---------------- SAVE ---------------------
   save() {
+    if (this.saving) return;
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.alert.error('Please fill required fields');
       return;
     }
 
-    const payload = {
-      ...this.form.value,
+    const v = this.form.value || {};
+    const payload: any = {
       entiId: this.entiId,
+      userId: localStorage.getItem('userId') || '',
+      classNo: v.classNo,
+      subjectId: v.subjectId,
+      topicName: (v.topicName || '').toString().trim(),
+      topicCode: (v.topicCode || '').toString().trim() || null,
+      sortOrder: Number(v.sortOrder || 0),
     };
 
+    // endpoint choose
+    const endpoint =
+      this.formMode === 'create' ? 'topic/create' : 'topic/update';
+    if (this.formMode === 'edit') payload.topicId = v.topicId;
+
+    this.saving = true;
+
     this.commonApi
-      .fetchData(payload, this.moduleName, 'topic/create')
+      .fetchData(payload, this.moduleName, endpoint)
+      .pipe(finalize(() => (this.saving = false)))
       .subscribe({
-        next: () => {
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alert.error(res?.message || 'Save failed');
+            return;
+          }
           this.alert.success(
             this.formMode === 'create' ? 'Topic created' : 'Topic updated',
           );
           this.showForm = false;
           this.fetchTableData({ page: 1, pageSize: 10 });
         },
-        error: (err) => this.alert.error(err?.error?.message || 'Save failed'),
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Save failed'),
       });
   }
 
   // ---------------- DELETE ---------------------
   openDelete(row: any) {
-    this.deleteTarget = row;
-    this.deleteMessage = `Are you sure you want to delete "${row.topicName}"?`;
+    const x = row?._raw || row;
+
+    const subjObj =
+      x?.subjectId && typeof x.subjectId === 'object' ? x.subjectId : null;
+    const subjectId = subjObj
+      ? String(subjObj?._id || '')
+      : String(x.subjectId || '');
+
+    this.deleteTarget = {
+      classNo: x.classNo,
+      subjectId: subjectId,
+      topicId: x.topicId,
+      topicName: x.topicName,
+    };
+
+    this.deleteMessage = `Are you sure you want to delete "${x.topicName}"?`;
     this.deleteModalVisible = true;
   }
 
@@ -225,6 +354,7 @@ export class TopicComponent implements OnInit {
 
     const payload = {
       entiId: this.entiId,
+      userId: localStorage.getItem('userId') || '',
       classNo: this.deleteTarget.classNo,
       subjectId: this.deleteTarget.subjectId,
       topicId: this.deleteTarget.topicId,
@@ -233,11 +363,15 @@ export class TopicComponent implements OnInit {
     this.commonApi
       .fetchData(payload, this.moduleName, 'topic/delete')
       .subscribe({
-        next: () => {
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alert.error(res?.message || 'Delete failed');
+            return;
+          }
           this.alert.success('Topic deleted');
           this.fetchTableData({ page: 1, pageSize: 10 });
         },
-        error: (err) =>
+        error: (err: any) =>
           this.alert.error(err?.error?.message || 'Delete failed'),
       });
 
@@ -245,6 +379,260 @@ export class TopicComponent implements OnInit {
   }
 
   cancel() {
+    if (this.saving) return;
     this.showForm = false;
+  }
+
+  // ===================== IMPORT =====================
+  openImport() {
+    if (this.importing) return;
+    this.showImport = true;
+    this.resetImport();
+  }
+
+  closeImport() {
+    if (this.importing) return;
+    this.showImport = false;
+  }
+
+  resetImport() {
+    if (this.importing) return;
+    this.importFileName = '';
+    this.importPreviewRows = [];
+    this.importHasInvalidRows = false;
+    this.importInvalidCount = 0;
+    this.importGroupCount = 0;
+  }
+
+  onExcelSelected(ev: any) {
+    if (this.importing) return;
+
+    const file: File = ev?.target?.files?.[0];
+    if (!file) return;
+
+    const name = (file.name || '').toLowerCase();
+    if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+      this.alert.error('Please upload a valid Excel file (.xlsx / .xls)');
+      return;
+    }
+
+    this.importFileName = file.name;
+
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      try {
+        const data = e.target.result;
+        const wb = XLSX.read(data, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawRows: any[] = XLSX.utils.sheet_to_json(ws, {
+          defval: '',
+        }) as any[];
+
+        const mapped = rawRows.map((r: any, idx: number) =>
+          this.mapExcelRow(r, idx + 2),
+        );
+        this.importPreviewRows = mapped;
+
+        this.computeImportValidation();
+      } catch (err) {
+        this.alert.error('Unable to read Excel file');
+        this.importPreviewRows = [];
+        this.computeImportValidation();
+      }
+    };
+
+    reader.onerror = () => this.alert.error('Unable to read file');
+    reader.readAsBinaryString(file);
+  }
+
+  private mapExcelRow(r: any, rowNo: number) {
+    const get = (...keys: string[]) => {
+      for (const k of keys) {
+        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '')
+          return String(r[k]).trim();
+      }
+      return '';
+    };
+
+    const classRaw = get('Class', 'classNo', 'ClassNo');
+    const classNo = Number(String(classRaw || '').trim());
+
+    const subjectRaw = get('Subject', 'Subject Name', 'SubjectName', 'subject');
+    const subjectCodeRaw = get('Subject Code', 'SubjectCode', 'subjectCode');
+
+    const topicNameRaw = get('Topic Name', 'TopicName', 'topicName');
+    const topicCode = get('Topic Code', 'TopicCode', 'topicCode') || null;
+
+    const sortRaw = get('Sort Order', 'SortOrder', 'sortOrder');
+    const sortOrder =
+      sortRaw === '' || sortRaw === null || sortRaw === undefined
+        ? 0
+        : Number(String(sortRaw).trim());
+
+    const errors: string[] = [];
+
+    if (!Number.isFinite(classNo) || classNo < 6 || classNo > 13)
+      errors.push('Invalid Class (6..13)');
+
+    const subjNameKey = String(subjectRaw || '')
+      .trim()
+      .toUpperCase();
+    const subjCodeKey = String(subjectCodeRaw || '')
+      .trim()
+      .toUpperCase();
+
+    let subjectId: string | null = null;
+    if (subjCodeKey && this.subjectCodeToId.has(subjCodeKey))
+      subjectId = this.subjectCodeToId.get(subjCodeKey) || null;
+    else if (subjNameKey && this.subjectNameToId.has(subjNameKey))
+      subjectId = this.subjectNameToId.get(subjNameKey) || null;
+
+    if (!subjectId) errors.push('Subject not found');
+
+    const topicName = String(topicNameRaw || '').trim();
+    if (!topicName) errors.push('Topic Name required');
+
+    if (sortOrder !== 0 && !Number.isFinite(sortOrder))
+      errors.push('Invalid Sort Order');
+
+    const subjectLabel =
+      (subjCodeKey ? subjCodeKey : '') ||
+      (subjNameKey ? subjNameKey : '') ||
+      '-';
+
+    return {
+      _rowNo: rowNo,
+      _valid: errors.length === 0,
+      _errors: errors,
+
+      classNo: Number.isFinite(classNo) ? classNo : classRaw,
+      subjectId,
+      subjectLabel,
+      topicName,
+      topicCode: topicCode ? String(topicCode).trim() : null,
+      sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+    };
+  }
+
+  private computeImportValidation() {
+    const invalid = (this.importPreviewRows || []).filter((x) => !x._valid);
+    this.importInvalidCount = invalid.length;
+    this.importHasInvalidRows = invalid.length > 0;
+
+    const groups = new Set<string>();
+    for (const r of this.importPreviewRows || []) {
+      if (r._valid && r.subjectId) groups.add(`${r.classNo}::${r.subjectId}`);
+    }
+    this.importGroupCount = groups.size;
+  }
+
+  confirmImport() {
+    if (this.importing) return;
+
+    if (!this.importPreviewRows.length) {
+      this.alert.error('Please upload an Excel file first');
+      return;
+    }
+    if (this.importHasInvalidRows) {
+      this.alert.error('Fix invalid rows before importing');
+      return;
+    }
+
+    // Group by classNo + subjectId and call bulkUpsertTopics per group
+    const grouped = new Map<string, any[]>();
+    for (const r of this.importPreviewRows) {
+      const key = `${r.classNo}::${r.subjectId}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(r);
+    }
+
+    const userId = localStorage.getItem('userId') || '';
+
+    const keys = Array.from(grouped.keys());
+    if (!keys.length) {
+      this.alert.error('No valid rows to import');
+      return;
+    }
+
+    this.importing = true;
+
+    const runNext = (idx: number) => {
+      if (idx >= keys.length) {
+        this.importing = false;
+        this.alert.success('Import completed');
+        this.closeImport();
+        this.fetchTableData({ page: 1, pageSize: 10 });
+        return;
+      }
+
+      const k = keys[idx];
+      const [classNoStr, subjectId] = k.split('::');
+
+      const rows = (grouped.get(k) || []).map((x) => ({
+        topicName: x.topicName,
+        topicCode: x.topicCode,
+        sortOrder: x.sortOrder,
+      }));
+
+      const payload = {
+        entiId: this.entiId,
+        userId,
+        classNo: Number(classNoStr),
+        subjectId,
+        rows,
+      };
+
+      this.commonApi
+        .fetchData(payload, this.moduleName, 'topic/bulkupsert')
+        .subscribe({
+          next: (res: any) => {
+            if (res?.status === false) {
+              this.importing = false;
+              this.alert.error(res?.message || `Import failed at group ${k}`);
+              return;
+            }
+            runNext(idx + 1);
+          },
+          error: (err: any) => {
+            this.importing = false;
+            this.alert.error(
+              err?.error?.message || `Import failed at group ${k}`,
+            );
+          },
+        });
+    };
+
+    runNext(0);
+  }
+
+  downloadSampleExcel() {
+    const rows = [
+      {
+        Class: 6,
+        Subject: 'MATH',
+        'Topic Name': 'Trigonometry',
+        'Topic Code': 'TRI',
+        'Sort Order': 1,
+      },
+      {
+        Class: 6,
+        Subject: 'MATH',
+        'Topic Name': 'Algebra',
+        'Topic Code': 'ALG',
+        'Sort Order': 2,
+      },
+      {
+        Class: 6,
+        Subject: 'PHYSICS',
+        'Topic Name': 'Motion',
+        'Topic Code': 'MOT',
+        'Sort Order': 1,
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Topics');
+    XLSX.writeFile(wb, 'Topic_Import_Sample.xlsx');
   }
 }

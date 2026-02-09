@@ -4,6 +4,7 @@ import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.ser
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 import * as XLSX from 'xlsx';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-subject',
@@ -13,27 +14,39 @@ import * as XLSX from 'xlsx';
 })
 export class SubjectComponent implements OnInit {
   subjectForm!: FormGroup;
+
+  // table
+  loading = false;
   totalRecords = 0;
+  subjectData: any[] = [];
+
+  // modal form
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   editingRecId: string | null = null;
+  saving = false;
+
+  // delete
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
-  entiId: any;
+
+  // import
   showImport = false;
+  importing = false;
   importFileName = '';
   importPreviewRows: any[] = [];
   importHasInvalidRows = false;
   importInvalidCount = 0;
-  subjectData: any[] = [];
+
+  entiId: any;
   private moduleName = 'ims';
 
   columns = [
     { key: 'subjectName', label: 'Subject Name', sortable: true },
     { key: 'subjectCode', label: 'Code', sortable: false },
     { key: 'category', label: 'Category', sortable: true },
-    { key: 'isActive', label: 'Active', sortable: false },
+    { key: 'status', label: 'Status', sortable: false },
   ];
 
   categoryOptions = [
@@ -74,13 +87,19 @@ export class SubjectComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    this.loadSubjects({ page: 1, pageSize: 10 });
   }
 
+  // ---------------- FORM ----------------
   initForm() {
     this.subjectForm = this.fb.group({
-      subjectCode: [''],
-      subjectName: ['', Validators.required],
+      subjectCode: [
+        '',
+        [
+          Validators.maxLength(10),
+          Validators.pattern(/^[A-Za-z0-9-]*$/), // optional, but if present: A-Z/0-9/-
+        ],
+      ],
+      subjectName: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(60)]],
       category: ['academic', Validators.required],
       isActive: [true],
     });
@@ -92,14 +111,12 @@ export class SubjectComponent implements OnInit {
     );
     if (!keys.length) return '';
     const qs = keys
-      .map(
-        (k) =>
-          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`
-      )
+      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`)
       .join('&');
     return `?${qs}`;
   }
 
+  // ---------------- LIST ----------------
   loadSubjects(event?: {
     page: number;
     pageSize: number;
@@ -115,33 +132,40 @@ export class SubjectComponent implements OnInit {
       subjectName: 'subjectName',
       subjectCode: 'subjectCode',
       category: 'category',
+      status: 'isActive',
     };
+
     const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
     const sort = sortKey
       ? event?.sortDirection === 'asc'
         ? sortKey
         : `-${sortKey}`
       : '';
+
     const qp = this.buildQueryParams({
       page,
       limit,
       ...(search ? { search } : {}),
       ...(sort ? { sort } : {}),
     });
-    const payload = {
-      entiId: this.entiId,
-    };
+
+    const payload = { entiId: this.entiId };
+
+    this.loading = true;
+
     this.commonApi
       .fetchData(payload, this.moduleName, `subject/list${qp}`)
+      .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (res: any) => {
           this.totalRecords = res?.count || 0;
+
           this.subjectData = (res?.data || []).map((s: any) => ({
             recId: s._id,
             subjectName: s.subjectName,
             subjectCode: s.subjectCode || '-',
             category: s.category || 'academic',
-            isActive: !!s.isActive,
+            status: s.isActive ? 'Active' : 'Inactive',
             _raw: s,
           }));
         },
@@ -149,67 +173,91 @@ export class SubjectComponent implements OnInit {
       });
   }
 
+  // ---------------- CREATE ----------------
   add() {
     this.formMode = 'create';
     this.editingRecId = null;
+
     this.subjectForm.reset({
       subjectCode: '',
       subjectName: '',
       category: 'academic',
       isActive: true,
     });
+
     this.showForm = true;
   }
 
+  // ---------------- EDIT ----------------
   edit(row: any) {
-    const s = row._raw;
+    const s = row?._raw || {};
+
     this.formMode = 'edit';
     this.editingRecId = s._id;
+
     this.subjectForm.patchValue({
       subjectCode: s.subjectCode || '',
       subjectName: s.subjectName || '',
       category: s.category || 'academic',
-      isActive: !!s.isActive,
+      isActive: s.isActive === false ? false : true,
     });
+
     this.showForm = true;
   }
 
+  // ---------------- SAVE ----------------
   save() {
+    if (this.saving) return;
+
     if (this.subjectForm.invalid) {
       this.subjectForm.markAllAsTouched();
-      this.alert.error('Please fill all required fields');
       return;
     }
+
+    this.saving = true;
+
     const form = this.subjectForm.value || {};
     const payload: any = {
       entiId: this.entiId,
       subjectCode: (form.subjectCode || '').toString().trim() || null,
       subjectName: (form.subjectName || '').toString().trim().toUpperCase(),
-      category: (form.category || 'academic').toString().trim(),
+      category: (form.category || 'academic').toString().trim().toLowerCase(),
       isActive: form.isActive === false ? false : true,
     };
-    const endpoint =
-      this.formMode === 'create' ? 'subject/create' : 'subject/update';
+
+    const endpoint = this.formMode === 'create' ? 'subject/create' : 'subject/update';
     if (this.formMode === 'edit') payload.subjectId = this.editingRecId;
-    this.commonApi.fetchData(payload, this.moduleName, endpoint).subscribe({
-      next: () => {
-        this.alert.success(
-          this.formMode === 'create'
-            ? 'Subject created successfully'
-            : 'Subject updated successfully'
-        );
-        this.showForm = false;
-        this.loadSubjects({ page: 1, pageSize: 10 });
-      },
-      error: (err: any) =>
-        this.alert.error(err?.error?.message || 'Operation failed'),
-    });
+
+    this.commonApi
+      .fetchData(payload, this.moduleName, endpoint)
+      .pipe(finalize(() => (this.saving = false)))
+      .subscribe({
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alert.error(res?.message || 'Operation failed');
+            return;
+          }
+
+          this.alert.success(
+            this.formMode === 'create'
+              ? 'Subject created successfully'
+              : 'Subject updated successfully'
+          );
+
+          this.showForm = false;
+          this.loadSubjects({ page: 1, pageSize: 10 });
+        },
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Operation failed'),
+      });
   }
 
   cancel() {
+    if (this.saving) return;
     this.showForm = false;
   }
 
+  // ---------------- DELETE ----------------
   openDelete(row: any) {
     this.deleteTarget = row;
     this.deleteMessage = `Are you sure you want to delete "${row.subjectName}"?`;
@@ -219,30 +267,39 @@ export class SubjectComponent implements OnInit {
   onDeleteModalClosed(confirmed: boolean) {
     this.deleteModalVisible = false;
     if (!confirmed || !this.deleteTarget) return;
+
     const payload = { entiId: this.entiId, subjectId: this.deleteTarget.recId };
-    this.commonApi
-      .fetchData(payload, this.moduleName, 'subject/delete')
-      .subscribe({
-        next: () => {
-          this.alert.success('Subject deleted successfully');
-          this.loadSubjects({ page: 1, pageSize: 10 });
-        },
-        error: (err: any) =>
-          this.alert.error(err?.error?.message || 'Delete failed'),
-      });
+
+    this.commonApi.fetchData(payload, this.moduleName, 'subject/delete').subscribe({
+      next: (res: any) => {
+        if (res?.status === false) {
+          this.alert.error(res?.message || 'Delete failed');
+          return;
+        }
+        this.alert.success('Subject deleted successfully');
+        this.loadSubjects({ page: 1, pageSize: 10 });
+      },
+      error: (err: any) => this.alert.error(err?.error?.message || 'Delete failed'),
+    });
+
     this.deleteTarget = null;
   }
 
+  // ===================== IMPORT =====================
+
   openImport() {
+    if (this.importing) return;
     this.showImport = true;
     this.resetImport();
   }
 
   closeImport() {
+    if (this.importing) return;
     this.showImport = false;
   }
 
   resetImport() {
+    if (this.importing) return;
     this.importFileName = '';
     this.importPreviewRows = [];
     this.importHasInvalidRows = false;
@@ -250,26 +307,44 @@ export class SubjectComponent implements OnInit {
   }
 
   onExcelSelected(ev: any) {
+    if (this.importing) return;
+
     const file: File = ev?.target?.files?.[0];
     if (!file) return;
+
     const name = (file.name || '').toLowerCase();
     if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
       this.alert.error('Please upload a valid Excel file (.xlsx / .xls)');
       return;
     }
+
     this.importFileName = file.name;
+
     const reader = new FileReader();
+
     reader.onload = (e: any) => {
       try {
         const data = e.target.result;
         const wb = XLSX.read(data, { type: 'binary' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawRows: any[] = XLSX.utils.sheet_to_json(ws, {
-          defval: '',
-        }) as any[];
-        const mapped = rawRows.map((r: any, idx: number) =>
-          this.mapExcelRow(r, idx + 2)
-        );
+        const rawRows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' }) as any[];
+
+        const mapped = rawRows.map((r: any, idx: number) => this.mapExcelRow(r, idx + 2));
+
+        // duplicates inside file by Subject Name
+        const seen = new Set<string>();
+        for (const row of mapped) {
+          const key = String(row.subjectName || '').trim().toUpperCase();
+          if (!key) continue;
+          if (seen.has(key)) {
+            row._valid = false;
+            row._errors = Array.isArray(row._errors) ? row._errors : [];
+            row._errors.push('Duplicate in file');
+          } else {
+            seen.add(key);
+          }
+        }
+
         this.importPreviewRows = mapped;
         this.computeImportValidation();
       } catch (err) {
@@ -278,43 +353,51 @@ export class SubjectComponent implements OnInit {
         this.computeImportValidation();
       }
     };
+
     reader.onerror = () => this.alert.error('Unable to read file');
-    reader.readAsArrayBuffer(file);
+    reader.readAsBinaryString(file);
   }
 
   private mapExcelRow(r: any, rowNo: number) {
     const get = (...keys: string[]) => {
       for (const k of keys) {
-        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '')
+        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') {
           return String(r[k]).trim();
+        }
       }
       return '';
     };
+
+    const allowedCats = ['academic', 'aptitude', 'language', 'other'];
+
     const subjectNameRaw = get('Subject Name', 'SubjectName', 'subjectName');
     const subjectName = (subjectNameRaw || '').trim().toUpperCase();
-    const subjectCode =
-      get('Subject Code', 'SubjectCode', 'subjectCode') || null;
-    const catRaw = get('Category', 'category') || 'academic';
-    const category = ['academic', 'aptitude', 'language', 'other'].includes(
-      catRaw.toLowerCase()
-    )
-      ? catRaw.toLowerCase()
-      : catRaw;
+
+    const subjectCodeRaw = get('Subject Code', 'SubjectCode', 'subjectCode');
+    const subjectCode = (subjectCodeRaw || '').trim() || null;
+
+    const catRaw = get('Category', 'category');
+    const category = (catRaw || 'academic').toString().trim().toLowerCase();
+
     const statusRaw = get('Status', 'status');
-    const status = statusRaw === 'Inactive' ? 'Inactive' : 'Active';
+    const statusNorm = (statusRaw || '').toString().trim().toLowerCase();
+    const status =
+      statusNorm === 'inactive' ? 'Inactive' : 'Active';
+
     const errors: string[] = [];
+
     if (!subjectName) errors.push('Subject Name required');
-    if (!category) errors.push('Category required');
-    const allowed = ['academic', 'aptitude', 'language', 'other'];
-    if (category && !allowed.includes(String(category).toLowerCase()))
-      errors.push('Invalid category');
+    if (subjectCode && !/^[A-Za-z0-9-]{2,10}$/.test(subjectCode)) errors.push('Invalid Code');
+    if (!allowedCats.includes(category)) errors.push('Invalid Category');
+    if (statusNorm && statusNorm !== 'active' && statusNorm !== 'inactive') errors.push('Invalid Status');
+
     return {
       _rowNo: rowNo,
       _valid: errors.length === 0,
       _errors: errors,
       subjectName,
       subjectCode,
-      category: String(category).toLowerCase(),
+      category,
       status,
     };
   }
@@ -326,6 +409,8 @@ export class SubjectComponent implements OnInit {
   }
 
   confirmImport() {
+    if (this.importing) return;
+
     if (!this.importPreviewRows.length) {
       this.alert.error('Please upload an Excel file first');
       return;
@@ -334,29 +419,35 @@ export class SubjectComponent implements OnInit {
       this.alert.error('Fix invalid rows before importing');
       return;
     }
+
+    this.importing = true;
+
     const rows = this.importPreviewRows.map((r) => ({
       subjectName: r.subjectName,
       subjectCode: r.subjectCode,
       category: r.category,
       isActive: r.status === 'Active',
     }));
+
     const payload = {
       entiId: this.entiId,
       subjects: rows,
     };
+
     this.commonApi
       .fetchData(payload, this.moduleName, 'subject/import')
+      .pipe(finalize(() => (this.importing = false)))
       .subscribe({
         next: (res: any) => {
           const inserted = res?.insertedCount;
           const skipped = res?.skippedCount;
-          if (inserted !== undefined)
-            this.alert.success(
-              `Import completed. Inserted: ${inserted}, Skipped: ${
-                skipped || 0
-              }`
-            );
-          else this.alert.success('Import completed');
+
+          if (inserted !== undefined) {
+            this.alert.success(`Import completed. Inserted: ${inserted}, Skipped: ${skipped || 0}`);
+          } else {
+            this.alert.success('Import completed');
+          }
+
           this.closeImport();
           this.loadSubjects({ page: 1, pageSize: 10 });
         },
@@ -367,25 +458,11 @@ export class SubjectComponent implements OnInit {
 
   downloadSampleExcel() {
     const rows = [
-      {
-        'Subject Name': 'PHYSICS',
-        'Subject Code': 'PHY',
-        Category: 'academic',
-        Status: 'Active',
-      },
-      {
-        'Subject Name': 'MAT',
-        'Subject Code': 'MAT',
-        Category: 'aptitude',
-        Status: 'Active',
-      },
-      {
-        'Subject Name': 'ENGLISH',
-        'Subject Code': 'ENG',
-        Category: 'language',
-        Status: 'Active',
-      },
+      { 'Subject Name': 'PHYSICS', 'Subject Code': 'PHY', Category: 'academic', Status: 'Active' },
+      { 'Subject Name': 'MATHS', 'Subject Code': 'MATH', Category: 'aptitude', Status: 'Active' },
+      { 'Subject Name': 'ENGLISH', 'Subject Code': 'ENG', Category: 'language', Status: 'Active' },
     ];
+
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Subjects');

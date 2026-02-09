@@ -31,7 +31,7 @@
 
     <!-- ================= View Modal ================= -->
     <div class="app-modal-backdrop" *ngIf="showView">
-        <div class="app-modal" style="max-width: 920px;">
+        <div class="app-modal" style="max-width: 980px;">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">Program View</h6>
@@ -92,6 +92,37 @@
                         </div>
                         <ng-template #noSubs>-</ng-template>
                     </div>
+
+                    <!-- ✅ Exam Mappings View -->
+                    <div class="col-12">
+                        <div class="text-muted small">Exam Category Mapping</div>
+                        <div *ngIf="(v.examMappings || []).length; else noMaps" class="border rounded p-2">
+                            <div class="small mb-1 text-muted">
+                                Total: <span class="fw-semibold">{{ (v.examMappings || []).length }}</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width:48px;">#</th>
+                                            <th>Category</th>
+                                            <th>Sub Category</th>
+                                            <th style="width:120px;">Sort</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let m of (v.examMappings || []); let i = index">
+                                            <td>{{ i + 1 }}</td>
+                                            <td>{{ getExamCategoryLabel(m?.categoryId) }}</td>
+                                            <td>{{ getExamSubCategoryLabel(m?.subCategoryId) }}</td>
+                                            <td>{{ m?.sortOrder ?? '-' }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <ng-template #noMaps>-</ng-template>
+                    </div>
                 </div>
 
                 <div class="d-flex justify-content-end gap-2 mt-4">
@@ -101,6 +132,7 @@
         </div>
     </div>
 
+    <!-- ================= Create/Edit Modal ================= -->
     <div class="app-modal-backdrop" *ngIf="showForm">
         <div class="app-modal" style="max-width: 1020px;">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
@@ -160,22 +192,18 @@
                             <checkbox label="Active" [control]="programForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
+
+                        <!-- Subjects (kept) -->
                         <div class="col-12">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                                <div class="fw-semibold">Subjects</div>
-                                <button type="button" class="btn btn-sm btn-outline-primary" *ngIf="formMode === 'edit'"
-                                    (click)="addSubjectsToCurrentProgram()">
-                                    <i class="fa-solid fa-plus me-1"></i>
-                                    Add Subjects to Program
-                                </button>
-                            </div>
+                            <div class="fw-semibold mb-2">Subjects</div>
                             <div class="border rounded p-2" style="max-height: 210px; overflow: auto;">
                                 <div class="row g-2">
                                     <div class="col-md-4" *ngFor="let s of subjectOptions">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" [id]="'sub_' + s.value"
                                                 [checked]="isSubjectChecked(s.value)"
-                                                (change)="toggleSubject(s.value, $any($event.target).checked)" />
+                                                (change)="toggleSubject(s.value, $any($event.target).checked)"
+                                                [disabled]="formMode === 'edit'" />
                                             <label class="form-check-label" [for]="'sub_' + s.value">
                                                 <span class="fw-semibold">{{ s.label }}</span>
                                                 <span class="text-muted small" *ngIf="s.code">({{ s.code }})</span>
@@ -187,99 +215,15 @@
                                     No subjects available. Please create subjects first.
                                 </div>
                             </div>
-                            <div class="small text-muted mt-1">
-                                Note: In edit, <span class="fw-semibold">Add Subjects</span> will only append newly
-                                selected subjects (won’t remove existing).
+                            <div class="small text-muted mt-1" *ngIf="formMode === 'edit'">
+                                Note: Subjects are locked in edit. Use <span class="fw-semibold">Add Subjects</span>
+                                action from list.
                             </div>
                         </div>
-                        <div class="col-12" *ngIf="formMode === 'edit'">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                                <div class="fw-semibold">Exam Category Mapping</div>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-primary"
-                                        (click)="addExamMappingRow()">
-                                        <i class="fa-solid fa-plus me-1"></i>
-                                        Add Mapping Row
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-primary" (click)="saveExamMappings()"
-                                        [disabled]="examMappingsFA.length === 0">
-                                        <i class="fa-solid fa-floppy-disk me-1"></i>
-                                        Save Exam Mappings
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="border rounded p-2">
-                                <div *ngIf="!examCategoryOptions.length" class="small text-muted">
-                                    No exam categories found. Create exam categories first.
-                                </div>
-                                <div class="table-responsive" *ngIf="examCategoryOptions.length">
-                                    <table class="table table-sm table-hover align-middle mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th style="width: 48px;">#</th>
-                                                <th style="min-width: 240px;">Exam Category</th>
-                                                <th style="min-width: 260px;">Exam Sub Category</th>
-                                                <th style="width: 140px;">Sort Order</th>
-                                                <th style="width: 80px;"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody formArrayName="examMappings">
-                                            <tr *ngFor="let g of examMappingsFA.controls; let i = index"
-                                                [formGroupName]="i">
-                                                <td>{{ i + 1 }}</td>
-                                                <td>
-                                                    <select class="form-select form-select-sm"
-                                                        formControlName="categoryId"
-                                                        (change)="onExamCategoryChanged(i)">
-                                                        <option value="">-- Select --</option>
-                                                        <option *ngFor="let c of examCategoryOptions" [value]="c.value">
-                                                            {{ c.label }}
-                                                        </option>
-                                                    </select>
-                                                    <div class="small text-danger mt-1"
-                                                        *ngIf="g.get('categoryId')?.touched && g.get('categoryId')?.invalid">
-                                                        Category required
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <select class="form-select form-select-sm"
-                                                        formControlName="subCategoryId">
-                                                        <option value="">-- Select --</option>
-                                                        <option *ngFor="let s of getSubCategoryOptionsForRow(i)"
-                                                            [value]="s.value">
-                                                            {{ s.label }}
-                                                        </option>
-                                                    </select>
-                                                    <div class="small text-danger mt-1"
-                                                        *ngIf="g.get('subCategoryId')?.touched && g.get('subCategoryId')?.invalid">
-                                                        Sub category required
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <input type="number" class="form-control form-control-sm"
-                                                        formControlName="sortOrder" placeholder="0" />
-                                                </td>
-                                                <td class="text-end">
-                                                    <button type="button" class="btn btn-sm btn-outline-danger"
-                                                        (click)="removeExamMappingRow(i)">
-                                                        <i class="fa-regular fa-trash-can"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            <tr *ngIf="examMappingsFA.length === 0">
-                                                <td colspan="5" class="text-muted small py-3 text-center">
-                                                    No mappings added.
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="small text-muted mt-2">
-                                    Note: Mappings are saved separately (won’t affect Program Save button).
-                                </div>
-                            </div>
-                        </div>
+
+                        <!-- ✅ REMOVED: Exam Category Mapping block from Create/Edit -->
                     </div>
+
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
                         <button type="submit" class="btn btn-primary" [disabled]="programForm.invalid">
@@ -291,122 +235,146 @@
         </div>
     </div>
 
-    <!-- ================= Import Modal ================= -->
-    <div class="app-modal-backdrop" *ngIf="showImport">
-        <div class="app-modal" style="max-width: 1040px;">
+    <!-- ================= Add Subjects Modal ================= -->
+    <div class="app-modal-backdrop" *ngIf="showSubjectsModal">
+        <div class="app-modal" style="max-width: 980px;">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Import Programs (Excel)</h6>
-                    <span class="text-muted small">Upload Excel and import programs in bulk.</span>
+                    <h6 class="mb-0 fw-semibold">Add Subjects to Program</h6>
+                    <span class="text-muted small">Only newly selected subjects will be appended.</span>
                 </div>
-                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+                <button type="button" class="btn-close" (click)="closeSubjectsModal()" aria-label="Close"></button>
             </div>
 
             <div class="app-modal-body">
-                <div class="alert alert-info py-2 small mb-3">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div>
-                            <div class="fw-semibold mb-1">Required columns in Excel:</div>
-                            <div class="text-muted">
-                                <span class="me-2">Program Name</span> |
-                                <span class="mx-2">Eligible Class</span> |
-                                <span class="mx-2">Starting Class</span> |
-                                <span class="mx-2">Duration</span> |
-                                <span class="mx-2">Program Code</span> |
-                                <span class="mx-2">Target</span> |
-                                <span class="mx-2">Program Version</span> |
-                                <span class="mx-2">Subjects</span>
+                <div class="border rounded p-2" style="max-height: 360px; overflow:auto;">
+                    <div class="row g-2">
+                        <div class="col-md-4" *ngFor="let s of subjectOptions">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" [id]="'subm_' + s.value"
+                                    [checked]="isModalSubjectChecked(s.value)"
+                                    (change)="toggleModalSubject(s.value, $any($event.target).checked)"
+                                    [disabled]="existingSubjectIds.has(s.value)" />
+                                <label class="form-check-label" [for]="'subm_' + s.value">
+                                    <span class="fw-semibold">{{ s.label }}</span>
+                                    <span class="text-muted small" *ngIf="s.code">({{ s.code }})</span>
+                                    <span class="badge bg-light text-dark border ms-2"
+                                        *ngIf="existingSubjectIds.has(s.value)">Already Added</span>
+                                </label>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()">
-                            <i class="fa-solid fa-download me-1"></i>
-                            Download Sample Excel
-                        </button>
                     </div>
                 </div>
 
-                <!-- ✅ No mode dropdown; default upsert -->
-                <div class="row g-3 align-items-end mb-3">
-                    <div class="col-md-7">
-                        <label class="form-label fw-semibold">Excel File</label>
-                        <input type="file" class="form-control" accept=".xlsx,.xls"
-                            (change)="onExcelSelected($event)" />
-                        <div class="form-text" *ngIf="importFileName">Selected: {{ importFileName }}</div>
-                        <div class="form-text">Import mode: <span class="fw-semibold">Upsert</span></div>
-                    </div>
-
-                    <div class="col-md-5 d-flex gap-2 justify-content-end">
-                        <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
-                            [disabled]="!importPreviewRows.length">
-                            Reset
-                        </button>
-                        <button type="button" class="btn btn-primary" (click)="confirmImport()"
-                            [disabled]="!importPreviewRows.length || importHasInvalidRows">
-                            Import Now
-                        </button>
-                    </div>
-                </div>
-
-                <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
-                    <div class="small text-muted">
-                        Rows: <span class="fw-semibold">{{ importPreviewRows.length }}</span>
-                        <span class="ms-2" *ngIf="importHasInvalidRows">
-                            | Invalid: <span class="fw-semibold text-danger">{{ importInvalidCount }}</span>
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Preview Table -->
-                <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
-                    <table class="table table-sm table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width:60px;">#</th>
-                                <th>Program Name</th>
-                                <th>Eligible</th>
-                                <th>Start</th>
-                                <th>Duration</th>
-                                <th>End</th>
-                                <th>Program Code</th>
-                                <th>Target</th>
-                                <th>Version</th>
-                                <th>Subjects</th>
-                                <th style="width:120px;">Status</th>
-                                <th style="width:220px;">Row Validation</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let r of importPreviewRows; let i = index" [class.table-danger]="!r._valid">
-                                <td>{{ r._rowNo }}</td>
-                                <td>{{ r.programName }}</td>
-                                <td>{{ r.eligibleToClass }}</td>
-                                <td>{{ r.startingClass }}</td>
-                                <td>{{ r.duration }}</td>
-                                <td>{{ r.endingClass || '-' }}</td>
-                                <td>{{ r.programCodes }}</td>
-                                <td>{{ r.target || '-' }}</td>
-                                <td>{{ r.version }}</td>
-                                <td>{{ r.subjectsRaw || '-' }}</td>
-                                <td>{{ r.status }}</td>
-                                <td>
-                                    <span *ngIf="r._valid" class="badge bg-success">OK</span>
-                                    <span *ngIf="!r._valid" class="badge bg-danger">
-                                        {{ r._errors?.join(', ') }}
-                                    </span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
-                    Fix invalid rows in Excel and upload again. Import is disabled until all rows are valid.
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary"
+                        (click)="closeSubjectsModal()">Cancel</button>
+                    <button type="button" class="btn btn-primary" (click)="confirmAddSubjects()"
+                        [disabled]="!modalSelectedSubjects.length || addingSubjects">
+                        <i class="fa-solid fa-plus me-1"></i>
+                        Add Selected
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Delete Confirmation -->
+    <!-- ================= Exam Mapping Modal ================= -->
+    <div class="app-modal-backdrop" *ngIf="showExamMappingModal">
+        <div class="app-modal" style="max-width: 1040px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Program Exam Category Mapping</h6>
+                    <span class="text-muted small">Add mapping rows and save separately.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeExamMappingModal()" aria-label="Close"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="d-flex gap-2 justify-content-end mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" (click)="addExamMappingRow()">
+                        <i class="fa-solid fa-plus me-1"></i>
+                        Add Row
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" (click)="saveExamMappings()"
+                        [disabled]="examMappingsFA.length === 0 || examMappingsFA.invalid || savingExamMappings">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>
+                        Save
+                    </button>
+                </div>
+
+                <div class="border rounded p-2">
+                    <div *ngIf="!examCategoryOptions.length" class="small text-muted">
+                        No exam categories found. Create exam categories first.
+                    </div>
+
+                    <div class="table-responsive" *ngIf="examCategoryOptions.length">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 48px;">#</th>
+                                    <th style="min-width: 240px;">Exam Category</th>
+                                    <th style="min-width: 260px;">Exam Sub Category</th>
+                                    <th style="width: 140px;">Sort Order</th>
+                                    <th style="width: 80px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody formArrayName="examMappings" [formGroup]="examMapForm">
+                                <tr *ngFor="let g of examMappingsFA.controls; let i = index" [formGroupName]="i">
+                                    <td>{{ i + 1 }}</td>
+                                    <td>
+                                        <select class="form-select form-select-sm" formControlName="categoryId"
+                                            (change)="onExamCategoryChanged(i)">
+                                            <option value="">-- Select --</option>
+                                            <option *ngFor="let c of examCategoryOptions" [value]="c.value">
+                                                {{ c.label }}
+                                            </option>
+                                        </select>
+                                        <div class="small text-danger mt-1"
+                                            *ngIf="g.get('categoryId')?.touched && g.get('categoryId')?.invalid">
+                                            Category required
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm" formControlName="subCategoryId">
+                                            <option value="">-- Select --</option>
+                                            <option *ngFor="let s of getSubCategoryOptionsForRow(i)" [value]="s.value">
+                                                {{ s.label }}
+                                            </option>
+                                        </select>
+                                        <div class="small text-danger mt-1"
+                                            *ngIf="g.get('subCategoryId')?.touched && g.get('subCategoryId')?.invalid">
+                                            Sub category required
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm"
+                                            formControlName="sortOrder" placeholder="0" />
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                            (click)="removeExamMappingRow(i)">
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr *ngIf="examMappingsFA.length === 0">
+                                    <td colspan="5" class="text-muted small py-3 text-center">
+                                        No mappings added.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="small text-muted mt-2">
+                        Note: Sort order will be normalized on save.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <delete [title]="'Delete Program'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
         (closed)="onDeleteModalClosed($event)">
     </delete>

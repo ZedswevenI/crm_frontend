@@ -9,12 +9,14 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()"
+                    [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-file-import"></i>
                     <span>Import Bank Accounts</span>
                 </button>
 
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()"
+                    [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-plus"></i>
                     <span>Add Bank Account</span>
                 </button>
@@ -22,8 +24,9 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" (requestData)="fetchTableData($event)" [columns]="columns"
-                [totalRecords]="totalRecords" [data]="bankData" [actions]="actions" [showpageoptions]="true">
+            <list-table [autoFitChars]="true" [columns]="columns" [totalRecords]="totalRecords" [data]="bankData"
+                [actions]="actions" [loading]="loading" [pageSizeOptions]="[10,20,50]"
+                (requestData)="fetchTableData($event)">
             </list-table>
         </div>
     </div>
@@ -41,7 +44,8 @@
                         }}
                     </span>
                 </div>
-                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"
+                    [disabled]="saving"></button>
             </div>
 
             <div class="app-modal-body">
@@ -64,12 +68,14 @@
                                 [control]="bankForm.get('accountNumber')" formControlName="accountNumber"
                                 placeholder="1234567890">
                             </formfield>
+                            <div class="form-text">Only digits allowed.</div>
                         </div>
 
                         <div class="col-md-4">
                             <formfield label="IFSC" [required]="false" [control]="bankForm.get('ifsc')"
                                 formControlName="ifsc" placeholder="HDFC0000123">
                             </formfield>
+                            <div class="form-text">Optional. 11 chars (A-Z0-9).</div>
                         </div>
 
                         <div class="col-md-4">
@@ -90,8 +96,13 @@
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-4">
-                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
-                        <button type="submit" class="btn btn-primary" [disabled]="bankForm.invalid">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="saving">
+                            Cancel
+                        </button>
+
+                        <button type="submit" class="btn btn-primary" [disabled]="bankForm.invalid || saving">
+                            <span *ngIf="saving" class="spinner-border spinner-border-sm me-2" role="status"
+                                aria-hidden="true"></span>
                             {{ formMode === 'create' ? 'Save Bank Account' : 'Update Bank Account' }}
                         </button>
                     </div>
@@ -112,7 +123,8 @@
                     <h6 class="mb-0 fw-semibold">Import Bank Accounts (Excel)</h6>
                     <span class="text-muted small">Upload Excel and import bank accounts in bulk.</span>
                 </div>
-                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"
+                    [disabled]="importing"></button>
             </div>
 
             <div class="app-modal-body">
@@ -130,7 +142,9 @@
                                 <span class="mx-2">Status</span>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()">
+
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()"
+                            [disabled]="importing">
                             <i class="fa-solid fa-download me-1"></i>
                             Download Sample Excel
                         </button>
@@ -140,20 +154,22 @@
                 <div class="row g-3 align-items-end mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Excel File</label>
-                        <input type="file" class="form-control" accept=".xlsx,.xls"
-                            (change)="onExcelSelected($event)" />
+                        <input type="file" class="form-control" accept=".xlsx,.xls" (change)="onExcelSelected($event)"
+                            [disabled]="importing" />
                         <div class="form-text" *ngIf="importFileName">Selected: {{ importFileName }}</div>
                     </div>
 
                     <div class="col-md-6 d-flex gap-2 justify-content-end">
                         <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
-                            [disabled]="!importPreviewRows.length">
+                            [disabled]="!importPreviewRows.length || importing">
                             Reset
                         </button>
 
                         <button type="button" class="btn btn-primary" (click)="confirmImport()"
                             [disabled]="!importPreviewRows.length || importHasInvalidRows || importing">
-                            <i class="fa-solid fa-cloud-arrow-up me-1"></i>
+                            <span *ngIf="importing" class="spinner-border spinner-border-sm me-2" role="status"
+                                aria-hidden="true"></span>
+                            <i class="fa-solid fa-cloud-arrow-up me-1" *ngIf="!importing"></i>
                             Import Now
                         </button>
                     </div>
@@ -189,7 +205,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let r of importPreviewRows; let i = index" [class.table-danger]="!r._valid">
+                            <tr *ngFor="let r of importPreviewRows" [class.table-danger]="!r._valid">
                                 <td>{{ r._rowNo }}</td>
                                 <td>{{ r.bankName }}</td>
                                 <td>{{ r.accountName }}</td>

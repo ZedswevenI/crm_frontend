@@ -1,4 +1,16 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, input, ViewChild, ElementRef, HostListener } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnInit,
+  OnChanges,
+  SimpleChanges,
+  input,
+  ViewChild,
+  ElementRef,
+  HostListener,
+} from '@angular/core';
 
 export interface TableFilterOption {
   label: string;
@@ -9,16 +21,22 @@ export interface TableFilterOption {
   selector: 'list-table',
   standalone: false,
   templateUrl: './list-table.component.html',
-  styleUrl: './list-table.component.scss'
+  styleUrl: './list-table.component.scss',
 })
 export class ListTableComponent {
-  // Table details 
-  @Input() columns: { key: string; label: string; sortable: boolean; date?: boolean; maxWidthPx?: number }[] = [];
+  // Table details
+  @Input() columns: {
+    key: string;
+    label: string;
+    sortable: boolean;
+    date?: boolean;
+    maxWidthPx?: number;
+  }[] = [];
   @Input() data: any[] = [];
   @Input() actions: any[] = [];
   @Input() showaction: boolean = true;
   @Input() showfilter: boolean = false;
-  @Input() pageSizeOptions = [5, 10, 20, 50];
+  @Input() pageSizeOptions = [10, 20, 50];
   @Input() totalRecords: number = 0;
   @Input() loading: boolean = false;
   @Input() showpageoptions: boolean = true;
@@ -35,7 +53,8 @@ export class ListTableComponent {
 
   @Output() filterChange = new EventEmitter<string>();
 
-  @ViewChild('tableWrap', { static: false }) tableWrap?: ElementRef<HTMLDivElement>;
+  @ViewChild('tableWrap', { static: false })
+  tableWrap?: ElementRef<HTMLDivElement>;
   private containerWidth = 0;
 
   // @Input() isPrimary: boolean = false;
@@ -60,26 +79,25 @@ export class ListTableComponent {
     return Math.ceil(this.totalRecords / this.pageSize) || 1;
   }
 
-  constructor() { }
+  constructor() {}
 
   ngOnInit(): void {
-    this.pageSize = this.pageSizeOptions[0];
+    this.pageSize =
+      this.pageSizeOptions && this.pageSizeOptions.length
+        ? +this.pageSizeOptions[0]
+        : 10;
+
     if (this.columns) {
       this.columns = this.columns.map((col) => ({
         ...col,
-        date: col.date ?? false
+        date: col.date ?? false,
       }));
     }
-    this.emitRequest();
-    this.updatePagination();
+    setTimeout(() => {
+      this.emitRequest();
+      this.updatePagination();
+    }, 0);
   }
-
-  // onRowClicked(row: any) {
-  //   this.rowClick.emit(row);
-  // }
-  // getColumnClass(column: any): string {
-  //   return this.isPrimary ? 'highlight-col' : '';
-  // }
 
   onOpenFilters() {
     this.filterClicked.emit();
@@ -102,7 +120,9 @@ export class ListTableComponent {
     for (const part of parts) {
       if (curr == null) return '--';
       if (Array.isArray(curr)) {
-        const mapped = curr.map((item) => (item != null ? item[part] : undefined)).filter((v) => v !== undefined && v !== null);
+        const mapped = curr
+          .map((item) => (item != null ? item[part] : undefined))
+          .filter((v) => v !== undefined && v !== null);
         if (mapped.length === 0) return '--';
         curr = mapped;
       } else {
@@ -112,7 +132,11 @@ export class ListTableComponent {
     let value = curr;
     if (Array.isArray(value)) {
       if (value.length === 0) return '--';
-      if (typeof value[0] === 'string' || typeof value[0] === 'number' || typeof value[0] === 'boolean') {
+      if (
+        typeof value[0] === 'string' ||
+        typeof value[0] === 'number' ||
+        typeof value[0] === 'boolean'
+      ) {
         return value.join(', ');
       }
       return value.length;
@@ -122,7 +146,13 @@ export class ListTableComponent {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['totalRecords'] || changes['pageSize'] || changes['currentPage']) {
+    if (
+      changes['totalRecords'] ||
+      changes['pageSize'] ||
+      changes['currentPage']
+    ) {
+      const tp = this.totalPages;
+      if (this.currentPage > tp) this.currentPage = tp;
       this.updatePagination();
     }
   }
@@ -164,7 +194,7 @@ export class ListTableComponent {
       pageSize: this.pageSize,
       search: this.searchText,
       sortKey: this.sortKey,
-      sortDirection: this.sortDirection
+      sortDirection: this.sortDirection,
     });
   }
 
@@ -186,7 +216,7 @@ export class ListTableComponent {
     }
     this.paginationItems = pages.map((p) => ({
       page: p,
-      isActive: p === current
+      isActive: p === current,
     })) as any;
   }
 
@@ -230,25 +260,23 @@ export class ListTableComponent {
   private getMaxChars(col?: any): number {
     if (!this.autoFitChars || !this.containerWidth) return this.hardMaxChars;
 
-
     const fixedCols = 1 + (this.showaction ? 1 : 0);
     const numDataCols = Math.max(1, (this.columns?.length || 1) + fixedCols);
     const paddingGuard = 64;
-    const perColPx = Math.max(80, Math.floor((this.containerWidth - paddingGuard) / numDataCols));
+    const perColPx = Math.max(
+      80,
+      Math.floor((this.containerWidth - paddingGuard) / numDataCols),
+    );
     const approxChars = Math.floor(perColPx / this.baseCharWidth);
     return Math.max(this.minChars, Math.min(this.hardMaxChars, approxChars));
   }
 
-
   expanded: { rowIndex: number; colKey: string; value: string } | null = null;
   private collapseTimer: any = null;
 
-
   get fullColSpan(): number {
-
     return 1 + (this.columns?.length || 0) + (this.showaction ? 1 : 0);
   }
-
 
   columnLabel(key: string): string {
     const c = (this.columns || []).find((col) => col.key === key);

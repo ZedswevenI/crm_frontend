@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
@@ -15,55 +15,91 @@ type ImportMode = 'insert' | 'upsert';
 })
 export class ProgramComponent implements OnInit {
   programForm!: FormGroup;
+
   totalRecords = 0;
+  programData: any[] = [];
+  loading = false;
+
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   editingRecId: string | null = null;
+
   showView = false;
   viewData: any | null = null;
-  subjectOptions: any[] = [];
-  private subjectByCode = new Map<string, any>();
-  private subjectByName = new Map<string, any>();
-  private existingSubjectIds = new Set<string>();
-  deleteModalVisible = false;
-  deleteTarget: any | null = null;
-  deleteMessage = '';
-  entiId: any;
+
+  // import
   showImport = false;
   importMode: ImportMode = 'upsert';
   importFileName = '';
   importPreviewRows: any[] = [];
   importHasInvalidRows = false;
   importInvalidCount = 0;
-  programData: any[] = [];
-  loading = false;
+
+  // delete
+  deleteModalVisible = false;
+  deleteTarget: any | null = null;
+  deleteMessage = '';
+
+  // masters
+  subjectOptions: any[] = [];
+  private subjectByCode = new Map<string, any>();
+  private subjectByName = new Map<string, any>();
+
+  examCategoryOptions: any[] = [];
+  examSubCategoryOptions: any[] = [];
+  private examSubByCat = new Map<string, any[]>();
+  private examCatById = new Map<string, any>();
+  private examSubById = new Map<string, any>();
+
+  // add subjects modal
+  showSubjectsModal = false;
+  subjectsTargetRecId: string | null = null;
+  existingSubjectIds = new Set<string>();
+  modalSelectedSubjects: string[] = [];
+  addingSubjects = false;
+
+  // exam mapping modal
+  showExamMappingModal = false;
+  examMappingTargetRecId: string | null = null;
+  savingExamMappings = false;
+
+  examMapForm!: FormGroup;
+
+  // last table params (to refresh)
+  private lastTableParams: any = { page: 1, pageSize: 10 };
+
   private moduleName = 'ims';
+  entiId: any;
+
   columns = [
     { key: 'name', label: 'Program Name', sortable: true },
     { key: 'code', label: 'Code', sortable: false },
     { key: 'stream', label: 'Stream', sortable: true },
     { key: 'eligibleToClass', label: 'Eligible Class', sortable: true },
-    { key: 'duration', label: 'Duration', sortable: true },
     { key: 'startingClass', label: 'Start Class', sortable: true },
-    { key: 'version', label: 'Version', sortable: true },
-    { key: 'subjects', label: 'Subjects', sortable: false },
-    { key: 'isActive', label: 'Active', sortable: false },
+    { key: 'duration', label: 'Duration', sortable: true },
+    { key: 'subjectsCount', label: 'Subjects', sortable: false },
   ];
+
   streamOptions = [
     { label: 'JEE', value: 'JEE' },
     { label: 'NEET', value: 'NEET' },
     { label: 'Foundation', value: 'Foundation' },
   ];
+
   durationOptions = [1, 2, 3, 4, 5, 6].map((n) => ({
     label: String(n),
     value: n,
   }));
+
   eligibleClassOptions = Array.from({ length: 9 }, (_, i) => 5 + i).map(
     (n) => ({ label: String(n), value: n }),
   );
+
   startingClassOptions = Array.from({ length: 8 }, (_, i) => 5 + i).map(
     (n) => ({ label: String(n), value: n }),
   );
+
   actions = [
     {
       type: 'icon',
@@ -79,16 +115,23 @@ export class ProgramComponent implements OnInit {
     },
     {
       type: 'icon',
+      icon: 'fa-solid fa-layer-group',
+      tooltip: 'Add Subjects',
+      callback: (row: any) => this.openSubjectsModal(row),
+    },
+    {
+      type: 'icon',
+      icon: 'fa-solid fa-diagram-project',
+      tooltip: 'Exam Mapping',
+      callback: (row: any) => this.openExamMappingModal(row),
+    },
+    {
+      type: 'icon',
       icon: 'fa-regular fa-trash-can',
       tooltip: 'Delete',
       callback: (row: any) => this.openDelete(row),
     },
   ];
-  examCategoryOptions: any[] = [];
-  examSubCategoryOptions: any[] = [];
-  private examSubByCat = new Map<string, any[]>();
-  private examCatById = new Map<string, any>();
-  private examSubById = new Map<string, any>();
 
   constructor(
     private fb: FormBuilder,
@@ -106,13 +149,12 @@ export class ProgramComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
+    this.initExamMapForm();
     this.loadMasters();
     this.bindDerivedFields();
-    // this.loadPrograms({ page: 1, pageSize: 10 });
   }
 
-  // programList
-  // studentlist
+  // ================= TABLE LIST =================
   fetchTableData(params: {
     page: number;
     pageSize: number;
@@ -120,9 +162,9 @@ export class ProgramComponent implements OnInit {
     sortKey?: string;
     sortDirection?: string;
   }) {
+    this.lastTableParams = params || this.lastTableParams;
     this.loading = true;
 
-    // Pagination & Sort
     let sortParam = '';
     if (params.sortKey) {
       sortParam =
@@ -136,46 +178,55 @@ export class ProgramComponent implements OnInit {
     if (sortParam) query.sort = sortParam;
     if (params.search) query.search = params.search;
 
-    // Build query string
     const queryString = Object.keys(query)
       .map(
         (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`,
       )
       .join('&');
 
-    const body = {
-      entiId: localStorage.getItem('tenantId'),
-    };
+    const body = { entiId: this.entiId };
 
     this.commonApi
-      .fetchData(body, 'ims', `program/list?${queryString}`)
+      .fetchData(body, this.moduleName, `program/list?${queryString}`)
       .subscribe({
         next: (res: any) => {
-          this.programData = (res?.data || []).map((p: any) => ({
-            recId: p._id,
-            name: p.programName,
-            code: p.programCodes || '-',
-            stream: p.target || '-',
-            eligibleToClass: p.eligibleToClass ?? '-',
-            startingClass: p.startingClass ?? '-',
-            endingClass: p.endingClass ?? '-',
-            duration: p.duration ?? '-',
-            version: p.version || '-',
-            subjects: Array.isArray(p.subjects) ? p.subjects.length : 0,
-            isActive: p.status === 'Active',
-            _raw: p,
-          }));
+          const rows = res?.data || [];
+          this.programData = rows.map((p: any) => {
+            const subs = Array.isArray(p.subjects) ? p.subjects : [];
+            const maps = Array.isArray(p.examMappings) ? p.examMappings : [];
+            return {
+              recId: p._id,
+              name: p.programName,
+              code: p.programCodes || '-',
+              stream: p.target || '-',
+              eligibleToClass: p.eligibleToClass ?? '-',
+              startingClass: p.startingClass ?? '-',
+              endingClass: p.endingClass ?? '-',
+              duration: p.duration ?? '-',
+              version: p.version || '-',
+              subjectsCount: subs.length,
+              examMappingsCount: maps.length,
+              isActive: p.status === 'Active',
+              _raw: p,
+            };
+          });
+
           this.totalRecords = res?.count || 0;
           this.loading = false;
         },
-        error: (err) => {
+        error: () => {
           this.loading = false;
-          this.alert.error('Error loading admissions');
+          this.alert.error('Error loading programs');
         },
       });
   }
 
-  // ---------------- FORM ----------------
+  private refreshTable() {
+    const p = this.lastTableParams || { page: 1, pageSize: 10 };
+    this.fetchTableData(p);
+  }
+
+  // ================= FORM =================
   initForm() {
     this.programForm = this.fb.group({
       name: ['', Validators.required],
@@ -196,8 +247,13 @@ export class ProgramComponent implements OnInit {
       endingClass: [{ value: null, disabled: true }],
       version: ['', Validators.required],
       subjects: [[]],
-      examMappings: this.fb.array([]),
       isActive: [true],
+    });
+  }
+
+  private initExamMapForm() {
+    this.examMapForm = this.fb.group({
+      examMappings: this.fb.array([]),
     });
   }
 
@@ -219,12 +275,9 @@ export class ProgramComponent implements OnInit {
 
     startCtrl?.valueChanges.subscribe(() => compute());
     durCtrl?.valueChanges.subscribe(() => compute());
-
-    // initial compute
     compute();
   }
 
-  // CSV validator: must contain at least one non-empty token
   private csvCodesValidator(control: any) {
     const raw = (control?.value || '').toString();
     const parts = raw
@@ -234,8 +287,9 @@ export class ProgramComponent implements OnInit {
     return parts.length ? null : { csvInvalid: true };
   }
 
-  // ---------------- MASTERS ----------------
+  // ================= MASTERS =================
   private loadMasters() {
+    // subjects
     this.commonApi
       .fetchData(
         { entiId: this.entiId },
@@ -250,6 +304,7 @@ export class ProgramComponent implements OnInit {
             value: s._id,
             code: (s.subjectCode || '').toString(),
           }));
+
           this.subjectByCode.clear();
           this.subjectByName.clear();
           this.subjectOptions.forEach((s: any) => {
@@ -265,6 +320,8 @@ export class ProgramComponent implements OnInit {
           this.subjectByName.clear();
         },
       });
+
+    // exam category
     this.commonApi
       .fetchData(
         { entiId: this.entiId },
@@ -278,7 +335,6 @@ export class ProgramComponent implements OnInit {
             label: c.categoryName || c.name || c.categoryCode || c.categoryId,
             value: c.categoryId,
           }));
-
           this.examCatById.clear();
           this.examCategoryOptions.forEach((x: any) =>
             this.examCatById.set(String(x.value), x),
@@ -289,6 +345,8 @@ export class ProgramComponent implements OnInit {
           this.examCatById.clear();
         },
       });
+
+    // exam sub category
     this.commonApi
       .fetchData(
         { entiId: this.entiId },
@@ -327,13 +385,16 @@ export class ProgramComponent implements OnInit {
       });
   }
 
-  // ---------------- CHECKBOX SUBJECTS ----------------
+  // ================= SUBJECTS IN FORM =================
   isSubjectChecked(subjectId: string): boolean {
     const list = (this.programForm.get('subjects')?.value || []) as any[];
     return list.some((x: any) => String(x) === String(subjectId));
   }
 
   toggleSubject(subjectId: string, checked: boolean) {
+    // disabled in edit mode via html, but keep safe
+    if (this.formMode === 'edit') return;
+
     const ctrl = this.programForm.get('subjects');
     const list = Array.isArray(ctrl?.value) ? [...ctrl!.value] : [];
     const id = String(subjectId);
@@ -350,113 +411,7 @@ export class ProgramComponent implements OnInit {
     ctrl?.markAsDirty();
   }
 
-  // ✅ separate method: add only new subjects to current program
-  addSubjectsToCurrentProgram() {
-    if (!this.editingRecId) return;
-    const selected = (this.programForm.get('subjects')?.value ||
-      []) as string[];
-    const toAdd = selected.filter(
-      (x) => !this.existingSubjectIds.has(String(x)),
-    );
-
-    if (!toAdd.length) {
-      this.alert.error('No new subjects selected to add');
-      return;
-    }
-
-    const payload = {
-      entiId: this.entiId,
-      recId: this.editingRecId,
-      subjects: toAdd,
-    };
-
-    // ✅ endpoint name: make sure your route maps this to addProgramSubjects()
-    this.commonApi
-      .fetchData(payload, this.moduleName, 'program/addsubjects')
-      .subscribe({
-        next: () => {
-          toAdd.forEach((x) => this.existingSubjectIds.add(String(x)));
-          this.alert.success('Subjects added to program');
-        },
-        error: (err: any) =>
-          this.alert.error(err?.error?.message || 'Failed to add subjects'),
-      });
-  }
-
-  // ---------------- LIST ----------------
-  loadPrograms(event?: {
-    page: number;
-    pageSize: number;
-    search?: string;
-    sortKey?: string;
-    sortDirection?: 'asc' | 'desc';
-  }) {
-    const page = event?.page || 1;
-    const limit = event?.pageSize || 10;
-    const search = (event?.search || '').toString().trim();
-
-    const sortMap: any = {
-      name: 'programName',
-      stream: 'target',
-      eligibleToClass: 'eligibleToClass',
-      startingClass: 'startingClass',
-      endingClass: 'endingClass',
-      duration: 'duration',
-      version: 'version',
-    };
-    const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
-    const sort = sortKey
-      ? event?.sortDirection === 'asc'
-        ? sortKey
-        : `-${sortKey}`
-      : '';
-
-    const qp = this.buildQueryParams({
-      page,
-      limit,
-      ...(search ? { search } : {}),
-      ...(sort ? { sort } : {}),
-    });
-
-    this.commonApi
-      .fetchData({ entiId: this.entiId }, this.moduleName, `program/list${qp}`)
-      .subscribe({
-        next: (res: any) => {
-          this.totalRecords = res?.count || 0;
-          this.programData = (res?.data || []).map((p: any) => ({
-            recId: p._id,
-            name: p.programName,
-            code: p.programCodes || '-',
-            stream: p.target || '-',
-            eligibleToClass: p.eligibleToClass ?? '-',
-            startingClass: p.startingClass ?? '-',
-            endingClass: p.endingClass ?? '-',
-            duration: p.duration ?? '-',
-            version: p.version || '-',
-            subjects: Array.isArray(p.subjects) ? p.subjects.length : 0,
-            isActive: p.status === 'Active',
-            _raw: p,
-          }));
-        },
-        error: () => this.alert.error('Failed to load programs'),
-      });
-  }
-
-  private buildQueryParams(params: Record<string, any>) {
-    const keys = Object.keys(params || {}).filter(
-      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
-    );
-    if (!keys.length) return '';
-    const qs = keys
-      .map(
-        (k) =>
-          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
-      )
-      .join('&');
-    return `?${qs}`;
-  }
-
-  // ---------------- VIEW ----------------
+  // ================= VIEW =================
   openView(row: any) {
     const recId = row?.recId || row?._raw?._id;
     if (!recId) return;
@@ -481,12 +436,11 @@ export class ProgramComponent implements OnInit {
     this.viewData = null;
   }
 
-  // ---------------- ADD ----------------
+  // ================= CREATE / EDIT =================
   add() {
     this.formMode = 'create';
     this.editingRecId = null;
-    this.existingSubjectIds.clear();
-    this.examMappingsFA.clear();
+
     this.programForm.reset({
       name: '',
       code: '',
@@ -503,17 +457,17 @@ export class ProgramComponent implements OnInit {
     this.showForm = true;
   }
 
-  // ---------------- EDIT ----------------
   edit(row: any) {
-    const p = row._raw;
+    const p = row?._raw || {};
     this.formMode = 'edit';
-    this.editingRecId = p._id;
+    this.editingRecId = p._id || null;
+
     const subs = Array.isArray(p.subjects)
       ? p.subjects
           .map((x: any) => (typeof x === 'string' ? x : x?._id))
           .filter(Boolean)
       : [];
-    this.existingSubjectIds = new Set(subs.map((x: any) => String(x)));
+
     this.programForm.patchValue({
       name: p.programName,
       code: p.programCodes,
@@ -523,18 +477,13 @@ export class ProgramComponent implements OnInit {
       duration: this.toNum(p.duration),
       endingClass: this.toNum(p.endingClass),
       version: p.version,
-      subjects: subs,
+      subjects: subs, // shown but locked
       isActive: p.status === 'Active',
     });
-    this.examMappingsFA.clear();
-    const maps = Array.isArray(p.examMappings) ? p.examMappings : [];
-    for (const m of maps) {
-      this.examMappingsFA.push(this.makeExamMappingRow(m));
-    }
+
     this.showForm = true;
   }
 
-  // ---------------- SAVE ----------------
   save() {
     if (this.programForm.invalid) {
       this.programForm.markAllAsTouched();
@@ -542,7 +491,6 @@ export class ProgramComponent implements OnInit {
       return;
     }
 
-    // extra derived validations (frontend)
     const start = this.toNum(this.programForm.get('startingClass')?.value);
     const dur = this.toNum(this.programForm.get('duration')?.value);
     const end = start && dur ? start + dur - 1 : 0;
@@ -553,36 +501,266 @@ export class ProgramComponent implements OnInit {
       return;
     }
 
-    const payload = this.buildPayload(
-      this.programForm.getRawValue(),
-      this.editingRecId || '',
-    );
-    const endpoint = this.formMode === 'create' ? 'create' : 'edit';
+    const raw = this.programForm.getRawValue() || {};
+    const payload: any = {
+      entiId: this.entiId,
+      eligibleToClass: this.toNum(raw.eligibleToClass),
+      startingClass: this.toNum(raw.startingClass),
+      duration: this.toNum(raw.duration),
+      programName: raw.name,
+      programCodes: raw.code,
+      target: raw.stream,
+      version: raw.version,
+      status: raw.isActive ? 'Active' : 'Inactive',
+    };
 
-    this.commonApi
-      .fetchData(payload, this.moduleName, `program/${endpoint}`)
-      .subscribe({
-        next: () => {
-          this.alert.success(
-            this.formMode === 'create'
-              ? 'Program created successfully'
-              : 'Program updated successfully',
-          );
-          this.showForm = false;
-          this.loadPrograms({ page: 1, pageSize: 10 });
-        },
-        error: (err: any) => {
-          const msg = err?.error?.message || 'Operation failed';
-          this.alert.error(msg);
-        },
-      });
+    // ✅ subjects only on CREATE (edit subject changes should happen via Add Subjects modal)
+    if (this.formMode === 'create') {
+      payload.subjects = Array.isArray(raw.subjects)
+        ? raw.subjects.map((x: any) => String(x)).filter(Boolean)
+        : [];
+    }
+
+    const endpoint =
+      this.formMode === 'create' ? 'program/create' : 'program/edit';
+    if (this.formMode === 'edit') payload.recId = this.editingRecId;
+
+    this.commonApi.fetchData(payload, this.moduleName, endpoint).subscribe({
+      next: () => {
+        this.alert.success(
+          this.formMode === 'create'
+            ? 'Program created successfully'
+            : 'Program updated successfully',
+        );
+        this.showForm = false;
+        this.refreshTable();
+      },
+      error: (err: any) =>
+        this.alert.error(err?.error?.message || 'Operation failed'),
+    });
   }
 
   cancel() {
     this.showForm = false;
   }
 
-  // ---------------- DELETE ----------------
+  // ================= ADD SUBJECTS (SEPARATE) =================
+  openSubjectsModal(row: any) {
+    const recId = row?.recId || row?._raw?._id;
+    if (!recId) return;
+
+    this.subjectsTargetRecId = recId;
+    this.existingSubjectIds.clear();
+    this.modalSelectedSubjects = [];
+    this.showSubjectsModal = true;
+
+    // load current program subjects
+    this.commonApi
+      .fetchData(
+        { entiId: this.entiId, recId },
+        this.moduleName,
+        'program/view',
+      )
+      .subscribe({
+        next: (res: any) => {
+          const v = res?.data || {};
+          const subs = Array.isArray(v.subjects)
+            ? v.subjects
+                .map((x: any) => (typeof x === 'string' ? x : x?._id))
+                .filter(Boolean)
+            : [];
+          this.existingSubjectIds = new Set(subs.map((x: any) => String(x)));
+        },
+        error: () => {
+          // keep modal open, but no existing list
+          this.existingSubjectIds.clear();
+        },
+      });
+  }
+
+  closeSubjectsModal() {
+    this.showSubjectsModal = false;
+    this.subjectsTargetRecId = null;
+    this.modalSelectedSubjects = [];
+    this.addingSubjects = false;
+  }
+
+  isModalSubjectChecked(subjectId: string): boolean {
+    return this.modalSelectedSubjects.includes(String(subjectId));
+  }
+
+  toggleModalSubject(subjectId: string, checked: boolean) {
+    const id = String(subjectId);
+    if (this.existingSubjectIds.has(id)) return;
+
+    const list = [...(this.modalSelectedSubjects || [])];
+    const idx = list.indexOf(id);
+    if (checked && idx === -1) list.push(id);
+    if (!checked && idx >= 0) list.splice(idx, 1);
+    this.modalSelectedSubjects = list;
+  }
+
+  confirmAddSubjects() {
+    if (!this.subjectsTargetRecId) return;
+
+    const toAdd = (this.modalSelectedSubjects || []).filter(
+      (x) => !this.existingSubjectIds.has(String(x)),
+    );
+    if (!toAdd.length) {
+      this.alert.error('No new subjects selected to add');
+      return;
+    }
+
+    this.addingSubjects = true;
+
+    const payload = {
+      entiId: this.entiId,
+      recId: this.subjectsTargetRecId,
+      subjects: toAdd,
+    };
+
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'program/addsubjects')
+      .subscribe({
+        next: () => {
+          this.alert.success('Subjects added to program');
+          this.addingSubjects = false;
+          this.closeSubjectsModal();
+          this.refreshTable();
+        },
+        error: (err: any) => {
+          this.addingSubjects = false;
+          this.alert.error(err?.error?.message || 'Failed to add subjects');
+        },
+      });
+  }
+
+  // ================= EXAM MAPPING (SEPARATE) =================
+  openExamMappingModal(row: any) {
+    const recId = row?.recId || row?._raw?._id;
+    if (!recId) return;
+
+    this.examMappingTargetRecId = recId;
+    this.showExamMappingModal = true;
+    this.examMappingsFA.clear();
+
+    // load current mappings from view (guaranteed)
+    this.commonApi
+      .fetchData(
+        { entiId: this.entiId, recId },
+        this.moduleName,
+        'program/view',
+      )
+      .subscribe({
+        next: (res: any) => {
+          const v = res?.data || {};
+          const maps = Array.isArray(v.examMappings) ? v.examMappings : [];
+          for (const m of maps) {
+            this.examMappingsFA.push(this.makeExamMappingRow(m));
+          }
+        },
+        error: () => {
+          // keep modal open
+        },
+      });
+  }
+
+  closeExamMappingModal() {
+    this.showExamMappingModal = false;
+    this.examMappingTargetRecId = null;
+    this.savingExamMappings = false;
+    this.examMappingsFA.clear();
+  }
+
+  get examMappingsFA(): FormArray {
+    return this.examMapForm.get('examMappings') as FormArray;
+  }
+
+  private makeExamMappingRow(v?: any) {
+    return this.fb.group({
+      categoryId: [String(v?.categoryId || ''), Validators.required],
+      subCategoryId: [String(v?.subCategoryId || ''), Validators.required],
+      sortOrder: [this.toNum(v?.sortOrder) || 0, []],
+    });
+  }
+
+  addExamMappingRow() {
+    this.examMappingsFA.push(this.makeExamMappingRow({ sortOrder: 0 }));
+  }
+
+  removeExamMappingRow(i: number) {
+    if (i < 0 || i >= this.examMappingsFA.length) return;
+    this.examMappingsFA.removeAt(i);
+  }
+
+  onExamCategoryChanged(i: number) {
+    const g = this.examMappingsFA.at(i) as FormGroup;
+    if (!g) return;
+    g.patchValue({ subCategoryId: '' }, { emitEvent: false });
+  }
+
+  getSubCategoryOptionsForRow(i: number): any[] {
+    const g = this.examMappingsFA.at(i) as FormGroup;
+    const catId = String(g?.get('categoryId')?.value || '');
+    return catId ? this.examSubByCat.get(catId) || [] : [];
+  }
+
+  saveExamMappings() {
+    if (!this.examMappingTargetRecId) return;
+
+    this.examMappingsFA.markAllAsTouched();
+    if (this.examMappingsFA.invalid) {
+      this.alert.error('Please fix exam mapping rows');
+      return;
+    }
+
+    const rows = (this.examMappingsFA.value || []).map((x: any) => ({
+      categoryId: String(x.categoryId || '').trim(),
+      subCategoryId: String(x.subCategoryId || '').trim(),
+      sortOrder: this.toNum(x.sortOrder),
+    }));
+
+    // de-dupe
+    const map = new Map<string, any>();
+    for (const r of rows) {
+      if (!r.categoryId || !r.subCategoryId) continue;
+      const key = `${r.categoryId}__${r.subCategoryId}`;
+      if (!map.has(key)) map.set(key, r);
+    }
+    const clean = Array.from(map.values());
+    if (!clean.length) {
+      this.alert.error('No valid mappings to save');
+      return;
+    }
+
+    this.savingExamMappings = true;
+
+    const payload = {
+      entiId: this.entiId,
+      recId: this.examMappingTargetRecId,
+      rows: clean,
+    };
+
+    // ✅ userId removed (token handles)
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'program/updateExamMappings')
+      .subscribe({
+        next: () => {
+          this.alert.success('Exam mappings saved');
+          this.savingExamMappings = false;
+          this.closeExamMappingModal();
+          this.refreshTable();
+        },
+        error: (err: any) => {
+          this.savingExamMappings = false;
+          this.alert.error(
+            err?.error?.message || 'Failed to save exam mappings',
+          );
+        },
+      });
+  }
+
+  // ================= DELETE =================
   openDelete(row: any) {
     this.deleteTarget = row;
     this.deleteMessage = `Are you sure you want to delete "${row.name}"?`;
@@ -600,7 +778,7 @@ export class ProgramComponent implements OnInit {
       .subscribe({
         next: () => {
           this.alert.success('Program deleted successfully');
-          this.loadPrograms({ page: 1, pageSize: 10 });
+          this.refreshTable();
         },
         error: (err: any) =>
           this.alert.error(err?.error?.message || 'Delete failed'),
@@ -609,32 +787,7 @@ export class ProgramComponent implements OnInit {
     this.deleteTarget = null;
   }
 
-  // ---------------- PAYLOAD BUILDER ----------------
-  private buildPayload(form: any, recId?: string) {
-    const subjects = Array.isArray(form.subjects)
-      ? form.subjects.map((x: any) => String(x)).filter(Boolean)
-      : [];
-
-    return {
-      entiId: this.entiId,
-      ...(recId ? { recId } : {}),
-      eligibleToClass: this.toNum(form.eligibleToClass),
-      startingClass: this.toNum(form.startingClass),
-      duration: this.toNum(form.duration),
-
-      programName: form.name,
-      programCodes: form.code, // CSV string
-      target: form.stream, // backend target
-      version: form.version,
-
-      subjects, // ✅ array
-
-      status: form.isActive ? 'Active' : 'Inactive',
-    };
-  }
-
-  // ===================== IMPORT =====================
-
+  // ================= IMPORT (kept as your current) =================
   openImport() {
     this.showImport = true;
     this.resetImport();
@@ -649,7 +802,7 @@ export class ProgramComponent implements OnInit {
     this.importPreviewRows = [];
     this.importHasInvalidRows = false;
     this.importInvalidCount = 0;
-    this.importMode = 'upsert'; // ✅ fixed
+    this.importMode = 'upsert';
   }
 
   onExcelSelected(ev: any) {
@@ -676,7 +829,7 @@ export class ProgramComponent implements OnInit {
 
         const mapped = rawRows.map((r: any, idx: number) =>
           this.mapExcelRow(r, idx + 2),
-        ); // +2 header line
+        );
         this.importPreviewRows = mapped;
         this.computeImportValidation();
       } catch (err) {
@@ -685,7 +838,6 @@ export class ProgramComponent implements OnInit {
         this.computeImportValidation();
       }
     };
-
     reader.onerror = () => this.alert.error('Unable to read file');
     reader.readAsBinaryString(file);
   }
@@ -698,8 +850,10 @@ export class ProgramComponent implements OnInit {
       }
       return '';
     };
+
     const excelIdStr = get('ID', 'Id', 'id');
     const excelId = excelIdStr ? Number(excelIdStr) : null;
+
     const programName = get('Program Name', 'ProgramName', 'programName');
     const eligibleToClass = this.toNum(
       get('Eligible Class', 'EligibleClass', 'eligibleToClass'),
@@ -715,6 +869,7 @@ export class ProgramComponent implements OnInit {
     const subjectsRaw = get('Subjects', 'Subject', 'subjects', 'subject');
     const statusRaw = get('Status', 'status');
     const status = statusRaw === 'Inactive' ? 'Inactive' : 'Active';
+
     const errors: string[] = [];
     if (!programName) errors.push('Program Name required');
     if (!eligibleToClass) errors.push('Eligible Class required');
@@ -726,16 +881,19 @@ export class ProgramComponent implements OnInit {
     if (!duration) errors.push('Duration required');
     if (duration && (duration < 1 || duration > 6))
       errors.push('Duration must be 1..6');
+
     const endingClass =
       startingClass > 0 && duration > 0 ? startingClass + duration - 1 : 0;
     if (endingClass && endingClass > 13)
       errors.push('Calculated endingClass exceeds 13');
+
     if (!programCodes) errors.push('Program Code required');
     const codeParts = (programCodes || '')
       .split(',')
       .map((x) => (x || '').trim())
       .filter(Boolean);
     if (!codeParts.length) errors.push('Program Code invalid');
+
     const subjectTokens = this.splitCsv(subjectsRaw);
     const subjectIds: string[] = [];
     if (subjectTokens.length) {
@@ -749,6 +907,7 @@ export class ProgramComponent implements OnInit {
       if (missing.length)
         errors.push(`Invalid subjects: ${missing.join(', ')}`);
     }
+
     return {
       _rowNo: rowNo,
       _valid: errors.length === 0,
@@ -784,6 +943,7 @@ export class ProgramComponent implements OnInit {
       this.alert.error('Fix invalid rows before importing');
       return;
     }
+
     const rows = this.importPreviewRows.map((r) => ({
       excelId: r.excelId ?? null,
       programName: r.programName,
@@ -798,18 +958,20 @@ export class ProgramComponent implements OnInit {
       subjects: r.subjects || [],
       status: r.status,
     }));
+
     const payload = {
       entiId: this.entiId,
       mode: 'upsert',
       rows,
     };
+
     this.commonApi
       .fetchData(payload, this.moduleName, 'program/import')
       .subscribe({
         next: () => {
           this.alert.success('Import completed');
           this.closeImport();
-          this.loadPrograms({ page: 1, pageSize: 10 });
+          this.refreshTable();
         },
         error: (err: any) => {
           const msg = err?.error?.message || 'Import failed';
@@ -833,13 +995,25 @@ export class ProgramComponent implements OnInit {
         Status: 'Active',
       },
     ];
+
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Programs');
     XLSX.writeFile(wb, 'Program_Import_Sample.xlsx');
   }
 
-  // ---------------- HELPERS ----------------
+  // ================= LABEL HELPERS (VIEW) =================
+  getExamCategoryLabel(categoryId: any): string {
+    const hit = this.examCatById.get(String(categoryId || ''));
+    return hit?.label || String(categoryId || '-');
+  }
+
+  getExamSubCategoryLabel(subCategoryId: any): string {
+    const hit = this.examSubById.get(String(subCategoryId || ''));
+    return hit?.label || String(subCategoryId || '-');
+  }
+
+  // ================= GENERIC HELPERS =================
   private toNum(v: any): number {
     if (v === null || v === undefined) return 0;
     if (typeof v === 'number' && Number.isFinite(v)) return Math.trunc(v);
@@ -865,92 +1039,5 @@ export class ProgramComponent implements OnInit {
       .trim()
       .toUpperCase()
       .replace(/\s+/g, ' ');
-  }
-
-  get examMappingsFA(): FormArray {
-    return this.programForm.get('examMappings') as FormArray;
-  }
-
-  private makeExamMappingRow(v?: any) {
-    return this.fb.group({
-      categoryId: [String(v?.categoryId || ''), Validators.required],
-      subCategoryId: [String(v?.subCategoryId || ''), Validators.required],
-      sortOrder: [this.toNum(v?.sortOrder), []],
-    });
-  }
-
-  addExamMappingRow() {
-    this.examMappingsFA.push(this.makeExamMappingRow({ sortOrder: 0 }));
-  }
-
-  removeExamMappingRow(i: number) {
-    if (i < 0 || i >= this.examMappingsFA.length) return;
-    this.examMappingsFA.removeAt(i);
-  }
-
-  onExamCategoryChanged(i: number) {
-    const g = this.examMappingsFA.at(i) as FormGroup;
-    if (!g) return;
-    g.patchValue({ subCategoryId: '' }, { emitEvent: false });
-  }
-
-  getSubCategoryOptionsForRow(i: number): any[] {
-    const g = this.examMappingsFA.at(i) as FormGroup;
-    const catId = String(g?.get('categoryId')?.value || '');
-    return catId ? this.examSubByCat.get(catId) || [] : [];
-  }
-
-  getExamCategoryLabel(categoryId: any): string {
-    const hit = this.examCatById.get(String(categoryId || ''));
-    return hit?.label || String(categoryId || '-');
-  }
-
-  getExamSubCategoryLabel(subCategoryId: any): string {
-    const hit = this.examSubById.get(String(subCategoryId || ''));
-    return hit?.label || String(subCategoryId || '-');
-  }
-
-  saveExamMappings() {
-    if (!this.editingRecId) return;
-    this.examMappingsFA.markAllAsTouched();
-    if (this.examMappingsFA.invalid) {
-      this.alert.error('Please fix exam mapping rows');
-      return;
-    }
-    const rows = (this.examMappingsFA.value || []).map((x: any) => ({
-      categoryId: String(x.categoryId || '').trim(),
-      subCategoryId: String(x.subCategoryId || '').trim(),
-      sortOrder: this.toNum(x.sortOrder),
-    }));
-    const map = new Map<string, any>();
-    for (const r of rows) {
-      if (!r.categoryId || !r.subCategoryId) continue;
-      const key = `${r.categoryId}__${r.subCategoryId}`;
-      if (!map.has(key)) map.set(key, r);
-    }
-    const clean = Array.from(map.values());
-    if (!clean.length) {
-      this.alert.error('No valid mappings to save');
-      return;
-    }
-    const payload = {
-      entiId: this.entiId,
-      recId: this.editingRecId,
-      userId: localStorage.getItem('userId') || null,
-      rows: clean,
-    };
-    this.commonApi
-      .fetchData(payload, this.moduleName, 'program/updateExamMappings')
-      .subscribe({
-        next: (res: any) => {
-          this.alert.success('Exam mappings saved');
-          this.loadPrograms({ page: 1, pageSize: 10 });
-        },
-        error: (err: any) => {
-          this.alert.error(
-            err?.error?.message || 'Failed to save exam mappings',
-          );
-        },
-      });
   }
 }

@@ -11,6 +11,7 @@ import { TopicComponent } from './topic/topic.component';
 import { SubtopicComponent } from './subtopic/subtopic.component';
 import { ExamcategoryComponent } from './examcategory/examcategory.component';
 import { ExamsubcategoryComponent } from './examsubcategory/examsubcategory.component';
+import { CenterviewComponent } from './centerview/centerview.component';
 
 const routes: Routes = [
   {
@@ -20,6 +21,10 @@ const routes: Routes = [
   {
     path: 'centers',
     component: CenterComponent
+  },
+  {
+    path: 'centers/view/:id',
+    component: CenterviewComponent
   },
   {
     path: 'staff',

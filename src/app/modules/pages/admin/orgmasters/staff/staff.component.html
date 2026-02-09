@@ -20,10 +20,7 @@
         </div>
 
         <div class="card-body pt-0">
-            <!-- <list-table [autoFitChars]="true" (requestData)="loadStaff($event)" [columns]="columns"
-                [totalRecords]="totalRecords" [data]="staffData" [actions]="actions" [showpageoptions]="true">
-            </list-table> -->
-             <list-table [autoFitChars]="true" (requestData)="fetchTableData($event)" [columns]="columns"
+            <list-table [autoFitChars]="true" (requestData)="fetchTableData($event)" [columns]="columns"
                 [totalRecords]="totalRecords" [data]="staffData" [actions]="actions" [showpageoptions]="true">
             </list-table>
         </div>
@@ -573,7 +570,8 @@
             </ng-template>
         </div>
     </div>
-    <delete [title]="'Delete Staff'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
-        (closed)="onDeleteModalClosed($event)">
+    <!-- Retire Confirmation -->
+    <delete [title]="'Retire Staff'" [message]="retireMessage" [(visible)]="retireModalVisible"
+        (closed)="onRetireModalClosed($event)">
     </delete>
 </div>

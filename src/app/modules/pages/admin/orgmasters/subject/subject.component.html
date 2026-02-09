@@ -7,21 +7,26 @@
                     Manage subjects used for teaching faculty and academic mappings.
                 </p>
             </div>
+
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()"
+                    [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-file-import"></i>
                     <span>Import Subjects</span>
                 </button>
 
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()"
+                    [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-plus"></i>
                     <span>Add Subject</span>
                 </button>
             </div>
         </div>
+
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" (requestData)="loadSubjects($event)" [columns]="columns"
-                [totalRecords]="totalRecords" [data]="subjectData" [actions]="actions" [showpageoptions]="true">
+            <list-table [autoFitChars]="true" [columns]="columns" [totalRecords]="totalRecords" [data]="subjectData"
+                [actions]="actions" [loading]="loading" [pageSizeOptions]="[10,20,50]"
+                (requestData)="loadSubjects($event)">
             </list-table>
         </div>
     </div>
@@ -38,8 +43,10 @@
                         {{ formMode === 'create' ? 'Add a new subject' : 'Update subject details' }}
                     </span>
                 </div>
-                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"
+                    [disabled]="saving"></button>
             </div>
+
             <div class="app-modal-body">
                 <form [formGroup]="subjectForm" (ngSubmit)="save()">
                     <div class="row g-3">
@@ -48,27 +55,37 @@
                                 [control]="subjectForm.get('subjectCode')" formControlName="subjectCode"
                                 placeholder="PHY / CHEM / MATH">
                             </formfield>
+                            <div class="form-text">Optional. 2–10 chars (A–Z, 0–9, -).</div>
                         </div>
+
                         <div class="col-md-5">
                             <formfield label="Subject Name" [required]="true" [control]="subjectForm.get('subjectName')"
                                 formControlName="subjectName" placeholder="PHYSICS">
                             </formfield>
                             <div class="form-text">Will be saved in uppercase.</div>
                         </div>
+
                         <div class="col-md-3">
                             <selectbox label="Category" [required]="true" [options]="categoryOptions"
                                 optionLabel="label" optionValue="value" [control]="subjectForm.get('category')"
                                 formControlName="category">
                             </selectbox>
                         </div>
+
                         <div class="col-md-1 d-flex align-items-center">
                             <checkbox label="Active" [control]="subjectForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
                     </div>
+
                     <div class="d-flex justify-content-end gap-2 mt-4">
-                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
-                        <button type="submit" class="btn btn-primary" [disabled]="subjectForm.invalid">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="saving">
+                            Cancel
+                        </button>
+
+                        <button type="submit" class="btn btn-primary" [disabled]="subjectForm.invalid || saving">
+                            <span *ngIf="saving" class="spinner-border spinner-border-sm me-2" role="status"
+                                aria-hidden="true"></span>
                             {{ formMode === 'create' ? 'Save Subject' : 'Update Subject' }}
                         </button>
                     </div>
@@ -77,6 +94,7 @@
         </div>
     </div>
 
+    <!-- Import Modal -->
     <div class="app-modal-backdrop" *ngIf="showImport">
         <div class="app-modal" style="max-width: 980px;">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
@@ -84,8 +102,10 @@
                     <h6 class="mb-0 fw-semibold">Import Subjects (Excel)</h6>
                     <span class="text-muted small">Upload Excel and import subjects in bulk.</span>
                 </div>
-                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
+                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"
+                    [disabled]="importing"></button>
             </div>
+
             <div class="app-modal-body">
                 <div class="alert alert-info py-2 small mb-3">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -98,30 +118,38 @@
                                 <span class="mx-2">Status</span>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()">
+
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()"
+                            [disabled]="importing">
                             <i class="fa-solid fa-download me-1"></i>
                             Download Sample Excel
                         </button>
                     </div>
                 </div>
+
                 <div class="row g-3 align-items-end mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Excel File</label>
-                        <input type="file" class="form-control" accept=".xlsx,.xls"
-                            (change)="onExcelSelected($event)" />
+                        <input type="file" class="form-control" accept=".xlsx,.xls" (change)="onExcelSelected($event)"
+                            [disabled]="importing" />
                         <div class="form-text" *ngIf="importFileName">Selected: {{ importFileName }}</div>
                     </div>
+
                     <div class="col-md-6 d-flex gap-2 justify-content-end">
                         <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
-                            [disabled]="!importPreviewRows.length">
+                            [disabled]="!importPreviewRows.length || importing">
                             Reset
                         </button>
+
                         <button type="button" class="btn btn-primary" (click)="confirmImport()"
-                            [disabled]="!importPreviewRows.length || importHasInvalidRows">
+                            [disabled]="!importPreviewRows.length || importHasInvalidRows || importing">
+                            <span *ngIf="importing" class="spinner-border spinner-border-sm me-2" role="status"
+                                aria-hidden="true"></span>
                             Import Now
                         </button>
                     </div>
                 </div>
+
                 <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
                     <div class="small text-muted">
                         Rows: <span class="fw-semibold">{{ importPreviewRows.length }}</span>
@@ -130,6 +158,7 @@
                         </span>
                     </div>
                 </div>
+
                 <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
                     <table class="table table-sm table-hover align-middle mb-0">
                         <thead class="table-light">
@@ -157,6 +186,7 @@
                         </tbody>
                     </table>
                 </div>
+
                 <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
                     Fix invalid rows in Excel and upload again. Import is disabled until all rows are valid.
                 </div>
@@ -164,6 +194,7 @@
         </div>
     </div>
 
+    <!-- Delete -->
     <delete [title]="'Delete Subject'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
         (closed)="onDeleteModalClosed($event)">
     </delete>

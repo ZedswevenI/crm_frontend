@@ -3,11 +3,20 @@
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h5 class="mb-1 fw-semibold">Topic Master</h5>
-                <p class="mb-0 text-muted small">Manage topics mapped to Class & Subject.</p>
+                <p class="mb-0 text-muted small">
+                    Manage topics mapped to Class &amp; Subject.
+                </p>
             </div>
 
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()"
+                    [disabled]="loading || saving || importing">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import Topics</span>
+                </button>
+
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()"
+                    [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-plus"></i>
                     <span>Add Topic</span>
                 </button>
@@ -15,71 +24,209 @@
         </div>
 
         <div class="card-body pt-0">
-            <!-- NO FILTERS — DIRECT LIST -->
             <list-table [autoFitChars]="true" [columns]="columns" [data]="tableData" [actions]="actions"
-                [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords"
+                [loading]="loading" [totalRecords]="totalRecords" [pageSizeOptions]="[10, 20, 50]"
                 (requestData)="fetchTableData($event)">
             </list-table>
         </div>
     </div>
 
-    <!-- ================= MODAL ================= -->
+    <!-- ================= MODAL: CREATE / EDIT ================= -->
     <div class="app-modal-backdrop" *ngIf="showForm">
-        <div class="app-modal" style="max-width: 700px;">
+        <div class="app-modal" style="max-width: 700px">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-semibold">{{ formMode === 'create' ? 'Create Topic' : 'Edit Topic' }}</h6>
-                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
+                <div>
+                    <h6 class="mb-0 fw-semibold">
+                        {{ formMode === "create" ? "Create Topic" : "Edit Topic" }}
+                    </h6>
+                    <span class="text-muted small">{{
+                        formMode === "create" ? "Add a new topic" : "Update topic details"
+                        }}</span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"
+                    [disabled]="saving"></button>
             </div>
 
             <div class="app-modal-body">
                 <form [formGroup]="form" (ngSubmit)="save()">
                     <div class="row g-3">
-
                         <!-- CLASS -->
                         <div class="col-md-4">
                             <selectbox label="Class" [required]="true" [options]="classOptions" optionLabel="label"
-                                optionValue="value" formControlName="classNo">
+                                optionValue="value" [control]="form.get('classNo')" formControlName="classNo">
                             </selectbox>
                         </div>
 
                         <!-- SUBJECT -->
                         <div class="col-md-8">
                             <selectbox label="Subject" [required]="true" [options]="subjectOptions" optionLabel="label"
-                                optionValue="value" formControlName="subjectId">
+                                optionValue="value" [control]="form.get('subjectId')" formControlName="subjectId">
                             </selectbox>
                         </div>
 
                         <!-- TOPIC NAME -->
                         <div class="col-md-6">
-                            <formfield label="Topic Name" [required]="true" formControlName="topicName"
-                                placeholder="Trigonometry">
+                            <formfield label="Topic Name" [required]="true" [control]="form.get('topicName')"
+                                formControlName="topicName" placeholder="Trigonometry">
                             </formfield>
+                            <div class="form-text">Will be normalized by backend.</div>
                         </div>
 
                         <!-- TOPIC CODE -->
                         <div class="col-md-3">
-                            <formfield label="Topic Code" formControlName="topicCode" placeholder="TRI">
+                            <formfield label="Topic Code" [required]="false" [control]="form.get('topicCode')"
+                                formControlName="topicCode" placeholder="TRI">
                             </formfield>
                         </div>
 
                         <!-- SORT ORDER -->
                         <div class="col-md-3">
-                            <formfield label="Sort Order" formControlName="sortOrder" placeholder="1">
+                            <formfield label="Sort Order" [required]="false" [control]="form.get('sortOrder')"
+                                formControlName="sortOrder" placeholder="1">
                             </formfield>
+                            <div class="form-text">Number</div>
                         </div>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 mt-4">
-                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
-                        <button type="submit" class="btn btn-primary" [disabled]="form.invalid">
-                            {{ formMode === 'create' ? 'Save' : 'Update' }}
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="saving">
+                            Cancel
+                        </button>
+
+                        <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving">
+                            <span *ngIf="saving" class="spinner-border spinner-border-sm me-2" role="status"
+                                aria-hidden="true"></span>
+                            {{ formMode === "create" ? "Save" : "Update" }}
                         </button>
                     </div>
-
-                    <div class="small text-muted mt-2">
-                        Uses <b>bulkUpsertTopics</b> API internally.
-                    </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: IMPORT ================= -->
+    <div class="app-modal-backdrop" *ngIf="showImport">
+        <div class="app-modal" style="max-width: 1100px">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Import Topics (Excel)</h6>
+                    <span class="text-muted small">Upload Excel and bulk upsert topics by Class &amp; Subject.</span>
+                </div>
+                <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"
+                    [disabled]="importing"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="alert alert-info py-2 small mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <div class="fw-semibold mb-1">Required columns in Excel:</div>
+                            <div class="text-muted">
+                                <span class="me-2">Class</span> |
+                                <span class="mx-2">Subject</span> |
+                                <span class="mx-2">Topic Name</span> |
+                                <span class="mx-2">Topic Code</span> |
+                                <span class="mx-2">Sort Order</span>
+                            </div>
+                            <div class="text-muted mt-1">
+                                Subject can be <b>Subject Name</b> OR <b>Subject Code</b>. (we
+                                auto-resolve)
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()"
+                            [disabled]="importing">
+                            <i class="fa-solid fa-download me-1"></i>
+                            Download Sample Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Excel File</label>
+                        <input type="file" class="form-control" accept=".xlsx,.xls" (change)="onExcelSelected($event)"
+                            [disabled]="importing" />
+                        <div class="form-text" *ngIf="importFileName">
+                            Selected: {{ importFileName }}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 d-flex gap-2 justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
+                            [disabled]="!importPreviewRows.length || importing">
+                            Reset
+                        </button>
+
+                        <button type="button" class="btn btn-primary" (click)="confirmImport()" [disabled]="
+                !importPreviewRows.length || importHasInvalidRows || importing
+              ">
+                            <span *ngIf="importing" class="spinner-border spinner-border-sm me-2" role="status"
+                                aria-hidden="true"></span>
+                            <i class="fa-solid fa-cloud-arrow-up me-1" *ngIf="!importing"></i>
+                            Import Now
+                        </button>
+                    </div>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">
+                        Rows:
+                        <span class="fw-semibold">{{ importPreviewRows.length }}</span>
+                        <span class="ms-2" *ngIf="importHasInvalidRows">
+                            | Invalid:
+                            <span class="fw-semibold text-danger">{{
+                                importInvalidCount
+                                }}</span>
+                        </span>
+                    </div>
+                    <div class="small text-muted" *ngIf="importGroupCount">
+                        Groups (Class+Subject):
+                        <span class="fw-semibold">{{ importGroupCount }}</span>
+                    </div>
+                </div>
+
+                <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 60px">#</th>
+                                <th style="width: 90px">Class</th>
+                                <th>Subject</th>
+                                <th>Topic Name</th>
+                                <th style="width: 120px">Topic Code</th>
+                                <th style="width: 110px">Sort</th>
+                                <th style="width: 220px">Row Validation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let r of importPreviewRows" [class.table-danger]="!r._valid">
+                                <td>{{ r._rowNo }}</td>
+                                <td>{{ r.classNo }}</td>
+                                <td>{{ r.subjectLabel }}</td>
+                                <td>{{ r.topicName }}</td>
+                                <td>{{ r.topicCode || "-" }}</td>
+                                <td>{{ r.sortOrder }}</td>
+                                <td>
+                                    <span *ngIf="r._valid" class="badge bg-success">OK</span>
+                                    <span *ngIf="!r._valid" class="badge bg-danger">{{
+                                        r._errors?.join(", ")
+                                        }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
+                    Fix invalid rows in Excel and upload again. Import is disabled until
+                    all rows are valid.
+                </div>
+
+                <div class="small text-muted mt-2" *ngIf="importPreviewRows.length">
+                    Uses <b>topic/bulkupsert</b> API (bulkUpsertTopics) internally and
+                    auto-groups rows by Class &amp; Subject.
+                </div>
             </div>
         </div>
     </div>

@@ -4,6 +4,7 @@ import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.ser
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 import * as XLSX from 'xlsx';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-department',
@@ -13,26 +14,40 @@ import * as XLSX from 'xlsx';
 })
 export class DepartmentComponent implements OnInit {
   deptForm!: FormGroup;
+
+  // table
+  loading = false;
   totalRecords = 0;
+  departmentData: any[] = [];
+
+  // form modal
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   editingRecId: string | null = null;
+  saving = false;
+
+  // delete
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
-  entiId: any;
+
+  // import
   showImport = false;
+  importing = false;
   importFileName = '';
   importPreviewRows: any[] = [];
   importHasInvalidRows = false;
   importInvalidCount = 0;
-  departmentData: any[] = [];
+
+  entiId: any;
   private moduleName = 'ims';
+
   columns = [
     { key: 'departmentName', label: 'Department Name', sortable: true },
     { key: 'departmentCode', label: 'Code', sortable: false },
-    { key: 'isActive', label: 'Active', sortable: false },
+    { key: 'status', label: 'Status', sortable: false },
   ];
+
   actions = [
     {
       type: 'icon',
@@ -52,7 +67,7 @@ export class DepartmentComponent implements OnInit {
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
-    private commonApi: CommonapiService
+    private commonApi: CommonapiService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
@@ -64,27 +79,39 @@ export class DepartmentComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    // this.loadDepartments({ page: 1, pageSize: 10 });
   }
 
   // ---------------- FORM ----------------
   initForm() {
     this.deptForm = this.fb.group({
-      departmentCode: [''],
-      departmentName: ['', Validators.required],
+      departmentCode: [
+        '',
+        [
+          Validators.maxLength(10),
+          Validators.pattern(/^[A-Za-z0-9-]*$/), // optional, but if present: A-Z/0-9/-
+        ],
+      ],
+      departmentName: [
+        '',
+        [
+          Validators.required,
+          Validators.minLength(3),
+          Validators.maxLength(60),
+        ],
+      ],
       isActive: [true],
     });
   }
 
   private buildQueryParams(params: Record<string, any>) {
     const keys = Object.keys(params || {}).filter(
-      (k) => params[k] !== undefined && params[k] !== null && params[k] !== ''
+      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
     );
     if (!keys.length) return '';
     const qs = keys
       .map(
         (k) =>
-          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
       )
       .join('&');
     return `?${qs}`;
@@ -100,55 +127,68 @@ export class DepartmentComponent implements OnInit {
   }) {
     const page = event?.page || 1;
     const limit = event?.pageSize || 10;
+
     const search = (event?.search || '').toString().trim();
     const sortMap: any = {
       departmentName: 'departmentName',
       departmentCode: 'departmentCode',
+      status: 'isActive',
     };
+
     const sortKey = event?.sortKey ? sortMap[event.sortKey] : null;
     const sort = sortKey
       ? event?.sortDirection === 'asc'
         ? sortKey
         : `-${sortKey}`
       : '';
-    const payload = {
-      entiId: this.entiId,
-    };
+
+    const payload = { entiId: this.entiId };
+
     const qp = this.buildQueryParams({
       page,
       limit,
       ...(search ? { search } : {}),
       ...(sort ? { sort } : {}),
     });
-    this.commonApi.fetchData(payload, this.moduleName, `dept/list${qp}`).subscribe({
-      next: (res: any) => {
-        this.totalRecords = res?.count || 0;
-        this.departmentData = (res?.data || []).map((d: any) => ({
-          recId: d._id,
-          departmentName: d.departmentName,
-          departmentCode: d.departmentCode || '-',
-          isActive: !!d.isActive,
-          _raw: d,
-        }));
-      },
-      error: () => this.alert.error('Failed to load departments'),
-    });
+
+    this.loading = true;
+
+    this.commonApi
+      .fetchData(payload, this.moduleName, `dept/list${qp}`)
+      .pipe(finalize(() => (this.loading = false)))
+      .subscribe({
+        next: (res: any) => {
+          this.totalRecords = res?.count || 0;
+
+          this.departmentData = (res?.data || []).map((d: any) => ({
+            recId: d._id,
+            departmentName: d.departmentName,
+            departmentCode: d.departmentCode || '-',
+            status: d.isActive ? 'Active' : 'Inactive',
+            _raw: d,
+          }));
+        },
+        error: () => this.alert.error('Failed to load departments'),
+      });
   }
 
+  // ---------------- CREATE ----------------
   add() {
     this.formMode = 'create';
     this.editingRecId = null;
+
     this.deptForm.reset({
       departmentCode: '',
       departmentName: '',
       isActive: true,
     });
+
     this.showForm = true;
   }
 
   // ---------------- EDIT ----------------
   edit(row: any) {
-    const d = row._raw;
+    const d = row?._raw || {};
 
     this.formMode = 'edit';
     this.editingRecId = d._id;
@@ -156,7 +196,7 @@ export class DepartmentComponent implements OnInit {
     this.deptForm.patchValue({
       departmentCode: d.departmentCode || '',
       departmentName: d.departmentName || '',
-      isActive: !!d.isActive,
+      isActive: d.isActive === false ? false : true,
     });
 
     this.showForm = true;
@@ -164,11 +204,14 @@ export class DepartmentComponent implements OnInit {
 
   // ---------------- SAVE ----------------
   save() {
+    if (this.saving) return;
+
     if (this.deptForm.invalid) {
       this.deptForm.markAllAsTouched();
-      this.alert.error('Please fill all required fields');
       return;
     }
+
+    this.saving = true;
 
     const form = this.deptForm.value || {};
     const payload: any = {
@@ -184,22 +227,32 @@ export class DepartmentComponent implements OnInit {
     const endpoint = this.formMode === 'create' ? 'dept/create' : 'dept/update';
     if (this.formMode === 'edit') payload.departmentId = this.editingRecId;
 
-    this.commonApi.fetchData(payload, this.moduleName, endpoint).subscribe({
-      next: () => {
-        this.alert.success(
-          this.formMode === 'create'
-            ? 'Department created successfully'
-            : 'Department updated successfully'
-        );
-        this.showForm = false;
-        this.loadDepartments({ page: 1, pageSize: 10 });
-      },
-      error: (err: any) =>
-        this.alert.error(err?.error?.message || 'Operation failed'),
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, endpoint)
+      .pipe(finalize(() => (this.saving = false)))
+      .subscribe({
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alert.error(res?.message || 'Operation failed');
+            return;
+          }
+
+          this.alert.success(
+            this.formMode === 'create'
+              ? 'Department created successfully'
+              : 'Department updated successfully',
+          );
+
+          this.showForm = false;
+          this.loadDepartments({ page: 1, pageSize: 10 });
+        },
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Operation failed'),
+      });
   }
 
   cancel() {
+    if (this.saving) return;
     this.showForm = false;
   }
 
@@ -222,7 +275,11 @@ export class DepartmentComponent implements OnInit {
     this.commonApi
       .fetchData(payload, this.moduleName, 'dept/delete')
       .subscribe({
-        next: () => {
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alert.error(res?.message || 'Delete failed');
+            return;
+          }
           this.alert.success('Department deleted successfully');
           this.loadDepartments({ page: 1, pageSize: 10 });
         },
@@ -236,15 +293,18 @@ export class DepartmentComponent implements OnInit {
   // ===================== IMPORT =====================
 
   openImport() {
+    if (this.importing) return;
     this.showImport = true;
     this.resetImport();
   }
 
   closeImport() {
+    if (this.importing) return;
     this.showImport = false;
   }
 
   resetImport() {
+    if (this.importing) return;
     this.importFileName = '';
     this.importPreviewRows = [];
     this.importHasInvalidRows = false;
@@ -252,6 +312,8 @@ export class DepartmentComponent implements OnInit {
   }
 
   onExcelSelected(ev: any) {
+    if (this.importing) return;
+
     const file: File = ev?.target?.files?.[0];
     if (!file) return;
 
@@ -264,6 +326,7 @@ export class DepartmentComponent implements OnInit {
     this.importFileName = file.name;
 
     const reader = new FileReader();
+
     reader.onload = (e: any) => {
       try {
         const data = e.target.result;
@@ -273,9 +336,27 @@ export class DepartmentComponent implements OnInit {
           defval: '',
         }) as any[];
 
+        // map + validate
         const mapped = rawRows.map((r: any, idx: number) =>
-          this.mapExcelRow(r, idx + 2)
+          this.mapExcelRow(r, idx + 2),
         );
+
+        // extra validation: duplicates inside file (by Department Name)
+        const seen = new Set<string>();
+        for (const row of mapped) {
+          const key = String(row.departmentName || '')
+            .trim()
+            .toUpperCase();
+          if (!key) continue;
+          if (seen.has(key)) {
+            row._valid = false;
+            row._errors = Array.isArray(row._errors) ? row._errors : [];
+            row._errors.push('Duplicate in file');
+          } else {
+            seen.add(key);
+          }
+        }
+
         this.importPreviewRows = mapped;
         this.computeImportValidation();
       } catch (err) {
@@ -292,8 +373,9 @@ export class DepartmentComponent implements OnInit {
   private mapExcelRow(r: any, rowNo: number) {
     const get = (...keys: string[]) => {
       for (const k of keys) {
-        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '')
+        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') {
           return String(r[k]).trim();
+        }
       }
       return '';
     };
@@ -301,17 +383,32 @@ export class DepartmentComponent implements OnInit {
     const departmentNameRaw = get(
       'Department Name',
       'DepartmentName',
-      'departmentName'
+      'departmentName',
     );
     const departmentName = (departmentNameRaw || '').trim().toUpperCase();
-    const departmentCode =
-      get('Department Code', 'DepartmentCode', 'departmentCode') || null;
+
+    const departmentCodeRaw = get(
+      'Department Code',
+      'DepartmentCode',
+      'departmentCode',
+    );
+    const departmentCode = (departmentCodeRaw || '').trim() || null;
 
     const statusRaw = get('Status', 'status');
-    const status = statusRaw === 'Inactive' ? 'Inactive' : 'Active';
+    const statusNorm = String(statusRaw || '')
+      .trim()
+      .toLowerCase();
+    const status = statusNorm === 'inactive' ? 'Inactive' : 'Active';
 
     const errors: string[] = [];
+
     if (!departmentName) errors.push('Department Name required');
+    if (departmentCode && !/^[A-Za-z0-9-]{2,10}$/.test(departmentCode)) {
+      errors.push('Invalid Code');
+    }
+    if (statusNorm && statusNorm !== 'active' && statusNorm !== 'inactive') {
+      errors.push('Invalid Status');
+    }
 
     return {
       _rowNo: rowNo,
@@ -331,6 +428,8 @@ export class DepartmentComponent implements OnInit {
   }
 
   confirmImport() {
+    if (this.importing) return;
+
     if (!this.importPreviewRows.length) {
       this.alert.error('Please upload an Excel file first');
       return;
@@ -339,6 +438,8 @@ export class DepartmentComponent implements OnInit {
       this.alert.error('Fix invalid rows before importing');
       return;
     }
+
+    this.importing = true;
 
     const rows = this.importPreviewRows.map((r) => ({
       departmentName: r.departmentName,
@@ -353,17 +454,19 @@ export class DepartmentComponent implements OnInit {
 
     this.commonApi
       .fetchData(payload, this.moduleName, 'dept/import')
+      .pipe(finalize(() => (this.importing = false)))
       .subscribe({
         next: (res: any) => {
           const inserted = res?.insertedCount;
           const skipped = res?.skippedCount;
-          if (inserted !== undefined)
+
+          if (inserted !== undefined) {
             this.alert.success(
-              `Import completed. Inserted: ${inserted}, Skipped: ${
-                skipped || 0
-              }`
+              `Import completed. Inserted: ${inserted}, Skipped: ${skipped || 0}`,
             );
-          else this.alert.success('Import completed');
+          } else {
+            this.alert.success('Import completed');
+          }
 
           this.closeImport();
           this.loadDepartments({ page: 1, pageSize: 10 });
@@ -386,6 +489,7 @@ export class DepartmentComponent implements OnInit {
         Status: 'Active',
       },
     ];
+
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Departments');
