@@ -518,10 +518,10 @@ export class TopicComponent implements OnInit {
     const invalid = (this.importPreviewRows || []).filter((x) => !x._valid);
     this.importInvalidCount = invalid.length;
     this.importHasInvalidRows = invalid.length > 0;
-
     const groups = new Set<string>();
     for (const r of this.importPreviewRows || []) {
-      if (r._valid && r.subjectId) groups.add(`${r.classNo}::${r.subjectId}`);
+      if (r._valid && r.subjectId && r.classNo)
+        groups.add(`${r.classNo}::${r.subjectId}`);
     }
     this.importGroupCount = groups.size;
   }
@@ -533,76 +533,54 @@ export class TopicComponent implements OnInit {
       this.alert.error('Please upload an Excel file first');
       return;
     }
+
     if (this.importHasInvalidRows) {
       this.alert.error('Fix invalid rows before importing');
       return;
     }
 
-    // Group by classNo + subjectId and call bulkUpsertTopics per group
-    const grouped = new Map<string, any[]>();
-    for (const r of this.importPreviewRows) {
-      const key = `${r.classNo}::${r.subjectId}`;
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(r);
-    }
+    const rows = (this.importPreviewRows || []).map((x) => ({
+      classNo: Number(x.classNo),
+      subjectId: x.subjectId,
+      topicName: (x.topicName || '').toString().trim(),
+      topicCode: (x.topicCode || '').toString().trim() || null,
+      sortOrder: Number(x.sortOrder || 0),
+    }));
 
-    const userId = localStorage.getItem('userId') || '';
-
-    const keys = Array.from(grouped.keys());
-    if (!keys.length) {
+    if (!rows.length) {
       this.alert.error('No valid rows to import');
       return;
     }
 
-    this.importing = true;
-
-    const runNext = (idx: number) => {
-      if (idx >= keys.length) {
-        this.importing = false;
-        this.alert.success('Import completed');
-        this.closeImport();
-        this.fetchTableData({ page: 1, pageSize: 10 });
-        return;
-      }
-
-      const k = keys[idx];
-      const [classNoStr, subjectId] = k.split('::');
-
-      const rows = (grouped.get(k) || []).map((x) => ({
-        topicName: x.topicName,
-        topicCode: x.topicCode,
-        sortOrder: x.sortOrder,
-      }));
-
-      const payload = {
-        entiId: this.entiId,
-        userId,
-        classNo: Number(classNoStr),
-        subjectId,
-        rows,
-      };
-
-      this.commonApi
-        .fetchData(payload, this.moduleName, 'topic/bulkupsert')
-        .subscribe({
-          next: (res: any) => {
-            if (res?.status === false) {
-              this.importing = false;
-              this.alert.error(res?.message || `Import failed at group ${k}`);
-              return;
-            }
-            runNext(idx + 1);
-          },
-          error: (err: any) => {
-            this.importing = false;
-            this.alert.error(
-              err?.error?.message || `Import failed at group ${k}`,
-            );
-          },
-        });
+    const payload = {
+      entiId: this.entiId,
+      rows,
     };
 
-    runNext(0);
+    this.importing = true;
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'topic/import') 
+      .pipe(finalize(() => (this.importing = false)))
+      .subscribe({
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alert.error(res?.message || 'Import failed');
+            return;
+          }
+          const accepted = res?.data?.accepted ?? rows.length;
+          const upserted = res?.data?.upserted ?? 0;
+          this.alert.success(
+            `Import completed (Accepted: ${accepted}, Upserted: ${upserted})`,
+          );
+          this.importing = false;
+           this.showImport = false;
+          this.closeImport();
+          this.resetImport();
+          this.fetchTableData({ page: 1, pageSize: 10 });
+        },
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Import failed'),
+      });
   }
 
   downloadSampleExcel() {

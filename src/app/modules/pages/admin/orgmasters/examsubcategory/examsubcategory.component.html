@@ -3,7 +3,9 @@
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h5 class="mb-1 fw-semibold">Exam Sub Category</h5>
-                <p class="mb-0 text-muted small">Create and manage exam sub categories (sort order supported).</p>
+                <p class="mb-0 text-muted small">
+                    Create and manage exam sub categories (sort order supported).
+                </p>
             </div>
 
             <div class="d-flex gap-2">
@@ -23,7 +25,7 @@
 
         <div class="card-body pt-0">
             <list-table [autoFitChars]="true" [columns]="columns" [data]="tableData" [actions]="actions"
-                [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords" [pageSizeOptions]="[10,20,50]"
+                [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords" [pageSizeOptions]="[10, 20, 50]"
                 (requestData)="fetchTableData($event)">
             </list-table>
         </div>
@@ -31,14 +33,22 @@
 
     <!-- ================= Create / Edit Modal ================= -->
     <div class="app-modal-backdrop" *ngIf="showForm">
-        <div class="app-modal" style="max-width: 920px;">
+        <div class="app-modal" style="max-width: 920px">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">
-                        {{ formMode === 'create' ? 'Create Exam Sub Category' : 'Edit Exam Sub Category' }}
+                        {{
+                        formMode === "create"
+                        ? "Create Exam Sub Category"
+                        : "Edit Exam Sub Category"
+                        }}
                     </h6>
                     <span class="text-muted small">
-                        {{ formMode === 'create' ? 'Add a new sub category' : 'Update sub category details' }}
+                        {{
+                        formMode === "create"
+                        ? "Add a new sub category"
+                        : "Update sub category details"
+                        }}
                     </span>
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"
@@ -88,7 +98,7 @@
                         <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving">
                             <span *ngIf="saving" class="spinner-border spinner-border-sm me-2" role="status"
                                 aria-hidden="true"></span>
-                            {{ formMode === 'create' ? 'Save' : 'Update' }}
+                            {{ formMode === "create" ? "Save" : "Update" }}
                         </button>
                     </div>
                 </form>
@@ -98,32 +108,39 @@
 
     <!-- ================= IMPORT MODAL ================= -->
     <div class="app-modal-backdrop" *ngIf="showImport">
-        <div class="app-modal" style="max-width: 1100px;">
+        <div class="app-modal" style="max-width: 1100px">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">Import Exam Sub Categories (Excel)</h6>
-                    <span class="text-muted small">Pick a Category, upload Excel and bulk upsert sub-categories.</span>
+                    <span class="text-muted small">
+                        Upload Excel and bulk upsert sub-categories. Category will be
+                        auto-matched from Excel.
+                    </span>
                 </div>
                 <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"
                     [disabled]="importing"></button>
             </div>
-
             <div class="app-modal-body">
                 <div class="alert alert-info py-2 small mb-3">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <div class="fw-semibold mb-1">Required:</div>
+                            <div class="fw-semibold mb-1">Required columns in Excel:</div>
                             <div class="text-muted">
-                                Select <b>Category</b> +
-                                Excel columns:
+                                <span class="mx-2"><b>Category</b></span> |
                                 <span class="mx-2">Sub Category Name</span> |
                                 <span class="mx-2">Sub Category Code</span> |
                                 <span class="mx-2">Sort Order</span>
                             </div>
-                            <div class="text-muted mt-1">Duplicates are merged by <b>Sub Category Name</b>
-                                (case-insensitive) within selected category.</div>
+                            <div class="text-muted mt-1">
+                                Category can be <b>Category Name</b> or <b>Category Code</b>. We
+                                auto-resolve.
+                            </div>
+                            <div class="text-muted mt-1">
+                                Duplicates are merged by
+                                <b>Sub Category Name</b> (case-insensitive) within each
+                                category.
+                            </div>
                         </div>
-
                         <button type="button" class="btn btn-sm btn-outline-primary" (click)="downloadSampleExcel()"
                             [disabled]="importing">
                             <i class="fa-solid fa-download me-1"></i>
@@ -131,30 +148,24 @@
                         </button>
                     </div>
                 </div>
-
                 <div class="row g-3 align-items-end mb-3">
-                    <div class="col-md-4">
-                        <selectbox label="Category" [required]="true" [options]="categoryOptions" optionLabel="label"
-                            optionValue="value" [control]="importForm.get('categoryId')" formControlName="categoryId"
-                            [formGroup]="importForm">
-                        </selectbox>
-                    </div>
-
-                    <div class="col-md-5">
+                    <div class="col-md-9">
                         <label class="form-label fw-semibold">Excel File</label>
                         <input type="file" class="form-control" accept=".xlsx,.xls" (change)="onExcelSelected($event)"
                             [disabled]="importing" />
-                        <div class="form-text" *ngIf="importFileName">Selected: {{ importFileName }}</div>
+                        <div class="form-text" *ngIf="importFileName">
+                            Selected: {{ importFileName }}
+                        </div>
                     </div>
-
                     <div class="col-md-3 d-flex gap-2 justify-content-end">
-                        <button type="button" class="btn btn-outline-secondary" (click)="resetImport()"
-                            [disabled]="(!importPreviewRows.length && !importFileName) || importing">
+                        <button type="button" class="btn btn-outline-secondary" (click)="resetImport()" [disabled]="
+                (!importPreviewRows.length && !importFileName) || importing
+              ">
                             Reset
                         </button>
-
-                        <button type="button" class="btn btn-primary" (click)="confirmImport()"
-                            [disabled]="!importPreviewRows.length || importHasInvalidRows || importing || !importForm.get('categoryId')?.value">
+                        <button type="button" class="btn btn-primary" (click)="confirmImport()" [disabled]="
+                !importPreviewRows.length || importHasInvalidRows || importing
+              ">
                             <span *ngIf="importing" class="spinner-border spinner-border-sm me-2" role="status"
                                 aria-hidden="true"></span>
                             <i class="fa-solid fa-cloud-arrow-up me-1" *ngIf="!importing"></i>
@@ -162,48 +173,54 @@
                         </button>
                     </div>
                 </div>
-
                 <div *ngIf="importPreviewRows.length" class="mb-2 d-flex justify-content-between align-items-center">
                     <div class="small text-muted">
-                        Rows: <span class="fw-semibold">{{ importPreviewRows.length }}</span>
+                        Rows:
+                        <span class="fw-semibold">{{ importPreviewRows.length }}</span>
                         <span class="ms-2" *ngIf="importHasInvalidRows">
-                            | Invalid: <span class="fw-semibold text-danger">{{ importInvalidCount }}</span>
+                            | Invalid:
+                            <span class="fw-semibold text-danger">{{
+                                importInvalidCount
+                                }}</span>
                         </span>
                     </div>
                 </div>
-
                 <div *ngIf="importPreviewRows.length" class="table-responsive border rounded">
                     <table class="table table-sm table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th style="width:60px;">#</th>
+                                <th style="width: 60px">#</th>
+                                <th style="width: 200px">Category</th>
                                 <th>Sub Category Name</th>
-                                <th style="width:160px;">Code</th>
-                                <th style="width:120px;">Sort</th>
-                                <th style="width:220px;">Row Validation</th>
+                                <th style="width: 160px">Code</th>
+                                <th style="width: 120px">Sort</th>
+                                <th style="width: 220px">Row Validation</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr *ngFor="let r of importPreviewRows" [class.table-danger]="!r._valid">
                                 <td>{{ r._rowNo }}</td>
+                                <td>{{ r.categoryLabel }}</td>
                                 <td>{{ r.subCategoryName }}</td>
-                                <td>{{ r.subCategoryCode || '-' }}</td>
+                                <td>{{ r.subCategoryCode || "-" }}</td>
                                 <td>{{ r.sortOrder }}</td>
                                 <td>
                                     <span *ngIf="r._valid" class="badge bg-success">OK</span>
-                                    <span *ngIf="!r._valid" class="badge bg-danger">{{ r._errors?.join(', ') }}</span>
+                                    <span *ngIf="!r._valid" class="badge bg-danger">{{
+                                        r._errors?.join(", ")
+                                        }}</span>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-
                 <div *ngIf="importPreviewRows.length && importHasInvalidRows" class="alert alert-warning mt-3 small">
-                    Fix invalid rows in Excel and upload again. Import is disabled until all rows are valid.
+                    Fix invalid rows in Excel and upload again. Import is disabled until
+                    all rows are valid.
                 </div>
-
                 <div class="small text-muted mt-2" *ngIf="importPreviewRows.length">
-                    Uses <b>/exam/subcategory/import</b> (bulkUpsertExamSubCategories) internally.
+                    Uses <b>/exam/subcategory/import</b> (bulkUpsertExamSubCategories)
+                    internally and auto-groups rows by Category.
                 </div>
             </div>
         </div>

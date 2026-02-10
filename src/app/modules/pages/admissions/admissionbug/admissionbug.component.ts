@@ -1188,7 +1188,6 @@ export class AdmissionbugComponent implements OnInit {
       .subscribe((res: any) => {
         if (!res) return;
         this.submitting = false;
-
         if (!res?.status) {
           this.alert.error(
             res?.message || res?.error || 'Failed to send for approval',
@@ -1197,7 +1196,8 @@ export class AdmissionbugComponent implements OnInit {
         }
         this.approvalSent = true;
         this.alert.success('Sent for approval.');
-        this.router.navigate(['app/admissions/new']);
+        this.router.navigate(['/app/admissions/new']);
+        window.location.reload()
       });
   }
 
@@ -1598,8 +1598,6 @@ export class AdmissionbugComponent implements OnInit {
       <td class="text-right">${neftAmt.toLocaleString('en-IN')}</td>
     </tr>
   `);
-
-    // CHEQUE rows (grouped by date)
     groupedCheques.forEach((g) => {
       const dt = Number(g.instalmentDate || 0) || 0;
       const due =
@@ -1618,23 +1616,18 @@ export class AdmissionbugComponent implements OnInit {
       </tr>
     `);
     });
-
     const total = this.roundRupee(neftAmt + chequeTotal);
-
     return `
   <div class="page">
     <div class="brand-center">
       <img src="${this.esc(this.PRINT_LOGO_URL)}" alt="Logo" />
     </div>
-
     <div class="title-main">FEE CALCULATION SHEET</div>
     <div class="subtitle">Step 1 preview (Payment split shown as per fee plan instalments).</div>
-
     <div class="meta-row">
       <div><b>Date :</b> ${today.toLocaleDateString('en-IN')}</div>
       <div><b>Academic Year :</b> ${this.esc(s1.academicYear || '')}</div>
     </div>
-
     <div class="section">
       <div class="section-title">Student and Program Details</div>
       <div class="kv-grid">
@@ -1650,7 +1643,6 @@ export class AdmissionbugComponent implements OnInit {
         <div class="kv-label">Discounts</div><div>Test Scholarship : ${Number(s1.testScholarshipPct || 0).toFixed(2)}% , Scholarship ${Number(s1.scholarshipPct || 0).toFixed(2)}% , Additional Scholarship ${Number(s1.additionalScholarshipPct || 0).toFixed(2)}%}</div>
       </div>
     </div>
-
     <div class="section">
       <table>
         <thead>
@@ -1674,7 +1666,6 @@ export class AdmissionbugComponent implements OnInit {
         </tfoot>
       </table>
     </div>
-
     <div class="sign-row">
       <div class="sign-box">
         <div class="sign-line"></div>
@@ -1969,24 +1960,19 @@ export class AdmissionbugComponent implements OnInit {
   private buildPaymentsAckHtmlStep2(plan: FeePlan | null): string {
     const s1 = this.step1Form.getRawValue();
     const today = new Date();
-
     const nefts = (this.neftRefsFA.getRawValue() || []) as any[];
     const cheques = (this.chequesFA.getRawValue() || []) as any[];
-
     const neftCount = nefts.filter((x) => (Number(x?.amount) || 0) > 0).length;
     const neftTotal = this.roundRupee(
       nefts.reduce((s, x) => s + (Number(x?.amount) || 0), 0),
     );
-
     const chequeCount = cheques.filter(
       (x) => (Number(x?.amount) || 0) > 0,
     ).length;
     const chequeTotal = this.roundRupee(
       cheques.reduce((s, x) => s + (Number(x?.amount) || 0), 0),
     );
-
     const totalPaid = this.roundRupee(neftTotal + chequeTotal);
-
     const studentName = String(s1.name || '');
     const regNo = String(s1.regNo || '');
     const programName = String(s1.programName || '');
@@ -1994,7 +1980,6 @@ export class AdmissionbugComponent implements OnInit {
       plan?.name || plan?.feePlanCode || s1.feePlanCode || '',
     );
     const dateStr = today.toLocaleDateString('en-IN');
-
     const copyHtml = (title: string) => `
     <div class="ack-copy">
       <div class="copy-title">${title}</div>
@@ -2149,45 +2134,32 @@ export class AdmissionbugComponent implements OnInit {
     discountApplied: boolean;
   }> {
     const s1 = this.step1Form.getRawValue();
-
     const testPct = Number(s1.testScholarshipPct || 0) || 0;
     const schlPct = Number(s1.scholarshipPct || 0) || 0;
     const addPct = Number(s1.additionalScholarshipPct || 0) || 0;
-
-    // Build discounted totals per feeHead key (we mainly need TF)
     const discountedTotalsByKey = this.computeDiscountedTotalsByFeeHeadKey(
       plan,
       testPct,
       schlPct,
       addPct,
     );
-
-    // Original totals per feeHead key from feeHeads
     const originalTotalsByKey: Record<string, number> = {};
     (plan.feeHeads || []).forEach((h) => {
       const key = String(h.key || '').trim();
       const total = (Number(h.fee || 0) || 0) + (Number(h.stax || 0) || 0);
       originalTotalsByKey[key] = total;
     });
-
-    const tfKey = this.findDiscountFeeHeadKey(plan); // usually TF
+    const tfKey = this.findDiscountFeeHeadKey(plan);
     const origTF = Number(originalTotalsByKey[tfKey] || 0);
     const discTF = Number(discountedTotalsByKey[tfKey] || 0);
-
-    // factor to distribute discounted TF total across all TF instalments
     const tfFactor = origTF > 0 ? discTF / origTF : 1;
-
     const discounted = (plan.instalments || []).map((ins) => {
       const feeHead = String(ins.feeHead || '').trim();
       const discountApplied = !!ins.discountApplied;
-
       let amt = Number(ins.amount || 0) || 0;
-
-      // Apply discount ONLY when discountApplied is true
       if (discountApplied && feeHead === tfKey) {
         amt = this.roundRupee(amt * tfFactor);
       }
-
       return {
         seq: Number(ins.seq || 0) || 0,
         feeHead,
@@ -2199,27 +2171,20 @@ export class AdmissionbugComponent implements OnInit {
         discountApplied,
       };
     });
-
-    // ✅ requested verification log
     console.log('[Admission] Discounted instalments:', discounted);
-
     return discounted;
   }
 
   private findDiscountFeeHeadKey(plan: FeePlan): string {
-    // Prefer discountAllowed feehead (your backend already sends it)
     const byFlag =
       (plan.feeHeads || []).find((h) => !!h.discountAllowed)?.key || '';
     if (byFlag) return String(byFlag).trim();
-
-    // fallback old heuristic
     const byName =
       (plan.feeHeads || []).find((h) =>
         String(h.label || '')
           .toLowerCase()
           .includes('tuition'),
       )?.key || '';
-
     return String(byName || 'TF').trim();
   }
 
@@ -2230,19 +2195,15 @@ export class AdmissionbugComponent implements OnInit {
     addPct: number,
   ): Record<string, number> {
     const clamp = (v: number) => Math.max(0, Math.min(100, Number(v || 0)));
-
     const p1 = clamp(testPct);
     const p2 = clamp(schlPct);
     const p3 = clamp(addPct);
-
     const applyPct = (amount: number, pct: number) => {
       const out = Math.round(amount * (1 - pct / 100));
       return out < 0 ? 0 : out;
     };
-
     const out: Record<string, number> = {};
     const tfKey = this.findDiscountFeeHeadKey(plan);
-
     (plan.feeHeads || []).forEach((h) => {
       const key = String(h.key || '').trim();
       const fee0 = Number(h.fee || 0) || 0;
@@ -2262,10 +2223,8 @@ export class AdmissionbugComponent implements OnInit {
         outFee = fee3;
         outTax = tax3;
       }
-
       out[key] = this.roundRupee(outFee + outTax);
     });
-
     return out;
   }
 
@@ -2399,7 +2358,6 @@ export class AdmissionbugComponent implements OnInit {
       while (this.otherPaymentsFA.length) this.otherPaymentsFA.removeAt(0);
       return;
     }
-
     if (this.otherPaymentsFA.length === 0) this.addOtherPaymentRow();
   }
 
@@ -2442,7 +2400,7 @@ export class AdmissionbugComponent implements OnInit {
       sno: [this.chequesFA.length + 1],
       description: [row.get('description')?.value || ''],
       instalmentDate: [due, [Validators.required]],
-      amount: [0, [Validators.required, Validators.min(1)]], // split amount
+      amount: [0, [Validators.required, Validators.min(1)]],
       favourOf: [
         {
           value: row.get('favourOf')?.value || this.DEFAULT_FAVOUR_OF,
@@ -2464,7 +2422,6 @@ export class AdmissionbugComponent implements OnInit {
       branchName: [''], // ✅ NEW
       remarks: [''],
     });
-
     this.chequesFA.push(g);
     this.chequesFA.updateValueAndValidity();
   }
@@ -2474,8 +2431,6 @@ export class AdmissionbugComponent implements OnInit {
       const fa = ctrl as UntypedFormArray;
       const rows = (fa?.getRawValue?.() || []) as any[];
       if (!rows.length) return null;
-
-      // sum amounts by instalmentDate
       const sumByDate = new Map<number, number>();
       for (const r of rows) {
         const dt = Number(r?.instalmentDate || 0) || 0;
@@ -2483,8 +2438,6 @@ export class AdmissionbugComponent implements OnInit {
         if (!dt || amt <= 0) continue;
         sumByDate.set(dt, (sumByDate.get(dt) || 0) + amt);
       }
-
-      // compare with allowed map
       for (const [dt, sum] of sumByDate.entries()) {
         const allowed = Number(this.chequeAllowedByDate.get(dt) || 0) || 0;
         if (allowed > 0 && this.roundRupee(sum) > this.roundRupee(allowed)) {

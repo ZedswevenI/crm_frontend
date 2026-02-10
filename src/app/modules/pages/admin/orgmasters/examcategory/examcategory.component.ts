@@ -10,7 +10,7 @@ import { finalize } from 'rxjs/operators';
   selector: 'app-examcategory',
   standalone: false,
   templateUrl: './examcategory.component.html',
-  styleUrl: './examcategory.component.scss'
+  styleUrl: './examcategory.component.scss',
 })
 export class ExamcategoryComponent implements OnInit {
   private moduleName = 'ims';
@@ -82,16 +82,25 @@ export class ExamcategoryComponent implements OnInit {
 
   private buildQueryParams(params: Record<string, any>) {
     const keys = Object.keys(params || {}).filter(
-      (k) => params[k] !== undefined && params[k] !== null && params[k] !== ''
+      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
     );
     if (!keys.length) return '';
     const qs = keys
-      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`)
+      .map(
+        (k) =>
+          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
+      )
       .join('&');
     return `?${qs}`;
   }
 
-  fetchTableData(params: { page: number; pageSize: number; search?: string; sortKey?: string; sortDirection?: string }) {
+  fetchTableData(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortKey?: string;
+    sortDirection?: string;
+  }) {
     this.loading = true;
     const search = (params.search || '').toString().trim();
     const sortKey = (params.sortKey || '').toString().trim();
@@ -103,8 +112,12 @@ export class ExamcategoryComponent implements OnInit {
       categoryCode: 'categoryCode',
     };
 
-    const apiSortKey = sortKey ? (sortMap[sortKey] || sortKey) : '';
-    const sortParam = apiSortKey ? (sortDir === 'desc' ? `-${apiSortKey}` : apiSortKey) : '';
+    const apiSortKey = sortKey ? sortMap[sortKey] || sortKey : '';
+    const sortParam = apiSortKey
+      ? sortDir === 'desc'
+        ? `-${apiSortKey}`
+        : apiSortKey
+      : '';
 
     const qp = this.buildQueryParams({
       page: params.page,
@@ -114,7 +127,11 @@ export class ExamcategoryComponent implements OnInit {
     });
 
     this.commonApi
-      .fetchData({ entiId: this.entiId }, this.moduleName, `exam/category/list${qp}`)
+      .fetchData(
+        { entiId: this.entiId },
+        this.moduleName,
+        `exam/category/list${qp}`,
+      )
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (res: any) => {
@@ -167,7 +184,10 @@ export class ExamcategoryComponent implements OnInit {
       categoryCode: String(raw.categoryCode || '').trim() || null,
       status: raw.isActive ? 'Active' : 'Inactive',
     };
-    const endpoint = this.formMode === 'create' ? 'exam/category/create' : 'exam/category/update';
+    const endpoint =
+      this.formMode === 'create'
+        ? 'exam/category/create'
+        : 'exam/category/update';
     if (this.formMode === 'edit') payload.categoryId = this.editingCategoryId;
     this.saving = true;
     this.commonApi
@@ -179,11 +199,16 @@ export class ExamcategoryComponent implements OnInit {
             this.alert.error(res?.message || 'Operation failed');
             return;
           }
-          this.alert.success(this.formMode === 'create' ? 'Category created' : 'Category updated');
+          this.alert.success(
+            this.formMode === 'create'
+              ? 'Category created'
+              : 'Category updated',
+          );
           this.showForm = false;
           this.fetchTableData({ page: 1, pageSize: 10 });
         },
-        error: (err: any) => this.alert.error(err?.error?.message || 'Operation failed'),
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Operation failed'),
       });
   }
 
@@ -210,17 +235,20 @@ export class ExamcategoryComponent implements OnInit {
       userId: localStorage.getItem('userId') || '',
       categoryId: this.deleteTarget.categoryId,
     };
-    this.commonApi.fetchData(payload, this.moduleName, 'exam/category/delete').subscribe({
-      next: (res: any) => {
-        if (res?.status === false) {
-          this.alert.error(res?.message || 'Delete failed');
-          return;
-        }
-        this.alert.success('Category deleted');
-        this.fetchTableData({ page: 1, pageSize: 10 });
-      },
-      error: (err: any) => this.alert.error(err?.error?.message || 'Delete failed'),
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'exam/category/delete')
+      .subscribe({
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alert.error(res?.message || 'Delete failed');
+            return;
+          }
+          this.alert.success('Category deleted');
+          this.fetchTableData({ page: 1, pageSize: 10 });
+        },
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Delete failed'),
+      });
 
     this.deleteTarget = null;
   }
@@ -260,9 +288,13 @@ export class ExamcategoryComponent implements OnInit {
         const data = e.target.result;
         const wb = XLSX.read(data, { type: 'binary' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawRows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' }) as any[];
+        const rawRows: any[] = XLSX.utils.sheet_to_json(ws, {
+          defval: '',
+        }) as any[];
 
-        const mapped = rawRows.map((r: any, idx: number) => this.mapExcelRow(r, idx + 2));
+        const mapped = rawRows.map((r: any, idx: number) =>
+          this.mapExcelRow(r, idx + 2),
+        );
         this.importPreviewRows = mapped;
         this.computeImportValidation();
       } catch (err) {
@@ -278,12 +310,18 @@ export class ExamcategoryComponent implements OnInit {
   private mapExcelRow(r: any, rowNo: number) {
     const get = (...keys: string[]) => {
       for (const k of keys) {
-        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') return String(r[k]).trim();
+        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '')
+          return String(r[k]).trim();
       }
       return '';
     };
-    const categoryName = get('Category Name', 'CategoryName', 'categoryName').trim();
-    const categoryCode = get('Category Code', 'CategoryCode', 'categoryCode').trim() || null;
+    const categoryName = get(
+      'Category Name',
+      'CategoryName',
+      'categoryName',
+    ).trim();
+    const categoryCode =
+      get('Category Code', 'CategoryCode', 'categoryCode').trim() || null;
     const errors: string[] = [];
     if (!categoryName) errors.push('Category Name required');
     return {
@@ -332,10 +370,14 @@ export class ExamcategoryComponent implements OnInit {
           const d = res?.data || {};
           const msg = `Import completed. Accepted: ${d.accepted ?? '-'}, Upserted: ${d.upserted ?? '-'}`;
           this.alert.success(msg);
+          this.importing = false;
+          this.showImport = false;
           this.closeImport();
+          this.resetImport();
           this.fetchTableData({ page: 1, pageSize: 10 });
         },
-        error: (err: any) => this.alert.error(err?.error?.message || 'Import failed'),
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Import failed'),
       });
   }
 

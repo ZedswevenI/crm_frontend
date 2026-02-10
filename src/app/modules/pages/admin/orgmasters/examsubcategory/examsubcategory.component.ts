@@ -55,6 +55,8 @@ export class ExamsubcategoryComponent implements OnInit {
       callback: (row: any) => this.openDelete(row),
     },
   ];
+  private categoryNameToId = new Map<string, string>();
+  private categoryCodeToId = new Map<string, string>();
 
   constructor(
     private fb: FormBuilder,
@@ -87,9 +89,7 @@ export class ExamsubcategoryComponent implements OnInit {
   }
 
   private initImportForm() {
-    this.importForm = this.fb.group({
-      categoryId: ['', Validators.required],
-    });
+    this.importForm = this.fb.group({});
   }
 
   private toNum(v: any): number {
@@ -134,6 +134,20 @@ export class ExamsubcategoryComponent implements OnInit {
 
           this.categoryById.clear();
           for (const r of rows) this.categoryById.set(String(r.categoryId), r);
+          this.categoryNameToId.clear();
+          this.categoryCodeToId.clear();
+
+          for (const r of rows) {
+            const id = String(r.categoryId || '').trim();
+            const nm = String(r.categoryName || '')
+              .trim()
+              .toUpperCase();
+            const cd = String(r.categoryCode || '')
+              .trim()
+              .toUpperCase();
+            if (nm && id) this.categoryNameToId.set(nm, id);
+            if (cd && id) this.categoryCodeToId.set(cd, id);
+          }
         },
         error: () => {
           this.categoryOptions = [];
@@ -349,9 +363,6 @@ export class ExamsubcategoryComponent implements OnInit {
     if (this.importing) return;
     this.showImport = true;
     this.resetImport();
-    // keep selected category if user already chose in main form (optional, safe)
-    const lastCat = this.form?.get('categoryId')?.value;
-    if (lastCat) this.importForm.patchValue({ categoryId: String(lastCat) });
   }
 
   closeImport() {
@@ -415,6 +426,19 @@ export class ExamsubcategoryComponent implements OnInit {
       return '';
     };
 
+    const categoryRaw = get(
+      'Category',
+      'Category Name',
+      'CategoryName',
+      'category',
+      'categoryName',
+    );
+    const categoryCodeRaw = get(
+      'Category Code',
+      'CategoryCode',
+      'categoryCode',
+    );
+
     const subCategoryName = get(
       'Sub Category Name',
       'SubCategoryName',
@@ -423,16 +447,39 @@ export class ExamsubcategoryComponent implements OnInit {
     const subCategoryCode =
       get('Sub Category Code', 'SubCategoryCode', 'subCategoryCode').trim() ||
       null;
+
     const sortOrderRaw = get('Sort Order', 'SortOrder', 'sortOrder');
     const sortOrder = this.toNum(sortOrderRaw);
 
     const errors: string[] = [];
+
+    const catNameKey = String(categoryRaw || '')
+      .trim()
+      .toUpperCase();
+    const catCodeKey = String(categoryCodeRaw || '')
+      .trim()
+      .toUpperCase();
+
+    let categoryId: string | null = null;
+    if (catCodeKey && this.categoryCodeToId.has(catCodeKey))
+      categoryId = this.categoryCodeToId.get(catCodeKey) || null;
+    else if (catNameKey && this.categoryNameToId.has(catNameKey))
+      categoryId = this.categoryNameToId.get(catNameKey) || null;
+
+    if (!categoryId) errors.push('Category not found');
     if (!subCategoryName) errors.push('Sub Category Name required');
+
+    const categoryLabel =
+      (catCodeKey ? catCodeKey : '') || (catNameKey ? catNameKey : '') || '-';
 
     return {
       _rowNo: rowNo,
       _valid: errors.length === 0,
       _errors: errors,
+
+      categoryId,
+      categoryLabel,
+
       subCategoryName,
       subCategoryCode,
       sortOrder,
@@ -448,14 +495,6 @@ export class ExamsubcategoryComponent implements OnInit {
   confirmImport() {
     if (this.importing) return;
 
-    const categoryId = String(
-      this.importForm.get('categoryId')?.value || '',
-    ).trim();
-    if (!categoryId) {
-      this.alert.error('Select a category first');
-      return;
-    }
-
     if (!this.importPreviewRows.length) {
       this.alert.error('Please upload an Excel file first');
       return;
@@ -465,54 +504,90 @@ export class ExamsubcategoryComponent implements OnInit {
       return;
     }
 
-    const payload = {
-      entiId: this.entiId,
-      userId: localStorage.getItem('userId') || '',
-      categoryId,
-      rows: this.importPreviewRows.map((r) => ({
-        subCategoryName: r.subCategoryName,
-        subCategoryCode: r.subCategoryCode,
-        sortOrder: this.toNum(r.sortOrder),
-      })),
-    };
+    // group by categoryId (so user can upload entire institute in one file)
+    const grouped = new Map<string, any[]>();
+    for (const r of this.importPreviewRows) {
+      const cid = String(r.categoryId || '').trim();
+      if (!cid) continue;
+      if (!grouped.has(cid)) grouped.set(cid, []);
+      grouped.get(cid)!.push(r);
+    }
+
+    const keys = Array.from(grouped.keys());
+    if (!keys.length) {
+      this.alert.error('No valid rows to import');
+      return;
+    }
 
     this.importing = true;
 
-    // your route is /exam/subcategory/import
-    this.commonApi
-      .fetchData(payload, this.moduleName, 'exam/subcategory/import')
-      .pipe(finalize(() => (this.importing = false)))
-      .subscribe({
-        next: (res: any) => {
-          if (res?.status === false) {
-            this.alert.error(res?.message || 'Import failed');
-            return;
-          }
-          const d = res?.data || {};
-          const msg = `Import completed. Accepted: ${d.accepted ?? '-'}, Upserted: ${d.upserted ?? '-'}`;
-          this.alert.success(msg);
+    const runNext = (idx: number) => {
+      if (idx >= keys.length) {
+        this.importing = false;
+        this.alert.success('Import completed');
 
-          this.closeImport();
-          this.fetchTableData({ page: 1, pageSize: 10 });
-        },
-        error: (err: any) =>
-          this.alert.error(err?.error?.message || 'Import failed'),
-      });
+        // force close + reset
+        this.showImport = false;
+        this.resetImport();
+
+        this.fetchTableData({ page: 1, pageSize: 10 });
+        return;
+      }
+
+      const categoryId = keys[idx];
+      const rows = (grouped.get(categoryId) || []).map((x) => ({
+        subCategoryName: x.subCategoryName,
+        subCategoryCode: x.subCategoryCode,
+        sortOrder: this.toNum(x.sortOrder),
+      }));
+
+      const payload = {
+        entiId: this.entiId,
+        categoryId,
+        rows,
+      };
+
+      this.commonApi
+        .fetchData(payload, this.moduleName, 'exam/subcategory/import')
+        .subscribe({
+          next: (res: any) => {
+            if (res?.status === false) {
+              this.importing = false;
+              this.alert.error(
+                res?.message || `Import failed for category ${categoryId}`,
+              );
+              return;
+            }
+            runNext(idx + 1);
+          },
+          error: (err: any) => {
+            this.importing = false;
+            this.alert.error(
+              err?.error?.message || `Import failed for category ${categoryId}`,
+            );
+          },
+        });
+    };
+
+    runNext(0);
   }
 
   downloadSampleExcel() {
     const rows = [
       {
+        Category: 'UNIT TEST', // Category Name OR Category Code
         'Sub Category Name': 'Unit Test - 1',
         'Sub Category Code': 'UT1',
         'Sort Order': 1,
       },
       {
+        Category: 'UNIT TEST',
         'Sub Category Name': 'Unit Test - 2',
         'Sub Category Code': 'UT2',
         'Sort Order': 2,
       },
       {
+        Category: 'BOARD', // Category Name OR Category Code
         'Sub Category Name': 'Board - Model',
         'Sub Category Code': 'BM',
         'Sort Order': 3,
