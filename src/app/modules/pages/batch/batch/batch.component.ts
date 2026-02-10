@@ -533,6 +533,7 @@ export class BatchComponent implements OnInit {
 
   saveBatch() {
     if (this.loading) return;
+    this.onCreateInputsChanged();
     if (this.editorForm.invalid) {
       this.editorForm.markAllAsTouched();
       this.alert.error('Please fill all required fields');
@@ -711,9 +712,9 @@ export class BatchComponent implements OnInit {
   }
 
   toggleStudent(id: any, checked: boolean) {
+    if (this.loading) return;
     const sid = safeTrim(id);
     if (!sid) return;
-
     if (checked) this.selectedStudentIds.add(sid);
     else this.selectedStudentIds.delete(sid);
   }

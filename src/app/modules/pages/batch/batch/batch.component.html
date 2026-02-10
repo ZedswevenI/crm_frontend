@@ -121,7 +121,10 @@
                 <button class="btn btn-sm btn-outline-secondary" (click)="closeEditorModal()">
                     Cancel
                 </button>
-                <button class="btn btn-sm btn-primary" (click)="saveBatch()" [disabled]="loading">
+                <!-- <button class="btn btn-sm btn-primary" (click)="saveBatch()" [disabled]="loading">
+                    <i class="fa-solid fa-floppy-disk"></i> Save
+                </button> -->
+                <button class="btn btn-sm btn-primary" (click)="saveBatch()" [disabled]="loading || editorForm.invalid">
                     <i class="fa-solid fa-floppy-disk"></i> Save
                 </button>
             </div>
