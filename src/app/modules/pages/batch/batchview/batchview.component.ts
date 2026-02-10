@@ -31,21 +31,26 @@ export class BatchviewComponent implements OnInit {
 
   activeTab: 'students' | 'faculty' = 'students';
   offcanvasMode: 'none' | 'edit' | 'staff' | 'assign' | 'shuffle' = 'none';
-
   studentRows: any[] = [];
   selected = new Set<string>();
-
   editForm!: FormGroup;
   staffForm!: FormGroup;
-
   eligibleRows: any[] = [];
   eligibleCount = 0;
   eligibleQuery = { page: 1, limit: 20, search: '' };
   eligibleSelected = new Set<string>();
   batchesFull: any[] = [];
   shuffleToBatchId = '';
-
-  // ✅ NEW: Lists for Dropdowns
+  editStatusOptions = [
+    { label: 'ACTIVE', value: 'ACTIVE' },
+    { label: 'DRAFT', value: 'DRAFT' },
+    { label: 'CLOSED', value: 'CLOSED' },
+    { label: 'INACTIVE', value: 'INACTIVE' },
+  ];
+  subjectsOptions: any[] = [{ label: '-- Select Subject --', value: '' }];
+  staffOptionsAll: any[] = [{ label: '-- Select Faculty --', value: '' }];
+  staffOptionsByRow: any[][] = [];
+  batchesFullOptions: any[] = [{ label: '-- Select --', value: '' }];
   subjectsList: any[] = [];
   staffList: any[] = [];
 
@@ -59,6 +64,7 @@ export class BatchviewComponent implements OnInit {
 
   @ViewChild('confirmModal') confirmModalRef!: ElementRef;
   private bsModal: any;
+  private allBatchesRaw: any[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -85,7 +91,6 @@ export class BatchviewComponent implements OnInit {
       { label: 'Batches' },
       { label: 'View' },
     ]);
-
     this.initForms();
     this.loadBatch();
     this.loadBatchesFullForShuffle();
@@ -141,28 +146,57 @@ export class BatchviewComponent implements OnInit {
   private staffRowGroup(x?: any): FormGroup {
     return this.fb.group({
       subjectId: [safeTrim(x?.subjectId), [Validators.required]],
-      subjectName: [safeTrim(x?.subjectName)], // Read-only or auto-populated
+      subjectName: [safeTrim(x?.subjectName)],
       staffId: [safeTrim(x?.staffId), [Validators.required]],
-      staffName: [safeTrim(x?.staffName)], // Read-only or auto-populated
+      staffName: [safeTrim(x?.staffName)],
     });
   }
 
-  // ✅ NEW: Handle dropdown changes
   onSubjectChange(index: number) {
-    const group = this.staffFA.at(index);
-    const subjId = group.get('subjectId')?.value;
-    const subj = this.subjectsList.find((s) => s.subjectId === subjId);
-    if (subj) {
-      group.patchValue({ subjectName: subj.subjectName || subj.subjectCode });
+    const group = this.staffFA.at(index) as FormGroup;
+    const subjId = safeTrim(group.get('subjectId')?.value);
+    const subj = (this.subjectsList || []).find(
+      (s: any) => safeTrim(s?.subjectId) === subjId,
+    );
+    group.patchValue(
+      { subjectName: safeTrim(subj?.subjectName || subj?.subjectCode || '') },
+      { emitEvent: false },
+    );
+    const filtered = (this.staffList || []).filter(
+      (st: any) => safeTrim(st?.subject) === subjId,
+    );
+    this.staffOptionsByRow[index] = [
+      { label: '-- Select Faculty --', value: '' },
+    ].concat(
+      filtered.map((s: any) => ({
+        label: `${s?.staffName || '-'} (${s?.staffCode || '-'})`,
+        value: safeTrim(s?.staffId || s?._id),
+        _raw: s,
+      })),
+    );
+    const curStaffId = safeTrim(group.get('staffId')?.value);
+    if (curStaffId) {
+      const ok = (this.staffOptionsByRow[index] || []).some(
+        (o: any) => safeTrim(o?.value) === curStaffId,
+      );
+      if (!ok)
+        group.patchValue({ staffId: '', staffName: '' }, { emitEvent: false });
     }
   }
 
   onStaffChange(index: number) {
-    const group = this.staffFA.at(index);
-    const sId = group.get('staffId')?.value;
-    const st = this.staffList.find((s) => s.staffId === sId);
+    const group = this.staffFA.at(index) as FormGroup;
+    const sId = safeTrim(group.get('staffId')?.value);
+    const st = (this.staffList || []).find(
+      (s: any) => safeTrim(s?.staffId || s?._id) === sId,
+    );
     if (st) {
-      group.patchValue({ staffName: st.staffName });
+      group.patchValue(
+        { staffName: safeTrim(st?.staffName) },
+        { emitEvent: false },
+      );
+    } else {
+      group.patchValue({ staffName: '' }, { emitEvent: false });
     }
   }
 
@@ -177,9 +211,9 @@ export class BatchviewComponent implements OnInit {
       next: (res: any) => {
         this.loading = false;
         this.batch = res?.data || null;
+        this.rebuildShuffleTargets();
         this.studentRows = this.batch?.students || [];
         this.selected.clear();
-
         this.editForm.patchValue({
           batchName: this.batch?.batchName,
           batchCode: this.batch?.batchCode,
@@ -188,12 +222,24 @@ export class BatchviewComponent implements OnInit {
           status: this.batch?.status || 'ACTIVE',
           remarks: this.batch?.remarks || '',
         });
-
         this.staffFA.clear();
         const sm = Array.isArray(this.batch?.staffMap)
           ? this.batch.staffMap
           : [];
         sm.forEach((r: any) => this.staffFA.push(this.staffRowGroup(r)));
+        const base = this.staffOptionsAll?.length
+          ? [...this.staffOptionsAll]
+          : [{ label: '-- Select Faculty --', value: '' }];
+        this.staffOptionsByRow = Array(this.staffFA.length)
+          .fill(null)
+          .map(() => [...base]);
+        if ((this.staffList || []).length) {
+          for (let i = 0; i < this.staffFA.length; i++) {
+            const g = this.staffFA.at(i) as FormGroup;
+            const sid = safeTrim(g.get('subjectId')?.value);
+            if (sid) this.onSubjectChange(i);
+          }
+        }
       },
       error: (err: any) => {
         this.loading = false;
@@ -202,12 +248,19 @@ export class BatchviewComponent implements OnInit {
     });
   }
 
-  // ✅ UPDATED: Fetch lists when opening Staff Map
   openOffcanvas(mode: 'edit' | 'staff' | 'assign' | 'shuffle') {
+    if (
+      this.isClosed() &&
+      (mode === 'edit' ||
+        mode === 'staff' ||
+        mode === 'assign' ||
+        mode === 'shuffle')
+    ) {
+      this.alert.error('Batch is CLOSED. No changes allowed.');
+      return;
+    }
     this.offcanvasMode = mode;
-
     if (mode === 'staff') {
-      // Fetch Subjects
       if (!this.subjectsList.length) {
         this.commonApi
           .fetchData(
@@ -218,29 +271,55 @@ export class BatchviewComponent implements OnInit {
           .subscribe({
             next: (res: any) => {
               this.subjectsList = res?.data || [];
+              this.subjectsOptions = [
+                { label: '-- Select Subject --', value: '' },
+              ].concat(
+                this.subjectsList.map((s: any) => ({
+                  label: `${s?.subjectName || '-'} (${s?.subjectCode || '-'})`,
+                  value: safeTrim(s?.subjectId || s?._id),
+                  _raw: s,
+                })),
+              );
             },
           });
       }
-      // Fetch Staff
       if (!this.staffList.length) {
-        // Using tenant module for staff list as per your context (or wherever 'staff/list' points to)
         this.commonApi
-          .fetchData({ entiId: this.entiId }, 'ims/staff', 'list?list=full')
+          .fetchData({ entiId: this.entiId }, 'ims', 'staff/list?list=full')
           .subscribe({
             next: (res: any) => {
-              this.staffList = res?.data || [];
+              const all = res?.data || [];
+              this.staffList = (all || []).filter(
+                (s: any) =>
+                  safeTrim(s?.facultyType).toUpperCase() === 'TEACHING',
+              );
+              this.staffOptionsAll = [
+                { label: '-- Select Faculty --', value: '' },
+              ].concat(
+                this.staffList.map((s: any) => ({
+                  label: `${s?.staffName || '-'} (${s?.staffCode || '-'})`,
+                  value: safeTrim(s?.staffId || s?._id),
+                  _raw: s,
+                })),
+              );
+              this.staffOptionsByRow = Array(this.staffFA.length)
+                .fill(null)
+                .map(() => [...this.staffOptionsAll]);
             },
           });
       }
     }
-
     if (mode === 'assign') {
       this.eligibleSelected.clear();
       this.eligibleQuery = { page: 1, limit: 20, search: '' };
       this.loadEligible();
     }
-
     if (mode === 'shuffle') {
+      if (this.isClosed()) {
+        this.alert.error('Batch is CLOSED. No changes allowed.');
+        this.closeOffcanvas();
+        return;
+      }
       const ids = Array.from(this.selected);
       if (!ids.length) {
         this.alert.error('Select students from the list first');
@@ -248,6 +327,7 @@ export class BatchviewComponent implements OnInit {
         return;
       }
       this.shuffleToBatchId = '';
+      this.rebuildShuffleTargets();
     }
   }
 
@@ -280,7 +360,6 @@ export class BatchviewComponent implements OnInit {
       this.alert.error('End Date must be after Start Date');
       return;
     }
-
     const payload = {
       entiId: this.entiId,
       userId: this.userId(),
@@ -292,7 +371,6 @@ export class BatchviewComponent implements OnInit {
       status: safeTrim(v.status),
       remarks: safeTrim(v.remarks) || null,
     };
-
     this.loading = true;
     this.commonApi.fetchData(payload, this.moduleName, 'update').subscribe({
       next: () => {
@@ -310,9 +388,17 @@ export class BatchviewComponent implements OnInit {
 
   addStaffRow() {
     this.staffFA.push(this.staffRowGroup());
+    this.staffOptionsByRow.push([
+      ...(this.staffOptionsAll || [
+        { label: '-- Select Faculty --', value: '' },
+      ]),
+    ]);
   }
+
   removeStaffRow(i: number) {
     this.staffFA.removeAt(i);
+    if (i >= 0 && i < this.staffOptionsByRow.length)
+      this.staffOptionsByRow.splice(i, 1);
   }
 
   saveStaffMap() {
@@ -416,17 +502,46 @@ export class BatchviewComponent implements OnInit {
       .fetchData({ entiId: this.entiId }, this.moduleName, 'list?list=full')
       .subscribe({
         next: (res: any) => {
-          this.batchesFull = (res?.data || []).filter(
-            (b: any) => safeTrim(b.batchId) !== this.batchId,
-          );
+          this.allBatchesRaw = res?.data || [];
+          this.rebuildShuffleTargets();
+        },
+        error: () => {
+          this.allBatchesRaw = [];
+          this.batchesFull = [];
         },
       });
   }
 
   shuffleSelected() {
+    if (this.isClosed()) {
+      this.alert.error('Batch is CLOSED. No changes allowed.');
+      return;
+    }
     const ids = Array.from(this.selected);
-    if (!this.shuffleToBatchId) return;
-
+    if (!ids.length) {
+      this.alert.error('Select students first');
+      return;
+    }
+    const toId = safeTrim(this.shuffleToBatchId);
+    if (!toId) {
+      this.alert.error('Select target batch');
+      return;
+    }
+    if (toId === safeTrim(this.batchId)) {
+      this.alert.error('Target batch cannot be same as current batch');
+      return;
+    }
+    const toBatch = this.getBatchByIdLocal(toId);
+    if (!toBatch) {
+      this.alert.error('Target batch not found');
+      return;
+    }
+    if (!this.isSameCore(this.batch, toBatch)) {
+      this.alert.error(
+        'Cannot shuffle to a batch with different Program / Academic Year / Center',
+      );
+      return;
+    }
     this.loading = true;
     this.commonApi
       .fetchData(
@@ -434,7 +549,7 @@ export class BatchviewComponent implements OnInit {
           entiId: this.entiId,
           userId: this.userId(),
           fromBatchId: this.batchId,
-          toBatchId: this.shuffleToBatchId,
+          toBatchId: toId,
           studentIds: ids,
         },
         this.moduleName,
@@ -445,6 +560,7 @@ export class BatchviewComponent implements OnInit {
           this.loading = false;
           this.alert.success('Students shuffled');
           this.closeOffcanvas();
+          this.selected.clear();
           this.loadBatch();
         },
         error: (err: any) => {
@@ -478,7 +594,6 @@ export class BatchviewComponent implements OnInit {
         action: () => this.executeRemoveStudents(),
       };
     }
-
     if (!this.bsModal) {
       this.bsModal = new bootstrap.Modal(this.confirmModalRef.nativeElement);
     }
@@ -496,7 +611,7 @@ export class BatchviewComponent implements OnInit {
       .fetchData(
         { entiId: this.entiId, userId: this.userId(), batchId: this.batchId },
         this.moduleName,
-        'batch/close',
+        'close',
       )
       .subscribe({
         next: () => {
@@ -536,5 +651,72 @@ export class BatchviewComponent implements OnInit {
 
   back() {
     this.router.navigate(['/app/batches']);
+  }
+
+  isClosed(): boolean {
+    return safeTrim(this.batch?.status).toUpperCase() === 'CLOSED';
+  }
+
+  canEditBatch(): boolean {
+    return !this.isClosed();
+  }
+
+  canManageStudents(): boolean {
+    return !this.isClosed();
+  }
+
+  canManageFaculty(): boolean {
+    return !this.isClosed();
+  }
+
+  private getBatchByIdLocal(batchId: string) {
+    const id = safeTrim(batchId);
+    if (!id) return null;
+    return (
+      (this.batchesFull || []).find((b: any) => this.pickBatchId(b) === id) ||
+      null
+    );
+  }
+
+  private isSameCore(a: any, b: any): boolean {
+    return (
+      safeTrim(a?.programId) === safeTrim(b?.programId) &&
+      safeTrim(a?.academicYear) === safeTrim(b?.academicYear) &&
+      safeTrim(a?.centerId) === safeTrim(b?.centerId)
+    );
+  }
+
+  private rebuildShuffleTargets() {
+    const cur = this.batch || null;
+    const curId = safeTrim(this.batchId);
+    const all = Array.isArray(this.allBatchesRaw) ? this.allBatchesRaw : [];
+    const list = all.filter((b: any) => {
+      const bid = this.pickBatchId(b);
+      if (!bid || bid === curId) return false;
+      if (!cur) return true;
+      const st = safeTrim(b?.status).toUpperCase();
+      if (st === 'CLOSED' || st === 'INACTIVE') return false;
+      return (
+        safeTrim(b?.programId) === safeTrim(cur?.programId) &&
+        safeTrim(b?.academicYear) === safeTrim(cur?.academicYear) &&
+        safeTrim(b?.centerId) === safeTrim(cur?.centerId)
+      );
+    });
+    this.batchesFull = list;
+    this.rebuildShuffleTargetOptions();
+  }
+
+  private pickBatchId(b: any): string {
+    return safeTrim(b?.batchId || b?._id || '');
+  }
+
+  private rebuildShuffleTargetOptions() {
+    this.batchesFullOptions = [{ label: '-- Select --', value: '' }].concat(
+      (this.batchesFull || []).map((b: any) => ({
+        label: `${safeTrim(b?.batchName || '-')} (${safeTrim(b?.batchCode || '-')})`,
+        value: this.pickBatchId(b),
+        _raw: b,
+      })),
+    );
   }
 }

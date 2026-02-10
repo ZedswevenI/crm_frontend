@@ -12,12 +12,13 @@
             </div>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-white border btn-sm" (click)="openOffcanvas('edit')">
+            <button class="btn btn-white border btn-sm" *ngIf="canEditBatch()" (click)="openOffcanvas('edit')">
                 <i class="fa-regular fa-pen-to-square"></i> Edit Batch
             </button>
 
             <div class="dropdown">
-                <button class="btn btn-danger btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <button class="btn btn-danger btn-sm dropdown-toggle" *ngIf="canEditBatch()" type="button"
+                    data-bs-toggle="dropdown">
                     <i class="fa-solid fa-gear"></i> Actions
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0">
@@ -89,7 +90,7 @@
                 </li>
             </ul>
 
-            <div class="d-flex gap-2" *ngIf="activeTab==='students'">
+            <div class="d-flex gap-2" *ngIf="activeTab==='students'  && canManageStudents()">
                 <button class="btn btn-sm btn-outline-danger" *ngIf="selected.size > 0"
                     (click)="triggerConfirmation('removeStudents')">
                     <i class="fa-regular fa-trash-can"></i> Remove ({{selected.size}})
@@ -103,7 +104,7 @@
                 </button>
             </div>
 
-            <div class="d-flex gap-2" *ngIf="activeTab==='faculty'">
+            <div class="d-flex gap-2" *ngIf="activeTab==='faculty' && canManageFaculty()">
                 <button class="btn btn-sm btn-primary" (click)="openOffcanvas('staff')">
                     <i class="fa-solid fa-pen"></i> Edit Faculty Map
                 </button>
@@ -191,34 +192,46 @@
 
         <form *ngIf="offcanvasMode === 'edit'" [formGroup]="editForm">
             <div class="mb-3">
-                <label class="form-label small">Batch Name</label>
-                <input class="form-control" formControlName="batchName">
+                <formfield label="Batch Name" [required]="true" formControlName="batchName"
+                    [control]="editForm.get('batchName')" placeholder="Batch Name">
+                </formfield>
             </div>
+
             <div class="mb-3">
-                <label class="form-label small">Batch Code</label>
-                <input class="form-control" formControlName="batchCode">
+                <formfield label="Batch Code" [required]="true" formControlName="batchCode"
+                    [control]="editForm.get('batchCode')" placeholder="Batch Code">
+                </formfield>
             </div>
+
             <div class="row mb-3">
                 <div class="col-6">
-                    <label class="form-label small">Start Date</label>
-                    <input type="date" class="form-control" formControlName="startDate">
+                    <formfield label="Start Date" [required]="true" formControlName="startDate"
+                        [control]="editForm.get('startDate')" type="date">
+                    </formfield>
                 </div>
                 <div class="col-6">
-                    <label class="form-label small">End Date</label>
-                    <input type="date" class="form-control" formControlName="endDate">
+                    <formfield label="End Date" [required]="true" formControlName="endDate"
+                        [control]="editForm.get('endDate')" type="date">
+                    </formfield>
                 </div>
             </div>
+
             <div class="mb-3">
-                <label class="form-label small">Status</label>
-                <select class="form-select" formControlName="status">
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="CLOSED">CLOSED</option>
-                    <option value="INACTIVE">INACTIVE</option>
-                </select>
+                <selectbox label="Status" [required]="true" formControlName="status" [control]="editForm.get('status')"
+                    [options]="editStatusOptions" optionLabel="label" optionValue="value">
+                </selectbox>
             </div>
+
+            <div class="mb-3">
+                <description label="Remarks" formControlName="remarks" [control]="editForm.get('remarks')">
+                </description>
+            </div>
+
             <div class="d-grid">
-                <button class="btn btn-primary" (click)="saveBatch()" [disabled]="loading">Save Changes</button>
+                <button class="btn btn-primary" type="button" (click)="saveBatch()"
+                    [disabled]="loading || editForm.invalid">
+                    Save Changes
+                </button>
             </div>
         </form>
 
@@ -234,25 +247,18 @@
                             </button>
                             <div class="row g-2">
                                 <div class="col-12">
-                                    <label class="small text-muted">Subject</label>
-                                    <select class="form-select form-select-sm" formControlName="subjectId"
-                                        (change)="onSubjectChange(i)">
-                                        <option value="">-- Select Subject --</option>
-                                        <option *ngFor="let sub of subjectsList" [value]="sub.subjectId">
-                                            {{ sub.subjectName }} ({{ sub.subjectCode }})
-                                        </option>
-                                    </select>
+                                    <selectbox label="Subject" [required]="true" formControlName="subjectId"
+                                        [control]="asFormGroup(g).get('subjectId')" [options]="subjectsOptions"
+                                        optionLabel="label" optionValue="value" (ngModelChange)="onSubjectChange(i)">
+                                    </selectbox>
                                 </div>
 
                                 <div class="col-12">
-                                    <label class="small text-muted">Faculty</label>
-                                    <select class="form-select form-select-sm" formControlName="staffId"
-                                        (change)="onStaffChange(i)">
-                                        <option value="">-- Select Faculty --</option>
-                                        <option *ngFor="let s of staffList" [value]="s.staffId">
-                                            {{ s.staffName }} ({{ s.staffCode }})
-                                        </option>
-                                    </select>
+                                    <selectbox label="Faculty" [required]="true" formControlName="staffId"
+                                        [control]="asFormGroup(g).get('staffId')"
+                                        [options]="staffOptionsByRow[i] || staffOptionsAll" optionLabel="label"
+                                        optionValue="value" (ngModelChange)="onStaffChange(i)">
+                                    </selectbox>
                                 </div>
 
                                 <input type="hidden" formControlName="subjectName">
@@ -261,17 +267,31 @@
                         </div>
                     </div>
                 </div>
-                <button class="btn btn-sm btn-outline-primary w-100 mb-3" (click)="addStaffRow()">+ Add Mapping</button>
+                <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-3" (click)="addStaffRow()">
+                    + Add Mapping
+                </button>
                 <div class="d-grid">
-                    <button class="btn btn-primary" (click)="saveStaffMap()" [disabled]="loading">Save Mapping</button>
+                    <button type="button" class="btn btn-primary" (click)="saveStaffMap()"
+                        [disabled]="loading || staffForm.invalid">
+                        Save Mapping
+                    </button>
                 </div>
             </form>
         </div>
 
         <div *ngIf="offcanvasMode === 'assign'">
-            <div class="input-group mb-3">
-                <input class="form-control" placeholder="Search..." [(ngModel)]="eligibleQuery.search">
-                <button class="btn btn-outline-secondary" (click)="eligibleQuery.page=1; loadEligible()">Go</button>
+            <div class="row g-2 align-items-end mb-3">
+                <div class="col">
+                    <formfield label="Search" [(ngModel)]="eligibleQuery.search" name="eligibleSearch"
+                        placeholder="Search...">
+                    </formfield>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-outline-secondary"
+                        (click)="eligibleQuery.page=1; loadEligible()">
+                        Go
+                    </button>
+                </div>
             </div>
             <div class="list-group mb-3 overflow-auto" style="max-height: 400px;">
                 <label *ngFor="let s of eligibleRows" class="list-group-item d-flex gap-2">
@@ -298,13 +318,9 @@
                 Moving <b>{{ selected.size }}</b> students from {{ batch?.batchName }}.
             </div>
             <div class="mb-3">
-                <label class="form-label">Target Batch</label>
-                <select class="form-select" [(ngModel)]="shuffleToBatchId">
-                    <option value="">-- Select --</option>
-                    <option *ngFor="let b of batchesFull" [value]="b.batchId">
-                        {{ b.batchName }} ({{ b.batchCode }})
-                    </option>
-                </select>
+                <selectbox label="Target Batch" [ngModelOptions]="{standalone: true}" [(ngModel)]="shuffleToBatchId"
+                    name="shuffleToBatchId" [options]="batchesFullOptions" optionLabel="label" optionValue="value">
+                </selectbox>
             </div>
             <div class="d-grid">
                 <button class="btn btn-warning" (click)="shuffleSelected()" [disabled]="!shuffleToBatchId || loading">
