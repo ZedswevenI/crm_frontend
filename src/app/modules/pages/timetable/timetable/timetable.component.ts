@@ -26,7 +26,6 @@ export class TimetableComponent implements OnInit {
   // Data
   timetables: any[] = [];
   totalRecords = 0;
-  currentPage = 1;
   pageSize = 20;
 
   // Filters
@@ -40,7 +39,7 @@ export class TimetableComponent implements OnInit {
   centersFull: any[] = [];
   filteredBatches: any[] = [];
 
-  // Parsed Data Holder
+  // Parsed Data
   parsedPayload: any = null;
   parseStats = { daysFound: 0, periodsFound: 0 };
 
@@ -83,9 +82,7 @@ export class TimetableComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    // this.loadDropdowns();
-    // this.loadTimetables();
-    this.loadAllLookupsAndInit()
+    this.loadAllLookupsAndInit();
   }
 
   initForm() {
@@ -97,7 +94,8 @@ export class TimetableComponent implements OnInit {
     });
   }
 
-  // timetable List
+  // ================= LIST API =================
+
   fetchTableData(params: {
     page: number;
     pageSize: number;
@@ -107,94 +105,82 @@ export class TimetableComponent implements OnInit {
   }) {
     this.loading = true;
 
-    // Pagination & Sort
     let sortParam = '';
     if (params.sortKey) {
       sortParam =
-        params.sortDirection === 'desc'
-          ? `-${params.sortKey}`
-          : params.sortKey;
+        params.sortDirection === 'desc' ? `-${params.sortKey}` : params.sortKey;
     }
 
     const query: any = {
       page: params.page,
-      limit: params.pageSize
+      limit: params.pageSize,
     };
+
     if (sortParam) query.sort = sortParam;
     if (params.search) query.search = params.search;
 
-    // Build query string
+    // ✅ APPLY FILTERS
+    if (this.selectedBatch) query.batchCode = this.selectedBatch;
+    if (this.selectedCenter) query.centerCode = this.selectedCenter;
+
     const queryString = Object.keys(query)
       .map(
-        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`
+        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`,
       )
       .join('&');
 
     const body = {
-      entiId: localStorage.getItem('tenantId')
+      entiId: this.entiId,
     };
 
-    this.commonApi.fetchData(body, 'timetable', `list?${queryString}`).subscribe({
-      next: (res: any) => {
-        this.timetables = res.data;
-        this.totalRecords = res?.count || 0;
+    this.commonApi
+      .fetchData(body, this.moduleName, `list?${queryString}`)
+      .subscribe({
+        next: (res: any) => {
+          this.timetables = res?.data || [];
+          this.totalRecords = res?.count || 0;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+          this.alert.error('Error loading timetables');
+        },
+      });
+  }
+
+  // ================= LOOKUPS =================
+
+  loadAllLookupsAndInit() {
+    const entiId = this.entiId;
+    this.loading = true;
+
+    forkJoin({
+      program: this.commonApi.fetchData(
+        { entiId },
+        'ims',
+        'program/list?list=full',
+      ),
+      batch: this.commonApi.fetchData({ entiId }, 'batch', 'list?list=full'),
+      center: this.commonApi.fetchData(
+        { entiId },
+        'ims',
+        'center/list?list=full',
+      ),
+    }).subscribe({
+      next: ({ program, batch, center }) => {
+        this.programsFull = program?.data || [];
+        this.batchesFull = batch?.data || [];
+        this.filteredBatches = this.batchesFull;
+        this.centersFull = center?.data || [];
         this.loading = false;
       },
-      error: (err) => {
+      error: () => {
         this.loading = false;
-        this.alert.error('Error loading admissions');
-      }
+        this.alert.error('Unable to load initial data!');
+      },
     });
   }
 
-  // program, batch, center List
-    loadAllLookupsAndInit() {
-      const entiId = this.entiId;
-      this.loading = true;
-  
-      forkJoin({
-        program: this.commonApi.fetchData({ entiId }, 'ims', 'program/list?list=full'),
-        batch: this.commonApi.fetchData({ entiId }, 'batch', 'list?list=full'),
-        center: this.commonApi.fetchData({ entiId }, 'ims', 'center/list?list=full'),
-      }).subscribe({
-        next: ({ program, batch, center }) => {
-          this.programsFull = program.data || [];
-          this.filteredBatches = batch.data || [];
-          this.centersFull = center.data || [];
-        },
-        error: (err) => {
-          this.loading = false;
-          this.alert.error(`Unable to load initial data!`);
-        }
-      });
-    }
-
-  // loadDropdowns() {
-  //   this.commonApi
-  //     .fetchData({ entiId: this.entiId }, 'ims', 'program/list?list=full')
-  //     .subscribe({
-  //       next: (res: any) => {
-  //         this.programsFull = res?.data || [];
-  //       },
-  //     });
-  //   this.commonApi
-  //     .fetchData({ entiId: this.entiId }, 'ims', 'center/list?list=full')
-  //     .subscribe({
-  //       next: (res: any) => {
-  //         this.centersFull = res?.data || [];
-  //       },
-  //     });
-  //   this.commonApi
-  //     .fetchData({ entiId: this.entiId }, 'batch', 'list?list=full')
-  //     .subscribe({
-  //       next: (res: any) => {
-  //         this.batchesFull = res?.data || [];
-  //         this.filteredBatches = this.batchesFull;
-  //       },
-  //     });
-  // }
-
-  // --- Filter Logic ---
   onProgramFilterChange() {
     if (this.selectedProgram) {
       this.filteredBatches = this.batchesFull.filter(
@@ -205,93 +191,39 @@ export class TimetableComponent implements OnInit {
     } else {
       this.filteredBatches = this.batchesFull;
     }
+
     this.selectedBatch = '';
-    this.applyFilters();
+    this.fetchTableData({ page: 1, pageSize: this.pageSize });
   }
 
   applyFilters() {
     this.fetchTableData({ page: 1, pageSize: this.pageSize });
   }
 
-  // --- List API ---
-  // loadTimetables(event?: { page: number; pageSize: number }) {
-  //   this.loading = true;
-  //   this.currentPage = event?.page || 1;
-  //   this.pageSize = event?.pageSize || 20;
+  // ================= UPLOAD =================
 
-  //   const queryParams: any = {
-  //     page: this.currentPage,
-  //     limit: this.pageSize,
-  //   };
-
-  //   if (this.selectedBatch) queryParams.batchCode = this.selectedBatch;
-  //   if (this.selectedCenter) queryParams.centerCode = this.selectedCenter;
-
-  //   const qs = Object.keys(queryParams)
-  //     .map((k) => `${k}=${encodeURIComponent(queryParams[k])}`)
-  //     .join('&');
-
-  //   this.commonApi
-  //     .fetchData({ entiId: this.entiId }, this.moduleName, `list?${qs}`)
-  //     .subscribe({
-  //       next: (res: any) => {
-  //         this.loading = false;
-  //         this.timetables = (res?.data || []).map((t: any) => ({
-  //           ...t,
-  //           _raw: t,
-  //         }));
-  //         this.totalRecords = res?.count || 0;
-  //       },
-  //       error: (err: any) => {
-  //         this.loading = false;
-  //         this.alert.error(err?.error?.message || 'Failed to load timetables');
-  //       },
-  //     });
-  // }
-
-  // --- CSV / Upload Handling ---
-  openUpload(): void {
+  openUpload() {
     this.showUpload = true;
     this.parsedPayload = null;
     this.parseStats = { daysFound: 0, periodsFound: 0 };
   }
 
-  closeUpload(): void {
+  closeUpload() {
     this.showUpload = false;
     this.file = null;
     this.uploadForm.reset();
     this.parsedPayload = null;
   }
 
-  downloadSample() {
-    const header =
-      'BatchCode,TimeStart,TimeEnd,Dates,FacultyID,Descriptions,Venue,RearrangedTo,Reason,IfCancelled,Phase,CentCode,WkStartOn';
-    const row1 =
-      'JEE-2025-A,09:00:00,10:30:00,2025-06-02,FAC001,Physics - Kinematics,Hall A,,,,Phase 1,CEN01,2025-06-02';
-    const row2 =
-      'JEE-2025-A,10:45:00,12:15:00,2025-06-02,FAC002,Maths - Calculus,Hall A,,,,Phase 1,CEN01,2025-06-02';
-    const csvContent =
-      'data:text/csv;charset=utf-8,' + [header, row1, row2].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'Timetable_Upload_Format.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
   onFileChange(e: any): void {
     const f = e.target.files?.[0];
     if (!f) return;
 
-    // Simple check for CSV
     if (f.name.endsWith('.csv') || f.type === 'text/csv') {
       this.file = f;
       this.parseCsv(f);
     } else {
-      this.alert.warning('Please upload a .csv file for automatic parsing.');
-      // If xlsx, you would need a library. For now, we handle CSV.
+      this.alert.warning('Please upload a .csv file.');
     }
   }
 
@@ -309,42 +241,31 @@ export class TimetableComponent implements OnInit {
     if (lines.length < 2) return;
 
     const headers = lines[0].split(',').map((h) => h.trim());
-    const data = [];
+    const data: any[] = [];
 
-    // Parse Rows
     for (let i = 1; i < lines.length; i++) {
       const row = lines[i].split(',');
       if (row.length < headers.length) continue;
+
       const obj: any = {};
-      headers.forEach((h, idx) => {
-        obj[h] = safeTrim(row[idx]);
-      });
+      headers.forEach((h, idx) => (obj[h] = safeTrim(row[idx])));
       data.push(obj);
     }
 
-    if (data.length === 0) {
+    if (!data.length) {
       this.alert.error('No valid data found in CSV');
       return;
     }
 
-    // Extract Meta from first row (assuming uniform file)
     const first = data[0];
-    const batchCode = first['BatchCode'];
-    const centerCode = first['CentCode'];
-    const phase = first['Phase'];
 
-    // Parse WkStartOn (Assume YYYY-MM-DD)
-    const wkStartRaw = first['WkStartOn']; // e.g. 2014-05-03
-
-    // Auto-fill Form
     this.uploadForm.patchValue({
-      batchCode: batchCode,
-      centerCode: centerCode,
-      phase: phase,
-      wkStartOn: wkStartRaw, // Input type=date expects yyyy-mm-dd
+      batchCode: first['BatchCode'],
+      centerCode: first['CentCode'],
+      phase: first['Phase'],
+      wkStartOn: first['WkStartOn'],
     });
 
-    // Group Periods by Day
     const weekMap = new Map<string, any[]>();
     const daysOrder = [
       'MONDAY',
@@ -357,18 +278,17 @@ export class TimetableComponent implements OnInit {
     ];
 
     data.forEach((row) => {
-      const dateStr = row['Dates']; // e.g. 25/12/2014 or 2014-12-25
+      const dateStr = row['Dates'];
       if (!dateStr) return;
 
       const dateObj = new Date(dateStr);
-      if (isNaN(dateObj.getTime())) return; // Skip invalid dates
+      if (isNaN(dateObj.getTime())) return;
 
       const dayName =
-        daysOrder[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1]; // JS: Sun=0, Mon=1. Map to Mon=0
+        daysOrder[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
 
       if (!weekMap.has(dayName)) weekMap.set(dayName, []);
 
-      // Convert Time to Min
       const startMin = this.timeToMin(row['TimeStart']);
       const endMin = this.timeToMin(row['TimeEnd']);
 
@@ -383,13 +303,11 @@ export class TimetableComponent implements OnInit {
       }
     });
 
-    // Construct Final Payload 'week' array
     const weekPayload: any[] = [];
+
     weekMap.forEach((periods, day) => {
-      // Sort periods by start time
       periods.sort((a, b) => a.startMin - b.startMin);
 
-      // Assign Period No
       const periodsWithNo = periods.map((p, idx) => ({
         periodNo: idx + 1,
         time: { startMin: p.startMin, endMin: p.endMin },
@@ -399,12 +317,13 @@ export class TimetableComponent implements OnInit {
       }));
 
       weekPayload.push({
-        day: day,
+        day,
         periods: periodsWithNo,
       });
     });
 
     this.parsedPayload = weekPayload;
+
     this.parseStats = {
       daysFound: weekPayload.length,
       periodsFound: weekPayload.reduce((acc, d) => acc + d.periods.length, 0),
@@ -427,7 +346,7 @@ export class TimetableComponent implements OnInit {
     }
 
     if (!this.parsedPayload) {
-      this.alert.error('No schedule data parsed. Please check the CSV.');
+      this.alert.error('No schedule data parsed.');
       return;
     }
 
@@ -438,17 +357,27 @@ export class TimetableComponent implements OnInit {
       batchCode: safeTrim(v.batchCode),
       centerCode: safeTrim(v.centerCode),
       phase: safeTrim(v.phase),
-      wkStartOn: new Date(v.wkStartOn).getTime(), // Convert to Epoch
+      wkStartOn: new Date(v.wkStartOn).getTime(),
       week: this.parsedPayload,
     };
 
     this.loading = true;
+
     this.commonApi.fetchData(payload, this.moduleName, 'create').subscribe({
-      next: () => {
+      next: (res: any) => {
         this.loading = false;
-        this.alert.success('Timetable created successfully');
+
+        const saved = res?.data;
+
+        this.alert.success('Timetable saved successfully');
+
         this.closeUpload();
-        // this.loadTimetables();
+
+        if (saved?._id) {
+          this.router.navigate(['/app/timetable/view', saved._id]);
+        } else {
+          this.fetchTableData({ page: 1, pageSize: this.pageSize });
+        }
       },
       error: (err: any) => {
         this.loading = false;
@@ -460,5 +389,26 @@ export class TimetableComponent implements OnInit {
   openView(row: any) {
     const item = row?._raw || row;
     this.router.navigate(['/app/timetable/view', item._id]);
+  }
+
+  downloadSample() {
+    const header =
+      'BatchCode,TimeStart,TimeEnd,Dates,FacultyID,Descriptions,Venue,RearrangedTo,Reason,IfCancelled,Phase,CentCode,WkStartOn';
+    const rows = [
+      'JEE-2025-A,09:00,10:30,2026-02-09,FAC001,Physics - Kinematics,Hall A,,,,Phase 1,CEN01,2026-02-09',
+      'JEE-2025-A,10:45,12:15,2026-02-09,FAC002,Maths - Calculus,Hall A,,,,Phase 1,CEN01,2026-02-09',
+      'JEE-2025-A,09:00,10:30,2026-02-10,FAC003,Chemistry - Atomic Structure,Lab 1,FAC004,Staff Replacement,,Phase 1,CEN01,2026-02-09',
+      'JEE-2025-A,09:00,10:30,2026-02-11,FAC001,Physics - Motion,Hall B,,Faculty on Leave,YES,Phase 1,CEN01,2026-02-09',
+      'JEE-2025-A,11:00,12:30,2026-02-12,FAC002,Maths - Limits,Hall A,,,,Phase 1,CEN01,2026-02-09',
+    ];
+    const csvContent =
+      'data:text/csv;charset=utf-8,' + [header, ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', 'Timetable_Upload_Format.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 }

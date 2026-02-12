@@ -3,7 +3,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 
-const safeTrim = (v: any) => (v === undefined || v === null ? '' : String(v).trim());
+const safeTrim = (v: any) =>
+  v === undefined || v === null ? '' : String(v).trim();
 
 @Component({
   selector: 'app-view',
@@ -12,25 +13,28 @@ const safeTrim = (v: any) => (v === undefined || v === null ? '' : String(v).tri
   styleUrl: './view.component.scss'
 })
 export class ViewComponent implements OnInit {
+
   loading = false;
   entiId: any;
   timetableId = '';
   private moduleName = 'timetable';
 
   timetable: any = null;
-  daysOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-  
-  // Grid Data
-  sortedSchedule: any[] = []; 
+
+  daysOrder = [
+    'MONDAY','TUESDAY','WEDNESDAY',
+    'THURSDAY','FRIDAY','SATURDAY','SUNDAY'
+  ];
+
+  sortedSchedule: any[] = [];
   maxPeriods = 0;
   periodHeaders: number[] = [];
 
-  // Upload Logic
   showUpload = false;
   file: File | null = null;
   parsedPayload: any = null;
   parseStats = { daysFound: 0, periodsFound: 0 };
-  uploadMeta: any = {}; // To store Batch/Center from CSV
+  uploadMeta: any = {};
 
   constructor(
     private router: Router,
@@ -53,51 +57,84 @@ export class ViewComponent implements OnInit {
 
   loadTimetable() {
     this.loading = true;
-    const payload = { entiId: this.entiId, timetableId: this.timetableId };
-    
-    this.commonApi.fetchData(payload, this.moduleName, 'view').subscribe({
-      next: (res: any) => {
-        this.loading = false;
-        this.timetable = res?.data || null;
-        this.processSchedule();
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Failed to load timetable');
-      }
-    });
+
+    const payload = {
+      entiId: this.entiId,
+      timetableId: this.timetableId
+    };
+
+    this.commonApi.fetchData(payload, this.moduleName, 'view')
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          this.timetable = res?.data || null;
+          this.processSchedule();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Failed to load timetable');
+        }
+      });
   }
 
   processSchedule() {
-    if (!this.timetable || !this.timetable.week) return;
 
-    // Fix 1: Explicitly define Map type <string, any>
-    const weekMap = new Map<string, any>(this.timetable.week.map((d: any) => [d.day.toUpperCase(), d]));
-    
+    if (!this.timetable?.week) return;
+
+    const weekMap = new Map<string, any>(
+      this.timetable.week.map((d: any) => [d.day.toUpperCase(), d])
+    );
+
     this.sortedSchedule = this.daysOrder.map(day => ({
-        day,
-        periods: (weekMap.get(day)?.periods || []).sort((a: any, b: any) => a.periodNo - b.periodNo)
+      day,
+      periods: (weekMap.get(day)?.periods || [])
+        .sort((a: any, b: any) => a.periodNo - b.periodNo)
     })).filter(d => d.periods.length > 0);
 
-    // Determine max periods
     this.maxPeriods = 0;
+
     this.sortedSchedule.forEach(d => {
-        const lastP = d.periods[d.periods.length - 1];
-        if (lastP && lastP.periodNo > this.maxPeriods) this.maxPeriods = lastP.periodNo;
+      const lastP = d.periods[d.periods.length - 1];
+      if (lastP && lastP.periodNo > this.maxPeriods)
+        this.maxPeriods = lastP.periodNo;
     });
 
-    this.periodHeaders = Array.from({length: this.maxPeriods}, (_, i) => i + 1);
+    this.periodHeaders = Array.from(
+      { length: this.maxPeriods },
+      (_, i) => i + 1
+    );
   }
 
+  // ===== APPLY OVERRIDES =====
+
   getPeriod(dayRow: any, pNum: number) {
-    return dayRow.periods.find((p: any) => p.periodNo === pNum);
+
+    const base = dayRow.periods.find(
+      (p: any) => p.periodNo === pNum
+    );
+
+    if (!base) return null;
+
+    if (!this.timetable?.overrides?.length)
+      return base;
+
+    const override = this.timetable.overrides.find(
+      (o: any) =>
+        o.day === dayRow.day &&
+        o.periodNo === pNum
+    );
+
+    if (!override) return base;
+
+    return override.period || base;
   }
 
   back() {
     this.router.navigate(['/app/timetable']);
   }
 
-  // --- Upload Logic (Same as List) ---
+  // ===== CSV UPDATE =====
+
   openUpload() {
     this.showUpload = true;
     this.file = null;
@@ -109,21 +146,10 @@ export class ViewComponent implements OnInit {
     this.showUpload = false;
   }
 
-  downloadSample() {
-    const header = 'BatchCode,TimeStart,TimeEnd,Dates,FacultyID,Descriptions,Venue,RearrangedTo,Reason,IfCancelled,Phase,CentCode,WkStartOn';
-    const row1 = 'JEE-2025-A,09:00:00,10:30:00,2025-06-02,FAC001,Physics,Hall A,,,,Phase 1,CEN01,2025-06-02';
-    const csvContent = "data:text/csv;charset=utf-8," + [header, row1].join("\n");
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", "Timetable_Upload_Format.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
   onFileChange(e: any): void {
     const f = e.target.files?.[0];
     if (!f) return;
+
     if (f.name.endsWith('.csv') || f.type === 'text/csv') {
       this.file = f;
       this.parseCsv(f);
@@ -141,24 +167,33 @@ export class ViewComponent implements OnInit {
   }
 
   processCsvData(csvText: string) {
-    const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
+
+    const lines = csvText.split(/\r\n|\n/)
+      .filter(line => line.trim() !== '');
+
     if (lines.length < 2) return;
 
     const headers = lines[0].split(',').map(h => h.trim());
-    const data = [];
+    const data: any[] = [];
 
     for (let i = 1; i < lines.length; i++) {
       const row = lines[i].split(',');
       if (row.length < headers.length) continue;
+
       const obj: any = {};
-      headers.forEach((h, idx) => obj[h] = safeTrim(row[idx]));
+      headers.forEach((h, idx) =>
+        obj[h] = safeTrim(row[idx])
+      );
       data.push(obj);
     }
 
-    if (!data.length) { this.alert.error('No valid data'); return; }
+    if (!data.length) {
+      this.alert.error('No valid data');
+      return;
+    }
 
-    // Extract Meta
     const first = data[0];
+
     this.uploadMeta = {
       batchCode: first['BatchCode'],
       centerCode: first['CentCode'],
@@ -166,25 +201,29 @@ export class ViewComponent implements OnInit {
       wkStartOn: first['WkStartOn']
     };
 
-    // Group Periods
     const weekMap = new Map<string, any[]>();
-    const daysOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+    const daysOrder = this.daysOrder;
 
     data.forEach(row => {
       const dateStr = row['Dates'];
       if (!dateStr) return;
+
       const dateObj = new Date(dateStr);
       if (isNaN(dateObj.getTime())) return;
 
-      const dayName = daysOrder[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
-      if (!weekMap.has(dayName)) weekMap.set(dayName, []);
+      const dayName =
+        daysOrder[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
+
+      if (!weekMap.has(dayName))
+        weekMap.set(dayName, []);
 
       const startMin = this.timeToMin(row['TimeStart']);
       const endMin = this.timeToMin(row['TimeEnd']);
 
       if (startMin !== null && endMin !== null) {
         weekMap.get(dayName)?.push({
-          startMin, endMin,
+          startMin,
+          endMin,
           facultyId: row['FacultyID'],
           topic: row['Descriptions'],
           venue: row['Venue']
@@ -193,8 +232,13 @@ export class ViewComponent implements OnInit {
     });
 
     const weekPayload: any[] = [];
+
     weekMap.forEach((periods, day) => {
-      periods.sort((a, b) => a.startMin - b.startMin);
+
+      periods.sort((a, b) =>
+        a.startMin - b.startMin
+      );
+
       const periodsWithNo = periods.map((p, idx) => ({
         periodNo: idx + 1,
         time: { startMin: p.startMin, endMin: p.endMin },
@@ -202,13 +246,18 @@ export class ViewComponent implements OnInit {
         topic: p.topic,
         venue: p.venue
       }));
+
       weekPayload.push({ day, periods: periodsWithNo });
     });
 
     this.parsedPayload = weekPayload;
+
     this.parseStats = {
       daysFound: weekPayload.length,
-      periodsFound: weekPayload.reduce((acc, d) => acc + d.periods.length, 0)
+      periodsFound: weekPayload.reduce(
+        (acc, d) => acc + d.periods.length,
+        0
+      )
     };
   }
 
@@ -222,12 +271,8 @@ export class ViewComponent implements OnInit {
   }
 
   submitUpload() {
+
     if (!this.parsedPayload) return;
-    
-    // Check if uploaded CSV matches current timetable context
-    if (this.uploadMeta.batchCode !== this.timetable.batchCode) {
-        if(!confirm(`Warning: CSV Batch (${this.uploadMeta.batchCode}) does not match current Batch (${this.timetable.batchCode}). Continue?`)) return;
-    }
 
     const payload = {
       entiId: this.entiId,
@@ -239,24 +284,30 @@ export class ViewComponent implements OnInit {
     };
 
     this.loading = true;
-    this.commonApi.fetchData(payload, this.moduleName, 'create').subscribe({
-      next: (res: any) => {
-        this.loading = false;
-        this.alert.success('Timetable updated successfully');
-        this.closeUpload();
-        // If the update was for the same week, reload. Else navigate/alert.
-        if (res.data?._id === this.timetableId) {
+
+    this.commonApi.fetchData(payload, this.moduleName, 'create')
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+
+          const saved = res?.data;
+
+          this.alert.success('Timetable updated successfully');
+
+          this.closeUpload();
+
+          if (saved?._id) {
+            this.router.navigate(
+              ['/app/timetable/view', saved._id]
+            );
+          } else {
             this.loadTimetable();
-        } else {
-            // Fix 2: Changed .info() to .success()
-            this.alert.success('New timetable version created. Redirecting...');
-            this.router.navigate(['/app/timetable']);
+          }
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Update failed');
         }
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Update failed');
-      }
-    });
+      });
   }
 }
