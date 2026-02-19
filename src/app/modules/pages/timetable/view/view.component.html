@@ -1,11 +1,11 @@
 <div class="timetable-view-page" *ngIf="timetable">
-
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h5 class="mb-1 fw-semibold">Timetable View</h5>
                 <p class="mb-0 text-muted small">
-                    {{ timetable.batchCode }} • {{ timetable.centerCode }} • {{ timetable.phase || 'General' }}
+                    {{ timetable.batchCode }} • {{ getCenterName(timetable.centerCode) }} •
+                    {{ timetable.phase || "General" }}
                 </p>
             </div>
 
@@ -13,27 +13,24 @@
                 <button class="btn btn-sm btn-outline-secondary" (click)="back()">
                     <i class="fa-solid fa-arrow-left me-1"></i> Back
                 </button>
-
-                <button class="btn btn-sm btn-outline-primary" (click)="openUpload()">
-                    <i class="fa-solid fa-upload me-1"></i> Update via CSV
-                </button>
             </div>
         </div>
 
         <div class="card-body pt-0">
-
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
                     <div class="border rounded-3 p-2 small">
                         <div class="text-muted">Week Starting</div>
-                        <div class="fw-semibold">{{ timetable.wkStartOn | date:'mediumDate' }}</div>
+                        <div class="fw-semibold">
+                            {{ timetable.wkStartOn | date: "mediumDate" }}
+                        </div>
                     </div>
                 </div>
 
                 <div class="col-md-3">
                     <div class="border rounded-3 p-2 small">
                         <div class="text-muted">Status</div>
-                        <span class="badge" [ngClass]="timetable.status==='Active'?'bg-success':'bg-secondary'">
+                        <span class="badge" [ngClass]="timetable.status === 'Active' ? 'bg-success' : 'bg-secondary'">
                             {{ timetable.status }}
                         </span>
                     </div>
@@ -44,88 +41,284 @@
                 <table class="table table-bordered mb-0 timetable-grid">
                     <thead class="bg-light">
                         <tr>
-                            <th class="text-uppercase small text-muted" style="width: 100px;">Day</th>
+                            <th class="text-uppercase small text-muted" style="width: 140px">
+                                Day
+                            </th>
                             <th *ngFor="let pNum of periodHeaders" class="text-center small text-muted">
                                 Period {{ pNum }}
                             </th>
                         </tr>
                     </thead>
+
                     <tbody>
                         <tr *ngFor="let row of sortedSchedule">
-                            <td class="fw-bold bg-light text-center align-middle">{{ row.day }}</td>
+                            <td class="fw-bold bg-light text-center align-middle">
+                                <div>{{ row.day }}</div>
+                                <div class="small text-muted">{{ row.dateLabel }}</div>
+
+                                <div class="d-flex justify-content-center gap-1 mt-2">
+                                    <button class="btn btn-sm btn-outline-danger" (click)="openCancelDay(row)"
+                                        [disabled]="loading">
+                                        <i class="fa-solid fa-ban me-1"></i> Holiday
+                                    </button>
+                                </div>
+
+                                <div *ngIf="isDayCancelled(row.dateMs, row.day)" class="mt-2">
+                                    <span class="badge bg-danger">Holiday</span>
+                                </div>
+                            </td>
 
                             <td *ngFor="let pNum of periodHeaders" class="p-0 position-relative tt-cell">
-                                <ng-container *ngIf="getPeriod(row, pNum) as p">
+                                <ng-container *ngIf="getRenderedPeriod(row, pNum) as p; else freeCell">
                                     <div class="p-2 h-100 d-flex flex-column align-items-center justify-content-center"
-                                        [class.bg-danger-subtle]="p.isCancelled">
+                                        [class.bg-danger-subtle]="p.isCancelled"
+                                        [class.bg-secondary-subtle]="p.__dayCancelled">
+                                        <ng-container *ngIf="!p.__dayCancelled; else dayCancelledTpl">
+                                            <div class="fw-bold small">
+                                                {{ resolveSubjectLabel(p) || "-" }}
+                                            </div>
+                                            <div class="text-muted small" style="font-size: 0.75rem">
+                                                {{ resolveFacultyLabel(p) || "-" }}
+                                            </div>
+                                            <div class="text-muted small" style="font-size: 0.7rem">
+                                                {{ p.time?.startLabel }} - {{ p.time?.endLabel }}
+                                            </div>
 
-                                        <div class="fw-bold small">{{ p.subjectCode || p.subjectName || '-' }}</div>
-                                        <div class="text-muted small" style="font-size: 0.75rem;">
-                                            {{ p.facultyName || p.facultyId }}
-                                        </div>
-                                        <div class="text-muted small" style="font-size: 0.7rem;">
-                                            {{ p.time?.startLabel }} - {{ p.time?.endLabel }}
-                                        </div>
+                                            <div *ngIf="p.isCancelled" class="badge bg-danger mt-1">
+                                                Cancelled
+                                            </div>
 
-                                        <div *ngIf="p.isCancelled" class="badge bg-danger mt-1">Cancelled</div>
-                                        <div *ngIf="p.venue" class="badge bg-light text-dark border mt-1">{{ p.venue }}
-                                        </div>
+                                            <div *ngIf="p.venue" class="badge bg-light text-dark border mt-1">
+                                                {{ p.venue }}
+                                            </div>
+
+                                            <div class="d-flex gap-1 mt-2 flex-wrap justify-content-center">
+                                                <button class="btn btn-sm btn-outline-danger"
+                                                    (click)="openCancelPeriod(row, pNum)" [disabled]="loading">
+                                                    Cancel
+                                                </button>
+
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                    (click)="openRearrangeStaff(row, pNum)" [disabled]="loading">
+                                                    Staff
+                                                </button>
+
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                    (click)="openMovePeriod(row, pNum)" [disabled]="loading">
+                                                    Move
+                                                </button>
+
+                                                <button class="btn btn-sm btn-outline-primary"
+                                                    (click)="openReplacePeriod(row, pNum)" [disabled]="loading">
+                                                    Replace
+                                                </button>
+                                            </div>
+                                        </ng-container>
+
+                                        <ng-template #dayCancelledTpl>
+                                            <div class="fw-bold small">Holiday</div>
+                                            <div class="text-muted small" style="font-size: 0.75rem">
+                                                Cancelled for the day
+                                            </div>
+                                        </ng-template>
                                     </div>
                                 </ng-container>
-                                <ng-container *ngIf="!getPeriod(row, pNum)">
+
+                                <ng-template #freeCell>
                                     <div class="text-muted small text-center p-3 opacity-25">Free</div>
-                                </ng-container>
+                                </ng-template>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-
         </div>
     </div>
 
-    <div class="app-modal-backdrop" *ngIf="showUpload">
+    <!-- CANCEL DAY MODAL -->
+    <div class="app-modal-backdrop" *ngIf="showCancelDay">
         <div class="app-modal timetable-modal">
-
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Update Timetable</h6>
-                    <span class="text-muted small">Upload modified CSV to update</span>
+                    <h6 class="mb-0 fw-semibold">Declare Holiday</h6>
+                    <span class="text-muted small">{{ activeDay?.day }} • {{ activeDay?.dateLabel }}</span>
                 </div>
-                <button class="btn-close" (click)="closeUpload()"></button>
+                <button class="btn-close" (click)="closeCancelDay()"></button>
             </div>
 
             <div class="app-modal-body">
-                <div class="d-flex justify-content-end mb-2">
-                    <button class="btn btn-sm btn-link text-decoration-none" (click)="downloadSample()">
-                        <i class="fa-solid fa-download me-1"></i> Download Template
-                    </button>
+                <label class="form-label small text-muted">Reason</label>
+                <input class="form-control" [(ngModel)]="cancelDayReason" placeholder="Holiday reason" />
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button class="btn btn-outline-secondary" (click)="closeCancelDay()">Cancel</button>
+                    <button class="btn btn-danger" (click)="submitCancelDay()" [disabled]="loading">Confirm
+                        Holiday</button>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <div class="border rounded-3 p-3 mb-3">
-                    <label class="form-label small text-muted">Select CSV File</label>
-                    <input type="file" class="form-control" accept=".csv" (change)="onFileChange($event)" />
+    <!-- CANCEL PERIOD MODAL -->
+    <div class="app-modal-backdrop" *ngIf="showCancelPeriod">
+        <div class="app-modal timetable-modal">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Cancel Period</h6>
+                    <span class="text-muted small">
+                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • Period {{ activePeriodNo }}
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeCancelPeriod()"></button>
+            </div>
 
-                    <div class="mt-2" *ngIf="parsedPayload">
-                        <div class="alert alert-success small mb-0">
-                            <strong>Ready to Update:</strong>
-                            <br>
-                            Batch: {{ uploadMeta.batchCode }} | Week: {{ uploadMeta.wkStartOn }}
-                            <br>
-                            Found {{ parseStats.periodsFound }} periods.
+            <div class="app-modal-body">
+                <label class="form-label small text-muted">Reason</label>
+                <input class="form-control" [(ngModel)]="cancelPeriodReason" placeholder="Cancel reason" />
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button class="btn btn-outline-secondary" (click)="closeCancelPeriod()">Cancel</button>
+                    <button class="btn btn-danger" (click)="submitCancelPeriod()" [disabled]="loading">Confirm
+                        Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REARRANGE STAFF MODAL (UPDATED to SELECT) -->
+    <div class="app-modal-backdrop" *ngIf="showRearrangeStaff">
+        <div class="app-modal timetable-modal">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Rearrange Staff</h6>
+                    <span class="text-muted small">
+                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • Period {{ activePeriodNo }}
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeRearrangeStaff()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="row g-2">
+                    <div class="col-md-12">
+                        <label class="form-label small text-muted">New Faculty *</label>
+                        <select class="form-select" [(ngModel)]="newFacultyId" (change)="onNewFacultySelected()">
+                            <option value="">Select Faculty</option>
+                            <option *ngFor="let s of staffFull" [value]="s.staffCode">
+                                {{ s.staffName }} ({{ s.staffCode }})
+                            </option>
+                        </select>
+                        <div class="form-text small" *ngIf="newFacultyName">
+                            Selected: <b>{{ newFacultyName }}</b>
                         </div>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2">
-                    <button class="btn btn-outline-secondary" (click)="closeUpload()">Cancel</button>
-                    <button class="btn btn-saffron" (click)="submitUpload()" [disabled]="!parsedPayload || loading">
-                        Confirm Update
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button class="btn btn-outline-secondary" (click)="closeRearrangeStaff()">Cancel</button>
+                    <button class="btn btn-primary" (click)="submitRearrangeStaff()"
+                        [disabled]="loading || !newFacultyId">
+                        Update Staff
                     </button>
                 </div>
             </div>
-
         </div>
     </div>
 
+    <!-- MOVE PERIOD MODAL -->
+    <div class="app-modal-backdrop" *ngIf="showMovePeriod">
+        <div class="app-modal timetable-modal">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Move Period</h6>
+                    <span class="text-muted small">
+                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • From Period {{ activePeriodNo }}
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeMovePeriod()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <label class="form-label small text-muted">Move to Period No *</label>
+                <input type="number" class="form-control" [(ngModel)]="moveToPeriodNo" min="1" />
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button class="btn btn-outline-secondary" (click)="closeMovePeriod()">Cancel</button>
+                    <button class="btn btn-primary" (click)="submitMovePeriod()"
+                        [disabled]="loading || !moveToPeriodNo">
+                        Move
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REPLACE PERIOD MODAL (UPDATED staff + subject to SELECT) -->
+    <div class="app-modal-backdrop" *ngIf="showReplacePeriod">
+        <div class="app-modal timetable-modal">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Replace Period</h6>
+                    <span class="text-muted small">
+                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • Period {{ activePeriodNo }}
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeReplacePeriod()"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <div class="alert alert-info small">
+                    Fill only what you want to change. Backend merges with template period.
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Faculty</label>
+                        <select class="form-select" [(ngModel)]="rp.facultyId" (change)="onReplaceFacultySelected()">
+                            <option value="">-- No Change --</option>
+                            <option *ngFor="let s of staffFull" [value]="s.staffCode">
+                                {{ s.staffName }} ({{ s.staffCode }})
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Faculty Name</label>
+                        <input class="form-control" [(ngModel)]="rp.facultyName" placeholder="Auto-filled" readonly />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Subject</label>
+                        <select class="form-select" [(ngModel)]="rp.subjectCode" (change)="onReplaceSubjectSelected()">
+                            <option value="">-- No Change --</option>
+                            <option *ngFor="let sub of subjectsFull" [value]="sub.subjectCode">
+                                {{ sub.subjectName }} ({{ sub.subjectCode }})
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Subject Name</label>
+                        <input class="form-control" [(ngModel)]="rp.subjectName" placeholder="Auto-filled" readonly />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Venue</label>
+                        <input class="form-control" [(ngModel)]="rp.venue" placeholder="Hall A" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Topic</label>
+                        <input class="form-control" [(ngModel)]="rp.topic" placeholder="Topic/Description" />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button class="btn btn-outline-secondary" (click)="closeReplacePeriod()">Cancel</button>
+                    <button class="btn btn-primary" (click)="submitReplacePeriod()" [disabled]="loading">
+                        Replace
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

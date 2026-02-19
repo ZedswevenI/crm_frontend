@@ -5,7 +5,7 @@
             <div>
                 <h5 class="mb-1 fw-semibold">Timetable Management</h5>
                 <p class="mb-0 text-muted small">
-                    Manage batch-wise timetables. Upload CSV to create/update.
+                    Manage batch-wise timetables. Upload CSV to create/update or import multiple.
                 </p>
             </div>
 
@@ -17,108 +17,162 @@
 
         <div class="card-body pt-0">
             <div class="row g-2 mb-3">
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm" [(ngModel)]="selectedProgram"
-                        (change)="onProgramFilterChange()">
-                        <option value="">All Programs</option>
-                        <option *ngFor="let p of programsFull" [value]="p.programId">{{ p.programName }}</option>
+
+                <!-- Center Filter (NEW) -->
+                <div class="col-md-4">
+                    <select class="form-select form-select-sm" [(ngModel)]="selectedCenter"
+                        (change)="onCenterFilterChange()">
+                        <option value="">All Centers</option>
+                        <option *ngFor="let c of centersFull" [value]="c.centerCode">
+                            {{ c.centerName }} ({{ c.centerCode }})
+                        </option>
                     </select>
                 </div>
-                <div class="col-md-3">
+
+                <!-- Batch Filter -->
+                <div class="col-md-4">
                     <select class="form-select form-select-sm" [(ngModel)]="selectedBatch" (change)="applyFilters()">
                         <option value="">All Batches</option>
-                        <option *ngFor="let b of filteredBatches" [value]="b.batchCode">{{ b.batchName }}
-                            ({{b.batchCode}})</option>
+                        <option *ngFor="let b of filteredBatches" [value]="b.batchCode">
+                            {{ b.batchName }} ({{ b.batchCode }})
+                        </option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm" [(ngModel)]="selectedCenter" (change)="applyFilters()">
-                        <option value="">All Centers</option>
-                        <option *ngFor="let c of centersFull" [value]="c.centerCode">{{ c.centerName }}</option>
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex gap-2">
+
+                <div class="col-md-4 d-flex gap-2">
                     <button class="btn btn-sm btn-outline-secondary"
-                        (click)="selectedProgram=''; selectedBatch=''; selectedCenter=''; applyFilters()">
+                        (click)="selectedCenter=''; selectedBatch=''; onCenterFilterChange(); applyFilters()">
                         Reset
                     </button>
                     <button class="btn btn-sm btn-primary" (click)="applyFilters()">Search</button>
                 </div>
             </div>
 
-            <!-- <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [totalRecords]="totalRecords"
-                [actions]="actions" [showpageoptions]="true" (requestData)="loadTimetables($event)">
-            </list-table> -->
             <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [totalRecords]="totalRecords"
-                [actions]="actions" [showpageoptions]="true"  (requestData)="fetchTableData($event)">
-            </list-table> 
+                [actions]="actions" [showpageoptions]="true" (requestData)="fetchTableData($event)">
+            </list-table>
         </div>
     </div>
 
+    <!-- UPLOAD / IMPORT MODAL -->
     <div class="app-modal-backdrop" *ngIf="showUpload">
         <div class="app-modal timetable-modal">
 
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">Upload Timetable</h6>
-                    <span class="text-muted small">Upload CSV to auto-fill details</span>
+                    <span class="text-muted small">
+                        Upload CSV to create/update (single) or import multiple
+                    </span>
                 </div>
                 <button class="btn-close" (click)="closeUpload()"></button>
             </div>
 
             <div class="app-modal-body">
+
                 <div class="d-flex justify-content-end mb-2">
                     <button class="btn btn-sm btn-link text-decoration-none" (click)="downloadSample()">
                         <i class="fa-solid fa-download me-1"></i> Download Sample CSV
                     </button>
                 </div>
 
-                <form [formGroup]="uploadForm" (ngSubmit)="submitUpload()">
-                    <div class="row g-3">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Select CSV File</label>
+                        <input type="file" class="form-control" accept=".csv" (change)="onFileChange($event)">
 
+                        <div class="form-text small text-danger" *ngIf="parseError">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ parseError }}
+                        </div>
+
+                        <div class="form-text small" *ngIf="parsedPayload && !parseError">
+                            <i class="fa-solid fa-check-circle text-success me-1"></i>
+                            Parsed successfully:
+                            {{ parseStats.totalGroups }} timetable(s) •
+                            {{ parseStats.totalDays }} days •
+                            {{ parseStats.totalPeriods }} periods
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <hr class="my-1">
+                    </div>
+
+                    <!-- single meta -->
+                    <ng-container *ngIf="parsedPayload && parsedMeta && parseStats.totalGroups === 1 && !parseError">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Batch Code</label>
+                            <input class="form-control form-control-sm" [value]="parsedMeta.batchCode" disabled />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Center Code</label>
+                            <input class="form-control form-control-sm" [value]="parsedMeta.centerCode" disabled />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Week Starting</label>
+                            <input class="form-control form-control-sm" [value]="parsedMeta.wkStartOnLabel" disabled />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Phase</label>
+                            <input class="form-control form-control-sm" [value]="parsedMeta.phase" disabled />
+                        </div>
+                    </ng-container>
+
+                    <!-- multi summary -->
+                    <ng-container *ngIf="parsedPayload && parseStats.totalGroups > 1 && !parseError">
                         <div class="col-12">
-                            <label class="form-label small fw-bold">Select CSV File</label>
-                            <input type="file" class="form-control" accept=".csv" (change)="onFileChange($event)">
-                            <div class="form-text small" *ngIf="parsedPayload">
-                                <i class="fa-solid fa-check-circle text-success me-1"></i>
-                                Parsed successfully: {{ parseStats.periodsFound }} periods across {{
-                                parseStats.daysFound }} days.
+                            <div class="alert alert-info small mb-0">
+                                <div class="fw-semibold mb-1">Multiple timetables found in this CSV.</div>
+                                <div>Click <b>Import</b> to bulk upload all groups.</div>
                             </div>
                         </div>
 
                         <div class="col-12">
-                            <hr class="my-1">
+                            <div class="table-responsive border rounded-3">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th>Batch</th>
+                                            <th>Center</th>
+                                            <th>Week Start</th>
+                                            <th>Phase</th>
+                                            <th class="text-end">Days</th>
+                                            <th class="text-end">Periods</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let g of parsedGroupsPreview">
+                                            <td class="fw-semibold">{{ g.batchCode }}</td>
+                                            <td>{{ g.centerCode }}</td>
+                                            <td>{{ g.wkStartOnLabel }}</td>
+                                            <td>{{ g.phase || '-' }}</td>
+                                            <td class="text-end">{{ g.daysCount }}</td>
+                                            <td class="text-end">{{ g.periodsCount }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
+                    </ng-container>
+                </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Batch Code *</label>
-                            <input class="form-control form-control-sm" formControlName="batchCode">
-                        </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary" (click)="closeUpload()">Cancel</button>
 
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Center Code *</label>
-                            <input class="form-control form-control-sm" formControlName="centerCode">
-                        </div>
+                    <button type="button" class="btn btn-saffron" *ngIf="parsedPayload && parseStats.totalGroups === 1"
+                        [disabled]="!parsedPayload || !!parseError || loading" (click)="submitCreateFromCsv()">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Create / Update
+                    </button>
 
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Week Starting (Monday) *</label>
-                            <input class="form-control form-control-sm" type="date" formControlName="wkStartOn">
-                        </div>
+                    <button type="button" class="btn btn-primary" *ngIf="parsedPayload && parseStats.totalGroups > 1"
+                        [disabled]="!parsedPayload || !!parseError || loading" (click)="submitImportFromCsv()">
+                        <i class="fa-solid fa-file-import me-1"></i> Import
+                    </button>
+                </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Phase (Optional)</label>
-                            <input class="form-control form-control-sm" formControlName="phase">
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-end gap-2 mt-4">
-                        <button type="button" class="btn btn-outline-secondary" (click)="closeUpload()">Cancel</button>
-                        <button type="submit" class="btn btn-saffron"
-                            [disabled]="uploadForm.invalid || !parsedPayload || loading">
-                            <i class="fa-solid fa-floppy-disk me-1"></i> Create Timetable
-                        </button>
-                    </div>
-                </form>
             </div>
 
         </div>

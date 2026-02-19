@@ -396,7 +396,6 @@ export class StaffComponent implements OnInit {
     this.staffForm.get('role')?.valueChanges.subscribe((role) => {
       const ftCtrl = this.staffForm.get('facultyType');
       const subCtrl = this.staffForm.get('subject');
-
       if (role !== 'Faculty') {
         ftCtrl?.setValue(null, { emitEvent: false });
         subCtrl?.setValue(null, { emitEvent: false });
