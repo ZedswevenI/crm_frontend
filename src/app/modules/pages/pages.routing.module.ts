@@ -27,6 +27,10 @@ const routes: Routes = [
     loadChildren: () => import('./batch/batch.module').then(m => m.BatchModule)
   },
   {
+    path: 'phaseplan',
+    loadChildren: () => import('./phaseplan/phaseplan.module').then(m => m.PhaseplanModule)
+  },
+  {
     path: 'students',
     loadChildren: () => import('./students/students.module').then(m => m.StudentsModule)
   },

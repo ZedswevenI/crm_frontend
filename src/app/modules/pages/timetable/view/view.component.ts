@@ -1,14 +1,39 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject } from 'rxjs';
+import { takeUntil, catchError, of } from 'rxjs';
 
 const safeTrim = (v: any) =>
   v === undefined || v === null ? '' : String(v).trim();
+
 const toInt = (v: any, def = 0) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.trunc(n) : def;
+};
+
+/** "HH:MM" → minutes from midnight */
+const timeStrToMin = (t: string): number => {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+/** minutes from midnight → "hh:mm AM/PM" */
+const minToLabel = (min: number): string => {
+  const h24 = Math.floor(min / 60);
+  const mm = min % 60;
+  const period = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${String(h12).padStart(2, '0')}:${String(mm).padStart(2, '0')} ${period}`;
+};
+
+/** minutes from midnight → "HH:MM" for <input type="time"> */
+const minToTimeStr = (min: number): string => {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
 @Component({
@@ -17,9 +42,10 @@ const toInt = (v: any, def = 0) => {
   templateUrl: './view.component.html',
   styleUrl: './view.component.scss',
 })
-export class ViewComponent implements OnInit {
+export class ViewComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   loading = false;
-  entiId: any;
+  tenantId: any;
   timetableId = '';
   private moduleName = 'timetable';
   timetable: any = null;
@@ -41,16 +67,13 @@ export class ViewComponent implements OnInit {
   sortedSchedule: any[] = [];
   maxPeriods = 0;
   periodHeaders: number[] = [];
-  showUpload = false;
-  file: File | null = null;
-  parsedPayload: any = null;
-  parseStats = { daysFound: 0, periodsFound: 0 };
-  uploadMeta: any = {};
   weekDateMap: any = {};
   activeDay: any = null;
-  activePeriodNo: number = 0;
+  activePeriodNo = 0;
   showCancelDay = false;
   cancelDayReason = 'Holiday';
+  showEditDay = false;
+  editDayPeriods: any[] = [];
   showCancelPeriod = false;
   cancelPeriodReason = 'Cancelled';
   showRearrangeStaff = false;
@@ -66,13 +89,29 @@ export class ViewComponent implements OnInit {
     subjectName: '',
     venue: '',
     topic: '',
+    periodType: '',
+    mode: '',
+    zoomUrl: '',
+  };
+  showSetZoom = false;
+  zoomUrlInput = '';
+  showConvertToExam = false;
+  examForm: any = {
+    examId: '',
+    examDescription: '',
+    facultyId: '',
+    facultyName: '',
+    venue: '',
+    topic: '',
   };
   viewMode: 'week' | 'range' = 'week';
   fromDateStr = '';
   toDateStr = '';
   rangeMetaLabel = '';
-
   private lastWeeklyTimetable: any = null;
+  editDayConflicts: any[] = [];
+  editDayValidating = false;
+  private staffById: Record<string, any> = {};
 
   constructor(
     private router: Router,
@@ -80,7 +119,8 @@ export class ViewComponent implements OnInit {
     private alert: AlertService,
     private commonApi: CommonapiService,
   ) {
-    this.entiId = localStorage.getItem('tenantId');
+    this.tenantId =
+      localStorage.getItem('tenantId') || localStorage.getItem('entiId');
   }
 
   ngOnInit(): void {
@@ -90,151 +130,156 @@ export class ViewComponent implements OnInit {
       this.router.navigate(['/app/timetable']);
       return;
     }
-
-    // load lookups first (so selects are ready), then load timetable
     this.loadLookupsAndTimetable();
   }
 
-  // ================= LOOKUPS =================
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // ===================== LOOKUPS =====================
+
   private loadLookupsAndTimetable() {
     this.loading = true;
-    const entiId = this.entiId;
+    const tenantId = this.tenantId;
 
     forkJoin({
-      center: this.commonApi.fetchData(
-        { entiId },
-        'ims',
-        'center/list?list=full',
-      ),
-      staff: this.commonApi.fetchData(
-        { entiId },
-        'ims',
-        'staff/list?list=full',
-      ),
-      subject: this.commonApi.fetchData(
-        { entiId },
-        'ims',
-        'subject/list?list=full',
-      ),
-    }).subscribe({
-      next: ({ center, staff, subject }: any) => {
-        this.centersFull = center?.data || [];
-        this.staffFull = staff?.data || [];
-        this.subjectsFull = subject?.data || [];
+      center: this.commonApi
+        .fetchData({ tenantId }, 'ims', 'center/list?list=full')
+        .pipe(
+          catchError((e) => {
+            console.warn('center lookup failed', e);
+            return of({ data: [] });
+          }),
+        ),
+      staff: this.commonApi
+        .fetchData({ tenantId }, 'ims', 'staff/list?list=full')
+        .pipe(
+          catchError((e) => {
+            console.warn('staff lookup failed', e);
+            return of({ data: [] });
+          }),
+        ),
+      subject: this.commonApi
+        .fetchData({ entiId: tenantId }, 'ims', 'subject/list?list=full')
+        .pipe(
+          catchError((e) => {
+            console.warn('subject lookup failed', e);
+            return of({ data: [] });
+          }),
+        ),
+    })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: ({ center, staff, subject }: any) => {
+          this.centersFull = center?.data || [];
+          this.staffFull = staff?.data || [];
+          this.subjectsFull = subject?.data || [];
+          this.centerByCode = {};
+          this.centersFull.forEach((c: any) => {
+            const code = safeTrim(c?.centerCode);
+            if (code) this.centerByCode[code] = c;
+          });
+          this.staffByCode = {};
+          this.staffById = {};
+          this.staffFull.forEach((s: any) => {
+            const code = safeTrim(s?.staffCode);
+            if (code) this.staffByCode[code] = s;
+            [safeTrim(s?.staffId), safeTrim(s?._id), safeTrim(s?.employeeId)]
+              .filter(Boolean)
+              .forEach((k) => {
+                this.staffById[k] = s;
+              });
+          });
 
-        this.centerByCode = {};
-        this.centersFull.forEach((c: any) => {
-          const code = safeTrim(c?.centerCode);
-          if (code) this.centerByCode[code] = c;
-        });
+          this.subjectByCode = {};
+          this.subjectsFull.forEach((sub: any) => {
+            const code = safeTrim(sub?.subjectCode);
+            if (code) this.subjectByCode[code] = sub;
+          });
 
-        this.staffByCode = {};
-        this.staffFull.forEach((s: any) => {
-          const code = safeTrim(s?.staffCode);
-          if (code) this.staffByCode[code] = s;
-        });
-
-        this.subjectByCode = {};
-        this.subjectsFull.forEach((sub: any) => {
-          const code = safeTrim(sub?.subjectCode);
-          if (code) this.subjectByCode[code] = sub;
-        });
-
-        this.loading = false;
-        this.loadTimetable();
-      },
-      error: () => {
-        this.loading = false;
-        // even if lookups fail, still try to load timetable (do not block screen)
-        this.loadTimetable();
-      },
-    });
+          this.loading = false;
+          this.loadTimetable();
+        },
+        error: () => {
+          this.loading = false;
+          this.loadTimetable(); // still try even if lookups fail
+        },
+      });
   }
 
   getCenterName(centerCode: string) {
-    const code = safeTrim(centerCode);
-    const c = this.centerByCode?.[code];
-    return c?.centerName ? c.centerName : centerCode || '-';
+    const c = this.centerByCode?.[safeTrim(centerCode)];
+    return c?.centerName || centerCode || '-';
   }
 
-  // Used in grid render
   resolveFacultyLabel(p: any) {
-    // Prefer existing name in timetable; else lookup by facultyId/code
     const name = safeTrim(p?.facultyName);
     if (name) return name;
-
     const idOrCode = safeTrim(p?.facultyId);
     if (!idOrCode) return '';
-
-    const staff = this.staffByCode?.[idOrCode];
-    if (staff?.staffName) return staff.staffName;
-
-    // fallback show id/code
-    return idOrCode;
+    return `${this.staffByCode?.[idOrCode]?.staffName} - ${idOrCode}`;
   }
 
   resolveSubjectLabel(p: any) {
     const code = safeTrim(p?.subjectCode);
     const name = safeTrim(p?.subjectName);
-
-    if (code || name) return code || name;
-
-    // If backend later stores subjectId instead of code, you can still display safe fallback:
-    const maybeCode = safeTrim(p?.subject);
-    if (maybeCode && this.subjectByCode?.[maybeCode]?.subjectName) {
-      return `${maybeCode}`;
-    }
-    return '';
+    return `${name} - ${code} ` || '';
   }
 
-  // ================= VIEW API =================
   loadTimetable() {
     this.loading = true;
-    const payload = {
-      entiId: this.entiId,
-      timetableId: this.timetableId,
-    };
-    this.commonApi.fetchData(payload, this.moduleName, 'view').subscribe({
-      next: (res: any) => {
-        this.loading = false;
-        this.timetable = res?.data || null;
-        this.lastWeeklyTimetable = this.timetable;
-        const wkStart = toInt(this.timetable?.wkStartOn, 0);
-        if (wkStart && !this.fromDateStr) {
-          this.fromDateStr = this.toISODateInput(wkStart);
-          const end = wkStart + 6 * 24 * 60 * 60 * 1000;
-          this.toDateStr = this.toISODateInput(end);
-        }
-        this.processSchedule();
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Failed to load timetable');
-      },
-    });
+    this.commonApi
+      .fetchData(
+        { tenantId: this.tenantId, timetableId: this.timetableId },
+        this.moduleName,
+        'view',
+      )
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          this.timetable = res?.data || null;
+          this.lastWeeklyTimetable = this.timetable;
+          const wkStart = toInt(this.timetable?.wkStartOn, 0);
+          if (wkStart && !this.fromDateStr) {
+            this.fromDateStr = this.toISODateInput(wkStart);
+            this.toDateStr = this.toISODateInput(
+              wkStart + 6 * 24 * 60 * 60 * 1000,
+            );
+          }
+          this.processSchedule();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Failed to load timetable');
+        },
+      });
   }
+
+  // ===================== SCHEDULE PROCESSING =====================
 
   private fmtDateLabel(ms: number): string {
     const d = new Date(ms);
     if (isNaN(d.getTime())) return '-';
     const dd = String(d.getDate()).padStart(2, '0');
     const mon = d.toLocaleString('en-US', { month: 'short' });
-    const yyyy = d.getFullYear();
-    return `${dd} ${mon} ${yyyy}`;
+    return `${dd} ${mon} ${d.getFullYear()}`;
   }
 
   private buildWeekDateMap() {
     this.weekDateMap = {};
     const wkStartOn = toInt(this.timetable?.wkStartOn, 0);
     if (!wkStartOn) return;
-
     for (let i = 0; i < this.daysOrder.length; i++) {
       const d = new Date(wkStartOn);
       d.setDate(d.getDate() + i);
       d.setHours(0, 0, 0, 0);
-      const ms = d.getTime();
-      const day = this.daysOrder[i];
-      this.weekDateMap[day] = { dateMs: ms, label: this.fmtDateLabel(ms) };
+      this.weekDateMap[this.daysOrder[i]] = {
+        dateMs: d.getTime(),
+        label: this.fmtDateLabel(d.getTime()),
+      };
     }
   }
 
@@ -250,23 +295,21 @@ export class ViewComponent implements OnInit {
     this.sortedSchedule = this.daysOrder.map((day) => {
       const periods = (weekMap.get(day)?.periods || [])
         .slice()
-        .sort((a: any, b: any) => toInt(a.periodNo, 0) - toInt(b.periodNo, 0));
+        .sort((a: any, b: any) => toInt(a.periodNo) - toInt(b.periodNo));
       const dateMs = this.weekDateMap?.[day]?.dateMs || 0;
-      const dateLabel = this.weekDateMap?.[day]?.label || '-';
       return {
         day,
         dateMs,
-        dateLabel,
+        dateLabel: this.weekDateMap?.[day]?.label || '-',
         periods,
         __isHoliday: this.isDayCancelled(dateMs, day),
       };
     });
-    this.maxPeriods = this.computeMaxPeriodsFromTemplateAndOverrides();
+    this.maxPeriods = this.computeMaxPeriods();
     this.sortedSchedule.forEach((d) => {
-      const lastP = d.periods?.[d.periods.length - 1];
-      if (lastP && toInt(lastP.periodNo, 0) > this.maxPeriods) {
-        this.maxPeriods = toInt(lastP.periodNo, 0);
-      }
+      const last = d.periods?.[d.periods.length - 1];
+      if (last && toInt(last.periodNo) > this.maxPeriods)
+        this.maxPeriods = toInt(last.periodNo);
     });
     if (this.maxPeriods <= 0) this.maxPeriods = 1;
     this.periodHeaders = Array.from(
@@ -274,6 +317,8 @@ export class ViewComponent implements OnInit {
       (_, i) => i + 1,
     );
   }
+
+  // ===================== OVERRIDE HELPERS =====================
 
   private findOverride(
     dateMs: number,
@@ -286,41 +331,57 @@ export class ViewComponent implements OnInit {
       : [];
     const dayU = String(day || '').toUpperCase();
     return ovs.find((o: any) => {
-      const od = toInt(o?.date, 0);
-      const oday = String(o?.day || '').toUpperCase();
+      if (toInt(o?.date) !== toInt(dateMs)) return false;
+      if (String(o?.day || '').toUpperCase() !== dayU) return false;
       const opn =
         o?.periodNo === null || o?.periodNo === undefined
           ? null
-          : toInt(o?.periodNo, 0);
-      const oa = safeTrim(o?.action);
-      if (od !== toInt(dateMs, 0)) return false;
-      if (oday !== dayU) return false;
-      if (periodNo === null) {
-        if (opn !== null) return false;
-      } else {
-        if (opn === null) return false;
-        if (opn !== toInt(periodNo, 0)) return false;
-      }
-      if (action) return oa === action;
+          : toInt(o?.periodNo);
+      if (
+        periodNo === null
+          ? opn !== null
+          : opn === null || opn !== toInt(periodNo)
+      )
+        return false;
+      if (action) return safeTrim(o?.action) === action;
       return true;
     });
   }
 
   isDayCancelled(dateMs: number, day: string): boolean {
-    const ov = this.findOverride(dateMs, day, null, 'CANCEL_DAY');
-    return !!ov;
+    return !!this.findOverride(dateMs, day, null, 'CANCEL_DAY');
   }
 
   private getDayReplacementPeriods(dateMs: number, day: string): any[] | null {
     const ov = this.findOverride(dateMs, day, null, 'REPLACE_PERIOD');
     const periods = ov?.period?.periods;
-    if (Array.isArray(periods)) {
-      return periods
-        .slice()
-        .sort((a: any, b: any) => toInt(a.periodNo, 0) - toInt(b.periodNo, 0));
-    }
-    return null;
+    return Array.isArray(periods)
+      ? periods
+          .slice()
+          .sort((a: any, b: any) => toInt(a.periodNo) - toInt(b.periodNo))
+      : null;
   }
+
+  // private applyMoveOverrides(
+  //   dateMs: number,
+  //   day: string,
+  //   baseMap: Map<number, any>,
+  // ) {
+  //   const ovs = Array.isArray(this.timetable?.overrides)
+  //     ? this.timetable.overrides
+  //     : [];
+  //   const dayU = String(day || '').toUpperCase();
+  //   ovs.forEach((o: any) => {
+  //     if (safeTrim(o?.action) !== 'MOVE_PERIOD') return;
+  //     if (toInt(o?.date) !== toInt(dateMs)) return;
+  //     if (String(o?.day || '').toUpperCase() !== dayU) return;
+  //     const fromP = toInt(o?.periodNo);
+  //     const toP = toInt(o?.period?.periodNo);
+  //     if (!fromP || !toP) return;
+  //     if (baseMap.has(fromP)) baseMap.delete(fromP);
+  //     if (o?.period) baseMap.set(toP, o.period);
+  //   });
+  // }
 
   private applyMoveOverrides(
     dateMs: number,
@@ -333,238 +394,91 @@ export class ViewComponent implements OnInit {
     const dayU = String(day || '').toUpperCase();
     ovs.forEach((o: any) => {
       if (safeTrim(o?.action) !== 'MOVE_PERIOD') return;
-      if (toInt(o?.date, 0) !== toInt(dateMs, 0)) return;
+      if (toInt(o?.date) !== toInt(dateMs)) return;
       if (String(o?.day || '').toUpperCase() !== dayU) return;
-      const fromP =
-        o?.periodNo === null || o?.periodNo === undefined
-          ? 0
-          : toInt(o?.periodNo, 0);
-      const toP = toInt(o?.period?.periodNo, 0);
+      const fromP = toInt(o?.periodNo);
+      const toP = toInt(o?.period?.periodNo);
       if (!fromP || !toP) return;
-      const moved = o?.period || null;
-      if (baseMap.has(fromP)) baseMap.delete(fromP);
-      if (moved) baseMap.set(toP, moved);
+      const movedPeriod = baseMap.get(fromP);
+      const displacedPeriod = baseMap.get(toP);
+      if (o?.period) {
+        baseMap.set(toP, o.period);
+      }
+      if (displacedPeriod) {
+        baseMap.set(fromP, { ...displacedPeriod, periodNo: fromP });
+      } else {
+        baseMap.delete(fromP);
+      }
     });
   }
 
   getRenderedPeriod(dayRow: any, pNum: number) {
-    const dateMs = toInt(dayRow?.dateMs, 0);
+    const dateMs = toInt(dayRow?.dateMs);
     const day = String(dayRow?.day || '').toUpperCase();
     if (!dateMs || !day) return null;
-    if (this.viewMode === 'range') {
-      if (dayRow?.__isHoliday) {
-        return {
-          __dayCancelled: true,
-          isCancelled: true,
-          time: { startLabel: null, endLabel: null },
-        };
-      }
-      const list = Array.isArray(dayRow?.periods) ? dayRow.periods : [];
-      const hit = list.find(
-        (p: any) => toInt(p?.periodNo, 0) === toInt(pNum, 0),
-      );
-      return hit || null;
-    }
-    if (this.isDayCancelled(dateMs, day)) {
-      return {
-        __dayCancelled: true,
-        isCancelled: true,
-        time: { startLabel: null, endLabel: null },
-      };
-    }
-    const replacedPeriods = this.getDayReplacementPeriods(dateMs, day);
-    const basePeriods = replacedPeriods
-      ? replacedPeriods
-      : Array.isArray(dayRow?.periods)
-        ? dayRow.periods
-        : [];
 
+    if (this.viewMode === 'range') {
+      if (dayRow?.__isHoliday)
+        return { __dayCancelled: true, isCancelled: true, time: {} };
+      const list = Array.isArray(dayRow?.periods) ? dayRow.periods : [];
+      return list.find((p: any) => toInt(p?.periodNo) === toInt(pNum)) || null;
+    }
+
+    if (this.isDayCancelled(dateMs, day))
+      return { __dayCancelled: true, isCancelled: true, time: {} };
+
+    const replacedPeriods = this.getDayReplacementPeriods(dateMs, day);
+    const basePeriods =
+      replacedPeriods ?? (Array.isArray(dayRow?.periods) ? dayRow.periods : []);
     const baseMap = new Map<number, any>();
     basePeriods.forEach((p: any) => {
-      const pn = toInt(p?.periodNo, 0);
+      const pn = toInt(p?.periodNo);
       if (pn > 0) baseMap.set(pn, p);
     });
     this.applyMoveOverrides(dateMs, day, baseMap);
-    const base = baseMap.get(toInt(pNum, 0)) || null;
+
+    const base = baseMap.get(toInt(pNum)) || null;
     if (!base) return null;
+
     const cancelOv = this.findOverride(dateMs, day, pNum, 'CANCEL_PERIOD');
-    if (cancelOv?.period) {
-      cancelOv.period.isCancelled = true;
-      return cancelOv.period;
-    }
+    if (cancelOv?.period) return { ...cancelOv.period, isCancelled: true };
+
     const replaceOv = this.findOverride(dateMs, day, pNum, 'REPLACE_PERIOD');
-    if (replaceOv?.period) {
-      replaceOv.period.__staffChanged = true;
-      return replaceOv.period;
-    }
+    if (replaceOv?.period) return { ...replaceOv.period, __staffChanged: true };
+
     const rearrangeOv = this.findOverride(dateMs, day, pNum, 'REARRANGE_STAFF');
-    if (rearrangeOv?.period) {
-      rearrangeOv.period.__staffChanged = true;
-      return rearrangeOv.period;
-    }
+    if (rearrangeOv?.period)
+      return { ...rearrangeOv.period, __staffChanged: true };
+
     return base;
+  }
+
+  private computeMaxPeriods(): number {
+    let maxP = 0;
+    (this.sortedSchedule || []).forEach((d: any) => {
+      (d?.periods || []).forEach((p: any) => {
+        maxP = Math.max(maxP, toInt(p?.periodNo));
+      });
+    });
+    const ovs = Array.isArray(this.timetable?.overrides)
+      ? this.timetable.overrides
+      : [];
+    ovs.forEach((o: any) => {
+      maxP = Math.max(maxP, toInt(o?.periodNo));
+      maxP = Math.max(maxP, toInt(o?.period?.periodNo));
+      (o?.period?.periods || []).forEach((pp: any) => {
+        maxP = Math.max(maxP, toInt(pp?.periodNo));
+      });
+    });
+    return maxP;
   }
 
   back() {
     this.router.navigate(['/app/timetable']);
   }
 
-  openUpload() {
-    this.showUpload = true;
-    this.file = null;
-    this.parsedPayload = null;
-    this.uploadMeta = {};
-    this.parseStats = { daysFound: 0, periodsFound: 0 };
-  }
+  // ===================== CANCEL DAY =====================
 
-  closeUpload() {
-    this.showUpload = false;
-  }
-
-  onFileChange(e: any): void {
-    const f = e.target.files?.[0];
-    if (!f) return;
-
-    if (f.name.endsWith('.csv') || f.type === 'text/csv') {
-      this.file = f;
-      this.parseCsv(f);
-    } else {
-      this.alert.warning('Please upload a .csv file');
-    }
-  }
-
-  parseCsv(file: File) {
-    const reader = new FileReader();
-    reader.onload = (evt: any) => this.processCsvData(evt.target.result);
-    reader.readAsText(file);
-  }
-
-  processCsvData(csvText: string) {
-    const lines = csvText.split(/\r\n|\n/).filter((line) => line.trim() !== '');
-    if (lines.length < 2) return;
-
-    const headers = lines[0].split(',').map((h) => h.trim());
-    const data: any[] = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const row = lines[i].split(',');
-      if (row.length < headers.length) continue;
-
-      const obj: any = {};
-      headers.forEach((h, idx) => (obj[h] = safeTrim(row[idx])));
-      data.push(obj);
-    }
-
-    if (!data.length) {
-      this.alert.error('No valid data');
-      return;
-    }
-
-    const first = data[0];
-
-    this.uploadMeta = {
-      batchCode: first['BatchCode'],
-      centerCode: first['CentCode'],
-      phase: first['Phase'],
-      wkStartOn: first['WkStartOn'],
-    };
-
-    const weekMap = new Map<string, any[]>();
-    const daysOrder = this.daysOrder;
-
-    data.forEach((row) => {
-      const dateStr = row['Dates'];
-      if (!dateStr) return;
-
-      const dateObj = new Date(dateStr);
-      if (isNaN(dateObj.getTime())) return;
-
-      const dayName =
-        daysOrder[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
-      if (!weekMap.has(dayName)) weekMap.set(dayName, []);
-
-      const startMin = this.timeToMin(row['TimeStart']);
-      const endMin = this.timeToMin(row['TimeEnd']);
-
-      if (startMin !== null && endMin !== null) {
-        weekMap.get(dayName)?.push({
-          startMin,
-          endMin,
-          facultyId: row['FacultyID'],
-          topic: row['Descriptions'],
-          venue: row['Venue'],
-        });
-      }
-    });
-
-    const weekPayload: any[] = [];
-    weekMap.forEach((periods, day) => {
-      periods.sort((a, b) => a.startMin - b.startMin);
-      const periodsWithNo = periods.map((p, idx) => ({
-        periodNo: idx + 1,
-        time: { startMin: p.startMin, endMin: p.endMin },
-        facultyId: p.facultyId,
-        topic: p.topic,
-        venue: p.venue,
-      }));
-      weekPayload.push({ day, periods: periodsWithNo });
-    });
-
-    this.parsedPayload = weekPayload;
-
-    this.parseStats = {
-      daysFound: weekPayload.length,
-      periodsFound: weekPayload.reduce((acc, d) => acc + d.periods.length, 0),
-    };
-  }
-
-  timeToMin(timeStr: string): number | null {
-    if (!timeStr) return null;
-    const parts = String(timeStr).split(':');
-    if (parts.length < 2) return null;
-    const h = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10);
-    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-    return h * 60 + m;
-  }
-
-  submitUpload() {
-    if (!this.parsedPayload) return;
-
-    const payload = {
-      entiId: this.entiId,
-      batchCode: safeTrim(this.uploadMeta.batchCode),
-      centerCode: safeTrim(this.uploadMeta.centerCode),
-      phase: safeTrim(this.uploadMeta.phase),
-      wkStartOn: new Date(this.uploadMeta.wkStartOn).getTime(),
-      week: this.parsedPayload,
-    };
-
-    this.loading = true;
-
-    this.commonApi.fetchData(payload, this.moduleName, 'create').subscribe({
-      next: (res: any) => {
-        this.loading = false;
-        const saved = res?.data;
-        this.alert.success('Timetable updated successfully');
-        this.closeUpload();
-
-        if (saved?._id) {
-          this.router.navigate(['/app/timetable/view', saved._id]);
-        } else {
-          this.loadTimetable();
-        }
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Update failed');
-      },
-    });
-  }
-
-  downloadSample() {}
-
-  // ===== ACTION MODALS =====
   openCancelDay(row: any) {
     this.activeDay = row;
     this.cancelDayReason = 'Holiday';
@@ -574,16 +488,15 @@ export class ViewComponent implements OnInit {
     this.showCancelDay = false;
     this.activeDay = null;
   }
+
   submitCancelDay() {
     if (!this.activeDay?.dateMs) return;
-
     const payload = {
-      entiId: this.entiId,
+      tenantId: this.tenantId,
       timetableId: this.timetableId,
-      date: toInt(this.activeDay.dateMs, 0),
+      date: toInt(this.activeDay.dateMs),
       reason: safeTrim(this.cancelDayReason) || 'Holiday',
     };
-
     this.loading = true;
     this.commonApi.fetchData(payload, this.moduleName, 'day/cancel').subscribe({
       next: () => {
@@ -599,9 +512,289 @@ export class ViewComponent implements OnInit {
     });
   }
 
+  // ===================== EDIT WHOLE DAY =====================
+
+  // openEditDay(row: any) {
+  //   this.activeDay = row;
+  //   this.editDayPeriods = (row.periods || []).map((p: any) => ({
+  //     startTime: minToTimeStr(toInt(p?.time?.startMin)),
+  //     endTime: minToTimeStr(toInt(p?.time?.endMin)),
+  //     periodType: p.periodType || 'LECTURE',
+  //     mode: p.mode || 'OFFLINE',
+  //     facultyId: p.facultyId || '',
+  //     facultyName: p.facultyName || '',
+  //     subjectCode: p.subjectCode || '',
+  //     subjectName: p.subjectName || '',
+  //     subjectId: p.subjectId || '',
+  //     venue: p.venue || '',
+  //     topic: p.topic || '',
+  //     zoomUrl: p.zoomUrl || '',
+  //   }));
+  //   if (!this.editDayPeriods.length) this.addEditDayPeriod();
+  //   this.showEditDay = true;
+  // }
+
+  openEditDay(row: any) {
+    this.activeDay = row;
+    const currentPeriods: any[] = [];
+    for (const pNum of this.periodHeaders) {
+      const p = this.getRenderedPeriod(row, pNum);
+      if (!p || p.__dayCancelled || p.isCancelled) continue;
+      currentPeriods.push(p);
+    }
+    this.editDayPeriods = currentPeriods.map((p: any) => {
+      const rawFacultyId = safeTrim(p.facultyId) || '';
+
+      // Resolve staff by any key: staffCode, staffId, _id, employeeId
+      const resolvedStaff =
+        this.staffByCode[rawFacultyId] || this.staffById[rawFacultyId] || null;
+
+      // Prefer staffCode as the select value since dropdown is bound to staffCode
+      const facultyId = resolvedStaff
+        ? safeTrim(resolvedStaff.staffCode)
+        : rawFacultyId;
+      const facultyName = resolvedStaff
+        ? safeTrim(resolvedStaff.staffName)
+        : safeTrim(p.facultyName) || '';
+
+      return {
+        startTime: minToTimeStr(toInt(p?.time?.startMin)),
+        endTime: minToTimeStr(toInt(p?.time?.endMin)),
+        periodType: p.periodType || 'LECTURE',
+        mode: p.mode || 'OFFLINE',
+        facultyId,
+        facultyName,
+        subjectCode: safeTrim(p.subjectCode) || '',
+        subjectName: safeTrim(p.subjectName) || '',
+        subjectId: safeTrim(p.subjectId) || '',
+        venue: safeTrim(p.venue) || '',
+        topic: safeTrim(p.topic) || '',
+        zoomUrl: safeTrim(p.zoomUrl) || '',
+      };
+    });
+    if (!this.editDayPeriods.length) this.addEditDayPeriod();
+    this.editDayConflicts = [];
+    this.showEditDay = true;
+  }
+
+  closeEditDay() {
+    this.showEditDay = false;
+    this.activeDay = null;
+    this.editDayPeriods = [];
+    this.editDayConflicts = [];
+    this.editDayValidating = false;
+  }
+
+  addEditDayPeriod() {
+    this.editDayPeriods.push({
+      startTime: '',
+      endTime: '',
+      periodType: 'LECTURE',
+      mode: 'OFFLINE',
+      facultyId: '',
+      facultyName: '',
+      subjectCode: '',
+      subjectName: '',
+      subjectId: '',
+      venue: '',
+      topic: '',
+      zoomUrl: '',
+    });
+  }
+
+  /** Returns staff filtered to those whose subject matches the given subjectId.
+   *  Falls back to all staff if subjectId is blank or no matches found. */
+  getStaffForSubject(subjectId: string): any[] {
+    const id = safeTrim(subjectId);
+    if (!id) return this.staffFull;
+    const filtered = this.staffFull.filter(
+      (s: any) => safeTrim(s?.subject) === id,
+    );
+    return filtered.length ? filtered : this.staffFull;
+  }
+
+  removeEditDayPeriod(i: number) {
+    this.editDayPeriods.splice(i, 1);
+  }
+
+  onEditDayFacultyChange(ep: any) {
+    const s = this.staffByCode[safeTrim(ep.facultyId)];
+    ep.facultyName = s?.staffName || '';
+  }
+
+  onEditDaySubjectChange(ep: any) {
+    const sub = this.subjectByCode[safeTrim(ep.subjectCode)];
+    ep.subjectName = sub?.subjectName || '';
+    ep.subjectId = sub?._id || '';
+    // Reset faculty so user picks from the filtered list for this subject
+    ep.facultyId = '';
+    ep.facultyName = '';
+  }
+
+  // submitEditDay() {
+  //   if (!this.activeDay?.dateMs || !this.editDayPeriods.length) return;
+
+  //   const periods = this.editDayPeriods.map((ep: any, idx: number) => {
+  //     const startMin = timeStrToMin(ep.startTime);
+  //     const endMin = timeStrToMin(ep.endTime);
+  //     return {
+  //       periodNo: idx + 1,
+  //       time: {
+  //         startMin,
+  //         endMin,
+  //         startLabel: minToLabel(startMin),
+  //         endLabel: minToLabel(endMin),
+  //       },
+  //       periodType: ep.periodType || 'LECTURE',
+  //       mode: ep.mode || 'OFFLINE',
+  //       zoomUrl:
+  //         ep.mode === 'ONLINE' || ep.mode === 'HYBRID'
+  //           ? ep.zoomUrl || null
+  //           : null,
+  //       facultyId: safeTrim(ep.facultyId),
+  //       facultyName: safeTrim(ep.facultyName) || null,
+  //       subjectCode: safeTrim(ep.subjectCode) || null,
+  //       subjectName: safeTrim(ep.subjectName) || null,
+  //       subjectId: safeTrim(ep.subjectId) || null,
+  //       venue: safeTrim(ep.venue) || null,
+  //       topic: safeTrim(ep.topic) || null,
+  //     };
+  //   });
+
+  //   const payload = {
+  //     tenantId: this.tenantId,
+  //     timetableId: this.timetableId,
+  //     date: toInt(this.activeDay.dateMs),
+  //     periods,
+  //   };
+
+  //   this.loading = true;
+  //   this.commonApi.fetchData(payload, this.moduleName, 'day/edit').subscribe({
+  //     next: () => {
+  //       this.loading = false;
+  //       this.alert.success('Day updated');
+  //       this.closeEditDay();
+  //       this.loadTimetable();
+  //     },
+  //     error: (err: any) => {
+  //       this.loading = false;
+  //       this.alert.error(err?.error?.message || 'Edit day failed');
+  //     },
+  //   });
+  // }
+
+  // ===================== CANCEL PERIOD =====================
+
+  validateAndSubmitEditDay() {
+    if (!this.activeDay?.dateMs || !this.editDayPeriods.length) return;
+    const periods = this.buildEditDayPeriods();
+    if (!periods) return;
+    const batchCode = safeTrim(this.timetable?.batchCode);
+    const date = toInt(this.activeDay.dateMs);
+
+    const validatePayload = {
+      tenantId: this.tenantId,
+      data: [
+        {
+          batchCode,
+          timetableId: this.timetableId,
+          wkStartOn: toInt(this.timetable?.wkStartOn),
+          week: [
+            {
+              day: String(this.activeDay.day || '').toUpperCase(),
+              periods,
+            },
+          ],
+        },
+      ],
+    };
+    this.editDayValidating = true;
+    this.editDayConflicts = [];
+    this.commonApi
+      .fetchData(validatePayload, this.moduleName, 'validate')
+      .subscribe({
+        next: () => {
+          this.editDayValidating = false;
+          this.submitEditDay(periods, date);
+        },
+        error: (err: any) => {
+          this.editDayValidating = false;
+          const conflicts = err?.error?.conflicts;
+          if (Array.isArray(conflicts) && conflicts.length) {
+            this.editDayConflicts = conflicts;
+          } else {
+            this.alert.error(err?.error?.message || 'Validation failed');
+          }
+        },
+      });
+  }
+
+  private buildEditDayPeriods(): any[] | null {
+    for (const ep of this.editDayPeriods) {
+      if (!ep.startTime || !ep.endTime) {
+        this.alert.error('All periods must have start and end time');
+        return null;
+      }
+      if (!safeTrim(ep.facultyId)) {
+        this.alert.error('All periods must have a faculty selected');
+        return null;
+      }
+    }
+
+    return this.editDayPeriods.map((ep: any, idx: number) => {
+      const startMin = timeStrToMin(ep.startTime);
+      const endMin = timeStrToMin(ep.endTime);
+      return {
+        periodNo: idx + 1,
+        time: {
+          startMin,
+          endMin,
+          startLabel: minToLabel(startMin),
+          endLabel: minToLabel(endMin),
+        },
+        periodType: ep.periodType || 'LECTURE',
+        mode: ep.mode || 'OFFLINE',
+        zoomUrl:
+          ep.mode === 'ONLINE' || ep.mode === 'HYBRID'
+            ? safeTrim(ep.zoomUrl) || null
+            : null,
+        facultyId: safeTrim(ep.facultyId),
+        facultyName: safeTrim(ep.facultyName) || null,
+        subjectCode: safeTrim(ep.subjectCode) || null,
+        subjectName: safeTrim(ep.subjectName) || null,
+        subjectId: safeTrim(ep.subjectId) || null,
+        venue: safeTrim(ep.venue) || null,
+        topic: safeTrim(ep.topic) || null,
+      };
+    });
+  }
+
+  private submitEditDay(periods: any[], date: number) {
+    const payload = {
+      tenantId: this.tenantId,
+      timetableId: this.timetableId,
+      date,
+      periods,
+    };
+
+    this.loading = true;
+    this.commonApi.fetchData(payload, this.moduleName, 'day/edit').subscribe({
+      next: () => {
+        this.loading = false;
+        this.alert.success('Day updated');
+        this.closeEditDay();
+        this.loadTimetable();
+      },
+      error: (err: any) => {
+        this.loading = false;
+        this.alert.error(err?.error?.message || 'Edit day failed');
+      },
+    });
+  }
+
   openCancelPeriod(row: any, pNum: number) {
     this.activeDay = row;
-    this.activePeriodNo = toInt(pNum, 0);
+    this.activePeriodNo = toInt(pNum);
     this.cancelPeriodReason = 'Cancelled';
     this.showCancelPeriod = true;
   }
@@ -610,18 +803,17 @@ export class ViewComponent implements OnInit {
     this.activeDay = null;
     this.activePeriodNo = 0;
   }
+
   submitCancelPeriod() {
     if (!this.activeDay?.dateMs || !this.activePeriodNo) return;
-
     const payload = {
-      entiId: this.entiId,
+      tenantId: this.tenantId,
       timetableId: this.timetableId,
-      date: toInt(this.activeDay.dateMs, 0),
+      date: toInt(this.activeDay.dateMs),
       day: String(this.activeDay.day || '').toUpperCase(),
-      periodNo: toInt(this.activePeriodNo, 0),
+      periodNo: toInt(this.activePeriodNo),
       reason: safeTrim(this.cancelPeriodReason) || 'Cancelled',
     };
-
     this.loading = true;
     this.commonApi
       .fetchData(payload, this.moduleName, 'period/cancel')
@@ -639,9 +831,11 @@ export class ViewComponent implements OnInit {
       });
   }
 
+  // ===================== REARRANGE STAFF =====================
+
   openRearrangeStaff(row: any, pNum: number) {
     this.activeDay = row;
-    this.activePeriodNo = toInt(pNum, 0);
+    this.activePeriodNo = toInt(pNum);
     this.newFacultyId = '';
     this.newFacultyName = '';
     this.showRearrangeStaff = true;
@@ -655,9 +849,8 @@ export class ViewComponent implements OnInit {
   }
 
   onNewFacultySelected() {
-    const code = safeTrim(this.newFacultyId);
-    const staff = this.staffByCode?.[code];
-    this.newFacultyName = staff?.staffName ? staff.staffName : '';
+    const s = this.staffByCode[safeTrim(this.newFacultyId)];
+    this.newFacultyName = s?.staffName || '';
   }
 
   submitRearrangeStaff() {
@@ -667,18 +860,15 @@ export class ViewComponent implements OnInit {
       !safeTrim(this.newFacultyId)
     )
       return;
-
-    // payload keys unchanged
     const payload = {
-      entiId: this.entiId,
+      tenantId: this.tenantId,
       timetableId: this.timetableId,
-      date: toInt(this.activeDay.dateMs, 0),
+      date: toInt(this.activeDay.dateMs),
       day: String(this.activeDay.day || '').toUpperCase(),
-      periodNo: toInt(this.activePeriodNo, 0),
+      periodNo: toInt(this.activePeriodNo),
       newFacultyId: safeTrim(this.newFacultyId),
       newFacultyName: safeTrim(this.newFacultyName),
     };
-
     this.loading = true;
     this.commonApi
       .fetchData(payload, this.moduleName, 'period/rearrange-staff')
@@ -696,9 +886,11 @@ export class ViewComponent implements OnInit {
       });
   }
 
+  // ===================== MOVE PERIOD =====================
+
   openMovePeriod(row: any, pNum: number) {
     this.activeDay = row;
-    this.activePeriodNo = toInt(pNum, 0);
+    this.activePeriodNo = toInt(pNum);
     this.moveToPeriodNo = null;
     this.showMovePeriod = true;
   }
@@ -708,19 +900,18 @@ export class ViewComponent implements OnInit {
     this.activePeriodNo = 0;
     this.moveToPeriodNo = null;
   }
+
   submitMovePeriod() {
     if (!this.activeDay?.dateMs || !this.activePeriodNo || !this.moveToPeriodNo)
       return;
-
     const payload = {
-      entiId: this.entiId,
+      tenantId: this.tenantId,
       timetableId: this.timetableId,
-      date: toInt(this.activeDay.dateMs, 0),
+      date: toInt(this.activeDay.dateMs),
       day: String(this.activeDay.day || '').toUpperCase(),
-      fromPeriodNo: toInt(this.activePeriodNo, 0),
-      toPeriodNo: toInt(this.moveToPeriodNo, 0),
+      fromPeriodNo: toInt(this.activePeriodNo),
+      toPeriodNo: toInt(this.moveToPeriodNo),
     };
-
     this.loading = true;
     this.commonApi
       .fetchData(payload, this.moduleName, 'period/move')
@@ -738,10 +929,11 @@ export class ViewComponent implements OnInit {
       });
   }
 
+  // ===================== REPLACE PERIOD =====================
+
   openReplacePeriod(row: any, pNum: number) {
     this.activeDay = row;
-    this.activePeriodNo = toInt(pNum, 0);
-
+    this.activePeriodNo = toInt(pNum);
     this.rp = {
       facultyId: '',
       facultyName: '',
@@ -749,8 +941,10 @@ export class ViewComponent implements OnInit {
       subjectName: '',
       venue: '',
       topic: '',
+      periodType: '',
+      mode: '',
+      zoomUrl: '',
     };
-
     this.showReplacePeriod = true;
   }
   closeReplacePeriod() {
@@ -764,34 +958,28 @@ export class ViewComponent implements OnInit {
       subjectName: '',
       venue: '',
       topic: '',
+      periodType: '',
+      mode: '',
+      zoomUrl: '',
     };
   }
 
   onReplaceFacultySelected() {
-    const code = safeTrim(this.rp?.facultyId);
-    if (!code) {
-      this.rp.facultyName = '';
-      return;
-    }
-    const staff = this.staffByCode?.[code];
-    this.rp.facultyName = staff?.staffName ? staff.staffName : '';
+    const s = this.staffByCode[safeTrim(this.rp?.facultyId)];
+    this.rp.facultyName = s?.staffName || '';
   }
 
   onReplaceSubjectSelected() {
-    const code = safeTrim(this.rp?.subjectCode);
-    if (!code) {
-      this.rp.subjectName = '';
-      return;
-    }
-    const sub = this.subjectByCode?.[code];
-    this.rp.subjectName = sub?.subjectName ? sub.subjectName : '';
+    const sub = this.subjectByCode[safeTrim(this.rp?.subjectCode)];
+    this.rp.subjectName = sub?.subjectName || '';
   }
 
   submitReplacePeriod() {
     if (!this.activeDay?.dateMs || !this.activePeriodNo) return;
-
     const period: any = {};
-    // payload keys unchanged (only set if user selected/typed)
+    if (safeTrim(this.rp.periodType))
+      period.periodType = safeTrim(this.rp.periodType);
+    if (safeTrim(this.rp.mode)) period.mode = safeTrim(this.rp.mode);
     if (safeTrim(this.rp.facultyId))
       period.facultyId = safeTrim(this.rp.facultyId);
     if (safeTrim(this.rp.facultyName))
@@ -802,16 +990,16 @@ export class ViewComponent implements OnInit {
       period.subjectName = safeTrim(this.rp.subjectName);
     if (safeTrim(this.rp.venue)) period.venue = safeTrim(this.rp.venue);
     if (safeTrim(this.rp.topic)) period.topic = safeTrim(this.rp.topic);
+    if (safeTrim(this.rp.zoomUrl)) period.zoomUrl = safeTrim(this.rp.zoomUrl);
 
     const payload = {
-      entiId: this.entiId,
+      tenantId: this.tenantId,
       timetableId: this.timetableId,
-      date: toInt(this.activeDay.dateMs, 0),
+      date: toInt(this.activeDay.dateMs),
       day: String(this.activeDay.day || '').toUpperCase(),
-      periodNo: toInt(this.activePeriodNo, 0),
+      periodNo: toInt(this.activePeriodNo),
       period,
     };
-
     this.loading = true;
     this.commonApi
       .fetchData(payload, this.moduleName, 'period/replace')
@@ -829,59 +1017,128 @@ export class ViewComponent implements OnInit {
       });
   }
 
-  private computeMaxPeriodsFromTemplateAndOverrides(): number {
-    let maxP = 0;
-    (this.sortedSchedule || []).forEach((d: any) => {
-      (d?.periods || []).forEach((p: any) => {
-        maxP = Math.max(maxP, toInt(p?.periodNo, 0));
+  // ===================== SET ZOOM =====================
+
+  openSetZoom(row: any, pNum: number, period: any) {
+    this.activeDay = row;
+    this.activePeriodNo = toInt(pNum);
+    this.zoomUrlInput = safeTrim(period?.zoomUrl) || '';
+    this.showSetZoom = true;
+  }
+  closeSetZoom() {
+    this.showSetZoom = false;
+    this.activeDay = null;
+    this.activePeriodNo = 0;
+    this.zoomUrlInput = '';
+  }
+
+  submitSetZoom() {
+    if (!this.activeDay?.dateMs || !this.activePeriodNo) return;
+    const payload = {
+      tenantId: this.tenantId,
+      timetableId: this.timetableId,
+      date: toInt(this.activeDay.dateMs),
+      day: String(this.activeDay.day || '').toUpperCase(),
+      periodNo: toInt(this.activePeriodNo),
+      zoomUrl: safeTrim(this.zoomUrlInput) || '',
+    };
+    this.loading = true;
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'update/zoomlink')
+      .subscribe({
+        next: () => {
+          this.loading = false;
+          this.alert.success('Zoom link saved');
+          this.closeSetZoom();
+          this.loadTimetable();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Zoom update failed');
+        },
       });
-    });
-    const ovs = Array.isArray(this.timetable?.overrides)
-      ? this.timetable.overrides
-      : [];
-    ovs.forEach((o: any) => {
-      const pn =
-        o?.periodNo === null || o?.periodNo === undefined
-          ? 0
-          : toInt(o?.periodNo, 0);
-      maxP = Math.max(maxP, pn);
-
-      const toPn = toInt(o?.period?.periodNo, 0);
-      maxP = Math.max(maxP, toPn);
-      const replPeriods = o?.period?.periods;
-      if (Array.isArray(replPeriods)) {
-        replPeriods.forEach((pp: any) => {
-          maxP = Math.max(maxP, toInt(pp?.periodNo, 0));
-        });
-      }
-    });
-    return maxP;
   }
 
-  private toStartOfDayMs(dateStr: string): number {
-    if (!dateStr) return 0;
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 0;
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
+  // ===================== CONVERT TO EXAM =====================
+
+  openConvertToExam(row: any, pNum: number, period: any) {
+    this.activeDay = row;
+    this.activePeriodNo = toInt(pNum);
+    this.examForm = {
+      examId: '',
+      examDescription: '',
+      facultyId: safeTrim(period?.facultyId) || '',
+      facultyName: safeTrim(period?.facultyName) || '',
+      venue: safeTrim(period?.venue) || '',
+      topic: safeTrim(period?.topic) || '',
+    };
+    this.showConvertToExam = true;
+  }
+  closeConvertToExam() {
+    this.showConvertToExam = false;
+    this.activeDay = null;
+    this.activePeriodNo = 0;
+    this.examForm = {
+      examId: '',
+      examDescription: '',
+      facultyId: '',
+      facultyName: '',
+      venue: '',
+      topic: '',
+    };
   }
 
-  private toISODateInput(ms: number): string {
-    const d = new Date(ms);
-    if (isNaN(d.getTime())) return '';
-    // yyyy-MM-dd
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+  onExamFacultySelected() {
+    const s = this.staffByCode[safeTrim(this.examForm.facultyId)];
+    this.examForm.facultyName = s?.staffName || '';
   }
+
+  submitConvertToExam() {
+    if (!this.activeDay?.dateMs || !this.activePeriodNo) return;
+    const payload: any = {
+      tenantId: this.tenantId,
+      timetableId: this.timetableId,
+      date: toInt(this.activeDay.dateMs),
+      day: String(this.activeDay.day || '').toUpperCase(),
+      periodNo: toInt(this.activePeriodNo),
+    };
+    if (safeTrim(this.examForm.examId))
+      payload.examId = safeTrim(this.examForm.examId);
+    if (safeTrim(this.examForm.examDescription))
+      payload.examDescription = safeTrim(this.examForm.examDescription);
+    if (safeTrim(this.examForm.facultyId)) {
+      payload.facultyId = safeTrim(this.examForm.facultyId);
+      payload.facultyName = safeTrim(this.examForm.facultyName) || null;
+    }
+    if (safeTrim(this.examForm.venue))
+      payload.venue = safeTrim(this.examForm.venue);
+    if (safeTrim(this.examForm.topic))
+      payload.topic = safeTrim(this.examForm.topic);
+
+    this.loading = true;
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'convertToExam')
+      .subscribe({
+        next: () => {
+          this.loading = false;
+          this.alert.success('Period converted to Exam');
+          this.closeConvertToExam();
+          this.loadTimetable();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Convert failed');
+        },
+      });
+  }
+
+  // ===================== RANGE VIEW =====================
 
   toggleRangeView() {
     if (this.viewMode === 'range') {
       this.resetToWeekly();
     } else {
       this.viewMode = 'range';
-      // do not auto-call API; user will choose date and click Load
       this.rangeMetaLabel = '';
     }
   }
@@ -900,66 +1157,44 @@ export class ViewComponent implements OnInit {
   loadByRange() {
     const fromMs = this.toStartOfDayMs(this.fromDateStr);
     const toMs = this.toStartOfDayMs(this.toDateStr) || fromMs;
-
-    if (
-      !fromMs ||
-      !safeTrim(
-        this.lastWeeklyTimetable?.batchCode || this.timetable?.batchCode,
-      )
-    ) {
-      this.alert.warning(
-        'Please select From Date (and ensure batchCode is available)',
-      );
-      return;
-    }
-
     const batchCode = safeTrim(
       this.lastWeeklyTimetable?.batchCode || this.timetable?.batchCode,
     );
+    if (!fromMs || !batchCode) {
+      this.alert.warning('Please select From Date');
+      return;
+    }
 
     const payload = {
-      entiId: this.entiId,
+      tenantId: this.tenantId,
       batchCode,
       fromDate: fromMs,
       toDate: toMs,
     };
-
     this.loading = true;
-
     this.commonApi
       .fetchData(payload, this.moduleName, 'viewbybatch')
       .subscribe({
         next: (res: any) => {
           this.loading = false;
-
           const schedule = Array.isArray(res?.data) ? res.data : [];
-          if (!schedule.length) {
+          if (!schedule.length)
             this.alert.warning('No schedule found for selected range');
-          }
-          const builtRows = schedule.map((d: any) => {
-            const dateMs = toInt(d?.date, 0);
-            const day = String(d?.day || '').toUpperCase();
-            const dateLabel = this.fmtDateLabel(dateMs);
-            const isHoliday = d?.isHoliday === true;
-            const periods = Array.isArray(d?.periods) ? d.periods.slice() : [];
-            return {
-              day,
-              dateMs,
-              dateLabel,
-              periods,
-              __isHoliday: isHoliday,
-              __holidayReason: safeTrim(d?.holidayReason),
-            };
-          });
-          this.sortedSchedule = builtRows;
+          this.sortedSchedule = schedule.map((d: any) => ({
+            day: String(d?.day || '').toUpperCase(),
+            dateMs: toInt(d?.date),
+            dateLabel: this.fmtDateLabel(toInt(d?.date)),
+            periods: Array.isArray(d?.periods) ? d.periods.slice() : [],
+            __isHoliday: d?.isHoliday === true,
+            __holidayReason: safeTrim(d?.holidayReason),
+          }));
           let maxP = 0;
           this.sortedSchedule.forEach((r: any) => {
             (r?.periods || []).forEach((p: any) => {
-              maxP = Math.max(maxP, toInt(p?.periodNo, 0));
+              maxP = Math.max(maxP, toInt(p?.periodNo));
             });
           });
-          if (maxP <= 0) maxP = 1;
-          this.maxPeriods = maxP;
+          this.maxPeriods = maxP <= 0 ? 1 : maxP;
           this.periodHeaders = Array.from(
             { length: this.maxPeriods },
             (_, i) => i + 1,
@@ -973,5 +1208,19 @@ export class ViewComponent implements OnInit {
           );
         },
       });
+  }
+
+  private toStartOfDayMs(dateStr: string): number {
+    if (!dateStr) return 0;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 0;
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
+  private toISODateInput(ms: number): string {
+    const d = new Date(ms);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 }
