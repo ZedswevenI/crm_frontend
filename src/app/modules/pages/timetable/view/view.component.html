@@ -20,7 +20,6 @@
             </div>
         </div>
         <div class="card-body pt-0">
-            <!-- Meta row -->
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
                     <div class="border rounded-3 p-2 small">
@@ -38,7 +37,6 @@
                     </div>
                 </div>
             </div>
-            <!-- Range filters -->
             <div class="row g-2 mb-3" *ngIf="viewMode === 'range'">
                 <div class="col-md-3">
                     <label class="form-label small text-muted mb-1">From Date</label>
@@ -58,7 +56,6 @@
                     <div class="small text-muted" *ngIf="rangeMetaLabel">{{ rangeMetaLabel }}</div>
                 </div>
             </div>
-            <!-- Legend -->
             <div class="d-flex flex-wrap gap-2 mb-3 small">
                 <span class="badge bg-success-subtle text-success border border-success-subtle">
                     <i class="fa-solid fa-circle-check me-1"></i>OFFLINE
@@ -80,7 +77,6 @@
                     <i class="fa-solid fa-calendar-xmark me-1"></i>Holiday
                 </span>
             </div>
-            <!-- Timetable grid -->
             <div class="table-responsive border rounded-3">
                 <table class="table table-bordered mb-0 timetable-grid">
                     <thead class="bg-light">
@@ -93,11 +89,9 @@
                     </thead>
                     <tbody>
                         <tr *ngFor="let row of sortedSchedule">
-                            <!-- Day column -->
                             <td class="fw-bold bg-light text-center align-middle" style="min-width:140px">
                                 <div class="fw-semibold">{{ row.day }}</div>
                                 <div class="small text-muted">{{ row.dateLabel }}</div>
-                                <!-- Edit whole day button (week view only, active timetable) -->
                                 <div class="d-flex justify-content-center gap-1 mt-2 flex-wrap"
                                     *ngIf="viewMode !== 'range' && timetable?.status === 'Active' && !row.__isHoliday">
                                     <button class="btn btn-sm btn-outline-danger" (click)="openCancelDay(row)"
@@ -115,7 +109,6 @@
                                     </span>
                                 </div>
                             </td>
-                            <!-- Period cells -->
                             <td *ngFor="let pNum of periodHeaders" class="p-0 position-relative tt-cell">
                                 <ng-container *ngIf="getRenderedPeriod(row, pNum) as p; else freeCell">
                                     <div class="p-2 h-100 d-flex flex-column align-items-center justify-content-center gap-1"
@@ -123,7 +116,6 @@
                                         [class.bg-secondary-subtle]="p.__dayCancelled"
                                         [class.bg-warning-subtle]="p.__staffChanged && !p.isCancelled">
                                         <ng-container *ngIf="!p.__dayCancelled; else dayCancelledTpl">
-                                            <!-- Period type badge only (no mode badge) -->
                                             <div class="d-flex gap-1 flex-wrap justify-content-center">
                                                 <span class="badge" style="font-size:0.65rem" [ngClass]="{
             'bg-secondary-subtle text-secondary': p.periodType === 'LECTURE' || !p.periodType,
@@ -135,13 +127,9 @@
                                                     {{ p.periodType || 'LECTURE' }}
                                                 </span>
                                             </div>
-
-                                            <!-- Subject -->
                                             <div class="fw-bold small text-center" *ngIf="p.periodType !== 'EXAM'">
                                                 {{ resolveSubjectLabel(p) || "-" }}
                                             </div>
-
-                                            <!-- Faculty label: "Invigilator" for EXAM, "Faculty" otherwise -->
                                             <div class="text-muted small text-center" style="font-size: 0.75rem">
                                                 <span *ngIf="p.periodType === 'EXAM'" class="text-muted"
                                                     style="font-size:0.65rem">Invigilator</span>
@@ -243,138 +231,210 @@
 
     <!-- ===================== EDIT WHOLE DAY MODAL ===================== -->
     <div class="app-modal-backdrop" *ngIf="showEditDay">
-        <div class="app-modal timetable-modal" style="max-width:680px">
+        <div class="app-modal timetable-modal" style="max-width:720px">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Edit Whole Day</h6>
-                    <span class="text-muted small">{{ activeDay?.day }} • {{ activeDay?.dateLabel }} — replaces all
-                        periods for this date</span>
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="fa-solid fa-pen-to-square me-2 text-primary"></i>Edit Day Schedule
+                    </h6>
+                    <span class="text-muted small">
+                        {{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }}
+                        &nbsp;&mdash;&nbsp;
+                        <span class="text-info">{{ editDayPeriods.length }} period{{ editDayPeriods.length !== 1 ? 's' :
+                            '' }}</span>
+                    </span>
                 </div>
-                <button class="btn-close" (click)="closeEditDay()"></button>
+                <button class="btn-close" (click)="closeEditDay()" [disabled]="loading || editDayValidating"></button>
             </div>
             <div class="app-modal-body">
-                <div class="alert alert-info small">
-                    Define the new periods for this day. These will replace the template periods for this date only.
+                <div class="alert alert-info small d-flex align-items-start gap-2 py-2 mb-3">
+                    <i class="fa-solid fa-circle-info mt-1 flex-shrink-0"></i>
+                    <div>
+                        Changes apply <strong>only to this date</strong> — the weekly template is not affected.
+                        <span class="ms-1">
+                            <i class="fa-solid fa-grip-vertical text-muted mx-1"></i>
+                            Drag rows to reorder periods.
+                        </span>
+                    </div>
                 </div>
-                <!-- Period rows -->
+                <div *ngIf="editDayConflicts.length" class="alert alert-danger small mb-3">
+                    <div class="fw-semibold mb-1">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        {{ editDayConflicts.length }} conflict{{ editDayConflicts.length !== 1 ? 's' : '' }} detected —
+                        fix before saving
+                    </div>
+                    <ul class="mb-0 ps-3">
+                        <li *ngFor="let c of editDayConflicts">
+                            <span *ngIf="c.periodNo" class="fw-semibold">Period {{ c.periodNo }}: </span>
+                            <span *ngIf="c.facultyId" class="text-danger fw-semibold">{{ c.facultyId }} — </span>
+                            {{ c.message }}
+                        </li>
+                    </ul>
+                </div>
                 <div *ngFor="let ep of editDayPeriods; let i = index"
-                    class="border rounded-3 p-3 mb-2 position-relative">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="fw-semibold small">Period {{ i + 1 }}</span>
-                        <button class="btn btn-sm btn-outline-danger" (click)="removeEditDayPeriod(i)">
-                            <i class="fa-solid fa-trash"></i>
+                    class="tt-edit-row border rounded-3 mb-2 position-relative"
+                    [class.tt-drag-source]="editDayDragIndex === i"
+                    [class.tt-drag-over]="editDayDragIndex !== null && editDayDragIndex !== i" draggable="true"
+                    (dragstart)="onDragStart(i)" (dragover)="onDragOver($event)" (drop)="onDrop(i)"
+                    (dragend)="onDragEnd()">
+                    <div
+                        class="tt-edit-row-header d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light rounded-top-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-grip-vertical text-muted tt-drag-handle" title="Drag to reorder"></i>
+                            <span class="fw-semibold small text-dark">Period {{ i + 1 }}</span>
+                            <span class="badge bg-white text-muted border small"
+                                style="font-size:0.68rem;font-weight:500">
+                                <i class="fa-regular fa-clock me-1 opacity-50"></i>
+                                {{ ep.startTime || '--:--' }} &ndash; {{ ep.endTime || '--:--' }}
+                            </span>
+                            <span class="badge small" style="font-size:0.65rem" [ngClass]="{
+                                'bg-secondary-subtle text-secondary': ep.periodType === 'LECTURE' || !ep.periodType,
+                                'bg-info-subtle text-info': ep.periodType === 'LAB',
+                                'bg-warning-subtle text-warning': ep.periodType === 'TEST' || ep.periodType === 'REVISION',
+                                'bg-orange-subtle text-orange': ep.periodType === 'TUTORIAL'
+                            }" [style.background]="ep.periodType === 'EXAM' ? '#f3e8ff' : null"
+                                [style.color]="ep.periodType === 'EXAM' ? '#7c3aed' : null">
+                                {{ ep.periodType || 'LECTURE' }}
+                            </span>
+                            <span class="badge small" style="font-size:0.65rem" [ngClass]="{
+                                'bg-success-subtle text-success': ep.mode === 'OFFLINE' || !ep.mode,
+                                'bg-info-subtle text-info': ep.mode === 'ONLINE',
+                                'bg-warning-subtle text-warning': ep.mode === 'HYBRID'
+                            }">
+                                <i class="fa-solid me-1" [ngClass]="{
+                                    'fa-building': ep.mode === 'OFFLINE' || !ep.mode,
+                                    'fa-wifi': ep.mode === 'ONLINE',
+                                    'fa-layer-group': ep.mode === 'HYBRID'
+                                }"></i>
+                                {{ ep.mode || 'OFFLINE' }}
+                            </span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger py-0 px-2" (click)="removeEditDayPeriod(i)"
+                            [disabled]="loading" title="Remove this period">
+                            <i class="fa-solid fa-trash-can" style="font-size:0.75rem"></i>
                         </button>
                     </div>
-                    <div class="row g-2">
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted">Start Time</label>
-                            <input type="time" class="form-control form-control-sm" [(ngModel)]="ep.startTime" />
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted">End Time</label>
-                            <input type="time" class="form-control form-control-sm" [(ngModel)]="ep.endTime" />
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted">Period Type</label>
-                            <select class="form-select form-select-sm" [(ngModel)]="ep.periodType">
-                                <option value="LECTURE">LECTURE</option>
-                                <option value="LAB">LAB</option>
-                                <option value="TUTORIAL">TUTORIAL</option>
-                                <option value="TEST">TEST</option>
-                                <option value="REVISION">REVISION</option>
-                                <option value="EXAM">EXAM</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small text-muted">Mode</label>
-                            <select class="form-select form-select-sm" [(ngModel)]="ep.mode">
-                                <option value="OFFLINE">OFFLINE</option>
-                                <option value="ONLINE">ONLINE</option>
-                                <option value="HYBRID">HYBRID</option>
-                            </select>
-                        </div>
-                        <!-- <div class="col-md-6">
-                            <label class="form-label small text-muted">Faculty</label>
-                            <select class="form-select form-select-sm" [(ngModel)]="ep.facultyId"
-                                (change)="onEditDayFacultyChange(ep)">
-                                <option value="">Select Faculty</option>
-                                <option *ngFor="let s of staffFull" [value]="s.staffCode">
-                                    {{ s.staffName }} ({{ s.staffCode }})
-                                </option>
-                            </select>
-                        </div> -->
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">
-                                Faculty
-                                <span *ngIf="ep.subjectId" class="text-muted fw-normal">
-                                    — filtered by subject
-                                </span>
-                            </label>
-                            <select class="form-select form-select-sm" [(ngModel)]="ep.facultyId"
-                                (change)="onEditDayFacultyChange(ep)">
-                                <option value="">Select Faculty</option>
-                                <option *ngFor="let s of getStaffForSubject(ep.subjectId)" [value]="s.staffCode">
-                                    {{ s.staffName }} ({{ s.staffCode }})
-                                </option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Subject</label>
-                            <select class="form-select form-select-sm" [(ngModel)]="ep.subjectCode"
-                                (change)="onEditDaySubjectChange(ep)">
-                                <option value="">Select Subject</option>
-                                <option *ngFor="let sub of subjectsFull" [value]="sub.subjectCode">
-                                    {{ sub.subjectName }} ({{ sub.subjectCode }})
-                                </option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Venue</label>
-                            <input class="form-control form-control-sm" [(ngModel)]="ep.venue" placeholder="Hall A" />
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">Topic</label>
-                            <input class="form-control form-control-sm" [(ngModel)]="ep.topic" placeholder="Topic" />
-                        </div>
-                        <div class="col-md-12" *ngIf="ep.mode === 'ONLINE' || ep.mode === 'HYBRID'">
-                            <label class="form-label small text-muted">Zoom URL</label>
-                            <input class="form-control form-control-sm" [(ngModel)]="ep.zoomUrl"
-                                placeholder="https://zoom.us/j/..." />
+                    <div class="px-3 py-2">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Start Time <span
+                                        class="text-danger">*</span></label>
+                                <input type="time" class="form-control form-control-sm" [(ngModel)]="ep.startTime"
+                                    [class.is-invalid]="editDaySubmitAttempted && !ep.startTime" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">End Time <span
+                                        class="text-danger">*</span></label>
+                                <input type="time" class="form-control form-control-sm" [(ngModel)]="ep.endTime"
+                                    [class.is-invalid]="editDaySubmitAttempted && !ep.endTime" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Period Type</label>
+                                <select class="form-select form-select-sm" [(ngModel)]="ep.periodType">
+                                    <option value="LECTURE">LECTURE</option>
+                                    <option value="LAB">LAB</option>
+                                    <option value="TUTORIAL">TUTORIAL</option>
+                                    <option value="TEST">TEST</option>
+                                    <option value="REVISION">REVISION</option>
+                                    <option value="EXAM">EXAM</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted mb-1">Mode</label>
+                                <select class="form-select form-select-sm" [(ngModel)]="ep.mode"
+                                    (change)="onEditDayModeChange(ep)">
+                                    <option value="OFFLINE">OFFLINE</option>
+                                    <option value="ONLINE">ONLINE</option>
+                                    <option value="HYBRID">HYBRID</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1">Subject</label>
+                                <select class="form-select form-select-sm" [(ngModel)]="ep.subjectCode"
+                                    (change)="onEditDaySubjectChange(ep)">
+                                    <option value="">Select Subject</option>
+                                    <option *ngFor="let sub of subjectsFull" [value]="sub.subjectCode">
+                                        {{ sub.subjectName }} ({{ sub.subjectCode }})
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1">
+                                    {{ ep.periodType === 'EXAM' ? 'Invigilator' : 'Faculty' }}
+                                    <span class="text-danger">*</span>
+                                    <span *ngIf="ep.subjectId" class="text-muted fw-normal ms-1"
+                                        style="font-size:0.7rem">
+                                        — filtered by subject
+                                    </span>
+                                </label>
+                                <select class="form-select form-select-sm" [(ngModel)]="ep.facultyId"
+                                    (change)="onEditDayFacultyChange(ep)"
+                                    [class.is-invalid]="editDaySubmitAttempted && !ep.facultyId">
+                                    <option value="">Select {{ ep.periodType === 'EXAM' ? 'Invigilator' : 'Faculty' }}
+                                    </option>
+                                    <option *ngFor="let s of getStaffForSubject(ep.subjectId)" [value]="s.staffCode">
+                                        {{ s.staffName }} ({{ s.staffCode }})
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-6" *ngIf="ep.mode !== 'ONLINE'">
+                                <label class="form-label small text-muted mb-1">Venue</label>
+                                <input class="form-control form-control-sm" [(ngModel)]="ep.venue"
+                                    placeholder="Hall A" />
+                            </div>
+                            <div class="col-md-6" [class.col-md-12]="ep.mode === 'ONLINE'">
+                                <label class="form-label small text-muted mb-1">Topic / Notes</label>
+                                <input class="form-control form-control-sm" [(ngModel)]="ep.topic"
+                                    placeholder="e.g. Chapter 3 – Vectors" />
+                            </div>
+                            <div class="col-12" *ngIf="ep.mode === 'ONLINE' || ep.mode === 'HYBRID'">
+                                <label class="form-label small text-muted mb-1">
+                                    <i class="fa-solid fa-video me-1 text-info"></i>Zoom URL
+                                    <span *ngIf="ep.mode === 'ONLINE'" class="text-danger">*</span>
+                                </label>
+                                <input class="form-control form-control-sm" [(ngModel)]="ep.zoomUrl"
+                                    placeholder="https://zoom.us/j/..." />
+                            </div>
                         </div>
                     </div>
                 </div>
-                <button class="btn btn-sm btn-outline-primary mt-1 mb-3" (click)="addEditDayPeriod()">
-                    <i class="fa-solid fa-plus me-1"></i> Add Period
-                </button>
-                <!-- Conflict errors from validation -->
-                <div *ngIf="editDayConflicts.length" class="mt-3">
-                    <div class="alert alert-danger small mb-0">
-                        <div class="fw-semibold mb-2">
-                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                            Schedule conflicts detected — please fix before saving:
-                        </div>
-                        <ul class="mb-0 ps-3">
-                            <li *ngFor="let c of editDayConflicts">
-                                <span *ngIf="c.periodNo">Period {{ c.periodNo }} — </span>
-                                <span *ngIf="c.facultyId" class="fw-semibold">{{ c.facultyId }}: </span>
-                                {{ c.message }}
-                            </li>
-                        </ul>
-                    </div>
+                <div *ngIf="!editDayPeriods.length"
+                    class="border border-dashed rounded-3 text-center text-muted py-4 mb-3"
+                    style="border-style:dashed!important">
+                    <i class="fa-solid fa-calendar-xmark fa-2x opacity-25 mb-2 d-block"></i>
+                    <div class="small">No periods. Click <strong>Add Period</strong> below to start.</div>
                 </div>
-                <div class="d-flex justify-content-end gap-2">
-                    <button class="btn btn-outline-secondary" (click)="closeEditDay()">Cancel</button>
-                    <button class="btn btn-primary" (click)="validateAndSubmitEditDay()"
-                        [disabled]="loading || editDayValidating || !editDayPeriods.length">
-                        <span *ngIf="editDayValidating" class="spinner-border spinner-border-sm me-1"></span>
-                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        <i class="fa-solid fa-shield-check me-1" *ngIf="!loading && !editDayValidating"></i>
-                        {{ editDayValidating ? 'Validating...' : 'Validate & Save' }}
+                <div class="d-flex justify-content-between align-items-center mt-1 mb-1">
+                    <button class="btn btn-sm btn-outline-primary" (click)="addEditDayPeriod()"
+                        [disabled]="loading || editDayValidating">
+                        <i class="fa-solid fa-plus me-1"></i>Add Period
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning" (click)="resetEditDayPeriods()"
+                        [disabled]="loading || editDayValidating"
+                        title="Discard all changes and restore the original schedule for this day">
+                        <i class="fa-solid fa-rotate-left me-1"></i>Reset to Original
                     </button>
                 </div>
+
             </div>
+            <div class="app-modal-footer d-flex justify-content-end gap-2 px-3 py-2 border-top bg-light rounded-bottom">
+                <button class="btn btn-outline-secondary btn-sm" (click)="closeEditDay()"
+                    [disabled]="loading || editDayValidating">
+                    Cancel
+                </button>
+                <button class="btn btn-primary btn-sm" (click)="validateAndSubmitEditDay()"
+                    [disabled]="loading || editDayValidating || !editDayPeriods.length">
+                    <span *ngIf="editDayValidating" class="spinner-border spinner-border-sm me-1"></span>
+                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    <i class="fa-solid fa-shield-check me-1" *ngIf="!loading && !editDayValidating"></i>
+                    {{ editDayValidating ? 'Validating...' : (loading ? 'Saving...' : 'Validate & Save') }}
+                </button>
+            </div>
+
         </div>
     </div>
+
+
 
     <!-- ===================== CANCEL PERIOD MODAL ===================== -->
     <div class="app-modal-backdrop" *ngIf="showCancelPeriod">
@@ -417,10 +477,14 @@
             <div class="app-modal-body">
                 <div class="row g-2">
                     <div class="col-12">
-                        <label class="form-label small text-muted">New Faculty *</label>
+                        <label class="form-label small text-muted">New Faculty *
+                            <span *ngIf="activeSubjectId" class="text-muted fw-normal ms-1" style="font-size:0.7rem">
+                                — filtered by subject
+                            </span>
+                        </label>
                         <select class="form-select" [(ngModel)]="newFacultyId" (change)="onNewFacultySelected()">
                             <option value="">Select Faculty</option>
-                            <option *ngFor="let s of staffFull" [value]="s.staffCode">
+                            <option *ngFor="let s of getStaffForSubject(activeSubjectId)" [value]="s.staffCode">
                                 {{ s.staffName }} ({{ s.staffCode }})
                             </option>
                         </select>

@@ -53,7 +53,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
   private moduleName = 'timetable';
   timetables: any[] = [];
   totalRecords = 0;
-  pageSize = 20;
+  pageSize = 5;
   selectedBatch = '';
   selectedCenter = '';
   batchesFull: any[] = [];
