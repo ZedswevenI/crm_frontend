@@ -64,6 +64,7 @@ export class NewdashboardComponent {
         { label: 'Batches', path: '/app/batches' },
         { label: 'Phaseplan', path: '/app/phaseplan' },
         { label: 'Timetable', path: '/app/timetable' },
+        { label: 'Attendance', path: '/app/attendance' },
         { label: 'Topics', path: '/app/admin/masters/institute' },
         { label: 'Subtopics', path: '/app/admin/masters/institute' },
         { label: 'Subjects', path: '/app/admin/masters/institute' },

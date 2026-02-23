@@ -1,0 +1,201 @@
+// ── Your existing styles (unchanged) ──────────────────────
+.student-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px 10px;
+  text-align: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.student-avatar {
+  width: 48px;
+  height: 48px;
+  background: #0d6efd;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+}
+
+.student-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.student-roll {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.form-check-input {
+  cursor: pointer;
+}
+
+.student-card.present {
+  background-color: #e9f7ef;
+  border-color: #198754;
+  .student-avatar {
+    background: #198754;
+  }
+}
+
+.student-card.absent {
+  background-color: #fdecea;
+  border-color: #dc3545;
+  .student-avatar {
+    background: #dc3545;
+  }
+}
+
+// Late — amber variant
+.student-card.late {
+  background-color: #fffbeb;
+  border-color: #d97706;
+  .student-avatar {
+    background: #d97706;
+  }
+}
+
+.student-card.neutral {
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+// ── Popup backdrop/card (your existing) ───────────────────
+.attendance-popup-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.attendance-popup {
+  width: 100%;
+  max-width: 480px; // slightly wider to fit remark inputs
+  border-radius: 12px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+// ── Absent + remarks list (new, inside popup) ─────────────
+.absent-remark-list {
+  border: 1px solid #f5c6cb;
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.absent-remark-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #fee2e2;
+  background: #fff;
+
+  &:last-child {
+    border-bottom: none;
+  }
+  &:hover {
+    background: #fff5f5;
+  }
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #dc3545;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__roll {
+    font-size: 0.65rem;
+    color: #94a3b8;
+  }
+
+  &__input {
+    border: 1.5px solid #fecaca;
+    border-radius: 7px;
+    padding: 4px 9px;
+    font-size: 0.75rem;
+    color: #0f172a;
+    width: 150px;
+    flex-shrink: 0;
+    background: #fff;
+
+    &:focus {
+      outline: none;
+      border-color: #dc3545;
+      box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+    }
+
+    &::placeholder {
+      color: #fca5a5;
+    }
+  }
+}
+
+// ── closebutton / submitbutton — keep your existing styles ─
+// (just ensure they exist in your global or component scss)
+.closebutton {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  &:hover {
+    background: #e2e8f0;
+  }
+}
+
+.submitbutton {
+  background: #0d6efd;
+  color: #fff;
+  &:hover {
+    background: #0b5ed7;
+  }
+  &:disabled {
+    opacity: 0.65;
+  }
+}

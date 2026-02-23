@@ -39,6 +39,10 @@ const routes: Routes = [
     loadChildren: () => import('./timetable/timetable.module').then(m => m.TimetableModule)
   },
   {
+    path: 'attendance',
+    loadChildren: () => import('./attendance/attendance.module').then(m => m.AttendanceModule)
+  },
+  {
     path: 'feedback',
     loadChildren: () => import('./feedback/feedback.module').then(m => m.FeedbackModule)
   }

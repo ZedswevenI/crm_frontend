@@ -1,0 +1,24 @@
+.date-card {
+  transition: all 0.15s ease;
+  background: #fff;
+
+  &:hover {
+    border-color: #f47b21 !important;
+    background: #f0f6ff;
+  }
+
+  &--active {
+    background: #f47b21 !important;
+    border-color: #f47b21 !important;
+    color: #fff !important;
+
+    .small {
+      color: #fff !important;
+    }
+  }
+
+  &--today {
+    border-color: #f47b21 !important;
+    color: #f47b21;
+  }
+}
