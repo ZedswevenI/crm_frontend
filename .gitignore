@@ -25,6 +25,7 @@ dist/
 # Maven
 target/
 dist/
+release/
 
 # JetBrains IDE
 .idea/

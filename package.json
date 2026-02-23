@@ -6,7 +6,9 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "electron": "ng build --configuration production && electron .",
+    "dist": "ng build --configuration production && electron-builder"
   },
   "private": true,
   "dependencies": {
@@ -34,6 +36,8 @@
     "@angular/cli": "^19.2.9",
     "@angular/compiler-cli": "^19.2.0",
     "@types/jasmine": "~5.1.0",
+    "electron": "^40.6.0",
+    "electron-builder": "^26.8.1",
     "jasmine-core": "~5.6.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
@@ -41,5 +45,26 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "typescript": "~5.7.2"
+  },
+  "main": "main.js",
+  "build": {
+    "appId": "com.z7k.crm",
+    "productName": "CRM Frontend",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "src/assets/logo.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "files": [
+      "main.js",
+      "package.json",
+      "dist/crm_frontend/browser/**/*"
+    ]
   }
 }
