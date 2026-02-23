@@ -11,6 +11,7 @@ import { AdmissionpaymentsEditorComponent } from './admissionpayments-editor/adm
 import { AdmissionEditComponent } from './admission-edit/admission-edit.component';
 import { AdmissionbugComponent } from './admissionbug/admissionbug.component';
 import { AdmissionWaitComponent } from './admission-wait/admission-wait.component';
+import { StudentuploadComponent } from './studentupload/studentupload.component';
 
 const routes: Routes = [
   { path: '', component: ListComponent },
@@ -22,7 +23,8 @@ const routes: Routes = [
   { path: 'communication', component: AdmissioncommunicationComponent },
   { path: 'fee-calculator', component: AdmissionfeecalComponent },
   { path: 'payments/edit/:id', component: AdmissionpaymentsEditorComponent },
-  { path: 'edit/:id', component: AdmissionEditComponent }
+  { path: 'edit/:id', component: AdmissionEditComponent },
+  { path: 'student/upload', component: StudentuploadComponent }
 ];
 
 @NgModule({

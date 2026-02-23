@@ -8,35 +8,64 @@
                     {{ timetable.phase || "General" }}
                 </p>
             </div>
-
             <div class="d-flex gap-2 flex-wrap">
                 <button class="btn btn-sm btn-outline-secondary" (click)="back()">
                     <i class="fa-solid fa-arrow-left me-1"></i> Back
                 </button>
+                <button class="btn btn-sm btn-outline-primary" type="button" (click)="toggleRangeView()"
+                    [disabled]="loading">
+                    <i class="fa-solid fa-calendar-days me-1"></i>
+                    {{ viewMode === 'range' ? 'Weekly View' : 'View By Date Range' }}
+                </button>
             </div>
         </div>
-
         <div class="card-body pt-0">
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
                     <div class="border rounded-3 p-2 small">
-                        <div class="text-muted">Week Starting</div>
-                        <div class="fw-semibold">
+                        <div class="text-muted">
+                            {{ viewMode === 'range' ? 'Date Range' : 'Week Starting' }}
+                        </div>
+                        <div class="fw-semibold" *ngIf="viewMode !== 'range'">
                             {{ timetable.wkStartOn | date: "mediumDate" }}
+                        </div>
+                        <div class="fw-semibold" *ngIf="viewMode === 'range'">
+                            {{ fromDateStr | date:'mediumDate' }}
+                            <span class="text-muted mx-1">→</span>
+                            {{ (toDateStr || fromDateStr) | date:'mediumDate' }}
                         </div>
                     </div>
                 </div>
+            </div>
+            <div class="row g-2 mb-3" *ngIf="viewMode === 'range'">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">From Date</label>
+                    <input class="form-control" type="date" [(ngModel)]="fromDateStr" />
+                </div>
 
                 <div class="col-md-3">
-                    <div class="border rounded-3 p-2 small">
-                        <div class="text-muted">Status</div>
-                        <span class="badge" [ngClass]="timetable.status === 'Active' ? 'bg-success' : 'bg-secondary'">
-                            {{ timetable.status }}
-                        </span>
+                    <label class="form-label small text-muted mb-1">To Date</label>
+                    <input class="form-control" type="date" [(ngModel)]="toDateStr" />
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button class="btn btn-primary" type="button" (click)="loadByRange()"
+                        [disabled]="loading || !fromDateStr">
+                        Load
+                    </button>
+
+                    <button class="btn btn-outline-secondary" type="button" (click)="resetToWeekly()"
+                        [disabled]="loading">
+                        Reset
+                    </button>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="small text-muted" *ngIf="rangeMetaLabel">
+                        {{ rangeMetaLabel }}
                     </div>
                 </div>
             </div>
-
             <div class="table-responsive border rounded-3">
                 <table class="table table-bordered mb-0 timetable-grid">
                     <thead class="bg-light">
@@ -49,30 +78,37 @@
                             </th>
                         </tr>
                     </thead>
-
                     <tbody>
                         <tr *ngFor="let row of sortedSchedule">
                             <td class="fw-bold bg-light text-center align-middle">
                                 <div>{{ row.day }}</div>
                                 <div class="small text-muted">{{ row.dateLabel }}</div>
-
-                                <div class="d-flex justify-content-center gap-1 mt-2">
+                                <!-- <div class="d-flex justify-content-center gap-1 mt-2">
                                     <button class="btn btn-sm btn-outline-danger" (click)="openCancelDay(row)"
                                         [disabled]="loading">
                                         <i class="fa-solid fa-ban me-1"></i> Holiday
                                     </button>
                                 </div>
-
                                 <div *ngIf="isDayCancelled(row.dateMs, row.day)" class="mt-2">
+                                    <span class="badge bg-success">Holiday</span>
+                                </div> -->
+                                <div class="d-flex justify-content-center gap-1 mt-2"
+                                    *ngIf="timetable?.status === 'Active' && !row.__isHoliday">
+                                    <button class="btn btn-sm btn-outline-danger" (click)="openCancelDay(row)"
+                                        [disabled]="loading">
+                                        <i class="fa-solid fa-ban me-1"></i> Holiday
+                                    </button>
+                                </div>
+                                <div *ngIf="row.__isHoliday" class="mt-2">
                                     <span class="badge bg-danger">Holiday</span>
                                 </div>
                             </td>
-
                             <td *ngFor="let pNum of periodHeaders" class="p-0 position-relative tt-cell">
                                 <ng-container *ngIf="getRenderedPeriod(row, pNum) as p; else freeCell">
                                     <div class="p-2 h-100 d-flex flex-column align-items-center justify-content-center"
-                                        [class.bg-danger-subtle]="p.isCancelled"
-                                        [class.bg-secondary-subtle]="p.__dayCancelled">
+                                        [class.bg-danger-subtle]="p.isCancelled && !p.__dayCancelled"
+                                        [class.bg-success-subtle]="p.__dayCancelled"
+                                        [class.bg-warning-subtle]="p.__staffChanged">
                                         <ng-container *ngIf="!p.__dayCancelled; else dayCancelledTpl">
                                             <div class="fw-bold small">
                                                 {{ resolveSubjectLabel(p) || "-" }}
@@ -92,7 +128,8 @@
                                                 {{ p.venue }}
                                             </div>
 
-                                            <div class="d-flex gap-1 mt-2 flex-wrap justify-content-center">
+                                            <div class="d-flex gap-1 mt-2 flex-wrap justify-content-center"
+                                                *ngIf="timetable?.status === 'Active' && !p.__dayCancelled && !p.isCancelled">
                                                 <button class="btn btn-sm btn-outline-danger"
                                                     (click)="openCancelPeriod(row, pNum)" [disabled]="loading">
                                                     Cancel
@@ -134,7 +171,6 @@
             </div>
         </div>
     </div>
-
     <!-- CANCEL DAY MODAL -->
     <div class="app-modal-backdrop" *ngIf="showCancelDay">
         <div class="app-modal timetable-modal">
@@ -158,7 +194,6 @@
             </div>
         </div>
     </div>
-
     <!-- CANCEL PERIOD MODAL -->
     <div class="app-modal-backdrop" *ngIf="showCancelPeriod">
         <div class="app-modal timetable-modal">
@@ -171,7 +206,6 @@
                 </div>
                 <button class="btn-close" (click)="closeCancelPeriod()"></button>
             </div>
-
             <div class="app-modal-body">
                 <label class="form-label small text-muted">Reason</label>
                 <input class="form-control" [(ngModel)]="cancelPeriodReason" placeholder="Cancel reason" />
@@ -184,7 +218,6 @@
             </div>
         </div>
     </div>
-
     <!-- REARRANGE STAFF MODAL (UPDATED to SELECT) -->
     <div class="app-modal-backdrop" *ngIf="showRearrangeStaff">
         <div class="app-modal timetable-modal">
@@ -197,7 +230,6 @@
                 </div>
                 <button class="btn-close" (click)="closeRearrangeStaff()"></button>
             </div>
-
             <div class="app-modal-body">
                 <div class="row g-2">
                     <div class="col-md-12">
@@ -213,7 +245,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="d-flex justify-content-end gap-2 mt-3">
                     <button class="btn btn-outline-secondary" (click)="closeRearrangeStaff()">Cancel</button>
                     <button class="btn btn-primary" (click)="submitRearrangeStaff()"
@@ -224,7 +255,6 @@
             </div>
         </div>
     </div>
-
     <!-- MOVE PERIOD MODAL -->
     <div class="app-modal-backdrop" *ngIf="showMovePeriod">
         <div class="app-modal timetable-modal">

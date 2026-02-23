@@ -15,6 +15,7 @@ import { AdmissionpaymentsEditorComponent } from './admissionpayments-editor/adm
 import { AdmissionEditComponent } from './admission-edit/admission-edit.component';
 import { AdmissionbugComponent } from './admissionbug/admissionbug.component';
 import { AdmissionWaitComponent } from './admission-wait/admission-wait.component';
+import { StudentuploadComponent } from './studentupload/studentupload.component';
 
 @NgModule({
   declarations: [
@@ -27,7 +28,7 @@ import { AdmissionWaitComponent } from './admission-wait/admission-wait.componen
     AdmissionfeecalComponent, 
     AdmissionpaymentsEditorComponent, 
     AdmissionEditComponent, 
-    AdmissionbugComponent],
+    AdmissionbugComponent, StudentuploadComponent],
   imports: [CommonModule, AdmissionsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })
 export class AdmissionsModule {}

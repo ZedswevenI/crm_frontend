@@ -22,18 +22,13 @@ export class ViewComponent implements OnInit {
   entiId: any;
   timetableId = '';
   private moduleName = 'timetable';
-
   timetable: any = null;
-
-  // ===== LOOKUPS =====
   centersFull: any[] = [];
   staffFull: any[] = [];
   subjectsFull: any[] = [];
-
   private staffByCode: Record<string, any> = {};
   private subjectByCode: Record<string, any> = {};
   private centerByCode: Record<string, any> = {};
-
   daysOrder = [
     'MONDAY',
     'TUESDAY',
@@ -43,38 +38,26 @@ export class ViewComponent implements OnInit {
     'SATURDAY',
     'SUNDAY',
   ];
-
   sortedSchedule: any[] = [];
   maxPeriods = 0;
   periodHeaders: number[] = [];
-
-  // CSV update
   showUpload = false;
   file: File | null = null;
   parsedPayload: any = null;
   parseStats = { daysFound: 0, periodsFound: 0 };
   uploadMeta: any = {};
-
-  // Week date map (key: DAY -> { dateMs, label })
   weekDateMap: any = {};
-
-  // Action modals state
   activeDay: any = null;
   activePeriodNo: number = 0;
-
   showCancelDay = false;
   cancelDayReason = 'Holiday';
-
   showCancelPeriod = false;
   cancelPeriodReason = 'Cancelled';
-
   showRearrangeStaff = false;
   newFacultyId = '';
   newFacultyName = '';
-
   showMovePeriod = false;
   moveToPeriodNo: number | null = null;
-
   showReplacePeriod = false;
   rp: any = {
     facultyId: '',
@@ -84,6 +67,12 @@ export class ViewComponent implements OnInit {
     venue: '',
     topic: '',
   };
+  viewMode: 'week' | 'range' = 'week';
+  fromDateStr = '';
+  toDateStr = '';
+  rangeMetaLabel = '';
+
+  private lastWeeklyTimetable: any = null;
 
   constructor(
     private router: Router,
@@ -201,16 +190,21 @@ export class ViewComponent implements OnInit {
   // ================= VIEW API =================
   loadTimetable() {
     this.loading = true;
-
     const payload = {
       entiId: this.entiId,
       timetableId: this.timetableId,
     };
-
     this.commonApi.fetchData(payload, this.moduleName, 'view').subscribe({
       next: (res: any) => {
         this.loading = false;
         this.timetable = res?.data || null;
+        this.lastWeeklyTimetable = this.timetable;
+        const wkStart = toInt(this.timetable?.wkStartOn, 0);
+        if (wkStart && !this.fromDateStr) {
+          this.fromDateStr = this.toISODateInput(wkStart);
+          const end = wkStart + 6 * 24 * 60 * 60 * 1000;
+          this.toDateStr = this.toISODateInput(end);
+        }
         this.processSchedule();
       },
       error: (err: any) => {
@@ -246,43 +240,41 @@ export class ViewComponent implements OnInit {
 
   processSchedule() {
     if (!this.timetable?.week) return;
-
     this.buildWeekDateMap();
-
     const weekMap = new Map<string, any>(
       (this.timetable.week || []).map((d: any) => [
         String(d.day || '').toUpperCase(),
         d,
       ]),
     );
-
     this.sortedSchedule = this.daysOrder.map((day) => {
       const periods = (weekMap.get(day)?.periods || [])
         .slice()
         .sort((a: any, b: any) => toInt(a.periodNo, 0) - toInt(b.periodNo, 0));
-
       const dateMs = this.weekDateMap?.[day]?.dateMs || 0;
       const dateLabel = this.weekDateMap?.[day]?.label || '-';
-      return { day, dateMs, dateLabel, periods };
+      return {
+        day,
+        dateMs,
+        dateLabel,
+        periods,
+        __isHoliday: this.isDayCancelled(dateMs, day),
+      };
     });
-
-    this.maxPeriods = 0;
+    this.maxPeriods = this.computeMaxPeriodsFromTemplateAndOverrides();
     this.sortedSchedule.forEach((d) => {
       const lastP = d.periods?.[d.periods.length - 1];
       if (lastP && toInt(lastP.periodNo, 0) > this.maxPeriods) {
         this.maxPeriods = toInt(lastP.periodNo, 0);
       }
     });
-
     if (this.maxPeriods <= 0) this.maxPeriods = 1;
-
     this.periodHeaders = Array.from(
       { length: this.maxPeriods },
       (_, i) => i + 1,
     );
   }
 
-  // ===== Overrides helpers (UNCHANGED) =====
   private findOverride(
     dateMs: number,
     day: string,
@@ -293,7 +285,6 @@ export class ViewComponent implements OnInit {
       ? this.timetable.overrides
       : [];
     const dayU = String(day || '').toUpperCase();
-
     return ovs.find((o: any) => {
       const od = toInt(o?.date, 0);
       const oday = String(o?.day || '').toUpperCase();
@@ -340,19 +331,16 @@ export class ViewComponent implements OnInit {
       ? this.timetable.overrides
       : [];
     const dayU = String(day || '').toUpperCase();
-
     ovs.forEach((o: any) => {
       if (safeTrim(o?.action) !== 'MOVE_PERIOD') return;
       if (toInt(o?.date, 0) !== toInt(dateMs, 0)) return;
       if (String(o?.day || '').toUpperCase() !== dayU) return;
-
       const fromP =
         o?.periodNo === null || o?.periodNo === undefined
           ? 0
           : toInt(o?.periodNo, 0);
       const toP = toInt(o?.period?.periodNo, 0);
       if (!fromP || !toP) return;
-
       const moved = o?.period || null;
       if (baseMap.has(fromP)) baseMap.delete(fromP);
       if (moved) baseMap.set(toP, moved);
@@ -362,9 +350,21 @@ export class ViewComponent implements OnInit {
   getRenderedPeriod(dayRow: any, pNum: number) {
     const dateMs = toInt(dayRow?.dateMs, 0);
     const day = String(dayRow?.day || '').toUpperCase();
-
     if (!dateMs || !day) return null;
-
+    if (this.viewMode === 'range') {
+      if (dayRow?.__isHoliday) {
+        return {
+          __dayCancelled: true,
+          isCancelled: true,
+          time: { startLabel: null, endLabel: null },
+        };
+      }
+      const list = Array.isArray(dayRow?.periods) ? dayRow.periods : [];
+      const hit = list.find(
+        (p: any) => toInt(p?.periodNo, 0) === toInt(pNum, 0),
+      );
+      return hit || null;
+    }
     if (this.isDayCancelled(dateMs, day)) {
       return {
         __dayCancelled: true,
@@ -372,7 +372,6 @@ export class ViewComponent implements OnInit {
         time: { startLabel: null, endLabel: null },
       };
     }
-
     const replacedPeriods = this.getDayReplacementPeriods(dateMs, day);
     const basePeriods = replacedPeriods
       ? replacedPeriods
@@ -385,18 +384,24 @@ export class ViewComponent implements OnInit {
       const pn = toInt(p?.periodNo, 0);
       if (pn > 0) baseMap.set(pn, p);
     });
-
     this.applyMoveOverrides(dateMs, day, baseMap);
-
     const base = baseMap.get(toInt(pNum, 0)) || null;
     if (!base) return null;
-
     const cancelOv = this.findOverride(dateMs, day, pNum, 'CANCEL_PERIOD');
-    if (cancelOv?.period) return cancelOv.period;
-
+    if (cancelOv?.period) {
+      cancelOv.period.isCancelled = true;
+      return cancelOv.period;
+    }
     const replaceOv = this.findOverride(dateMs, day, pNum, 'REPLACE_PERIOD');
-    if (replaceOv?.period) return replaceOv.period;
-
+    if (replaceOv?.period) {
+      replaceOv.period.__staffChanged = true;
+      return replaceOv.period;
+    }
+    const rearrangeOv = this.findOverride(dateMs, day, pNum, 'REARRANGE_STAFF');
+    if (rearrangeOv?.period) {
+      rearrangeOv.period.__staffChanged = true;
+      return rearrangeOv.period;
+    }
     return base;
   }
 
@@ -404,7 +409,6 @@ export class ViewComponent implements OnInit {
     this.router.navigate(['/app/timetable']);
   }
 
-  // ===== CSV UPDATE (UNCHANGED logic; only payload remains same) =====
   openUpload() {
     this.showUpload = true;
     this.file = null;
@@ -821,6 +825,152 @@ export class ViewComponent implements OnInit {
         error: (err: any) => {
           this.loading = false;
           this.alert.error(err?.error?.message || 'Replace failed');
+        },
+      });
+  }
+
+  private computeMaxPeriodsFromTemplateAndOverrides(): number {
+    let maxP = 0;
+    (this.sortedSchedule || []).forEach((d: any) => {
+      (d?.periods || []).forEach((p: any) => {
+        maxP = Math.max(maxP, toInt(p?.periodNo, 0));
+      });
+    });
+    const ovs = Array.isArray(this.timetable?.overrides)
+      ? this.timetable.overrides
+      : [];
+    ovs.forEach((o: any) => {
+      const pn =
+        o?.periodNo === null || o?.periodNo === undefined
+          ? 0
+          : toInt(o?.periodNo, 0);
+      maxP = Math.max(maxP, pn);
+
+      const toPn = toInt(o?.period?.periodNo, 0);
+      maxP = Math.max(maxP, toPn);
+      const replPeriods = o?.period?.periods;
+      if (Array.isArray(replPeriods)) {
+        replPeriods.forEach((pp: any) => {
+          maxP = Math.max(maxP, toInt(pp?.periodNo, 0));
+        });
+      }
+    });
+    return maxP;
+  }
+
+  private toStartOfDayMs(dateStr: string): number {
+    if (!dateStr) return 0;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 0;
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
+  private toISODateInput(ms: number): string {
+    const d = new Date(ms);
+    if (isNaN(d.getTime())) return '';
+    // yyyy-MM-dd
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  toggleRangeView() {
+    if (this.viewMode === 'range') {
+      this.resetToWeekly();
+    } else {
+      this.viewMode = 'range';
+      // do not auto-call API; user will choose date and click Load
+      this.rangeMetaLabel = '';
+    }
+  }
+
+  resetToWeekly() {
+    this.viewMode = 'week';
+    this.rangeMetaLabel = '';
+    if (this.lastWeeklyTimetable) {
+      this.timetable = this.lastWeeklyTimetable;
+      this.processSchedule();
+    } else {
+      this.loadTimetable();
+    }
+  }
+
+  loadByRange() {
+    const fromMs = this.toStartOfDayMs(this.fromDateStr);
+    const toMs = this.toStartOfDayMs(this.toDateStr) || fromMs;
+
+    if (
+      !fromMs ||
+      !safeTrim(
+        this.lastWeeklyTimetable?.batchCode || this.timetable?.batchCode,
+      )
+    ) {
+      this.alert.warning(
+        'Please select From Date (and ensure batchCode is available)',
+      );
+      return;
+    }
+
+    const batchCode = safeTrim(
+      this.lastWeeklyTimetable?.batchCode || this.timetable?.batchCode,
+    );
+
+    const payload = {
+      entiId: this.entiId,
+      batchCode,
+      fromDate: fromMs,
+      toDate: toMs,
+    };
+
+    this.loading = true;
+
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'viewbybatch')
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+
+          const schedule = Array.isArray(res?.data) ? res.data : [];
+          if (!schedule.length) {
+            this.alert.warning('No schedule found for selected range');
+          }
+          const builtRows = schedule.map((d: any) => {
+            const dateMs = toInt(d?.date, 0);
+            const day = String(d?.day || '').toUpperCase();
+            const dateLabel = this.fmtDateLabel(dateMs);
+            const isHoliday = d?.isHoliday === true;
+            const periods = Array.isArray(d?.periods) ? d.periods.slice() : [];
+            return {
+              day,
+              dateMs,
+              dateLabel,
+              periods,
+              __isHoliday: isHoliday,
+              __holidayReason: safeTrim(d?.holidayReason),
+            };
+          });
+          this.sortedSchedule = builtRows;
+          let maxP = 0;
+          this.sortedSchedule.forEach((r: any) => {
+            (r?.periods || []).forEach((p: any) => {
+              maxP = Math.max(maxP, toInt(p?.periodNo, 0));
+            });
+          });
+          if (maxP <= 0) maxP = 1;
+          this.maxPeriods = maxP;
+          this.periodHeaders = Array.from(
+            { length: this.maxPeriods },
+            (_, i) => i + 1,
+          );
+          this.rangeMetaLabel = `${batchCode} • ${this.fromDateStr}${this.toDateStr ? ' → ' + this.toDateStr : ''}`;
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(
+            err?.error?.message || 'Failed to load range schedule',
+          );
         },
       });
   }

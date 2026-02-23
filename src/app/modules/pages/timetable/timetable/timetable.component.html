@@ -17,8 +17,7 @@
 
         <div class="card-body pt-0">
             <div class="row g-2 mb-3">
-
-                <!-- Center Filter (NEW) -->
+                <!-- Center Filter -->
                 <div class="col-md-4">
                     <select class="form-select form-select-sm" [(ngModel)]="selectedCenter"
                         (change)="onCenterFilterChange()">
@@ -28,7 +27,6 @@
                         </option>
                     </select>
                 </div>
-
                 <!-- Batch Filter -->
                 <div class="col-md-4">
                     <select class="form-select form-select-sm" [(ngModel)]="selectedBatch" (change)="applyFilters()">
@@ -47,7 +45,6 @@
                     <button class="btn btn-sm btn-primary" (click)="applyFilters()">Search</button>
                 </div>
             </div>
-
             <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [totalRecords]="totalRecords"
                 [actions]="actions" [showpageoptions]="true" (requestData)="fetchTableData($event)">
             </list-table>
@@ -57,29 +54,27 @@
     <!-- UPLOAD / IMPORT MODAL -->
     <div class="app-modal-backdrop" *ngIf="showUpload">
         <div class="app-modal timetable-modal">
-
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">Upload Timetable</h6>
                     <span class="text-muted small">
-                        Upload CSV to create/update (single) or import multiple
+                        Upload CSV or Excel (.xlsx / .xls) to create/update (single) or import multiple
                     </span>
                 </div>
                 <button class="btn-close" (click)="closeUpload()"></button>
             </div>
-
             <div class="app-modal-body">
-
                 <div class="d-flex justify-content-end mb-2">
                     <button class="btn btn-sm btn-link text-decoration-none" (click)="downloadSample()">
-                        <i class="fa-solid fa-download me-1"></i> Download Sample CSV
+                        <i class="fa-solid fa-download me-1"></i> Download Sample Excel
                     </button>
                 </div>
-
                 <div class="row g-3">
                     <div class="col-12">
-                        <label class="form-label small fw-bold">Select CSV File</label>
-                        <input type="file" class="form-control" accept=".csv" (change)="onFileChange($event)">
+                        <label class="form-label small fw-bold">Select File <span class="text-muted fw-normal">(CSV,
+                                XLSX or XLS)</span></label>
+                        <input type="file" class="form-control" accept=".csv,.xlsx,.xls"
+                            (change)="onFileChange($event)">
 
                         <div class="form-text small text-danger" *ngIf="parseError">
                             <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ parseError }}
@@ -91,6 +86,107 @@
                             {{ parseStats.totalGroups }} timetable(s) •
                             {{ parseStats.totalDays }} days •
                             {{ parseStats.totalPeriods }} periods
+                        </div>
+                    </div>
+
+                    <!-- Format hint with sample values -->
+                    <div class="col-12">
+                        <div class="border rounded-3 small overflow-hidden">
+                            <div class="px-3 py-2 bg-light border-bottom d-flex align-items-center gap-2">
+                                <i class="fa-solid fa-circle-info text-primary"></i>
+                                <span class="fw-semibold">Column Reference</span>
+                                <span class="text-muted ms-1">— use these exact column headers in your file</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-light text-muted" style="font-size:0.75rem;">
+                                        <tr>
+                                            <th>Column</th>
+                                            <th>Required</th>
+                                            <th>Sample / Allowed Values</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="font-size:0.78rem;">
+                                        <tr>
+                                            <td class="fw-semibold">BatchCode</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td class="text-muted">JEE-2025-A</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">CentCode</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td class="text-muted">64</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">WkStartOn</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td class="text-muted">09-Feb-2026 <em>(dd-MMM-yyyy)</em></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">Phase</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td class="text-muted">Phase 1</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">Dates</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td class="text-muted">09-Feb-2026 <em>(dd-MMM-yyyy)</em></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">TimeStart</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td class="text-muted">09:00 <em>(HH:MM, 24h)</em></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">TimeEnd</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td class="text-muted">10:30 <em>(HH:MM, 24h)</em></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">FacultyID</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td class="text-muted">STF0016</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">PeriodType</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td>
+                                                <span
+                                                    class="badge bg-secondary-subtle text-secondary me-1">LECTURE</span>
+                                                <span class="badge bg-secondary-subtle text-secondary me-1">LAB</span>
+                                                <span class="badge bg-secondary-subtle text-secondary me-1">EXAM</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">Mode</td>
+                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
+                                            <td>
+                                                <span class="badge bg-success-subtle text-success me-1">OFFLINE</span>
+                                                <span class="badge bg-info-subtle text-info me-1">ONLINE</span>
+                                                <span class="badge bg-warning-subtle text-warning">HYBRID</span>
+                                            </td>
+                                        </tr>
+                                        <tr class="text-muted">
+                                            <td>ZoomUrl</td>
+                                            <td><span class="badge bg-secondary-subtle text-secondary">Optional</span>
+                                            </td>
+                                            <td>https://zoom.us/j/123… <em>(only when Mode = ONLINE)</em></td>
+                                        </tr>
+                                        <tr class="text-muted">
+                                            <td>Descriptions</td>
+                                            <td><span class="badge bg-secondary-subtle text-secondary">Optional</span>
+                                            </td>
+                                            <td>Kinematics - Chapter 1</td>
+                                        </tr>
+                                        <tr class="text-muted">
+                                            <td>Venue</td>
+                                            <td><span class="badge bg-secondary-subtle text-secondary">Optional</span>
+                                            </td>
+                                            <td>Hall A, Room 101</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
@@ -119,13 +215,30 @@
                             <label class="form-label small text-muted">Phase</label>
                             <input class="form-control form-control-sm" [value]="parsedMeta.phase" disabled />
                         </div>
+
+                        <!-- Period type / mode summary badges -->
+                        <div class="col-12" *ngIf="parsedPayload?.week?.length">
+                            <label class="form-label small text-muted">Period Summary</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <ng-container *ngFor="let day of parsedPayload.week">
+                                    <ng-container *ngFor="let p of day.periods">
+                                        <span class="badge rounded-pill"
+                                            [ngClass]="p.mode === 'ONLINE' ? 'bg-info-subtle text-info' : 'bg-success-subtle text-success'">
+                                            {{ day.day | slice:0:3 }} P{{ p.periodNo }}
+                                            · {{ p.periodType }}
+                                            · {{ p.mode }}
+                                        </span>
+                                    </ng-container>
+                                </ng-container>
+                            </div>
+                        </div>
                     </ng-container>
 
                     <!-- multi summary -->
                     <ng-container *ngIf="parsedPayload && parseStats.totalGroups > 1 && !parseError">
                         <div class="col-12">
                             <div class="alert alert-info small mb-0">
-                                <div class="fw-semibold mb-1">Multiple timetables found in this CSV.</div>
+                                <div class="fw-semibold mb-1">Multiple timetables found in this file.</div>
                                 <div>Click <b>Import</b> to bulk upload all groups.</div>
                             </div>
                         </div>
@@ -141,6 +254,7 @@
                                             <th>Phase</th>
                                             <th class="text-end">Days</th>
                                             <th class="text-end">Periods</th>
+                                            <th>Modes</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -151,6 +265,16 @@
                                             <td>{{ g.phase || '-' }}</td>
                                             <td class="text-end">{{ g.daysCount }}</td>
                                             <td class="text-end">{{ g.periodsCount }}</td>
+                                            <td>
+                                                <span *ngIf="g.onlineCount > 0"
+                                                    class="badge bg-info-subtle text-info me-1">
+                                                    {{ g.onlineCount }} Online
+                                                </span>
+                                                <span *ngIf="g.offlineCount > 0"
+                                                    class="badge bg-success-subtle text-success">
+                                                    {{ g.offlineCount }} Offline
+                                                </span>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -164,18 +288,19 @@
 
                     <button type="button" class="btn btn-saffron" *ngIf="parsedPayload && parseStats.totalGroups === 1"
                         [disabled]="!parsedPayload || !!parseError || loading" (click)="submitCreateFromCsv()">
-                        <i class="fa-solid fa-floppy-disk me-1"></i> Create / Update
+                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                        <i class="fa-solid fa-floppy-disk me-1" *ngIf="!loading"></i>
+                        Create / Update
                     </button>
 
                     <button type="button" class="btn btn-primary" *ngIf="parsedPayload && parseStats.totalGroups > 1"
                         [disabled]="!parsedPayload || !!parseError || loading" (click)="submitImportFromCsv()">
-                        <i class="fa-solid fa-file-import me-1"></i> Import
+                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                        <i class="fa-solid fa-file-import me-1" *ngIf="!loading"></i>
+                        Import
                     </button>
                 </div>
-
             </div>
-
         </div>
     </div>
-
 </div>
