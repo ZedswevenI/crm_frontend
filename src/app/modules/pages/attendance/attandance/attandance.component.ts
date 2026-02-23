@@ -114,7 +114,7 @@ export class AttandanceComponent implements OnInit, OnDestroy {
             timeLabel: r.time
               ? `${r.time.startLabel || ''} – ${r.time.endLabel || ''}`
               : `Period ${r.periodNo}`,
-            subjectName: r.subjectName || r.subjectId || '—',
+            subjectName: r.subjectName || '—',
           }));
           this.loadTableData({ page: 1, pageSize: 10 });
         },
