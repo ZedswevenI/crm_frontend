@@ -8,9 +8,7 @@ interface DashboardLink {
 }
 
 interface DashboardCard {
-  category: string;
   title: string;
-  description: string;
   icon: string;
   accent: string;
   links: DashboardLink[];
@@ -25,10 +23,8 @@ interface DashboardCard {
 export class NewdashboardComponent {
   cards: DashboardCard[] = [
     {
-      category: 'Admissions & Fees',
-      title: 'Admission Workflow',
-      description: 'Create new admissions, search enrollments and run fee simulations.',
-      icon: 'fa-solid fa-user-graduate',
+      title: 'Admissions',
+      icon: 'fa fa-user-graduate',
       accent: 'accent-admissions',
       links: [
         { label: 'New Admission', path: '/app/admissions/new' },
@@ -41,17 +37,13 @@ export class NewdashboardComponent {
       ]
     },
     {
-      category: 'Admissions & Fees',
       title: 'Fee Management',
-      description: 'Collect fees, track dues and configure fee plans.',
       icon: 'fa-solid fa-indian-rupee-sign',
       accent: 'accent-fees',
       links: [{ label: 'Fee Collection', path: '/app/fees/collection' }, { label: 'Fee Reports', path: '/app/fees/reports' }, { label: 'Fee Plans', path: '/app/fees/plans' }]
     },
     {
-      category: 'Accounts',
-      title: 'Accounts & Registers',
-      description: 'Monitor all payments, NEFT, cheques and deposits.',
+      title: 'Accounts',
       icon: 'fa-regular fa-file-lines',
       accent: 'accent-accounts',
       links: [
@@ -64,25 +56,23 @@ export class NewdashboardComponent {
       ]
     },
     {
-      category: 'Students & Batches',
-      title: 'Student & Batch Management',
-      description: 'Maintain student profiles and manage batches.',
+      title: 'Academics',
       icon: 'fa-solid fa-people-group',
       accent: 'accent-students',
-      links: [{ label: 'Students', path: '/app/students' }, { label: 'Batches', path: '/app/batches' }]
+      links: [
+        { label: 'Students', path: '/app/students' },
+        { label: 'Batches', path: '/app/batches' },
+        { label: 'Phaseplan', path: '/app/phaseplan' },
+        { label: 'Timetable', path: '/app/timetable' },
+        { label: 'Topics', path: '/app/admin/masters/institute' },
+        { label: 'Subtopics', path: '/app/admin/masters/institute' },
+        { label: 'Subjects', path: '/app/admin/masters/institute' },
+        { label: 'Exam Category', path: '/app/admin/masters/institute' },
+        { label: 'Exam Sub Category', path: '/app/admin/masters/institute' }
+      ]
     },
     {
-      category: 'Timetable',
-      title: 'Schedules & Classes',
-      description: 'Plan and view academic timetable.',
-      icon: 'fa-regular fa-calendar-days',
-      accent: 'accent-timetable',
-      links: [{ label: 'Timetable', path: '/app/timetable' }]
-    },
-    {
-      category: 'Org Config',
-      title: 'Organisation Configurations',
-      description: 'Configure centers, programs, staff and more.',
+      title: 'Utilities',
       icon: 'fa-solid fa-gear',
       accent: 'accent-org',
       links: [

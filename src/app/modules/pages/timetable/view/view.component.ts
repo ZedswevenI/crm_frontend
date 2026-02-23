@@ -348,6 +348,9 @@ export class ViewComponent implements OnInit, OnDestroy {
 
   private getDayReplacementPeriods(dateMs: number, day: string): any[] | null {
     const ov = this.findOverride(dateMs, day, null, 'REPLACE_PERIOD');
+    console.log('getDayReplacementPeriods', day, dateMs, 'found ov:', ov);
+    console.log('ov.period:', ov?.period);
+    console.log('ov.period.periods:', ov?.period?.periods);
     const periods = ov?.period?.periods;
     return Array.isArray(periods)
       ? periods
