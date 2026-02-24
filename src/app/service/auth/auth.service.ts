@@ -20,36 +20,44 @@ export class AuthService {
   formReset$ = this.formResetSubject.asObservable();
   private loggedIn$ = new BehaviorSubject<boolean>(this.hasToken());
   isLoggedIn$ = this.loggedIn$.asObservable();
-  constructor(private http: HttpClient, private router: Router, private ngZone: NgZone, private alert: AlertService) {}
+  constructor(private http: HttpClient, private router: Router, private ngZone: NgZone, private alert: AlertService) { }
+
+  // signIn(payload: any, module: any, endpoint: any) {
+  //   return this.http.post(`${environment.baseURL}/${module}/${endpoint}`, payload, { withCredentials: true }).subscribe({
+  //     next: (response: any) => {
+  //       if (response.data) {
+  //         localStorage.setItem('token', response.data.token);
+  //         localStorage.setItem('tenantId', response.data.tenantId);
+  //         localStorage.setItem('userid', response.data.userId);
+  //         localStorage.setItem('userRole', response.data.roleLevel);
+  //         localStorage.setItem('email', response.data.email);
+  //         localStorage.setItem('name', response.data.name);
+  //         this.alert.success(`Login Successful!!`);
+  //         this.lastError = null;
+  //         this.ngZone.run(() => this.router.navigateByUrl('/app/dashboard'));
+  //         this.Uploading = false;
+  //       } else {
+  //         this.lastError = 'Unexpected response.';
+  //         this.alert.error(this.lastError);
+  //         this.Uploading = false;
+  //         return;
+  //       }
+  //     },
+  //     error: err => {
+  //       this.lastError = 'Login Failed. Please enter correct Email/Password';
+  //       this.alert.error(this.lastError);
+  //       this.Uploading = false;
+  //       this.triggerFormReset();
+  //     }
+  //   });
+  // }
 
   signIn(payload: any, module: any, endpoint: any) {
-    return this.http.post(`${environment.baseURL}/${module}/${endpoint}`, payload, { withCredentials: true }).subscribe({
-      next: (response: any) => {
-        if (response.data) {
-          localStorage.setItem('token', response.data.token);
-          localStorage.setItem('tenantId', response.data.tenantId);
-          localStorage.setItem('userid', response.data.userId);
-          localStorage.setItem('userRole', response.data.roleLevel);
-          localStorage.setItem('email', response.data.email);
-          localStorage.setItem('name', response.data.name);
-          this.alert.success(`Login Successful!!`);
-          this.lastError = null;
-          this.ngZone.run(() => this.router.navigateByUrl('/app/dashboard'));
-          this.Uploading = false;
-        } else {
-          this.lastError = 'Unexpected response.';
-          this.alert.error(this.lastError);
-          this.Uploading = false;
-          return;
-        }
-      },
-      error: err => {
-        this.lastError = 'Login Failed. Please enter correct Email/Password';
-        this.alert.error(this.lastError);
-        this.Uploading = false;
-        this.triggerFormReset();
-      }
-    });
+    return this.http.post(
+      `${environment.baseURL}/${module}/${endpoint}`,
+      payload,
+      { withCredentials: true }
+    );
   }
 
   triggerFormReset() {

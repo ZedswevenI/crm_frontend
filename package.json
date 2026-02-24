@@ -64,7 +64,8 @@
     "files": [
       "main.js",
       "package.json",
-      "dist/crm_frontend/browser/**/*"
+      "dist/crm_frontend/browser/**/*",
+      "dist/crm_frontend/browser/assets/**/*" 
     ]
   }
 }

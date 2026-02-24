@@ -122,7 +122,7 @@ export class AdmissionbugComponent implements OnInit {
   academicYearOptions: string[] = [];
   testInfo: any = {};
   readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
-  readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
+  readonly PRINT_LOGO_URL = 'assets/logo.png';
   lookupForm!: UntypedFormGroup;
   step1Form!: UntypedFormGroup;
   step2Form!: UntypedFormGroup;

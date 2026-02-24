@@ -57,7 +57,7 @@ export class AdmissionfeecalComponent implements OnInit {
 
   discountOptions = Array.from({ length: 21 }, (_, i) => i * 5);
 
-  readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
+  readonly PRINT_LOGO_URL = 'assets/logo.png';
 
   // FeePlan "ALL" value
   readonly ALL_FEEPLAN_ID = '__ALL__';

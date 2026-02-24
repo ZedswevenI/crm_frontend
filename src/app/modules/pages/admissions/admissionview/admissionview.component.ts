@@ -148,7 +148,7 @@ export class AdmissionviewComponent implements OnInit {
   rejectModalOpen = false;
   rejectReason = '';
   actionBusy = false;
-  readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
+  readonly PRINT_LOGO_URL = 'assets/logo.png';
   constructor(
     private route: ActivatedRoute,
     private router: Router,

@@ -93,7 +93,7 @@ export class AdmissionsComponent implements OnInit {
   academicYearOptions: string[] = [];
   testInfo = {};
   readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
-  readonly PRINT_LOGO_URL = '../../../../../assets/logo.png';
+  readonly PRINT_LOGO_URL = 'assets/logo.png';
   constructor(
     private fb: UntypedFormBuilder,
     private alert: AlertService,

@@ -39,7 +39,35 @@ export class LoginComponent {
   }
 
   onSubmit() {
+    if (this.form.invalid || this.loading) return;
+
     this.loading = true;
-    this.service.signIn(this.form.value, 'ims/user', 'login');
+
+    this.service
+      .signIn(this.form.value, 'ims/user', 'login')
+      .subscribe({
+        next: (response: any) => {
+          this.loading = false;
+
+          if (response?.data) {
+            localStorage.setItem('token', response.data.token);
+            localStorage.setItem('tenantId', response.data.tenantId);
+            localStorage.setItem('userid', response.data.userId);
+            localStorage.setItem('userRole', response.data.roleLevel);
+            localStorage.setItem('email', response.data.email);
+            localStorage.setItem('name', response.data.name);
+            this.alert.success('Login Successful!!');
+            this.router.navigateByUrl('/app/dashboard');
+          } else {
+            this.alert.error('Unexpected response.');
+          }
+        },
+        error: () => {
+          this.alert.error(
+            'Login Failed. Please enter correct Email/Password'
+          );
+          this.loading = false;
+        }
+      });
   }
 }
