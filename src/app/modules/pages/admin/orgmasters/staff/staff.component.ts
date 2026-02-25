@@ -13,46 +13,34 @@ import * as XLSX from 'xlsx';
 })
 export class StaffComponent implements OnInit {
   staffForm!: FormGroup;
-
   totalRecords = 0;
   staffData: any[] = [];
   loading = false;
-
   showForm = false;
   formMode: 'create' | 'edit' = 'create';
   editingRecId: string | null = null;
   private editingStatus: 'Active' | 'Inactive' = 'Active';
-
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
-
   showView = false;
   viewRec: any | null = null;
-
   retireModalVisible = false;
   retireMessage = '';
   retireTarget: any | null = null;
-
-  // view date input string (yyyy-MM-dd)
   viewRelievingDate = '';
-
-  // import
   showImport = false;
   importFileName = '';
   importPreviewRows: any[] = [];
   importHasInvalidRows = false;
   importInvalidCount = 0;
-
-  // masters
   centerOptions: any[] = [];
   departmentOptions: any[] = [];
   subjectOptions: any[] = [];
-
-  // center lookups
   private centerCodeToId = new Map<string, string>();
   private centerIdToCode = new Map<string, string>();
   private centerIdToName = new Map<string, string>();
+  systemAccessDisabled = false;
 
   roleOptions = [
     { label: 'Faculty', value: 'Faculty' },
@@ -132,7 +120,6 @@ export class StaffComponent implements OnInit {
   ngOnInit(): void {
     this.initForm();
     this.loadMasters();
-    // this.loadStaff({ page: 1, pageSize: 10 });
     this.setupFacultyRules();
   }
 
@@ -141,25 +128,18 @@ export class StaffComponent implements OnInit {
       staffName: ['', [Validators.required, Validators.minLength(3)]],
       staffCode: ['', [Validators.required, Validators.minLength(2)]],
       employeeId: ['', [Validators.required, Validators.minLength(2)]],
-
       role: ['', Validators.required],
-
       phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
       email: ['', [Validators.email]],
       centerId: ['', Validators.required],
-
-      // UI keeps yyyy-MM-dd; backend expects epoch ms
       joiningDate: ['', Validators.required],
       relievingDate: [''],
-
       payroll: ['', Validators.required],
       department: ['', Validators.required],
-
       facultyType: [null],
       subject: [null],
       weekoff: [[]],
-
-      // kept to preserve edit status, but NOT shown in form UI
+      createSystemAccess: [false],
       status: ['Active'],
     });
   }
@@ -186,8 +166,6 @@ export class StaffComponent implements OnInit {
     sortDirection?: string;
   }) {
     this.loading = true;
-
-    // map UI columns to backend fields (optional safety)
     const sortMap: any = {
       staffName: 'staffName',
       staffCode: 'staffCode',
@@ -196,28 +174,23 @@ export class StaffComponent implements OnInit {
       phone: 'phone',
       email: 'email',
     };
-
     let sortParam = '';
     if (params.sortKey) {
       const k = sortMap[params.sortKey] || params.sortKey;
       sortParam = params.sortDirection === 'desc' ? `-${k}` : k;
     }
-
     const query: any = {
       page: params.page,
       limit: params.pageSize,
     };
     if (sortParam) query.sort = sortParam;
     if (params.search) query.search = params.search;
-
     const queryString = Object.keys(query)
       .map(
         (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`,
       )
       .join('&');
-
     const body = { entiId: this.entiId };
-
     this.commonApi
       .fetchData(body, 'ims', `staff/list?${queryString}`)
       .subscribe({
@@ -232,7 +205,7 @@ export class StaffComponent implements OnInit {
             role: s.role,
             phone: s.phone,
             email: s.email,
-            centerId: s.centerId, // populated object (centerCode/centerName)
+            centerId: s.centerId,
             status: s.status,
             _raw: s,
           }));
@@ -249,7 +222,6 @@ export class StaffComponent implements OnInit {
     this.formMode = 'create';
     this.editingRecId = null;
     this.editingStatus = 'Active';
-
     this.staffForm.reset({
       staffName: '',
       staffCode: '',
@@ -264,40 +236,44 @@ export class StaffComponent implements OnInit {
       department: '',
       facultyType: null,
       subject: null,
+      createSystemAccess: false,
       weekoff: [],
       status: 'Active',
     });
-
+    this.systemAccessDisabled = false;
+    this.staffForm.get('createSystemAccess')?.enable({ emitEvent: false });
     this.showForm = true;
   }
 
   edit(row: any) {
     const s = row?._raw || {};
+    this.systemAccessDisabled = !!s.userId;
+    const accessCtrl = this.staffForm.get('createSystemAccess');
+    if (accessCtrl) {
+      accessCtrl.setValue(false, { emitEvent: false });
+      if (this.systemAccessDisabled) {
+        accessCtrl.disable({ emitEvent: false });
+      } else {
+        accessCtrl.enable({ emitEvent: false });
+      }
+    }
     this.formMode = 'edit';
     this.editingRecId = s._id || null;
     this.editingStatus = s.status === 'Inactive' ? 'Inactive' : 'Active';
-
-    // ✅ FIX: centerId may be string OR populated object OR {centerId}
     const centerValue =
       s?.centerId?.centerId || s?.centerId?._id || s?.centerId || '';
-
-    // dept/subject may be string OR populated object
     const deptValue = s?.department?._id || s?.department || '';
     const subjValue = s?.subject?._id || s?.subject || null;
-
     this.staffForm.patchValue({
       staffName: s.staffName || '',
       staffCode: s.staffCode || '',
       employeeId: s.employeeId || '',
-
       role: s.role || '',
       phone: s.phone || '',
       email: s.email || '',
       centerId: centerValue,
-
       joiningDate: this.msToDateInput(s.joiningDate),
       relievingDate: this.msToDateInput(s.relievingDate),
-
       payroll: s.payroll || '',
       department: deptValue,
       facultyType: s.facultyType || null,
@@ -305,7 +281,6 @@ export class StaffComponent implements OnInit {
       weekoff: Array.isArray(s.weekoff) ? s.weekoff : [],
       status: this.editingStatus,
     });
-
     this.showForm = true;
   }
 
@@ -320,6 +295,11 @@ export class StaffComponent implements OnInit {
       return;
     }
     const form = this.staffForm.getRawValue() || {};
+    const createSystemAccess = form.createSystemAccess === true;
+    if (createSystemAccess && !(form.email || '').toString().trim()) {
+      this.alert.error('Email is required to create a system access account');
+      return;
+    }
     if (form.role === 'Faculty') {
       if (!form.facultyType) {
         this.alert.error('Faculty Type is required for Faculty role');
@@ -349,6 +329,7 @@ export class StaffComponent implements OnInit {
       joiningDate: joiningMs,
       relievingDate: relievingMs || null,
       payroll: form.payroll,
+      createSystemAccess: createSystemAccess,
       department: form.department,
       facultyType: form.role === 'Faculty' ? form.facultyType : null,
       subject:
@@ -629,6 +610,20 @@ export class StaffComponent implements OnInit {
     const facultyType = get('faculty type', 'facultytype') || null;
     const weekoffText = get('weekoff') || '';
     const status = get('status') === 'Inactive' ? 'Inactive' : 'Active';
+    const createSystemAccessText = get(
+      'create system access',
+      'createsystemaccess',
+      'system access',
+      'systemaccess',
+    );
+    const createSystemAccess = [
+      '1',
+      'true',
+      'yes',
+      'y',
+      'enable',
+      'enabled',
+    ].includes((createSystemAccessText || '').toLowerCase());
     const errors: string[] = [];
     if (!staffName) errors.push('Staff Name required');
     if (!staffCode) errors.push('Staff Code required');
@@ -644,7 +639,8 @@ export class StaffComponent implements OnInit {
       if (facultyType === 'TEACHING' && !subject)
         errors.push('Subject required for TEACHING');
     }
-
+    if (createSystemAccess && !email)
+      errors.push('Email required for System Access');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       errors.push('Invalid email');
     const resolvedCenterId = this.resolveCenterIdByCode(centerCode);
@@ -665,6 +661,7 @@ export class StaffComponent implements OnInit {
       payroll,
       department,
       facultyType,
+      createSystemAccess,
       subject,
       weekoffText,
       status,
@@ -672,10 +669,77 @@ export class StaffComponent implements OnInit {
   }
 
   private computeImportValidation() {
-    const invalid = (this.importPreviewRows || []).filter((x) => !x._valid);
+    const invalid = (this.importPreviewRows || []).filter(
+      (x) => !x._valid || x._importOk === false,
+    );
     this.importInvalidCount = invalid.length;
     this.importHasInvalidRows = invalid.length > 0;
   }
+
+  // private computeImportValidation() {
+  //   const invalid = (this.importPreviewRows || []).filter((x) => !x._valid);
+  //   this.importInvalidCount = invalid.length;
+  //   this.importHasInvalidRows = invalid.length > 0;
+  // }
+
+  // confirmImport() {
+  //   if (!this.importPreviewRows.length) {
+  //     this.alert.error('Please upload an Excel file first');
+  //     return;
+  //   }
+  //   if (this.importHasInvalidRows) {
+  //     this.alert.error('Fix invalid rows before importing');
+  //     return;
+  //   }
+  //   const mode = 'upsert';
+  //   const rows = this.importPreviewRows.map((r) => {
+  //     const joiningMs = this.dateInputToMs(r.joiningDate);
+  //     const relievingMs = this.dateInputToMs(r.relievingDate);
+  //     const centerCode = (r.centerCode || '').toString().trim().toUpperCase();
+  //     const centerId =
+  //       r.centerId || this.resolveCenterIdByCode(centerCode) || null;
+  //     return {
+  //       staffName: r.staffName,
+  //       staffCode: r.staffCode,
+  //       employeeId: r.employeeId,
+  //       role: r.role,
+  //       phone: r.phone,
+  //       email: r.email,
+  //       createSystemAccess: r.createSystemAccess === true,
+  //       center: centerCode,
+  //       centerId: centerId,
+  //       joiningDate: joiningMs,
+  //       relievingDate: relievingMs || null,
+  //       facultyType: r.role === 'Faculty' ? r.facultyType : null,
+  //       subject: r.subject,
+  //       payroll: r.payroll,
+  //       department: r.department,
+  //       weekoff: r.weekoffText,
+  //       status: r.status,
+  //     };
+  //   });
+  //   const payload = {
+  //     entiId: this.entiId,
+  //     mode,
+  //     rows,
+  //   };
+  //   this.commonApi
+  //     .fetchData(payload, this.moduleName, 'staff/import')
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         const s = res?.summary || {};
+  //         this.alert.success(
+  //           `Import completed. Inserted: ${s.inserted || 0}, Updated: ${s.upserted || 0}`,
+  //         );
+  //         this.closeImport();
+  //         this.fetchTableData({ page: 1, pageSize: 10 });
+  //       },
+  //       error: (err: any) => {
+  //         const msg = err?.error?.message || 'Import failed';
+  //         this.alert.error(msg);
+  //       },
+  //     });
+  // }
 
   confirmImport() {
     if (!this.importPreviewRows.length) {
@@ -686,14 +750,18 @@ export class StaffComponent implements OnInit {
       this.alert.error('Fix invalid rows before importing');
       return;
     }
+
     const mode = 'upsert';
+
     const rows = this.importPreviewRows.map((r) => {
       const joiningMs = this.dateInputToMs(r.joiningDate);
       const relievingMs = this.dateInputToMs(r.relievingDate);
       const centerCode = (r.centerCode || '').toString().trim().toUpperCase();
       const centerId =
         r.centerId || this.resolveCenterIdByCode(centerCode) || null;
+
       return {
+        _rowNo: r._rowNo,
         staffName: r.staffName,
         staffCode: r.staffCode,
         employeeId: r.employeeId,
@@ -710,26 +778,60 @@ export class StaffComponent implements OnInit {
         department: r.department,
         weekoff: r.weekoffText,
         status: r.status,
+        createSystemAccess: r.createSystemAccess === true,
       };
     });
-    const payload = {
-      entiId: this.entiId,
-      mode,
-      rows,
-    };
+    const payload = { entiId: this.entiId, mode, rows };
     this.commonApi
       .fetchData(payload, this.moduleName, 'staff/import')
       .subscribe({
         next: (res: any) => {
-          const s = res?.summary || {};
-          this.alert.success(
-            `Import completed. Inserted: ${s.inserted || 0}, Updated: ${s.upserted || 0}`,
-          );
+          const { summary, results } = this.pickImportPayload(res);
+          if (results.length) {
+            this.applyImportResultsToPreview(results);
+          }
+          const inserted = Number(summary?.inserted || summary?.created || 0);
+          const upserted = Number(summary?.upserted || summary?.updated || 0);
+          const failed = Number(summary?.failed || 0);
+          const failedComputed =
+            failed ||
+            (results.length
+              ? results.filter(
+                  (x: any) => !(x?.ok === true || x?.status === true),
+                ).length
+              : 0);
+          const msg = `Import completed. Inserted: ${inserted}, Updated: ${upserted}, Failed: ${failedComputed}`;
+          if (failedComputed > 0) {
+            this.alert.error(msg);
+            return;
+          }
+          this.alert.success(msg);
           this.closeImport();
           this.fetchTableData({ page: 1, pageSize: 10 });
         },
         error: (err: any) => {
-          const msg = err?.error?.message || 'Import failed';
+          const resp = err?.error || err;
+          const { summary, results } = this.pickImportPayload(resp);
+          if (Array.isArray(results) && results.length) {
+            this.applyImportResultsToPreview(results);
+            const inserted = Number(summary?.inserted || summary?.created || 0);
+            const upserted = Number(summary?.upserted || summary?.updated || 0);
+            const failed =
+              Number(summary?.failed || 0) ||
+              results.filter(
+                (x: any) => !(x?.ok === true || x?.status === true),
+              ).length;
+            this.alert.error(
+              resp?.message ||
+                `Import completed with errors. Inserted: ${inserted}, Updated: ${upserted}, Failed: ${failed}`,
+            );
+            return;
+          }
+          const msg =
+            resp?.message ||
+            resp?.error?.message ||
+            err?.message ||
+            'Import failed';
           this.alert.error(msg);
         },
       });
@@ -753,6 +855,7 @@ export class StaffComponent implements OnInit {
         Subject: 'PHYSICS',
         Weekoff: 'Sunday',
         Status: 'Active',
+        'Create System Access': 'Yes',
       },
     ];
 
@@ -879,5 +982,88 @@ export class StaffComponent implements OnInit {
     const code = this.centerIdToCode.get(id) || '';
     const name = this.centerIdToName.get(id) || '';
     return code ? `${code} - ${name}` : name || id;
+  }
+
+  private pickImportPayload(resp: any) {
+    const root = resp || {};
+    const data = root?.data && typeof root.data === 'object' ? root.data : null;
+    const summary = data?.summary || root?.summary || {};
+    const resultsRaw =
+      data?.results ||
+      root?.results ||
+      data?.invalidRows ||
+      root?.invalidRows ||
+      [];
+    const results = Array.isArray(resultsRaw) ? resultsRaw : [];
+    return { summary, results };
+  }
+
+  // private applyImportResultsToPreview(results: any[]) {
+  //   const map = new Map<number, any>();
+  //   (results || []).forEach((x: any) => {
+  //     const rn = Number(x?.rowNo);
+  //     if (Number.isFinite(rn) && rn > 0) map.set(rn, x);
+  //   });
+  //   this.importPreviewRows = (this.importPreviewRows || []).map((r: any) => {
+  //     const rr = map.get(Number(r._rowNo));
+  //     if (!rr) return r;
+  //     const ok = rr?.ok === true || rr?.status === true;
+  //     const msg =
+  //       rr?.message ||
+  //       rr?.error ||
+  //       rr?.reason ||
+  //       (Array.isArray(rr?.errors) ? rr.errors.join(', ') : '') ||
+  //       '';
+  //     if (ok) {
+  //       return {
+  //         ...r,
+  //         _importOk: true,
+  //         _importError: '',
+  //       };
+  //     }
+  //     return {
+  //       ...r,
+  //       _importOk: false,
+  //       _importError: msg || 'Import failed',
+  //       _valid: false,
+  //       _errors: [msg || 'Import failed'],
+  //     };
+  //   });
+  //   this.computeImportValidation();
+  // }
+
+  private applyImportResultsToPreview(results: any[]) {
+    const idxMap = new Map<number, any>();
+    const rowNoMap = new Map<number, any>();
+    (results || []).forEach((x: any) => {
+      const idx = Number(x?.index);
+      if (Number.isFinite(idx) && idx >= 0) idxMap.set(idx, x);
+      const rn = Number(x?.rowNo);
+      if (Number.isFinite(rn) && rn > 0) rowNoMap.set(rn, x);
+    });
+    this.importPreviewRows = (this.importPreviewRows || []).map(
+      (r: any, i: number) => {
+        const rr = rowNoMap.get(Number(r._rowNo)) || idxMap.get(i) || null;
+        if (!rr) return r;
+        const ok = rr?.ok === true || rr?.status === true;
+        const msg =
+          rr?.message ||
+          rr?.error ||
+          rr?.reason ||
+          (Array.isArray(rr?.errors) ? rr.errors.join(', ') : '') ||
+          '';
+        if (ok) {
+          return { ...r, _importOk: true, _importError: '' };
+        }
+        return {
+          ...r,
+          _importOk: false,
+          _importError: msg || 'Import failed',
+          _valid: false,
+          _errors: [msg || 'Import failed'],
+        };
+      },
+    );
+    this.computeImportValidation();
   }
 }

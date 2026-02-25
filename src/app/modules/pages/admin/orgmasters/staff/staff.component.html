@@ -119,7 +119,18 @@
                                 Invalid email
                             </div>
                         </div>
-
+                        <!-- System Access -->
+                        <div class="col-md-4">
+                            <togglebtn label="Give Portal Access" [control]="staffForm.get('createSystemAccess')"
+                                formControlName="createSystemAccess">
+                            </togglebtn>
+                            <div class="form-text">
+                                If enabled, Email is required and a login account will be created.
+                            </div>
+                            <div class="text-warning small mt-1" *ngIf="systemAccessDisabled">
+                                System access already exists for this staff. You cannot create again.
+                            </div>
+                        </div>
                         <!-- ✅ Center shows "CODE - NAME" -->
                         <div class="col-md-4">
                             <selectbox label="Center" [required]="true" [options]="centerOptions" optionLabel="label"
@@ -256,6 +267,7 @@
                                 <span class="mx-2">Role</span> |
                                 <span class="mx-2">Phone</span> |
                                 <span class="mx-2">Email</span> |
+                                <span class="mx-2">Create System Access</span> |
                                 <span class="mx-2">Center Code</span> |
                                 <span class="mx-2">Joining Date</span> |
                                 <span class="mx-2">Payroll</span> |
@@ -277,9 +289,6 @@
                         </button>
                     </div>
                 </div>
-
-                <!-- ✅ Removed insert/upsert dropdown (defaults to upsert in TS) -->
-
                 <div class="row g-3 align-items-end mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Excel File</label>
@@ -335,7 +344,8 @@
                                 <th>Subject</th>
                                 <th>Weekoff</th>
                                 <th>Status</th>
-                                <th style="width: 220px">Row Validation</th>
+                                <th>Create Access</th>
+                                <th style="width: 260px">Import Result</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -357,10 +367,18 @@
                                 <td>{{ r.weekoffText || "-" }}</td>
                                 <td>{{ r.status }}</td>
                                 <td>
-                                    <span *ngIf="r._valid" class="badge bg-success">OK</span>
-                                    <span *ngIf="!r._valid" class="badge bg-danger">{{
-                                        r._errors?.join(", ")
-                                        }}</span>
+                                    <span class="badge"
+                                        [ngClass]="r.createSystemAccess ? 'bg-primary' : 'bg-light text-dark border'">
+                                        {{ r.createSystemAccess ? 'Yes' : 'No' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span *ngIf="r._importOk === true" class="badge bg-success me-1">Imported</span>
+                                    <span *ngIf="r._importOk === false" class="badge bg-danger me-1">Failed</span>
+                                    <span *ngIf="r._valid && r._importOk !== false" class="badge bg-success">OK</span>
+                                    <span *ngIf="!r._valid || r._importOk === false" class="badge bg-danger">
+                                        {{ (r._errors || []).join(", ") || r._importError || "Invalid" }}
+                                    </span>
                                 </td>
                             </tr>
                         </tbody>
@@ -376,7 +394,6 @@
     </div>
 
     <!-- View Modal (dates shown via date pipe from epoch ms) -->
-    <!-- DROP-IN: View Modal (POPUP ONLY) - show all fields + epoch(ms) rendered via date pipe -->
     <div class="app-modal-backdrop" *ngIf="showView">
         <div class="app-modal" style="max-width: 1100px">
             <div class="app-modal-header d-flex justify-content-between align-items-center">

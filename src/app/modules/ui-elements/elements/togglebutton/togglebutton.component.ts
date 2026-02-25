@@ -17,6 +17,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, AbstractControl } from '@angul
 export class TogglebuttonComponent implements ControlValueAccessor {
   @Input() leftLabel: string = '';
   @Input() rightLabel: string = '';
+  @Input() label: string = '';
   @Input() required: boolean = false;
   @Input() control: AbstractControl | null = null;
   @Input() id: string = 'toggleSwitch';

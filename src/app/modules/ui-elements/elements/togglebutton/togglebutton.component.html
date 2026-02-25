@@ -1,7 +1,10 @@
 <div class="d-flex align-items-center mb-3">
+  <label class="form-label fw-black fs-9 me-2 mt-1" *ngIf="label">{{ label }}<span *ngIf="required" class="requierdstar"
+      style="color: red">*</span></label>
   <span class="me-2">{{ leftLabel }}</span>
   <div class="form-check form-switch mb-0">
-    <input type="checkbox" autofocus class="form-check-input" [checked]="value" (change)="onToggleChange($event)" (blur)="onTouched()" [id]="id" />
+    <input type="checkbox" autofocus class="form-check-input" [checked]="value" (change)="onToggleChange($event)"
+      (blur)="onTouched()" [id]="id" />
   </div>
   <span class="ms-2">{{ rightLabel }}</span>
 </div>

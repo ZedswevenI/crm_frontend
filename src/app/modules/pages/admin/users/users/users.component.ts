@@ -7,7 +7,7 @@ import { CenterService } from '../../../../../service/admin/orgmasters/center.se
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 import * as XLSX from 'xlsx';
 
-type RoleKey = 'L1' | 'L2' | 'L3' | 'L4';
+type RoleKey = 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
 type ImportMode = 'insert' | 'upsert';
 
 interface RoleMeta {
@@ -49,7 +49,6 @@ export class UsersComponent implements OnInit {
   importing = false;
   columns = [
     { key: 'name', label: 'User Name', sortable: true },
-    { key: 'loginId', label: 'Login ID', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
     { key: 'phone', label: 'Phone', sortable: false },
     { key: 'roleLabel', label: 'Role', sortable: false },
@@ -81,7 +80,9 @@ export class UsersComponent implements OnInit {
     { value: 'L2', label: 'L2 - Admission Manager' },
     { value: 'L3', label: 'L3 - Accounts Manager' },
     { value: 'L4', label: 'L4 - Academic Operations' },
+    { value: 'L5', label: 'L5 - Teaching Faculty' },
   ];
+
   private roleMetaMap: Record<RoleKey, RoleMeta> = {
     L1: {
       key: 'L1',
@@ -134,6 +135,12 @@ export class UsersComponent implements OnInit {
         'Attendance & academic reports',
       ],
     },
+    L5: {
+      key: 'L5',
+      title: 'L5 - Teaching Faculty',
+      subtitle: 'Operational control for classes and attendance.',
+      permissions: [],
+    },
   };
 
   constructor(
@@ -158,14 +165,12 @@ export class UsersComponent implements OnInit {
       name: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
       phone: ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
-      loginId: ['', Validators.required],
       role: [null, Validators.required],
       empCode: [{ value: '', disabled: true }],
-      password: [''],
+      password: ['Welcome@123',Validators.required],
       centerId: [null, Validators.required],
       isActive: [true],
     });
-
     this.applyPasswordRules();
     this.loadCenters();
   }
@@ -173,9 +178,9 @@ export class UsersComponent implements OnInit {
   private applyPasswordRules() {
     const pwd = this.userForm.get('password');
     if (!pwd) return;
-
     if (this.formMode === 'create') {
       pwd.setValidators([Validators.required]);
+      pwd.setValue('Welcome@123')
     } else {
       pwd.clearValidators();
       pwd.setValue('', { emitEvent: false });
@@ -206,7 +211,6 @@ export class UsersComponent implements OnInit {
     return this.roleMetaMap[this.roleInfoKey];
   }
 
-  // ================= TABLE LIST =================
   fetchTableData(params: {
     page: number;
     pageSize: number;
@@ -266,7 +270,6 @@ export class UsersComponent implements OnInit {
       name: '',
       email: '',
       phone: '',
-      loginId: '',
       role: null,
       centerId: null,
       isActive: true,
@@ -283,7 +286,6 @@ export class UsersComponent implements OnInit {
       name: row?.name || '',
       email: row?.email || '',
       phone: row?.phone || '',
-      loginId: row?.userId || row?.loginId || '',
       role: row?.roleLevel || null,
       centerId: row?.centerId || null,
       isActive: (row?.status || '') === 'Active',
@@ -403,7 +405,7 @@ export class UsersComponent implements OnInit {
 
   closeImport() {
     this.showImport = false;
-  this.importing = false;
+    this.importing = false;
     this.resetImport();
     this.cdr.detectChanges();
   }
@@ -464,7 +466,6 @@ export class UsersComponent implements OnInit {
     const name = get('Name', 'Full Name', 'User Name', 'name');
     const email = get('Email', 'email').toLowerCase();
     const phone = get('Phone', 'phone');
-    const loginId = get('Login ID', 'LoginId', 'loginId', 'userId');
     const roleLevel = (
       get('Role', 'Role Level', 'roleLevel') || 'L4'
     ).toUpperCase();
@@ -478,7 +479,6 @@ export class UsersComponent implements OnInit {
     if (!phone) errors.push('Phone required');
     if (phone && !/^\d{10}$/.test(phone))
       errors.push('Phone must be 10 digits');
-    if (!loginId) errors.push('Login ID required');
     if (!['L1', 'L2', 'L3', 'L4'].includes(roleLevel))
       errors.push('Role must be L1/L2/L3/L4');
     if (!centerName) errors.push('Center required');
@@ -499,7 +499,6 @@ export class UsersComponent implements OnInit {
       name,
       email,
       phone,
-      loginId,
       roleLevel,
       empCode: empCode || null,
       centerId: centerHit?._id || null,
@@ -514,6 +513,50 @@ export class UsersComponent implements OnInit {
     this.importHasInvalidRows = invalid.length > 0;
   }
 
+  // confirmImport() {
+  //   if (!this.importPreviewRows.length) {
+  //     this.alertService.error('Please upload an Excel file first');
+  //     return;
+  //   }
+  //   if (this.importHasInvalidRows) {
+  //     this.alertService.error('Fix invalid rows before importing');
+  //     return;
+  //   }
+  //   const rows = this.importPreviewRows.map((r: any) => ({
+  //     name: r.name,
+  //     email: r.email,
+  //     phone: r.phone,
+  //     roleLevel: r.roleLevel,
+  //     empCode: r.empCode || null,
+  //     centerId: r.centerId,
+  //     centerName: r.centerName,
+  //     status: 'Active',
+  //   }));
+  //   const payload = {
+  //     entiId: this.entiId,
+  //     mode: this.importMode,
+  //     rows,
+  //   };
+  //   this.importing = true;
+  //   this.api.fetchData(payload, 'ims/user', 'import').subscribe({
+  //     next: (res: any) => {
+  //       if (res?.status === false) {
+  //         this.importing = false;
+  //         this.alertService.error(res?.message || 'Import failed');
+  //         return;
+  //       }
+  //       this.alertService.success('Import completed');
+  //       this.importing = false;
+  //       this.closeImport();
+  //       this.refreshTable();
+  //     },
+  //     error: (err: any) => {
+  //       this.importing = false;
+  //       this.alertService.error(err?.error?.message || 'Import failed');
+  //     },
+  //   });
+  // }
+
   confirmImport() {
     if (!this.importPreviewRows.length) {
       this.alertService.error('Please upload an Excel file first');
@@ -524,37 +567,55 @@ export class UsersComponent implements OnInit {
       return;
     }
     const rows = this.importPreviewRows.map((r: any) => ({
+      _rowNo: r._rowNo,
       name: r.name,
       email: r.email,
       phone: r.phone,
-      userId: r.loginId,
       roleLevel: r.roleLevel,
       empCode: r.empCode || null,
       centerId: r.centerId,
       centerName: r.centerName,
       status: 'Active',
     }));
-    const payload = {
-      entiId: this.entiId,
-      mode: this.importMode,
-      rows,
-    };
+    const payload = { entiId: this.entiId, mode: this.importMode, rows };
     this.importing = true;
     this.api.fetchData(payload, 'ims/user', 'import').subscribe({
       next: (res: any) => {
-        if (res?.status === false) {
-          this.importing = false;
-          this.alertService.error(res?.message || 'Import failed');
+        const { summary, results } = this.pickImportPayload(res);
+        if (results.length) this.applyImportResultsToPreview(results);
+        const failed =
+          Number(summary?.failed || 0) ||
+          (results.length
+            ? results.filter(
+                (x: any) => !(x?.ok === true || x?.status === true),
+              ).length
+            : 0);
+        this.importing = false;
+        if (failed > 0) {
+          this.alertService.error(
+            res?.message || `Import completed with errors. Failed: ${failed}`,
+          );
           return;
         }
-        this.alertService.success('Import completed');
-        this.importing = false;
+        this.alertService.success(res?.message || 'Import completed');
         this.closeImport();
         this.refreshTable();
       },
       error: (err: any) => {
+        const resp = err?.error || err;
+        const { summary, results } = this.pickImportPayload(resp);
+        if (results.length) this.applyImportResultsToPreview(results);
+        const failed =
+          Number(summary?.failed || 0) ||
+          (results.length
+            ? results.filter(
+                (x: any) => !(x?.ok === true || x?.status === true),
+              ).length
+            : 0);
         this.importing = false;
-        this.alertService.error(err?.error?.message || 'Import failed');
+        this.alertService.error(
+          resp?.message || `Import completed with errors. Failed: ${failed}`,
+        );
       },
     });
   }
@@ -565,7 +626,6 @@ export class UsersComponent implements OnInit {
         Name: 'Arun Kumar',
         Email: 'arun@z7i.com',
         Phone: '9876543210',
-        'Login ID': 'arun.kumar',
         'Role Level': 'L2',
         Center: this.centers?.[0]?.centerName || 'Coimbatore',
         EmpCode: 'EMP-0004',
@@ -582,7 +642,7 @@ export class UsersComponent implements OnInit {
     const s = String(v || '').trim();
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
   }
-  
+
   private toNum(v: any): number {
     if (v === null || v === undefined) return 0;
     if (typeof v === 'number' && Number.isFinite(v)) return Math.trunc(v);
@@ -592,5 +652,83 @@ export class UsersComponent implements OnInit {
     if (!m) return 0;
     const n = Number(m[0]);
     return Number.isFinite(n) ? n : 0;
+  }
+
+  private pickImportPayload(resp: any) {
+    const root = resp || {};
+    const data = root?.data && typeof root.data === 'object' ? root.data : null;
+
+    // accept multiple shapes:
+    // 1) { summary, results }
+    // 2) { invalidRows }
+    // 3) { data: { summary, results } }
+    // 4) { data: { invalidRows } }
+    const summary = data?.summary || root?.summary || {};
+    const resultsRaw = data?.results || root?.results || null;
+    const invalidRaw = data?.invalidRows || root?.invalidRows || null;
+
+    const results = Array.isArray(resultsRaw) ? resultsRaw : [];
+    const invalidRows = Array.isArray(invalidRaw) ? invalidRaw : [];
+
+    // Normalize invalidRows -> results-like array
+    // invalidRows usually looks like: [{ index, message, ... }]
+    const normalizedFromInvalid = invalidRows.map((x: any) => ({
+      rowNo: Number(x?.rowNo || x?.index + 2 || x?.index), // try rowNo else excel row index + header offset
+      ok: false,
+      message: x?.message || x?.error || 'Import failed',
+    }));
+
+    return {
+      summary,
+      results: results.length ? results : normalizedFromInvalid,
+    };
+  }
+
+  private applyImportResultsToPreview(results: any[]) {
+    const map = new Map<number, any>();
+    (results || []).forEach((x: any) => {
+      const rn = Number(x?.rowNo ?? x?._rowNo ?? x?.index);
+      if (Number.isFinite(rn) && rn > 0) map.set(rn, x);
+    });
+    this.importPreviewRows = (this.importPreviewRows || []).map((r: any) => {
+      const rr = map.get(Number(r._rowNo));
+      if (!rr) return r;
+      const ok = rr?.ok === true || rr?.status === true;
+      const msg =
+        rr?.message ||
+        rr?.error ||
+        rr?.reason ||
+        (Array.isArray(rr?.errors) ? rr.errors.join(', ') : '') ||
+        '';
+      if (ok) {
+        return { ...r, _importOk: true, _importError: '' };
+      }
+      return {
+        ...r,
+        _importOk: false,
+        _importError: msg || 'Import failed',
+        _valid: false,
+        _errors: [msg || 'Import failed'],
+      };
+    });
+
+    this.computeImportValidation();
+  }
+
+  syncUsersWithStaff() {
+    this.api
+      .fetchData({ entiId: this.entiId }, 'ims', 'user/link/staff')
+      .subscribe({
+        next: (res: any) => {
+          if (res?.status === false) {
+            this.alertService.error(res?.message || 'Sync failed');
+            return;
+          }
+          this.alertService.success(res?.message || 'Sync completed');
+          this.refreshTable();
+        },
+        error: (err: any) =>
+          this.alertService.error(err?.error?.message || 'Sync failed'),
+      });
   }
 }

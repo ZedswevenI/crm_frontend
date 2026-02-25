@@ -14,7 +14,10 @@
                     <i class="fa-solid fa-file-import"></i>
                     <span>Import Users</span>
                 </button>
-
+                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="syncUsersWithStaff()">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Sync Users with Staff</span>
+                </button>
                 <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
                     <i class="fa-solid fa-plus"></i>
                     <span>Add User</span>
@@ -32,7 +35,6 @@
     <!-- Create / Edit User Modal -->
     <div class="app-modal-backdrop" *ngIf="showForm">
         <div class="app-modal">
-
             <!-- Modal header -->
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
@@ -47,48 +49,28 @@
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
             </div>
-
-            <!-- Modal body -->
             <div class="app-modal-body">
                 <form [formGroup]="userForm" (ngSubmit)="save()">
+                    {{userForm.value | json}}
                     <div class="row g-3">
-                        <!-- Basic details -->
                         <div class="col-md-4">
                             <formfield label="Full Name" [required]="true" [control]="userForm.get('name')"
                                 formControlName="name" placeholder="Arun Kumar">
                             </formfield>
                         </div>
-
                         <div class="col-md-4">
                             <formfield label="Email" [required]="true" [control]="userForm.get('email')"
                                 formControlName="email" placeholder="user@z7i.com">
                             </formfield>
                         </div>
-
                         <div class="col-md-4">
                             <formfield label="Phone" [required]="true" [control]="userForm.get('phone')"
                                 formControlName="phone" placeholder="10 digit phone">
                             </formfield>
                         </div>
-
-                        <!-- Employee Code (Create only) -->
                         <div class="col-12 col-sm-6 col-lg-4">
                             <formfield label="Employee Code" [required]="true" [disabled]="true"
                                 [control]="userForm.get('empCode')" formControlName="empCode" placeholder="EMP-0004">
-                            </formfield>
-                        </div>
-
-                        <!-- Password (Create only) -->
-                        <div class="col-12 col-sm-6 col-lg-4" *ngIf="formMode === 'create'">
-                            <formfield label="Password" [required]="true" [control]="userForm.get('password')"
-                                formControlName="password" inputType="password" placeholder="Enter password">
-                            </formfield>
-                        </div>
-
-                        <!-- Login / role -->
-                        <div class="col-md-4">
-                            <formfield label="Login ID" [required]="true" [control]="userForm.get('loginId')"
-                                formControlName="loginId" placeholder="arun.kumar">
                             </formfield>
                         </div>
                         <!-- Center -->
@@ -98,8 +80,6 @@
                                 formControlName="centerId">
                             </selectbox>
                         </div>
-
-
                         <div class="col-md-4">
                             <selectbox label="Role Level" [required]="true" [options]="roleOptions"
                                 [optionLabel]="'label'" [optionValue]="'value'" [control]="userForm.get('role')"
@@ -111,14 +91,10 @@
                                 View role permissions
                             </button>
                         </div>
-
                         <div class="col-md-4 d-flex align-items-center">
                             <checkbox label="Active" [control]="userForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
-
-
-
                     </div>
 
                     <!-- Modal footer actions -->
@@ -227,7 +203,8 @@
                                     <th>Phone</th>
                                     <th>Role</th>
                                     <th>Center</th>
-                                    <th style="width:220px;">Errors</th>
+                                    <th style="width:160px;">Row Status</th>
+                                    <th style="width:260px;">Errors</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -239,9 +216,16 @@
                                     <td>{{ r.roleLevel }}</td>
                                     <td>{{ r.centerName || '-' }}</td>
                                     <td class="small">
-                                        <span class="text-danger" *ngIf="!r._valid">{{ (r._errors || []).join(', ')
-                                            }}</span>
-                                        <span class="text-muted" *ngIf="r._valid">OK</span>
+                                        <span *ngIf="r._importOk === true" class="badge bg-success me-1">Imported</span>
+                                        <span *ngIf="r._importOk === false" class="badge bg-danger me-1">Failed</span>
+                                        <span *ngIf="r._importOk !== false && r._valid"
+                                            class="badge bg-success">OK</span>
+                                    </td>
+                                    <td class="small">
+                                        <span class="text-danger" *ngIf="(!r._valid) || (r._importOk === false)">
+                                            {{ (r._errors || []).join(', ') || r._importError || 'Invalid' }}
+                                        </span>
+                                        <span class="text-muted" *ngIf="r._valid && r._importOk !== false">OK</span>
                                     </td>
                                 </tr>
                             </tbody>

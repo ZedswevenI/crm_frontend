@@ -61,6 +61,7 @@
             </div>
         </div>
     </div>
+
     <!-- UPLOAD / IMPORT MODAL -->
     <div class="app-modal-backdrop" *ngIf="showUpload && !showConfirm">
         <div class="app-modal timetable-modal">
@@ -74,7 +75,6 @@
                 <button class="btn-close" (click)="closeUpload()"></button>
             </div>
             <div class="app-modal-body">
-                <!-- MODAL OVERLAY LOADER (parsing / submit) -->
                 <div *ngIf="parsing || (loading && showUpload)" class="position-absolute top-0 start-0 w-100 h-100"
                     style="background: rgba(255,255,255,0.72); z-index: 5; border-radius: 14px;">
                     <div class="d-flex align-items-center justify-content-center h-100">
@@ -292,7 +292,7 @@
                         (click)="openConfirm('single')">
                         <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
                         <i class="fa-solid fa-floppy-disk me-1" *ngIf="!loading"></i>
-                        Create / Update
+                        Go For Validation
                     </button>
                     <button type="button" class="btn btn-primary" *ngIf="parsedPayload && parseStats.totalGroups > 1"
                         [disabled]="!parsedPayload || !!parseError || loading || parsing" (click)="openConfirm('bulk')">

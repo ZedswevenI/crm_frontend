@@ -190,13 +190,11 @@ export class ViewComponent implements OnInit, OnDestroy {
                 this.staffById[k] = s;
               });
           });
-
           this.subjectByCode = {};
           this.subjectsFull.forEach((sub: any) => {
             const code = safeTrim(sub?.subjectCode);
             if (code) this.subjectByCode[code] = sub;
           });
-
           this.loading = false;
           this.loadTimetable();
         },
@@ -348,9 +346,6 @@ export class ViewComponent implements OnInit, OnDestroy {
 
   private getDayReplacementPeriods(dateMs: number, day: string): any[] | null {
     const ov = this.findOverride(dateMs, day, null, 'REPLACE_PERIOD');
-    console.log('getDayReplacementPeriods', day, dateMs, 'found ov:', ov);
-    console.log('ov.period:', ov?.period);
-    console.log('ov.period.periods:', ov?.period?.periods);
     const periods = ov?.period?.periods;
     return Array.isArray(periods)
       ? periods
@@ -388,74 +383,66 @@ export class ViewComponent implements OnInit, OnDestroy {
     });
   }
 
-  // getRenderedPeriod(dayRow: any, pNum: number) {
-  //   const dateMs = toInt(dayRow?.dateMs);
-  //   const day = String(dayRow?.day || '').toUpperCase();
-  //   if (!dateMs || !day) return null;
-  //   if (this.viewMode === 'range') {
-  //     if (dayRow?.__isHoliday)
-  //       return { __dayCancelled: true, isCancelled: true, time: {} };
-  //     const list = Array.isArray(dayRow?.periods) ? dayRow.periods : [];
-  //     return list.find((p: any) => toInt(p?.periodNo) === toInt(pNum)) || null;
-  //   }
-  //   if (this.isDayCancelled(dateMs, day))
-  //     return { __dayCancelled: true, isCancelled: true, time: {} };
-  //   const replacedPeriods = this.getDayReplacementPeriods(dateMs, day);
-  //   const basePeriods =
-  //     replacedPeriods ?? (Array.isArray(dayRow?.periods) ? dayRow.periods : []);
-  //   const baseMap = new Map<number, any>();
-  //   basePeriods.forEach((p: any) => {
-  //     const pn = toInt(p?.periodNo);
-  //     if (pn > 0) baseMap.set(pn, p);
-  //   });
-  //   this.applyMoveOverrides(dateMs, day, baseMap);
-  //   const base = baseMap.get(toInt(pNum)) || null;
-  //   if (!base) return null;
-  //   const cancelOv = this.findOverride(dateMs, day, pNum, 'CANCEL_PERIOD');
-  //   if (cancelOv?.period) return { ...cancelOv.period, isCancelled: true };
-  //   const replaceOv = this.findOverride(dateMs, day, pNum, 'REPLACE_PERIOD');
-  //   if (replaceOv?.period) return { ...replaceOv.period, __staffChanged: true };
-  //   const rearrangeOv = this.findOverride(dateMs, day, pNum, 'REARRANGE_STAFF');
-  //   if (rearrangeOv?.period)
-  //     return { ...rearrangeOv.period, __staffChanged: true };
-  //   return base;
-  // }
-
   getRenderedPeriod(dayRow: any, pNum: number) {
     const dateMs = toInt(dayRow?.dateMs);
     const day = String(dayRow?.day || '').toUpperCase();
     if (!dateMs || !day) return null;
+
     if (this.viewMode === 'range') {
       if (dayRow?.__isHoliday)
         return { __dayCancelled: true, isCancelled: true, time: {} };
       const list = Array.isArray(dayRow?.periods) ? dayRow.periods : [];
       return list.find((p: any) => toInt(p?.periodNo) === toInt(pNum)) || null;
     }
+
     if (this.isDayCancelled(dateMs, day))
       return { __dayCancelled: true, isCancelled: true, time: {} };
+
+    // Whole-day replacement (REPLACE_PERIOD with periodNo: null) — use as base
     const replacedPeriods = this.getDayReplacementPeriods(dateMs, day);
-    if (replacedPeriods) {
-      return (
-        replacedPeriods.find((p: any) => toInt(p?.periodNo) === toInt(pNum)) ||
-        null
-      );
-    }
-    const basePeriods = Array.isArray(dayRow?.periods) ? dayRow.periods : [];
+    const basePeriods =
+      replacedPeriods ?? (Array.isArray(dayRow?.periods) ? dayRow.periods : []);
     const baseMap = new Map<number, any>();
     basePeriods.forEach((p: any) => {
       const pn = toInt(p?.periodNo);
       if (pn > 0) baseMap.set(pn, p);
     });
     this.applyMoveOverrides(dateMs, day, baseMap);
+
     const base = baseMap.get(toInt(pNum)) || null;
     if (!base) return null;
+
+    // CANCEL_PERIOD — merge onto base so time is preserved
     const cancelOv = this.findOverride(dateMs, day, pNum, 'CANCEL_PERIOD');
-    if (cancelOv?.period) return { ...cancelOv.period, isCancelled: true };
+    if (cancelOv?.period)
+      return { ...base, ...cancelOv.period, isCancelled: true };
+
+    // Individual REPLACE_PERIOD (specific periodNo) — merge onto base so
+    // fields not in the override (time, subjectId, etc.) are preserved
     const replaceOv = this.findOverride(dateMs, day, pNum, 'REPLACE_PERIOD');
-    if (replaceOv?.period) return { ...replaceOv.period, __staffChanged: true };
+    if (replaceOv?.period)
+      return { ...base, ...replaceOv.period, __staffChanged: true };
+
+    // REARRANGE_STAFF — backend only stores { replacementFacultyId, replacementFacultyName }
+    // Must merge onto base to preserve subject/time/venue
     const rearrangeOv = this.findOverride(dateMs, day, pNum, 'REARRANGE_STAFF');
-    if (rearrangeOv?.period)
-      return { ...rearrangeOv.period, __staffChanged: true };
+    if (rearrangeOv?.period) {
+      const p = rearrangeOv.period;
+      return {
+        ...base,
+        facultyId:
+          safeTrim(p.replacementFacultyId) ||
+          safeTrim(p.newFacultyId) ||
+          safeTrim(p.facultyId) ||
+          base.facultyId,
+        facultyName:
+          safeTrim(p.replacementFacultyName) ||
+          safeTrim(p.newFacultyName) ||
+          safeTrim(p.facultyName) ||
+          base.facultyName,
+        __staffChanged: true,
+      };
+    }
 
     return base;
   }
@@ -605,7 +592,6 @@ export class ViewComponent implements OnInit, OnDestroy {
       arr[fromIndex][f] = toContent[f];
       arr[targetIndex][f] = fromContent[f];
     });
-
     this.editDayDragIndex = null;
     this.editDayConflicts = [];
   }
@@ -721,35 +707,13 @@ export class ViewComponent implements OnInit, OnDestroy {
     });
   }
 
-  private submitEditDay(periods: any[], date: number) {
-    const payload = {
-      tenantId: this.tenantId,
-      timetableId: this.timetableId,
-      date,
-      periods,
-    };
-
-    this.loading = true;
-    this.commonApi.fetchData(payload, this.moduleName, 'day/edit').subscribe({
-      next: () => {
-        this.loading = false;
-        this.alert.success('Day updated');
-        this.closeEditDay();
-        this.loadTimetable();
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Edit day failed');
-      },
-    });
-  }
-
   openCancelPeriod(row: any, pNum: number) {
     this.activeDay = row;
     this.activePeriodNo = toInt(pNum);
     this.cancelPeriodReason = 'Cancelled';
     this.showCancelPeriod = true;
   }
+
   closeCancelPeriod() {
     this.showCancelPeriod = false;
     this.activeDay = null;
@@ -840,14 +804,13 @@ export class ViewComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ===================== MOVE PERIOD =====================
-
   openMovePeriod(row: any, pNum: number) {
     this.activeDay = row;
     this.activePeriodNo = toInt(pNum);
     this.moveToPeriodNo = null;
     this.showMovePeriod = true;
   }
+
   closeMovePeriod() {
     this.showMovePeriod = false;
     this.activeDay = null;
@@ -883,8 +846,6 @@ export class ViewComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ===================== REPLACE PERIOD =====================
-
   openReplacePeriod(row: any, pNum: number) {
     this.activeDay = row;
     this.activePeriodNo = toInt(pNum);
@@ -901,6 +862,7 @@ export class ViewComponent implements OnInit, OnDestroy {
     };
     this.showReplacePeriod = true;
   }
+
   closeReplacePeriod() {
     this.showReplacePeriod = false;
     this.activeDay = null;
@@ -971,14 +933,13 @@ export class ViewComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ===================== SET ZOOM =====================
-
   openSetZoom(row: any, pNum: number, period: any) {
     this.activeDay = row;
     this.activePeriodNo = toInt(pNum);
     this.zoomUrlInput = safeTrim(period?.zoomUrl) || '';
     this.showSetZoom = true;
   }
+
   closeSetZoom() {
     this.showSetZoom = false;
     this.activeDay = null;
@@ -1013,8 +974,6 @@ export class ViewComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ===================== CONVERT TO EXAM =====================
-
   openConvertToExam(row: any, pNum: number, period: any) {
     this.activeDay = row;
     this.activePeriodNo = toInt(pNum);
@@ -1028,6 +987,7 @@ export class ViewComponent implements OnInit, OnDestroy {
     };
     this.showConvertToExam = true;
   }
+
   closeConvertToExam() {
     this.showConvertToExam = false;
     this.activeDay = null;
@@ -1086,8 +1046,6 @@ export class ViewComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ===================== RANGE VIEW =====================
-
   toggleRangeView() {
     if (this.viewMode === 'range') {
       this.resetToWeekly();
@@ -1118,7 +1076,6 @@ export class ViewComponent implements OnInit, OnDestroy {
       this.alert.warning('Please select From Date');
       return;
     }
-
     const payload = {
       tenantId: this.tenantId,
       batchCode,
@@ -1180,7 +1137,6 @@ export class ViewComponent implements OnInit, OnDestroy {
 
   validateAndSubmitEditDay() {
     if (!this.activeDay?.dateMs || !this.editDayPeriods.length) return;
-
     const periods = this.buildEditDayPeriods();
     if (!periods) return;
 
@@ -1216,7 +1172,6 @@ export class ViewComponent implements OnInit, OnDestroy {
           this.editDayValidating = false;
           const conflicts = err?.error?.conflicts;
           if (Array.isArray(conflicts) && conflicts.length) {
-            // Show inline — modal stays open so user can fix
             this.editDayConflicts = conflicts;
           } else {
             this.alert.error(err?.error?.message || 'Validation failed');
@@ -1230,7 +1185,7 @@ export class ViewComponent implements OnInit, OnDestroy {
       tenantId: this.tenantId,
       timetableId: this.timetableId,
       date: toInt(this.activeDay.dateMs),
-      day: String(this.activeDay.day || '').toUpperCase(), // ← ADD
+      day: String(this.activeDay.day || '').toUpperCase(),
       periods,
     };
     this.loading = true;
