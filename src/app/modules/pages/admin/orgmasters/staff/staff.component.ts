@@ -34,13 +34,17 @@ export class StaffComponent implements OnInit {
   importPreviewRows: any[] = [];
   importHasInvalidRows = false;
   importInvalidCount = 0;
+  importing = false; // FIX #16
+  importMode: 'upsert' | 'insert' = 'upsert'; // FIX #11
   centerOptions: any[] = [];
   departmentOptions: any[] = [];
   subjectOptions: any[] = [];
   private centerCodeToId = new Map<string, string>();
   private centerIdToCode = new Map<string, string>();
   private centerIdToName = new Map<string, string>();
-  systemAccessDisabled = false;
+  // FIX #1/#2/#4: track actual portal access state separately
+  systemAccessDisabled = false; // true  = already has a user account
+  systemAccessLinked = false; // alias for template clarity
 
   roleOptions = [
     { label: 'Faculty', value: 'Faculty' },
@@ -80,6 +84,8 @@ export class StaffComponent implements OnInit {
     { key: 'phone', label: 'Phone', sortable: false },
     { key: 'centerId.centerCode', label: 'Center Code', sortable: false },
     { key: 'centerId.centerName', label: 'Center Name', sortable: false },
+    // FIX #7: show portal access status in table
+    { key: 'hasSystemAccess', label: 'Portal Access', sortable: false },
   ];
 
   actions = [
@@ -144,20 +150,6 @@ export class StaffComponent implements OnInit {
     });
   }
 
-  private buildQueryParams(params: Record<string, any>) {
-    const keys = Object.keys(params || {}).filter(
-      (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
-    );
-    if (!keys.length) return '';
-    const qs = keys
-      .map(
-        (k) =>
-          `${encodeURIComponent(k)}=${encodeURIComponent(String(params[k]))}`,
-      )
-      .join('&');
-    return `?${qs}`;
-  }
-
   fetchTableData(params: {
     page: number;
     pageSize: number;
@@ -179,20 +171,15 @@ export class StaffComponent implements OnInit {
       const k = sortMap[params.sortKey] || params.sortKey;
       sortParam = params.sortDirection === 'desc' ? `-${k}` : k;
     }
-    const query: any = {
-      page: params.page,
-      limit: params.pageSize,
-    };
+    const query: any = { page: params.page, limit: params.pageSize };
     if (sortParam) query.sort = sortParam;
     if (params.search) query.search = params.search;
     const queryString = Object.keys(query)
-      .map(
-        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`,
-      )
+      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(query[k])}`)
       .join('&');
-    const body = { entiId: this.entiId };
+
     this.commonApi
-      .fetchData(body, 'ims', `staff/list?${queryString}`)
+      .fetchData({ entiId: this.entiId }, 'ims', `staff/list?${queryString}`)
       .subscribe({
         next: (res: any) => {
           this.totalRecords = res?.count || 0;
@@ -207,6 +194,9 @@ export class StaffComponent implements OnInit {
             email: s.email,
             centerId: s.centerId,
             status: s.status,
+            // FIX #6 & #7: preserve userId so edit() can detect portal access
+            userId: s.userId || null,
+            hasSystemAccess: s.hasSystemAccess ?? !!s.userId,
             _raw: s,
           }));
           this.loading = false;
@@ -222,6 +212,8 @@ export class StaffComponent implements OnInit {
     this.formMode = 'create';
     this.editingRecId = null;
     this.editingStatus = 'Active';
+    this.systemAccessDisabled = false;
+    this.systemAccessLinked = false;
     this.staffForm.reset({
       staffName: '',
       staffCode: '',
@@ -240,30 +232,39 @@ export class StaffComponent implements OnInit {
       weekoff: [],
       status: 'Active',
     });
-    this.systemAccessDisabled = false;
     this.staffForm.get('createSystemAccess')?.enable({ emitEvent: false });
     this.showForm = true;
   }
 
   edit(row: any) {
+    // FIX #3: set formMode FIRST so any downstream logic sees correct mode
+    this.formMode = 'edit';
     const s = row?._raw || {};
-    this.systemAccessDisabled = !!s.userId;
+    this.editingRecId = s._id || null;
+    this.editingStatus = s.status === 'Inactive' ? 'Inactive' : 'Active';
+
+    // FIX #1/#2/#4/#5: determine portal access state
+    this.systemAccessDisabled = !!(s.userId || row?.userId);
+    this.systemAccessLinked = this.systemAccessDisabled;
+
     const accessCtrl = this.staffForm.get('createSystemAccess');
     if (accessCtrl) {
-      accessCtrl.setValue(false, { emitEvent: false });
-      if (this.systemAccessDisabled) {
+      // FIX #1: if already linked, show true (has access) and disable
+      // if not linked, allow toggle to grant access
+      accessCtrl.setValue(this.systemAccessLinked, { emitEvent: false });
+      if (this.systemAccessLinked) {
         accessCtrl.disable({ emitEvent: false });
       } else {
         accessCtrl.enable({ emitEvent: false });
       }
     }
-    this.formMode = 'edit';
-    this.editingRecId = s._id || null;
-    this.editingStatus = s.status === 'Inactive' ? 'Inactive' : 'Active';
+
     const centerValue =
       s?.centerId?.centerId || s?.centerId?._id || s?.centerId || '';
+    // FIX #8: prefer _id for department since departmentOptions.value = d._id
     const deptValue = s?.department?._id || s?.department || '';
     const subjValue = s?.subject?._id || s?.subject || null;
+
     this.staffForm.patchValue({
       staffName: s.staffName || '',
       staffCode: s.staffCode || '',
@@ -296,6 +297,7 @@ export class StaffComponent implements OnInit {
     }
     const form = this.staffForm.getRawValue() || {};
     const createSystemAccess = form.createSystemAccess === true;
+
     if (createSystemAccess && !(form.email || '').toString().trim()) {
       this.alert.error('Email is required to create a system access account');
       return;
@@ -316,9 +318,11 @@ export class StaffComponent implements OnInit {
       return;
     }
     const relievingMs = this.dateInputToMs(form.relievingDate);
+
     const payload: any = {
       entiId: this.entiId,
-      userId: localStorage.getItem('userId') || '',
+      // FIX #10: renamed to actingUserId so it does NOT collide with Staff.userId field
+      actingUserId: localStorage.getItem('userId') || '',
       staffName: (form.staffName || '').toString().trim(),
       staffCode: (form.staffCode || '').toString().trim().toUpperCase(),
       employeeId: (form.employeeId || '').toString().trim(),
@@ -329,7 +333,8 @@ export class StaffComponent implements OnInit {
       joiningDate: joiningMs,
       relievingDate: relievingMs || null,
       payroll: form.payroll,
-      createSystemAccess: createSystemAccess,
+      // FIX #5: only send createSystemAccess=true when NOT already linked
+      createSystemAccess: this.systemAccessLinked ? false : createSystemAccess,
       department: form.department,
       facultyType: form.role === 'Faculty' ? form.facultyType : null,
       subject:
@@ -337,23 +342,29 @@ export class StaffComponent implements OnInit {
           ? form.subject
           : null,
       weekoff: Array.isArray(form.weekoff) ? form.weekoff : [],
+      status:
+        this.formMode === 'create' ? 'Active' : this.editingStatus || 'Active',
     };
-    payload.status =
-      this.formMode === 'create' ? 'Active' : this.editingStatus || 'Active';
-    const endpoint =
-      this.formMode === 'create' ? 'staff/create' : 'staff/update';
+
     if (this.formMode === 'edit') payload.recId = this.editingRecId;
-    this.commonApi.fetchData(payload, this.moduleName, endpoint).subscribe({
-      next: () => {
-        this.alert.success(
-          this.formMode === 'create' ? 'Staff created' : 'Staff updated',
-        );
-        this.showForm = false;
-        this.fetchTableData({ page: 1, pageSize: 10 });
-      },
-      error: (err: any) =>
-        this.alert.error(err?.error?.message || 'Operation failed'),
-    });
+
+    this.commonApi
+      .fetchData(
+        payload,
+        this.moduleName,
+        this.formMode === 'create' ? 'staff/create' : 'staff/update',
+      )
+      .subscribe({
+        next: () => {
+          this.alert.success(
+            this.formMode === 'create' ? 'Staff created' : 'Staff updated',
+          );
+          this.showForm = false;
+          this.fetchTableData({ page: 1, pageSize: 10 });
+        },
+        error: (err: any) =>
+          this.alert.error(err?.error?.message || 'Operation failed'),
+      });
   }
 
   isWeekoffSelected(day: string) {
@@ -403,14 +414,15 @@ export class StaffComponent implements OnInit {
     });
   }
 
+  // ======================================
+  // VIEW
+  // ======================================
   openView(row: any) {
     const recId = row?.recId || row?._raw?._id;
     if (!recId) return;
-
     this.showView = true;
     this.viewRec = null;
     this.viewRelievingDate = '';
-
     this.commonApi
       .fetchData({ entiId: this.entiId, recId }, this.moduleName, 'staff/view')
       .subscribe({
@@ -436,7 +448,6 @@ export class StaffComponent implements OnInit {
   updateRelievingDate() {
     if (!this.viewRec?._id) return;
     const relievingMs = this.dateInputToMs(this.viewRelievingDate) || null;
-
     this.commonApi
       .fetchData(
         {
@@ -459,8 +470,7 @@ export class StaffComponent implements OnInit {
 
   openRetire() {
     if (!this.viewRec?._id) return;
-    const rd = (this.viewRelievingDate || '').toString().trim();
-    if (!rd) {
+    if (!(this.viewRelievingDate || '').toString().trim()) {
       this.alert.error('Please select relieving date to retire employee');
       return;
     }
@@ -472,9 +482,7 @@ export class StaffComponent implements OnInit {
   onRetireModalClosed(confirmed: boolean) {
     this.retireModalVisible = false;
     if (!confirmed || !this.retireTarget) return;
-
     const relievingMs = this.dateInputToMs(this.viewRelievingDate) || null;
-
     this.commonApi
       .fetchData(
         {
@@ -490,13 +498,11 @@ export class StaffComponent implements OnInit {
         next: () => {
           this.alert.success('Employee retired successfully');
           this.fetchTableData({ page: 1, pageSize: 10 });
-          // this.loadStaff({ page: 1, pageSize: 10 });
           this.openView({ recId: this.retireTarget._id });
         },
         error: (err: any) =>
           this.alert.error(err?.error?.message || 'Retire failed'),
       });
-
     this.retireTarget = null;
   }
 
@@ -512,20 +518,20 @@ export class StaffComponent implements OnInit {
   onDeleteModalClosed(confirmed: boolean) {
     this.deleteModalVisible = false;
     if (!confirmed || !this.deleteTarget) return;
-
-    const payload = { entiId: this.entiId, recId: this.deleteTarget.recId };
     this.commonApi
-      .fetchData(payload, this.moduleName, 'staff/delete')
+      .fetchData(
+        { entiId: this.entiId, recId: this.deleteTarget.recId },
+        this.moduleName,
+        'staff/delete',
+      )
       .subscribe({
         next: () => {
           this.alert.success('Staff deleted successfully');
           this.fetchTableData({ page: 1, pageSize: 10 });
-          // this.loadStaff({ page: 1, pageSize: 10 });
         },
         error: (err: any) =>
           this.alert.error(err?.error?.message || 'Delete failed'),
       });
-
     this.deleteTarget = null;
   }
 
@@ -539,6 +545,8 @@ export class StaffComponent implements OnInit {
 
   closeImport() {
     this.showImport = false;
+    // FIX #17: always reset on close so stale rows never show on reopen
+    this.resetImport();
   }
 
   resetImport() {
@@ -546,6 +554,8 @@ export class StaffComponent implements OnInit {
     this.importPreviewRows = [];
     this.importHasInvalidRows = false;
     this.importInvalidCount = 0;
+    this.importing = false;
+    this.importMode = 'upsert';
   }
 
   onExcelSelected(ev: any) {
@@ -566,13 +576,11 @@ export class StaffComponent implements OnInit {
         const rawRows: any[] = XLSX.utils.sheet_to_json(ws, {
           defval: '',
         }) as any[];
-        const mapped = rawRows.map((r: any, idx: number) =>
+        this.importPreviewRows = rawRows.map((r, idx) =>
           this.mapExcelRow(r, idx + 2),
         );
-        this.importPreviewRows = mapped;
         this.computeImportValidation();
       } catch (err) {
-        console.error(err);
         this.alert.error('Unable to read Excel file');
         this.importPreviewRows = [];
         this.computeImportValidation();
@@ -595,6 +603,7 @@ export class StaffComponent implements OnInit {
       }
       return '';
     };
+
     const staffName = get('staff name', 'staffname');
     const staffCode = (get('staff code', 'staffcode') || '').toUpperCase();
     const employeeId = get('employee id', 'employeeid', 'emp id', 'empid');
@@ -606,7 +615,8 @@ export class StaffComponent implements OnInit {
     const subject = get('subject', 'subjectid');
     const joiningDate = get('joining date', 'joiningdate');
     const relievingDate = get('relieving date', 'relievingdate') || null;
-    const payroll = get('payroll');
+    // FIX #13: lowercase payroll so it matches backend enum (suguna / z7i)
+    const payroll = (get('payroll') || '').toLowerCase();
     const facultyType = get('faculty type', 'facultytype') || null;
     const weekoffText = get('weekoff') || '';
     const status = get('status') === 'Inactive' ? 'Inactive' : 'Active';
@@ -624,12 +634,16 @@ export class StaffComponent implements OnInit {
       'enable',
       'enabled',
     ].includes((createSystemAccessText || '').toLowerCase());
+
     const errors: string[] = [];
     if (!staffName) errors.push('Staff Name required');
     if (!staffCode) errors.push('Staff Code required');
     if (!employeeId) errors.push('Employee ID required');
     if (!role) errors.push('Role required');
     if (!phone) errors.push('Phone required');
+    // FIX #14: validate phone format
+    if (phone && !/^\d{10}$/.test(phone))
+      errors.push('Phone must be 10 digits');
     if (!centerCode) errors.push('Center Code required');
     if (!joiningDate) errors.push('Joining Date required');
     if (!payroll) errors.push('Payroll required');
@@ -643,7 +657,12 @@ export class StaffComponent implements OnInit {
       errors.push('Email required for System Access');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       errors.push('Invalid email');
+
     const resolvedCenterId = this.resolveCenterIdByCode(centerCode);
+    // FIX #15: if centerCode given but cannot resolve, mark row invalid
+    if (centerCode && !resolvedCenterId)
+      errors.push(`Center Code "${centerCode}" not found`);
+
     return {
       _rowNo: rowNo,
       _valid: errors.length === 0,
@@ -676,71 +695,6 @@ export class StaffComponent implements OnInit {
     this.importHasInvalidRows = invalid.length > 0;
   }
 
-  // private computeImportValidation() {
-  //   const invalid = (this.importPreviewRows || []).filter((x) => !x._valid);
-  //   this.importInvalidCount = invalid.length;
-  //   this.importHasInvalidRows = invalid.length > 0;
-  // }
-
-  // confirmImport() {
-  //   if (!this.importPreviewRows.length) {
-  //     this.alert.error('Please upload an Excel file first');
-  //     return;
-  //   }
-  //   if (this.importHasInvalidRows) {
-  //     this.alert.error('Fix invalid rows before importing');
-  //     return;
-  //   }
-  //   const mode = 'upsert';
-  //   const rows = this.importPreviewRows.map((r) => {
-  //     const joiningMs = this.dateInputToMs(r.joiningDate);
-  //     const relievingMs = this.dateInputToMs(r.relievingDate);
-  //     const centerCode = (r.centerCode || '').toString().trim().toUpperCase();
-  //     const centerId =
-  //       r.centerId || this.resolveCenterIdByCode(centerCode) || null;
-  //     return {
-  //       staffName: r.staffName,
-  //       staffCode: r.staffCode,
-  //       employeeId: r.employeeId,
-  //       role: r.role,
-  //       phone: r.phone,
-  //       email: r.email,
-  //       createSystemAccess: r.createSystemAccess === true,
-  //       center: centerCode,
-  //       centerId: centerId,
-  //       joiningDate: joiningMs,
-  //       relievingDate: relievingMs || null,
-  //       facultyType: r.role === 'Faculty' ? r.facultyType : null,
-  //       subject: r.subject,
-  //       payroll: r.payroll,
-  //       department: r.department,
-  //       weekoff: r.weekoffText,
-  //       status: r.status,
-  //     };
-  //   });
-  //   const payload = {
-  //     entiId: this.entiId,
-  //     mode,
-  //     rows,
-  //   };
-  //   this.commonApi
-  //     .fetchData(payload, this.moduleName, 'staff/import')
-  //     .subscribe({
-  //       next: (res: any) => {
-  //         const s = res?.summary || {};
-  //         this.alert.success(
-  //           `Import completed. Inserted: ${s.inserted || 0}, Updated: ${s.upserted || 0}`,
-  //         );
-  //         this.closeImport();
-  //         this.fetchTableData({ page: 1, pageSize: 10 });
-  //       },
-  //       error: (err: any) => {
-  //         const msg = err?.error?.message || 'Import failed';
-  //         this.alert.error(msg);
-  //       },
-  //     });
-  // }
-
   confirmImport() {
     if (!this.importPreviewRows.length) {
       this.alert.error('Please upload an Excel file first');
@@ -750,8 +704,7 @@ export class StaffComponent implements OnInit {
       this.alert.error('Fix invalid rows before importing');
       return;
     }
-
-    const mode = 'upsert';
+    if (this.importing) return; // FIX #16: prevent double-click
 
     const rows = this.importPreviewRows.map((r) => {
       const joiningMs = this.dateInputToMs(r.joiningDate);
@@ -759,7 +712,6 @@ export class StaffComponent implements OnInit {
       const centerCode = (r.centerCode || '').toString().trim().toUpperCase();
       const centerId =
         r.centerId || this.resolveCenterIdByCode(centerCode) || null;
-
       return {
         _rowNo: r._rowNo,
         staffName: r.staffName,
@@ -769,11 +721,12 @@ export class StaffComponent implements OnInit {
         phone: r.phone,
         email: r.email,
         center: centerCode,
-        centerId: centerId,
+        centerId,
         joiningDate: joiningMs,
         relievingDate: relievingMs || null,
         facultyType: r.role === 'Faculty' ? r.facultyType : null,
         subject: r.subject,
+        // FIX #13: already lowercased in mapExcelRow
         payroll: r.payroll,
         department: r.department,
         weekoff: r.weekoffText,
@@ -781,25 +734,27 @@ export class StaffComponent implements OnInit {
         createSystemAccess: r.createSystemAccess === true,
       };
     });
-    const payload = { entiId: this.entiId, mode, rows };
+
+    // FIX #11: use importMode selected by admin
+    const payload = { entiId: this.entiId, mode: this.importMode, rows };
+    this.importing = true; // FIX #16
+
     this.commonApi
       .fetchData(payload, this.moduleName, 'staff/import')
       .subscribe({
         next: (res: any) => {
           const { summary, results } = this.pickImportPayload(res);
-          if (results.length) {
-            this.applyImportResultsToPreview(results);
-          }
+          if (results.length) this.applyImportResultsToPreview(results);
           const inserted = Number(summary?.inserted || summary?.created || 0);
           const upserted = Number(summary?.upserted || summary?.updated || 0);
-          const failed = Number(summary?.failed || 0);
           const failedComputed =
-            failed ||
+            Number(summary?.failed || 0) ||
             (results.length
               ? results.filter(
                   (x: any) => !(x?.ok === true || x?.status === true),
                 ).length
               : 0);
+          this.importing = false;
           const msg = `Import completed. Inserted: ${inserted}, Updated: ${upserted}, Failed: ${failedComputed}`;
           if (failedComputed > 0) {
             this.alert.error(msg);
@@ -810,6 +765,7 @@ export class StaffComponent implements OnInit {
           this.fetchTableData({ page: 1, pageSize: 10 });
         },
         error: (err: any) => {
+          this.importing = false;
           const resp = err?.error || err;
           const { summary, results } = this.pickImportPayload(resp);
           if (Array.isArray(results) && results.length) {
@@ -827,12 +783,12 @@ export class StaffComponent implements OnInit {
             );
             return;
           }
-          const msg =
+          this.alert.error(
             resp?.message ||
-            resp?.error?.message ||
-            err?.message ||
-            'Import failed';
-          this.alert.error(msg);
+              resp?.error?.message ||
+              err?.message ||
+              'Import failed',
+          );
         },
       });
   }
@@ -858,7 +814,6 @@ export class StaffComponent implements OnInit {
         'Create System Access': 'Yes',
       },
     ];
-
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Staff');
@@ -873,12 +828,11 @@ export class StaffComponent implements OnInit {
       .fetchData(
         { entiId: this.entiId },
         this.moduleName,
-        `dept/list?list=full`,
+        'dept/list?list=full',
       )
       .subscribe({
         next: (res: any) => {
-          const rows = res?.data || [];
-          this.departmentOptions = rows.map((d: any) => ({
+          this.departmentOptions = (res?.data || []).map((d: any) => ({
             label: d.departmentName,
             value: d._id,
           }));
@@ -890,12 +844,11 @@ export class StaffComponent implements OnInit {
       .fetchData(
         { entiId: this.entiId },
         this.moduleName,
-        `subject/list?list=full`,
+        'subject/list?list=full',
       )
       .subscribe({
         next: (res: any) => {
-          const rows = res?.data || [];
-          this.subjectOptions = rows.map((s: any) => ({
+          this.subjectOptions = (res?.data || []).map((s: any) => ({
             label: s.subjectName,
             value: s._id,
           }));
@@ -903,31 +856,23 @@ export class StaffComponent implements OnInit {
         error: () => this.alert.error('Failed to load subjects'),
       });
 
-    // centers
     this.commonApi
-      .fetchData({ entiId: this.entiId }, 'ims/center', `list?list=full`)
+      .fetchData({ entiId: this.entiId }, 'ims/center', 'list?list=full')
       .subscribe({
         next: (res: any) => {
-          const rows = res?.data || [];
-
           this.centerCodeToId.clear();
           this.centerIdToCode.clear();
           this.centerIdToName.clear();
-
-          this.centerOptions = rows.map((c: any) => {
+          this.centerOptions = (res?.data || []).map((c: any) => {
             const centerId = String(c.centerId || c._id || '').trim();
             const code = String(c.centerCode || c.code || '')
               .trim()
               .toUpperCase();
             const name = String(c.centerName || c.name || '').trim();
-
             if (code && centerId) this.centerCodeToId.set(code, centerId);
             if (centerId) this.centerIdToCode.set(centerId, code);
             if (centerId) this.centerIdToName.set(centerId, name);
-
-            // ✅ show "CODE - NAME"
             const label = code ? `${code} - ${name}` : name || centerId;
-
             return { label, value: centerId };
           });
         },
@@ -942,38 +887,9 @@ export class StaffComponent implements OnInit {
 
   private resolveCenterIdByCode(centerCodeRaw: string): string | null {
     const code = (centerCodeRaw || '').toString().trim().toUpperCase();
-    if (!code) return null;
-    return this.centerCodeToId.get(code) || null;
+    return code ? this.centerCodeToId.get(code) || null : null;
   }
 
-  // ======================================
-  // Date helpers (ms <-> yyyy-MM-dd)
-  // ======================================
-  private dateInputToMs(v: any): number | null {
-    const s = v === null || v === undefined ? '' : String(v).trim();
-    if (!s) return null;
-
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if (m) {
-      const y = Number(m[1]);
-      const mo = Number(m[2]) - 1;
-      const d = Number(m[3]);
-      const ms = Date.UTC(y, mo, d);
-      return Number.isFinite(ms) ? ms : null;
-    }
-
-    const t = Date.parse(s);
-    return Number.isFinite(t) ? t : null;
-  }
-
-  private msToDateInput(ms: any): string {
-    const n = Number(ms);
-    if (!Number.isFinite(n) || !n) return '';
-    const d = new Date(n);
-    return d.toISOString().slice(0, 10);
-  }
-
-  // helpers for view display (optional)
   getCenterDisplayFromValue(centerValue: any): string {
     const id = String(
       centerValue?.centerId || centerValue?._id || centerValue || '',
@@ -984,6 +900,30 @@ export class StaffComponent implements OnInit {
     return code ? `${code} - ${name}` : name || id;
   }
 
+  // ======================================
+  // Date helpers
+  // ======================================
+  private dateInputToMs(v: any): number | null {
+    const s = v === null || v === undefined ? '' : String(v).trim();
+    if (!s) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (m) {
+      const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      return Number.isFinite(ms) ? ms : null;
+    }
+    const t = Date.parse(s);
+    return Number.isFinite(t) ? t : null;
+  }
+
+  private msToDateInput(ms: any): string {
+    const n = Number(ms);
+    if (!Number.isFinite(n) || !n) return '';
+    return new Date(n).toISOString().slice(0, 10);
+  }
+
+  // ======================================
+  // Import helpers
+  // ======================================
   private pickImportPayload(resp: any) {
     const root = resp || {};
     const data = root?.data && typeof root.data === 'object' ? root.data : null;
@@ -994,43 +934,8 @@ export class StaffComponent implements OnInit {
       data?.invalidRows ||
       root?.invalidRows ||
       [];
-    const results = Array.isArray(resultsRaw) ? resultsRaw : [];
-    return { summary, results };
+    return { summary, results: Array.isArray(resultsRaw) ? resultsRaw : [] };
   }
-
-  // private applyImportResultsToPreview(results: any[]) {
-  //   const map = new Map<number, any>();
-  //   (results || []).forEach((x: any) => {
-  //     const rn = Number(x?.rowNo);
-  //     if (Number.isFinite(rn) && rn > 0) map.set(rn, x);
-  //   });
-  //   this.importPreviewRows = (this.importPreviewRows || []).map((r: any) => {
-  //     const rr = map.get(Number(r._rowNo));
-  //     if (!rr) return r;
-  //     const ok = rr?.ok === true || rr?.status === true;
-  //     const msg =
-  //       rr?.message ||
-  //       rr?.error ||
-  //       rr?.reason ||
-  //       (Array.isArray(rr?.errors) ? rr.errors.join(', ') : '') ||
-  //       '';
-  //     if (ok) {
-  //       return {
-  //         ...r,
-  //         _importOk: true,
-  //         _importError: '',
-  //       };
-  //     }
-  //     return {
-  //       ...r,
-  //       _importOk: false,
-  //       _importError: msg || 'Import failed',
-  //       _valid: false,
-  //       _errors: [msg || 'Import failed'],
-  //     };
-  //   });
-  //   this.computeImportValidation();
-  // }
 
   private applyImportResultsToPreview(results: any[]) {
     const idxMap = new Map<number, any>();
@@ -1052,9 +957,7 @@ export class StaffComponent implements OnInit {
           rr?.reason ||
           (Array.isArray(rr?.errors) ? rr.errors.join(', ') : '') ||
           '';
-        if (ok) {
-          return { ...r, _importOk: true, _importError: '' };
-        }
+        if (ok) return { ...r, _importOk: true, _importError: '' };
         return {
           ...r,
           _importOk: false,

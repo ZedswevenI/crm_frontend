@@ -1,12 +1,10 @@
 <div class="user-page">
-
-    <!-- List Card -->
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-1 fw-semibold">User & Role Management</h5>
                 <p class="mb-0 text-muted small">
-                    Manage application users and map them to role levels (L1–L4) with predefined permissions.
+                    Manage application users and map them to role levels (L1–L5) with predefined permissions.
                 </p>
             </div>
             <div class="d-flex gap-2">
@@ -14,9 +12,10 @@
                     <i class="fa-solid fa-file-import"></i>
                     <span>Import Users</span>
                 </button>
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="syncUsersWithStaff()">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>Sync Users with Staff</span>
+                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                    (click)="syncUsersWithStaff()" [disabled]="syncing">
+                    <i class="fa-solid fa-rotate" [class.fa-spin]="syncing"></i>
+                    <span>{{ syncing ? 'Syncing...' : 'Sync with Staff' }}</span>
                 </button>
                 <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
                     <i class="fa-solid fa-plus"></i>
@@ -24,18 +23,14 @@
                 </button>
             </div>
         </div>
-
         <div class="card-body pt-0">
             <list-table [autoFitChars]="true" [columns]="columns" [data]="users" [actions]="actions" [loading]="loading"
                 [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
             </list-table>
         </div>
     </div>
-
-    <!-- Create / Edit User Modal -->
     <div class="app-modal-backdrop" *ngIf="showForm">
         <div class="app-modal">
-            <!-- Modal header -->
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">
@@ -49,31 +44,40 @@
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
             </div>
+
             <div class="app-modal-body">
                 <form [formGroup]="userForm" (ngSubmit)="save()">
-                    {{userForm.value | json}}
                     <div class="row g-3">
+
                         <div class="col-md-4">
                             <formfield label="Full Name" [required]="true" [control]="userForm.get('name')"
                                 formControlName="name" placeholder="Arun Kumar">
                             </formfield>
                         </div>
+
                         <div class="col-md-4">
                             <formfield label="Email" [required]="true" [control]="userForm.get('email')"
                                 formControlName="email" placeholder="user@z7i.com">
                             </formfield>
                         </div>
+
                         <div class="col-md-4">
                             <formfield label="Phone" [required]="true" [control]="userForm.get('phone')"
                                 formControlName="phone" placeholder="10 digit phone">
                             </formfield>
                         </div>
                         <div class="col-12 col-sm-6 col-lg-4">
-                            <formfield label="Employee Code" [required]="true" [disabled]="true"
-                                [control]="userForm.get('empCode')" formControlName="empCode" placeholder="EMP-0004">
+                            <formfield label="Employee Code" [required]="false" [control]="userForm.get('empCode')"
+                                formControlName="empCode"
+                                placeholder="{{ formMode === 'create' ? 'EMP001 (optional)' : 'Read-only' }}">
                             </formfield>
+                            <div class="form-text" *ngIf="formMode === 'create'">
+                                Optional. Links this user to a staff record.
+                            </div>
+                            <div class="form-text text-muted" *ngIf="formMode === 'edit'">
+                                Staff link is read-only. Use Sync to re-link.
+                            </div>
                         </div>
-                        <!-- Center -->
                         <div class="col-12 col-sm-6 col-lg-4">
                             <selectbox label="Center" [required]="true" [options]="centerOptions"
                                 [optionLabel]="'label'" [optionValue]="'value'" [control]="userForm.get('centerId')"
@@ -87,80 +91,68 @@
                             </selectbox>
                             <button type="button" class="btn btn-link btn-sm px-0 mt-1 text-decoration-none"
                                 (click)="openRoleInfo(userForm.get('role')?.value || null)">
-                                <i class="fa-solid fa-circle-info me-1"></i>
-                                View role permissions
+                                <i class="fa-solid fa-circle-info me-1"></i>View role permissions
                             </button>
+                        </div>
+                        <div class="col-md-4" *ngIf="formMode === 'create'">
+                            <formfield label="Password" [required]="true" [control]="userForm.get('password')"
+                                formControlName="password" placeholder="Welcome@123">
+                            </formfield>
+                            <div class="form-text">Default: Welcome&#64;123</div>
                         </div>
                         <div class="col-md-4 d-flex align-items-center">
                             <checkbox label="Active" [control]="userForm.get('isActive')" formControlName="isActive">
                             </checkbox>
                         </div>
                     </div>
-
-                    <!-- Modal footer actions -->
                     <div class="d-flex justify-content-end gap-2 mt-4">
-                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">
-                            Cancel
-                        </button>
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
                         <button type="submit" class="btn btn-primary" [disabled]="userForm.invalid">
                             {{ formMode === 'create' ? 'Save User' : 'Update User' }}
                         </button>
                     </div>
                 </form>
             </div>
-
         </div>
     </div>
-
-    <!-- Role Permission Info Modal (for the "i" icon) -->
     <div class="app-modal-backdrop" *ngIf="roleInfoVisible">
         <div class="app-modal app-modal-sm">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">
-                        {{ currentRoleMeta?.title || 'Role Permissions' }}
-                    </h6>
-                    <span class="text-muted small">
-                        {{ currentRoleMeta?.subtitle }}
-                    </span>
+                    <h6 class="mb-0 fw-semibold">{{ currentRoleMeta?.title || 'Role Permissions' }}</h6>
+                    <span class="text-muted small">{{ currentRoleMeta?.subtitle }}</span>
                 </div>
                 <button type="button" class="btn-close" (click)="closeRoleInfo()" aria-label="Close"></button>
             </div>
-
             <div class="app-modal-body">
                 <ul class="list-unstyled mb-0 small">
                     <li *ngFor="let p of currentRoleMeta?.permissions" class="mb-1 d-flex">
-                        <span class="me-2 mt-1">
-                            <i class="fa-solid fa-circle-dot text-muted icon-10"></i>
-                        </span>
+                        <span class="me-2 mt-1"><i class="fa-solid fa-circle-dot text-muted icon-10"></i></span>
                         <span>{{ p }}</span>
+                    </li>
+                    <li *ngIf="!currentRoleMeta?.permissions?.length" class="text-muted">
+                        No specific permissions defined.
                     </li>
                 </ul>
             </div>
         </div>
     </div>
-
-    <!-- Delete Confirmation -->
     <delete [title]="'Delete User'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
         (closed)="onDeleteModalClosed($event)">
     </delete>
 
 </div>
-
-<!-- ================= Import Users Modal ================= -->
 <div class="app-modal-backdrop" *ngIf="showImport">
     <div class="app-modal" style="max-width: 980px;">
         <div class="app-modal-header d-flex justify-content-between align-items-center">
             <div>
                 <h6 class="mb-0 fw-semibold">Import Users</h6>
                 <span class="text-muted small">
-                    Upload Excel and import users. New users password will be <span
-                        class="fw-semibold">Welcome&#64;123</span>.
+                    Upload Excel and import users. Default password: <span class="fw-semibold">Welcome&#64;123</span>.
                 </span>
             </div>
             <button type="button" class="btn-close" (click)="closeImport()" aria-label="Close"></button>
         </div>
-
         <div class="app-modal-body">
             <div class="row g-3">
                 <div class="col-md-6">
@@ -170,22 +162,18 @@
                         <option value="insert">Insert only (Skip existing)</option>
                     </select>
                 </div>
-
                 <div class="col-md-6 d-flex align-items-end justify-content-end gap-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" (click)="downloadSampleExcel()">
                         <i class="fa-regular fa-file-excel me-1"></i> Sample
                     </button>
-
                     <label class="btn btn-sm btn-outline-primary mb-0">
                         <i class="fa-solid fa-upload me-1"></i> Choose Excel
                         <input type="file" accept=".xlsx,.xls" class="d-none" (change)="onExcelSelected($event)" />
                     </label>
                 </div>
-
                 <div class="col-12" *ngIf="importFileName">
                     <div class="small text-muted">Selected: <span class="fw-semibold">{{ importFileName }}</span></div>
                 </div>
-
                 <div class="col-12" *ngIf="importPreviewRows.length">
                     <div class="border rounded p-2" style="max-height: 360px; overflow:auto;">
                         <div class="small text-muted mb-2">
@@ -193,57 +181,63 @@
                             <span class="mx-2">•</span>
                             Invalid: <span class="fw-semibold text-danger">{{ importInvalidCount }}</span>
                         </div>
-
                         <table class="table table-sm table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width:60px;">Row</th>
+                                    <th style="width:50px;">Row</th>
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Role</th>
+                                    <th>Emp Code</th>
                                     <th>Center</th>
-                                    <th style="width:160px;">Row Status</th>
-                                    <th style="width:260px;">Errors</th>
+                                    <th style="width:120px;">Status</th>
+                                    <th style="width:240px;">Errors / Notes</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr *ngFor="let r of importPreviewRows">
+                                <tr *ngFor="let r of importPreviewRows"
+                                    [class.table-danger]="!r._valid || r._importOk === false">
                                     <td>{{ r._rowNo }}</td>
                                     <td>{{ r.name }}</td>
                                     <td>{{ r.email }}</td>
                                     <td>{{ r.phone }}</td>
                                     <td>{{ r.roleLevel }}</td>
+                                    <td>{{ r.empCode || '-' }}</td>
                                     <td>{{ r.centerName || '-' }}</td>
                                     <td class="small">
-                                        <span *ngIf="r._importOk === true" class="badge bg-success me-1">Imported</span>
-                                        <span *ngIf="r._importOk === false" class="badge bg-danger me-1">Failed</span>
+                                        <span *ngIf="r._importOk === true" class="badge bg-success">Imported</span>
+                                        <span *ngIf="r._importOk === false" class="badge bg-danger">Failed</span>
                                         <span *ngIf="r._importOk !== false && r._valid"
                                             class="badge bg-success">OK</span>
+                                        <span *ngIf="r._importOk !== false && !r._valid"
+                                            class="badge bg-warning text-dark">Invalid</span>
                                     </td>
                                     <td class="small">
-                                        <span class="text-danger" *ngIf="(!r._valid) || (r._importOk === false)">
+                                        <span class="text-danger" *ngIf="!r._valid || r._importOk === false">
                                             {{ (r._errors || []).join(', ') || r._importError || 'Invalid' }}
                                         </span>
-                                        <span class="text-muted" *ngIf="r._valid && r._importOk !== false">OK</span>
+                                        <span class="text-muted" *ngIf="r._valid && r._importOk !== false">—</span>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-
                     <div class="small text-muted mt-2">
-                        Note: Existing users are matched by <span class="fw-semibold">Email</span>.
+                        Existing users matched by <span class="fw-semibold">Email</span>.
+                        <span *ngIf="importInvalidCount > 0" class="ms-2 text-warning fw-semibold">
+                            {{ importInvalidCount }} row(s) have errors — fix before importing.
+                        </span>
                     </div>
                 </div>
             </div>
-
             <div class="d-flex justify-content-end gap-2 mt-3">
                 <button type="button" class="btn btn-outline-secondary" (click)="closeImport()">Cancel</button>
                 <button type="button" class="btn btn-primary" (click)="confirmImport()"
                     [disabled]="!importPreviewRows.length || importHasInvalidRows || importing">
-                    <i class="fa-solid fa-cloud-arrow-up me-1"></i>
-                    Import
+                    <i class="fa-solid fa-cloud-arrow-up me-1" *ngIf="!importing"></i>
+                    <i class="fa-solid fa-spinner fa-spin me-1" *ngIf="importing"></i>
+                    {{ importing ? 'Importing...' : 'Import' }}
                 </button>
             </div>
         </div>
