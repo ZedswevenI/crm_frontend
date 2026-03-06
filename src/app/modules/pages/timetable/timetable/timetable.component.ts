@@ -9,13 +9,33 @@ import * as XLSX from 'xlsx';
 
 const safeTrim = (v: any) =>
   v === undefined || v === null ? '' : String(v).trim();
-const timeToMin = (timeStr: string): number | null => {
-  if (!timeStr) return null;
-  const parts = String(timeStr).split(':');
+
+const timeToMin = (timeVal: any): number | null => {
+  if (timeVal === null || timeVal === undefined || timeVal === '') return null;
+  if (typeof timeVal === 'number' && Number.isFinite(timeVal)) {
+    if (timeVal < 0) return null;
+    if (timeVal > 0 && timeVal < 1) {
+      const mins = Math.round(timeVal * 24 * 60);
+      return mins >= 0 && mins <= 24 * 60 ? mins : null;
+    }
+    if (timeVal >= 1 && timeVal <= 24 * 60) {
+      return Math.trunc(timeVal);
+    }
+    if (timeVal > 20000 && timeVal < 90000) {
+      const dayFraction = timeVal - Math.floor(timeVal);
+      const mins = Math.round(dayFraction * 24 * 60);
+      return mins >= 0 && mins <= 24 * 60 ? mins : null;
+    }
+  }
+  const s = String(timeVal).trim();
+  if (!s) return null;
+  const parts = s.split(':');
   if (parts.length < 2) return null;
+
   const h = parseInt(parts[0], 10);
   const m = parseInt(parts[1], 10);
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+
   return h * 60 + m;
 };
 
@@ -29,14 +49,14 @@ const minToLabel = (min: number): string => {
 
 const VALID_PERIOD_TYPES = [
   'LECTURE',
+  'EXAM',
   'LAB',
   'TUTORIAL',
-  'BREAK',
   'TEST',
   'REVISION',
 ];
 
-const VALID_MODES = ['OFFLINE', 'ONLINE', 'HYBRID'];
+const VALID_MODES = ['OFFLINE', 'ONLINE'];
 
 @Component({
   selector: 'app-timetable',
@@ -77,6 +97,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
   validateLoading = false;
   validateOk = false;
   validateConflicts: any[] = [];
+  hasSearched = false;
 
   columns = [
     { key: 'batchCode', label: 'Batch', sortable: true },
@@ -125,6 +146,21 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  private previewTime(v: any): string {
+    const mins = timeToMin(v);
+    return mins === null ? safeTrim(v) : minToLabel(mins);
+  }
+
+  private previewDate(v: any): string {
+    const ms = this.parseDDMMMYYYY(v);
+    if (!ms) return safeTrim(v);
+    const d = new Date(ms);
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mon = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+    const yyyy = d.getUTCFullYear();
+    return `${dd}-${mon}-${yyyy}`;
+  }
+
   fetchTableData(params: {
     page: number;
     pageSize: number;
@@ -132,6 +168,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
     sortKey?: string;
     sortDirection?: string;
   }) {
+    if (!this.selectedCenter || !this.selectedBatch) return;
     this.loading = true;
     const query: any = {
       page: params.page,
@@ -153,15 +190,23 @@ export class TimetableComponent implements OnInit, OnDestroy {
           this.timetables = res?.data || [];
           this.totalRecords = res?.count || 0;
           this.loading = false;
+          this.hasSearched = true;
         },
         error: () => {
           this.loading = false;
+          this.hasSearched = true;
           this.alert.error('Error loading timetables');
         },
       });
   }
 
   applyFilters() {
+    if (!this.selectedCenter || !this.selectedBatch) {
+      this.alert.warning('Please select both a Center and a Batch to search.');
+      return;
+    }
+    this.timetables = [];
+    this.totalRecords = 0;
     this.fetchTableData({ page: 1, pageSize: this.pageSize });
   }
 
@@ -240,13 +285,21 @@ export class TimetableComponent implements OnInit, OnDestroy {
           });
 
           this.loading = false;
-          this.fetchTableData({ page: 1, pageSize: this.pageSize });
         },
         error: () => {
           this.loading = false;
           this.alert.error('Unable to load initial data!');
         },
       });
+  }
+
+  resetFilters() {
+    this.selectedCenter = '';
+    this.selectedBatch = '';
+    this.filteredBatches = this.batchesFull;
+    this.hasSearched = false;
+    this.timetables = [];
+    this.totalRecords = 0;
   }
 
   onCenterFilterChange() {
@@ -263,11 +316,16 @@ export class TimetableComponent implements OnInit, OnDestroy {
       this.filteredBatches = this.batchesFull;
     }
     this.selectedBatch = '';
-    this.applyFilters();
+    this.hasSearched = false;
+    this.timetables = [];
+    this.totalRecords = 0;
   }
 
   openUpload() {
     this.showUpload = true;
+    this.validateLoading = false;
+    this.validateOk = false;
+    this.validateConflicts = [];
     this.file = null;
     this.parsedPayload = null;
     this.parsedMeta = null;
@@ -283,6 +341,9 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.showUpload = false;
     this.file = null;
     this.parsedPayload = null;
+    this.validateLoading = false;
+    this.validateOk = false;
+    this.validateConflicts = [];
     this.parsedMeta = null;
     this.parseError = '';
     this.parsing = false;
@@ -295,7 +356,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
   onFileChange(e: any): void {
     const f = e.target.files?.[0];
     if (!f) return;
-
     this.parseError = '';
     this.parsedPayload = null;
     this.parsedMeta = null;
@@ -303,6 +363,9 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.parsedGroupsPreview = [];
     this.parsedPreviewRows = [];
     this.parsedPreviewTruncated = false;
+    this.validateLoading = false;
+    this.validateOk = false;
+    this.validateConflicts = [];
     const name = f.name.toLowerCase();
     if (name.endsWith('.csv') || f.type === 'text/csv') {
       this.file = f;
@@ -333,20 +396,23 @@ export class TimetableComponent implements OnInit, OnDestroy {
     reader.readAsText(file);
   }
 
-  parseExcel(file: File) {
+    parseExcel(file: File) {
     const reader = new FileReader();
     reader.onload = (evt: any) => {
       try {
         const data = new Uint8Array(evt.target.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: false });
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) {
           this.parseError = 'Excel file has no sheets.';
           return;
         }
         const sheet = workbook.Sheets[sheetName];
-        const csvText = XLSX.utils.sheet_to_csv(sheet, { forceQuotes: false });
-        this.processCsvData(csvText);
+        const rows: any[] = XLSX.utils.sheet_to_json(sheet, {
+          defval: '',
+          raw: true,
+        });
+        this.processTabularRows(rows);
       } catch (err) {
         this.parseError =
           'Failed to parse Excel file. Make sure it is a valid .xlsx/.xls file.';
@@ -358,43 +424,228 @@ export class TimetableComponent implements OnInit, OnDestroy {
       this.parsing = false;
       this.parseError = 'Failed to read Excel file.';
     };
+
     reader.readAsArrayBuffer(file);
   }
 
-  private parseDDMMMYYYY(dateStr: string): number | null {
-    const s = safeTrim(dateStr);
-    if (!s) return null;
-    const m = s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
-    if (!m) return null;
-    const dd = parseInt(m[1], 10);
-    const monTxt = String(m[2]).toLowerCase();
-    const yyyy = parseInt(m[3], 10);
-    const months: Record<string, number> = {
-      jan: 0,
-      feb: 1,
-      mar: 2,
-      apr: 3,
-      may: 4,
-      jun: 5,
-      jul: 6,
-      aug: 7,
-      sep: 8,
-      oct: 9,
-      nov: 10,
-      dec: 11,
+  private processTabularRows(data: any[]) {
+    this.parseError = '';
+    this.parsedPreviewRows = [];
+    this.parsedPreviewTruncated = false;
+    if (!Array.isArray(data) || !data.length) {
+      this.parseError = 'No valid data found in file';
+      return;
+    }
+    const limit = this.PREVIEW_LIMIT;
+    this.parsedPreviewRows = data.slice(0, limit).map((r: any) => ({
+      BatchCode: safeTrim(r['BatchCode']),
+      CentCode: safeTrim(r['CentCode']),
+      Phase: safeTrim(r['Phase']),
+      FacultyID: safeTrim(r['FacultyID']),
+      PeriodType: safeTrim(r['PeriodType']),
+      Mode: safeTrim(r['Mode']),
+      ZoomUrl: safeTrim(r['ZoomUrl']),
+      Descriptions: safeTrim(r['Descriptions']),
+      Venue: safeTrim(r['Venue']),
+      TimeStart: this.previewTime(r['TimeStart']),
+      TimeEnd: this.previewTime(r['TimeEnd']),
+      WkStartOn: this.previewDate(r['WkStartOn']),
+      Dates: this.previewDate(r['Dates']),
+    }));
+    this.parsedPreviewTruncated = data.length > limit;
+    const groupsMap = new Map<string, any[]>();
+    const metaMap = new Map<string, any>();
+    for (const r of data) {
+      const batchCode = safeTrim(r['BatchCode']);
+      const centerCode = safeTrim(r['CentCode']);
+      const phase = safeTrim(r['Phase']);
+      const wkStartOnRaw = r['WkStartOn'];
+      if (!batchCode) continue;
+      const wkStartOnMs = this.parseDDMMMYYYY(wkStartOnRaw);
+      if (!wkStartOnMs) {
+        this.parseError = `Invalid date format in "WkStartOn": "${safeTrim(wkStartOnRaw)}". Use dd-MMM-yyyy like 02-Feb-2026 or keep as Excel Date`;
+        return;
+      }
+      if (centerCode) {
+        const c = this.centerByCode.get(centerCode);
+        if (!c) {
+          this.parseError = `Center not found for CentCode "${centerCode}". Please match with Center centerCode in DB.`;
+          return;
+        }
+      }
+      const wkStartOnLabel = safeTrim(wkStartOnRaw);
+      const key = `${batchCode}||${centerCode}||${wkStartOnLabel}||${phase}`;
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key)!.push(r);
+
+      if (!metaMap.has(key)) {
+        metaMap.set(key, {
+          batchCode,
+          centerCode,
+          phase,
+          wkStartOn: wkStartOnMs,
+          wkStartOnLabel: wkStartOnLabel || '(excel date)',
+        });
+      }
+    }
+
+    const groupKeys = Array.from(groupsMap.keys());
+    if (!groupKeys.length) {
+      this.parseError = 'No valid timetable meta found (BatchCode/WkStartOn)';
+      return;
+    }
+
+    const payloadGroups: any[] = [];
+    let totalDays = 0;
+    let totalPeriods = 0;
+
+    for (const k of groupKeys) {
+      const rows = groupsMap.get(k) || [];
+      const meta = metaMap.get(k);
+
+      const week = this.buildWeekPayloadFromRows(rows);
+      if (!week) return;
+
+      const daysCount = week.length;
+      const periodsCount = week.reduce(
+        (acc, d) => acc + (d.periods || []).length,
+        0,
+      );
+
+      const allPeriods = week.flatMap((d: any) => d.periods || []);
+      const onlineCount = allPeriods.filter(
+        (p: any) => p.mode === 'ONLINE',
+      ).length;
+      const offlineCount = allPeriods.filter(
+        (p: any) => p.mode !== 'ONLINE',
+      ).length;
+
+      totalDays += daysCount;
+      totalPeriods += periodsCount;
+
+      payloadGroups.push({
+        batchCode: meta.batchCode,
+        centerCode: meta.centerCode || null,
+        phase: meta.phase || null,
+        wkStartOn: meta.wkStartOn,
+        wkStartOnLabel: meta.wkStartOnLabel,
+        week,
+        daysCount,
+        periodsCount,
+        onlineCount,
+        offlineCount,
+      });
+    }
+
+    this.parseStats = {
+      totalGroups: payloadGroups.length,
+      totalDays,
+      totalPeriods,
     };
-    if (dd < 1 || dd > 31) return null;
-    if (yyyy < 1900) return null;
-    if (months[monTxt] === undefined) return null;
-    const dt = new Date(yyyy, months[monTxt], dd);
-    if (
-      dt.getFullYear() !== yyyy ||
-      dt.getMonth() !== months[monTxt] ||
-      dt.getDate() !== dd
-    )
-      return null;
-    dt.setHours(0, 0, 0, 0);
-    return dt.getTime();
+
+    if (payloadGroups.length === 1) {
+      const one = payloadGroups[0];
+      this.parsedMeta = {
+        batchCode: one.batchCode,
+        centerCode: one.centerCode,
+        phase: one.phase,
+        wkStartOn: one.wkStartOn,
+        wkStartOnLabel: one.wkStartOnLabel,
+      };
+      this.parsedPayload = {
+        batchCode: one.batchCode,
+        centerCode: one.centerCode,
+        phase: one.phase,
+        wkStartOn: one.wkStartOn,
+        week: one.week,
+      };
+      this.parsedGroupsPreview = [];
+    } else {
+      this.parsedMeta = null;
+      this.parsedPayload = payloadGroups.map((g) => ({
+        batchCode: g.batchCode,
+        centerCode: g.centerCode,
+        phase: g.phase,
+        wkStartOn: g.wkStartOn,
+        week: g.week,
+      }));
+      this.parsedGroupsPreview = payloadGroups.map((g) => ({
+        batchCode: g.batchCode,
+        centerCode: g.centerCode,
+        phase: g.phase,
+        wkStartOnLabel: g.wkStartOnLabel,
+        daysCount: g.daysCount,
+        periodsCount: g.periodsCount,
+        onlineCount: g.onlineCount,
+        offlineCount: g.offlineCount,
+      }));
+    }
+  }
+
+  private parseDDMMMYYYY(dateStr: any): number | null {
+    if (dateStr instanceof Date && !isNaN(dateStr.getTime())) {
+      return Date.UTC(
+        dateStr.getFullYear(),
+        dateStr.getMonth(),
+        dateStr.getDate(),
+      );
+    }
+    if (typeof dateStr === 'number' && Number.isFinite(dateStr)) {
+      if (dateStr > 59 && dateStr < 2958466) {
+        const ms = (Math.round(dateStr) - 25569) * 86400 * 1000;
+        const d = new Date(ms);
+        return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      }
+    }
+    const raw =
+      dateStr === undefined || dateStr === null ? '' : String(dateStr).trim();
+    if (!raw) return null;
+    if (/^\d{5,6}(\.\d+)?$/.test(raw)) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 59 && n < 2958466) {
+        const ms = (Math.round(n) - 25569) * 86400 * 1000;
+        const d = new Date(ms);
+        return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      }
+    }
+    const s = raw.split(/[\sT]/)[0].trim();
+    const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) {
+      const yyyy = Number(iso[1]);
+      const mm = Number(iso[2]);
+      const dd = Number(iso[3]);
+      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+      return Date.UTC(yyyy, mm - 1, dd);
+    }
+    const named = s.match(
+      /^(\d{1,2})[-\/\s]([A-Za-z]{3,9})[-\/\s](\d{2}|\d{4})$/,
+    );
+    if (named) {
+      const months: Record<string, number> = {
+        jan: 0,
+        feb: 1,
+        mar: 2,
+        apr: 3,
+        may: 4,
+        jun: 5,
+        jul: 6,
+        aug: 7,
+        sep: 8,
+        oct: 9,
+        nov: 10,
+        dec: 11,
+      };
+      const dd = Number(named[1]);
+      const monKey = named[2].slice(0, 3).toLowerCase();
+      const mo = months[monKey];
+      let yyyy = Number(named[3]);
+      // Handle 2-digit year: Excel formats like '3-Feb-26'
+      if (yyyy < 100) yyyy += yyyy < 50 ? 2000 : 1900;
+      if (mo === undefined || dd < 1 || dd > 31 || yyyy < 1900) return null;
+      return Date.UTC(yyyy, mo, dd);
+    }
+
+    return null;
   }
 
   private getStaffFromCsv(value: string) {
@@ -431,9 +682,19 @@ export class TimetableComponent implements OnInit, OnDestroy {
       const dateObj = new Date(epoch);
       const dayName =
         daysOrder[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
+      // const startMin = timeToMin(row['TimeStart']);
+      // const endMin = timeToMin(row['TimeEnd']);
+      // if (startMin === null || endMin === null) continue;
       const startMin = timeToMin(row['TimeStart']);
       const endMin = timeToMin(row['TimeEnd']);
-      if (startMin === null || endMin === null) continue;
+      if (startMin === null || endMin === null) {
+        this.parseError = `Invalid time on row with FacultyID "${safeTrim(row['FacultyID'])}" on date "${safeTrim(row['Dates'])}": TimeStart="${safeTrim(row['TimeStart'])}" TimeEnd="${safeTrim(row['TimeEnd'])}"`;
+        return null;
+      }
+      if (endMin <= startMin) {
+        this.parseError = `TimeEnd must be after TimeStart on row with FacultyID "${safeTrim(row['FacultyID'])}" on date "${safeTrim(row['Dates'])}" (${safeTrim(row['TimeStart'])} – ${safeTrim(row['TimeEnd'])})`;
+        return null;
+      }
       const facultyRaw = safeTrim(row['FacultyID']);
       const staff = this.getStaffFromCsv(facultyRaw);
       if (!staff) {
@@ -529,11 +790,11 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.parsedPreviewRows = data.slice(0, limit).map((r: any) => ({
       BatchCode: safeTrim(r['BatchCode']),
       CentCode: safeTrim(r['CentCode']),
-      WkStartOn: safeTrim(r['WkStartOn']),
+      WkStartOn: this.previewDate(r['WkStartOn']),
       Phase: safeTrim(r['Phase']),
-      Dates: safeTrim(r['Dates']),
-      TimeStart: safeTrim(r['TimeStart']),
-      TimeEnd: safeTrim(r['TimeEnd']),
+      Dates: this.previewDate(r['Dates']),
+      TimeStart: this.previewTime(r['TimeStart']),
+      TimeEnd: this.previewTime(r['TimeEnd']),
       FacultyID: safeTrim(r['FacultyID']),
       PeriodType: safeTrim(r['PeriodType']),
       Mode: safeTrim(r['Mode']),
@@ -764,7 +1025,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
         'Physics - Kinematics',
         'Hall A',
         'Phase 1',
-        '64',
+        'CENTER-01',
         '09-Feb-2026',
       ],
       [
@@ -779,7 +1040,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
         'Maths - Calculus',
         '',
         'Phase 1',
-        '64',
+        'CENTER-01',
         '09-Feb-2026',
       ],
       [
@@ -794,7 +1055,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
         'Chemistry - Atomic Structure',
         'Lab 1',
         'Phase 1',
-        '64',
+        'CENTER-01',
         '09-Feb-2026',
       ],
       [
@@ -804,12 +1065,12 @@ export class TimetableComponent implements OnInit, OnDestroy {
         '10-Feb-2026',
         'STF0016',
         'TUTORIAL',
-        'HYBRID',
+        'OFFLINE',
         '',
         'Maths - Revision',
         'Hall B',
         'Phase 1',
-        '64',
+        'CENTER-01',
         '09-Feb-2026',
       ],
     ];
@@ -886,13 +1147,18 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.commonApi.fetchData(payload, this.moduleName, 'validate').subscribe({
       next: (res: any) => {
         this.validateLoading = false;
-        const ok = !!res?.status;
-        this.validateOk = ok;
         const conflicts = Array.isArray(res?.conflicts) ? res.conflicts : [];
         this.validateConflicts = conflicts;
-
-        if (ok && !conflicts.length) {
-          this.alert.success('Validation passed');
+        if (res?.status === true && !conflicts.length) {
+          this.validateOk = true;
+          this.alert.success('Validation passed — no conflicts found');
+        } else {
+          this.validateOk = false;
+          if (conflicts.length) {
+            this.alert.warning(
+              `${conflicts.length} conflict(s) detected. Fix and re-upload.`,
+            );
+          }
         }
       },
       error: (err: any) => {
@@ -902,26 +1168,28 @@ export class TimetableComponent implements OnInit, OnDestroy {
           ? err.error.conflicts
           : [];
         this.validateConflicts = conflicts;
-        const msg =
-          err?.error?.message ||
-          (conflicts.length ? 'Conflicts detected' : 'Validation failed');
-        this.alert.error(msg);
+        if (conflicts.length) {
+          this.alert.warning(
+            `${conflicts.length} conflict(s) detected. Fix and re-upload.`,
+          );
+        } else {
+          this.alert.error(err?.error?.message || 'Validation failed');
+        }
       },
     });
   }
 
   confirmProceed() {
     if (!this.validateOk || this.validateConflicts.length) return;
-    if (this.confirmMode === 'single') {
-      this.showConfirm = false;
-      this.submitCreateFromCsv();
-    } else {
-      this.showConfirm = false;
+    this.showConfirm = false;
+    if (Array.isArray(this.parsedPayload)) {
       this.submitImportFromCsv();
+    } else {
+      this.submitCreateFromCsv();
     }
   }
 
-    private toAmPm(min: any): string {
+  private toAmPm(min: any): string {
     const n = Number(min);
     if (!Number.isFinite(n) || n < 0) return '-';
     return minToLabel(Math.trunc(n));

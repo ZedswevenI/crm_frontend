@@ -23,6 +23,9 @@
                 <span class="text-danger fw-semibold">
                     <i class="fa-solid fa-circle-xmark me-1"></i>{{ students | absentCount }} Absent
                 </span>
+                <span class="text-secondary fw-semibold" *ngIf="(students | notMarkedCount) > 0">
+                    <i class="fa-solid fa-circle-question me-1"></i>{{ students | notMarkedCount }} Not Marked
+                </span>
             </div>
             <div class="form-check d-flex align-items-center gap-2 mb-0">
                 <input type="checkbox" class="form-check-input" id="markAll" [(ngModel)]="selectAll"
@@ -36,7 +39,7 @@
                         'present': student.status === 'PRESENT',
                         'absent':  student.status === 'ABSENT',
                         'late':    student.status === 'LATE',
-                        'neutral': student.status !== 'PRESENT' && student.status !== 'ABSENT' && student.status !== 'LATE'
+                        'neutral': student.status === 'NOT_MARKED'
                     }" (click)="toggleAttendance(student)">
 
                     <div class="student-avatar">{{ student.name?.charAt(0) || '?' }}</div>
@@ -44,7 +47,12 @@
                     <div class="student-roll">{{ student.admissionNo }}</div>
                     <span class="badge bg-warning text-dark mt-1" style="font-size:0.58rem; letter-spacing:0.04em"
                         *ngIf="student.status === 'LATE'">LATE</span>
+                    <span class="badge bg-secondary-subtle text-secondary mt-1"
+                        style="font-size:0.58rem; letter-spacing:0.04em" *ngIf="student.status === 'NOT_MARKED'">
+                        <i class="fa-solid fa-circle-question me-1"></i>Not Marked
+                    </span>
                     <input type="checkbox" class="form-check-input mt-2" [checked]="student.status === 'PRESENT'"
+                        [class.opacity-50]="student.status === 'NOT_MARKED'"
                         (click)="$event.stopPropagation(); toggleAttendance(student)">
                 </div>
             </div>
@@ -63,8 +71,6 @@
                 <input class="form-control" [(ngModel)]="feedback" placeholder="Any notes about this session" />
             </div>
         </div>
-
-        <!-- Submit -->
         <div class="d-flex justify-content-end gap-2 mt-4" *ngIf="students.length">
             <button class="btn btn-outline-secondary" (click)="router.navigate(['/app/attendance'])">Cancel</button>
             <button class="btn btn-primary px-4" (click)="submitAttendance()" [disabled]="submitting">
@@ -72,26 +78,18 @@
                 {{ isEditMode ? 'Update Attendance' : 'Submit Attendance' }}
             </button>
         </div>
-
     </div>
 </div>
-
-
-<!-- ══════════ POPUP ══════════ -->
 <div *ngIf="showSummary" class="attendance-popup-backdrop">
     <div class="attendance-popup card p-4">
-
         <div class="d-flex align-items-center justify-content-between mb-3">
             <h5 class="text-primary mb-0">Attendance Summary</h5>
             <button class="btn-close" (click)="showSummary = false"></button>
         </div>
-
         <div class="text-muted small mb-3">
             {{ batchCode }}<span *ngIf="dateLabel"> &bull; {{ dateLabel }}</span>
             <span *ngIf="timeLabel"> &bull; {{ timeLabel }}</span>
         </div>
-
-        <!-- Stats -->
         <div class="row g-2 mb-3">
             <div class="col-4">
                 <div class="rounded-3 p-2 text-center" style="background:#e9f7ef; border:1.5px solid #a3e4b5">
@@ -105,34 +103,35 @@
                     <div class="small text-danger fw-semibold">Absent</div>
                 </div>
             </div>
-            <div class="col-4">
+            <div class="col-4" *ngIf="lateCount > 0">
+                <div class="rounded-3 p-2 text-center" style="background:#fff8e1; border:1.5px solid #ffe082">
+                    <div class="fw-bold text-warning" style="font-size:1.5rem">{{ lateCount }}</div>
+                    <div class="small text-warning fw-semibold">Late</div>
+                </div>
+            </div>
+            <div class="col-4" *ngIf="lateCount === 0">
                 <div class="rounded-3 p-2 text-center" style="background:#f8f9fa; border:1.5px solid #dee2e6">
                     <div class="fw-bold" style="font-size:1.5rem">{{ students.length }}</div>
                     <div class="small text-muted fw-semibold">Total</div>
                 </div>
             </div>
         </div>
-
-        <!-- Session recap -->
         <div *ngIf="topicTaught || feedback" class="rounded-3 p-2 mb-3 small"
             style="background:#f8f9fa; border:1px solid #dee2e6">
             <div *ngIf="topicTaught"><strong class="text-muted">Topic:</strong> {{ topicTaught }}</div>
             <div *ngIf="feedback" class="mt-1"><strong class="text-muted">Feedback:</strong> {{ feedback }}</div>
         </div>
-
-        <!-- Full attendance -->
-        <div *ngIf="absentStudents.length === 0" class="rounded-3 p-2 mb-3 text-center text-success fw-semibold small"
+        <div *ngIf="absentCount === 0 && lateCount === 0"
+            class="rounded-3 p-2 mb-3 text-center text-success fw-semibold small"
             style="background:#e9f7ef; border:1.5px solid #a3e4b5">
             <i class="fa-solid fa-circle-check me-1"></i>Full attendance today!
         </div>
-
-        <!-- Absent + remarks -->
-        <div *ngIf="absentStudents.length">
+        <div *ngIf="absentCount > 0">
             <strong class="text-danger small">
                 <i class="fa-solid fa-user-xmark me-1"></i>Absent Students
             </strong>
             <div class="absent-remark-list mt-2">
-                <div class="absent-remark-row" *ngFor="let student of students | absentStudentsFilter; let i = index">
+                <div class="absent-remark-row" *ngFor="let student of students | absentStudentsFilter">
                     <div class="absent-remark-row__info">
                         <span class="absent-remark-row__avatar">{{ student.name?.charAt(0) }}</span>
                         <div>
@@ -145,7 +144,6 @@
                 </div>
             </div>
         </div>
-
         <div class="text-end mt-3">
             <button class="btn closebutton me-2" (click)="showSummary = false">Back to Edit</button>
             <button class="btn submitbutton" (click)="onConfirm()" [disabled]="submitting">
@@ -153,6 +151,5 @@
                 Confirm
             </button>
         </div>
-
     </div>
 </div>

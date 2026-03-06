@@ -10,7 +10,7 @@ export class PresentCountPipe implements PipeTransform {
 @Pipe({ name: 'absentCount', standalone: false })
 export class AbsentCountPipe implements PipeTransform {
   transform(students: any[]): number {
-    return (students || []).filter(s => s.status !== 'PRESENT').length;
+    return (students || []).filter(s => s.status === 'ABSENT').length;
   }
 }
 
@@ -18,5 +18,12 @@ export class AbsentCountPipe implements PipeTransform {
 export class AbsentStudentsFilterPipe implements PipeTransform {
   transform(students: any[]): any[] {
     return (students || []).filter(s => s.status === 'ABSENT');
+  }
+}
+
+@Pipe({ name: 'notMarkedCount', standalone: false })
+export class NotMarkedCountPipe implements PipeTransform {
+  transform(students: any[]): number {
+    return (students || []).filter(s => s.status === 'NOT_MARKED').length;
   }
 }

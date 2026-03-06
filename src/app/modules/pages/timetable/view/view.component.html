@@ -30,13 +30,14 @@
                             {{ timetable.wkStartOn | date: "mediumDate" }}
                         </div>
                         <div class="fw-semibold" *ngIf="viewMode === 'range'">
-                            {{ fromDateStr | date:'mediumDate' }}
+                            {{ fromDateMs | date:'mediumDate' }}
                             <span class="text-muted mx-1">→</span>
-                            {{ (toDateStr || fromDateStr) | date:'mediumDate' }}
+                            {{ toDateMs | date:'mediumDate' }}
                         </div>
                     </div>
                 </div>
             </div>
+
             <div class="row g-2 mb-3" *ngIf="viewMode === 'range'">
                 <div class="col-md-3">
                     <label class="form-label small text-muted mb-1">From Date</label>
@@ -56,15 +57,14 @@
                     <div class="small text-muted" *ngIf="rangeMetaLabel">{{ rangeMetaLabel }}</div>
                 </div>
             </div>
+
+            <!-- FIX #13: HYBRID badge removed from legend -->
             <div class="d-flex flex-wrap gap-2 mb-3 small">
                 <span class="badge bg-success-subtle text-success border border-success-subtle">
                     <i class="fa-solid fa-circle-check me-1"></i>OFFLINE
                 </span>
                 <span class="badge bg-info-subtle text-info border border-info-subtle">
                     <i class="fa-solid fa-wifi me-1"></i>ONLINE
-                </span>
-                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
-                    <i class="fa-solid fa-layer-group me-1"></i>HYBRID
                 </span>
                 <span class="badge bg-purple-subtle text-purple border"
                     style="background:#f3e8ff;color:#7c3aed;border-color:#c4b5fd!important">
@@ -77,6 +77,7 @@
                     <i class="fa-solid fa-calendar-xmark me-1"></i>Holiday
                 </span>
             </div>
+
             <div class="table-responsive border rounded-3">
                 <table class="table table-bordered mb-0 timetable-grid">
                     <thead class="bg-light">
@@ -118,11 +119,11 @@
                                         <ng-container *ngIf="!p.__dayCancelled; else dayCancelledTpl">
                                             <div class="d-flex gap-1 flex-wrap justify-content-center">
                                                 <span class="badge" style="font-size:0.65rem" [ngClass]="{
-            'bg-secondary-subtle text-secondary': p.periodType === 'LECTURE' || !p.periodType,
-            'bg-teal-subtle text-teal': p.periodType === 'LAB',
-            'bg-warning-subtle text-warning': p.periodType === 'TEST' || p.periodType === 'REVISION',
-            'bg-orange-subtle text-orange': p.periodType === 'TUTORIAL'
-        }" [style.background]="p.periodType === 'EXAM' ? '#f3e8ff' : null"
+                                                    'bg-secondary-subtle text-secondary': p.periodType === 'LECTURE' || !p.periodType,
+                                                    'bg-teal-subtle text-teal': p.periodType === 'LAB',
+                                                    'bg-warning-subtle text-warning': p.periodType === 'TEST' || p.periodType === 'REVISION',
+                                                    'bg-orange-subtle text-orange': p.periodType === 'TUTORIAL'
+                                                }" [style.background]="p.periodType === 'EXAM' ? '#f3e8ff' : null"
                                                     [style.color]="p.periodType === 'EXAM' ? '#7c3aed' : null">
                                                     {{ p.periodType || 'LECTURE' }}
                                                 </span>
@@ -170,7 +171,7 @@
                                                         Replace
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-info"
-                                                        *ngIf="(p.mode === 'ONLINE' || p.mode === 'HYBRID') && !p.zoomUrl"
+                                                        *ngIf="p.mode === 'ONLINE' && !p.zoomUrl"
                                                         (click)="openSetZoom(row, pNum, p)" [disabled]="loading"
                                                         title="Set Zoom link">
                                                         <i class="fa-solid fa-video"></i>
@@ -296,15 +297,14 @@
                                 [style.color]="ep.periodType === 'EXAM' ? '#7c3aed' : null">
                                 {{ ep.periodType || 'LECTURE' }}
                             </span>
+                            <!-- FIX #12: HYBRID removed from mode badge -->
                             <span class="badge small" style="font-size:0.65rem" [ngClass]="{
                                 'bg-success-subtle text-success': ep.mode === 'OFFLINE' || !ep.mode,
-                                'bg-info-subtle text-info': ep.mode === 'ONLINE',
-                                'bg-warning-subtle text-warning': ep.mode === 'HYBRID'
+                                'bg-info-subtle text-info': ep.mode === 'ONLINE'
                             }">
                                 <i class="fa-solid me-1" [ngClass]="{
                                     'fa-building': ep.mode === 'OFFLINE' || !ep.mode,
-                                    'fa-wifi': ep.mode === 'ONLINE',
-                                    'fa-layer-group': ep.mode === 'HYBRID'
+                                    'fa-wifi': ep.mode === 'ONLINE'
                                 }"></i>
                                 {{ ep.mode || 'OFFLINE' }}
                             </span>
@@ -339,13 +339,13 @@
                                     <option value="EXAM">EXAM</option>
                                 </select>
                             </div>
+                            <!-- FIX #12: HYBRID option removed from mode select -->
                             <div class="col-md-3">
                                 <label class="form-label small text-muted mb-1">Mode</label>
                                 <select class="form-select form-select-sm" [(ngModel)]="ep.mode"
                                     (change)="onEditDayModeChange(ep)">
                                     <option value="OFFLINE">OFFLINE</option>
                                     <option value="ONLINE">ONLINE</option>
-                                    <option value="HYBRID">HYBRID</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -387,10 +387,10 @@
                                 <input class="form-control form-control-sm" [(ngModel)]="ep.topic"
                                     placeholder="e.g. Chapter 3 – Vectors" />
                             </div>
-                            <div class="col-12" *ngIf="ep.mode === 'ONLINE' || ep.mode === 'HYBRID'">
+                            <div class="col-12" *ngIf="ep.mode === 'ONLINE'">
                                 <label class="form-label small text-muted mb-1">
                                     <i class="fa-solid fa-video me-1 text-info"></i>Zoom URL
-                                    <span *ngIf="ep.mode === 'ONLINE'" class="text-danger">*</span>
+                                    <span class="text-danger">*</span>
                                 </label>
                                 <input class="form-control form-control-sm" [(ngModel)]="ep.zoomUrl"
                                     placeholder="https://zoom.us/j/..." />
@@ -415,7 +415,6 @@
                         <i class="fa-solid fa-rotate-left me-1"></i>Reset to Original
                     </button>
                 </div>
-
             </div>
             <div class="app-modal-footer d-flex justify-content-end gap-2 px-3 py-2 border-top bg-light rounded-bottom">
                 <button class="btn btn-outline-secondary btn-sm" (click)="closeEditDay()"
@@ -430,11 +429,8 @@
                     {{ editDayValidating ? 'Validating...' : (loading ? 'Saving...' : 'Validate & Save') }}
                 </button>
             </div>
-
         </div>
     </div>
-
-
 
     <!-- ===================== CANCEL PERIOD MODAL ===================== -->
     <div class="app-modal-backdrop" *ngIf="showCancelPeriod">
@@ -560,16 +556,16 @@
                             <option value="REVISION">REVISION</option>
                         </select>
                     </div>
+                    <!-- FIX #12: HYBRID removed from Replace Period mode -->
                     <div class="col-md-6">
                         <label class="form-label small text-muted">Mode</label>
                         <select class="form-select" [(ngModel)]="rp.mode">
                             <option value="">-- No Change --</option>
                             <option value="OFFLINE">OFFLINE</option>
                             <option value="ONLINE">ONLINE</option>
-                            <option value="HYBRID">HYBRID</option>
                         </select>
                     </div>
-                    <div class="col-md-6">
+                    <!-- <div class="col-md-6">
                         <label class="form-label small text-muted">Faculty</label>
                         <select class="form-select" [(ngModel)]="rp.facultyId" (change)="onReplaceFacultySelected()">
                             <option value="">-- No Change --</option>
@@ -594,6 +590,36 @@
                     <div class="col-md-6">
                         <label class="form-label small text-muted">Subject Name</label>
                         <input class="form-control" [(ngModel)]="rp.subjectName" placeholder="Auto-filled" readonly />
+                    </div> -->
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Subject</label>
+                        <select class="form-select" [(ngModel)]="rp.subjectCode" (change)="onReplaceSubjectSelected()">
+                            <option value="">-- No Change --</option>
+                            <option *ngFor="let sub of subjectsFull" [value]="sub.subjectCode">
+                                {{ sub.subjectName }} ({{ sub.subjectCode }})
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Subject Name</label>
+                        <input class="form-control" [(ngModel)]="rp.subjectName" placeholder="Auto-filled" readonly />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Faculty
+                            <span *ngIf="rp.subjectId" class="text-muted fw-normal ms-1" style="font-size:0.7rem">
+                                — filtered by subject
+                            </span>
+                        </label>
+                        <select class="form-select" [(ngModel)]="rp.facultyId" (change)="onReplaceFacultySelected()">
+                            <option value="">-- No Change --</option>
+                            <option *ngFor="let s of getStaffForSubject(rp.subjectId)" [value]="s.staffCode">
+                                {{ s.staffName }} ({{ s.staffCode }})
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted">Faculty Name</label>
+                        <input class="form-control" [(ngModel)]="rp.facultyName" placeholder="Auto-filled" readonly />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label small text-muted">Venue</label>
@@ -603,7 +629,7 @@
                         <label class="form-label small text-muted">Topic</label>
                         <input class="form-control" [(ngModel)]="rp.topic" placeholder="Topic/Description" />
                     </div>
-                    <div class="col-12" *ngIf="rp.mode === 'ONLINE' || rp.mode === 'HYBRID'">
+                    <div class="col-12" *ngIf="rp.mode === 'ONLINE'">
                         <label class="form-label small text-muted">Zoom URL</label>
                         <input class="form-control" [(ngModel)]="rp.zoomUrl" placeholder="https://zoom.us/j/..." />
                     </div>

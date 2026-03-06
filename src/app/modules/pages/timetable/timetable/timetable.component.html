@@ -35,18 +35,28 @@
                     </select>
                 </div>
                 <div class="col-md-4 d-flex gap-2 justify-content-md-end">
-                    <button class="btn btn-sm btn-outline-secondary" [disabled]="loading"
+                    <!-- <button class="btn btn-sm btn-outline-secondary" [disabled]="loading"
                         (click)="selectedCenter=''; selectedBatch=''; onCenterFilterChange(); applyFilters()">
                         <i class="fa-solid fa-rotate-left me-1"></i> Reset
+                    </button> -->
+                    <button class="btn btn-sm btn-outline-secondary" [disabled]="loading" (click)="resetFilters()">
+                        <i class="fa-solid fa-rotate-left me-1"></i> Reset
                     </button>
-                    <button class="btn btn-sm btn-primary" [disabled]="loading" (click)="applyFilters()">
+                    <!-- <button class="btn btn-sm btn-primary" [disabled]="loading" (click)="applyFilters()">
                         <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
                         <i class="fa-solid fa-magnifying-glass me-1" *ngIf="!loading"></i> Search
+                    </button> -->
+                    <button class="btn btn-sm btn-primary" [disabled]="loading || !selectedCenter || !selectedBatch"
+                        [title]="!selectedCenter ? 'Select a center first' : !selectedBatch ? 'Select a batch' : ''"
+                        (click)="applyFilters()">
+                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                        <i class="fa-solid fa-magnifying-glass me-1" *ngIf="!loading"></i>
+                        Search
                     </button>
                 </div>
             </div>
-            <div class="position-relative">
-                <div *ngIf="loading && !showUpload" class="position-absolute top-0 start-0 w-100 h-100"
+            <!-- <div class="position-relative"> -->
+            <!-- <div *ngIf="loading && !showUpload" class="position-absolute top-0 start-0 w-100 h-100"
                     style="background: rgba(255,255,255,0.65); z-index: 3; border-radius: 12px;">
                     <div class="d-flex align-items-center justify-content-center h-100">
                         <div class="text-center">
@@ -54,338 +64,323 @@
                             <div class="small text-muted mt-2">Loading timetables...</div>
                         </div>
                     </div>
+                </div> -->
+            <!-- <div *ngIf="loading && !showUpload"
+                    class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                    style="background: rgba(255,255,255,0.65); z-index: 3; border-radius: 12px; min-height: 120px;">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <div class="small text-muted mt-2">Loading timetables...</div>
+                    </div>
                 </div>
                 <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables" [totalRecords]="totalRecords"
                     [actions]="actions" [showpageoptions]="true" (requestData)="fetchTableData($event)">
-                </list-table>
+                </list-table> -->
+            <!-- </div> -->
+
+            <div class="position-relative mt-3">
+                <div *ngIf="loading && !showUpload"
+                    class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                    style="background: rgba(255,255,255,0.65); z-index: 3; border-radius: 12px; min-height: 120px;">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <div class="small text-muted mt-2">Loading timetables...</div>
+                    </div>
+                </div>
+                <div *ngIf="!hasSearched && !loading"
+                    class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
+                    <div class="mb-3" style="opacity: 0.35;">
+                        <i class="fa-solid fa-calendar-days" style="font-size: 3rem; color: #6c757d;"></i>
+                    </div>
+                    <div class="fw-semibold text-muted mb-1">Select a Center and Batch to view timetables</div>
+                    <div class="small text-muted">Use the filters above and click <strong>Search</strong></div>
+                </div>
+                <div *ngIf="hasSearched && !loading && !timetables.length"
+                    class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
+                    <div class="mb-3" style="opacity: 0.35;">
+                        <i class="fa-solid fa-calendar-xmark" style="font-size: 3rem; color: #6c757d;"></i>
+                    </div>
+                    <div class="fw-semibold text-muted mb-1">No timetables found</div>
+                    <div class="small text-muted">No timetables exist for the selected Center and Batch</div>
+                </div>
+                <div *ngIf="hasSearched && timetables.length">
+                    <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables"
+                        [totalRecords]="totalRecords" [actions]="actions" [showpageoptions]="true"
+                        (requestData)="fetchTableData($event)">
+                    </list-table>
+                </div>
+
             </div>
         </div>
     </div>
 
     <!-- UPLOAD / IMPORT MODAL -->
-    <div class="app-modal-backdrop" *ngIf="showUpload && !showConfirm">
-        <div class="app-modal timetable-modal">
+    <div class="app-modal-backdrop" *ngIf="showUpload">
+        <div class="app-modal timetable-modal" style="position: relative">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Upload Timetable</h6>
-                    <span class="text-muted small">
-                        Upload CSV or Excel (.xlsx / .xls) to create/update (single) or import multiple
+                    <h6 class="mb-0 fw-semibold">
+                        {{
+                        showConfirm
+                        ? confirmMode === "single"
+                        ? "Confirm Create / Update"
+                        : "Confirm Bulk Import"
+                        : "Upload Timetable"
+                        }}
+                    </h6>
+                    <span class="text-muted small" *ngIf="!showConfirm">
+                        Upload CSV or Excel (.xlsx / .xls) to create/update (single) or import
+                        multiple
+                    </span>
+                    <span class="text-muted small" *ngIf="showConfirm">
+                        We will validate schedule conflicts before saving.
                     </span>
                 </div>
-                <button class="btn-close" (click)="closeUpload()"></button>
+                <!-- <button class="btn-close" (click)="showConfirm ? closeConfirm() : closeUpload()"
+                [disabled]="validateLoading || parsing || (loading && showUpload)"></button> -->
+                <button class="btn-close" (click)="showConfirm ? closeConfirm() : closeUpload()"
+                    [disabled]="validateLoading || parsing || (loading && showUpload)"
+                    [title]="validateLoading ? 'Please wait, validation in progress...' : parsing ? 'Please wait, parsing file...' : ''">
+                </button>
             </div>
-            <div class="app-modal-body">
-                <div *ngIf="parsing || (loading && showUpload)" class="position-absolute top-0 start-0 w-100 h-100"
-                    style="background: rgba(255,255,255,0.72); z-index: 5; border-radius: 14px;">
+
+            <div class="app-modal-body position-relative">
+                <!-- MODAL OVERLAY LOADER (parsing / validate / submit) -->
+                <div *ngIf="parsing || validateLoading || (loading && showUpload)"
+                    class="position-absolute top-0 start-0 w-100 h-100" style="
+          background: rgba(255, 255, 255, 0.72);
+          z-index: 5;
+          border-radius: 14px;
+        ">
                     <div class="d-flex align-items-center justify-content-center h-100">
                         <div class="text-center">
                             <div class="spinner-border text-primary" role="status"></div>
                             <div class="small text-muted mt-2">
-                                {{ parsing ? 'Parsing file...' : 'Saving...' }}
+                                {{
+                                parsing
+                                ? "Parsing file..."
+                                : validateLoading
+                                ? "Validating schedule..."
+                                : "Saving..."
+                                }}
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="d-flex justify-content-end mb-2">
-                    <button class="btn btn-sm btn-link text-decoration-none" (click)="downloadSample()">
-                        <i class="fa-solid fa-download me-1"></i> Download Sample Excel
-                    </button>
-                </div>
-                <div class="row g-3">
-                    <div class="col-12">
-                        <label class="form-label small fw-bold">Select File <span class="text-muted fw-normal">(CSV,
-                                XLSX or XLS)</span></label>
-                        <input type="file" class="form-control" accept=".csv,.xlsx,.xls"
-                            (change)="onFileChange($event)">
 
-                        <div class="form-text small text-danger" *ngIf="parseError">
-                            <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ parseError }}
-                        </div>
-
-                        <div class="form-text small" *ngIf="parsedPayload && !parseError">
-                            <i class="fa-solid fa-check-circle text-success me-1"></i>
-                            Parsed successfully:
-                            {{ parseStats.totalGroups }} timetable(s) •
-                            {{ parseStats.totalDays }} days •
-                            {{ parseStats.totalPeriods }} periods
-                        </div>
+                <!-- STEP 1: UPLOAD + PREVIEW -->
+                <ng-container *ngIf="!showConfirm">
+                    <div class="d-flex justify-content-end mb-2">
+                        <button class="btn btn-sm btn-link text-decoration-none" (click)="downloadSample()">
+                            <i class="fa-solid fa-download me-1"></i> Download Sample Excel
+                        </button>
                     </div>
-                    <!-- Parsed Preview TABLE: show after parse -->
-                    <div class="col-12" *ngIf="parsedPreviewRows.length && !parseError">
-                        <div class="border rounded-3 overflow-hidden">
-                            <div
-                                class="px-3 py-2 bg-light border-bottom d-flex align-items-center justify-content-between gap-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="fa-solid fa-table text-primary"></i>
-                                    <span class="fw-semibold">Uploaded Data</span>
-                                    <span class="text-muted small ms-1">
-                                        Showing first {{ parsedPreviewRows.length }} row(s)
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Select File
+                                <span class="text-muted fw-normal">(CSV, XLSX or XLS)</span>
+                            </label>
+                            <input type="file" class="form-control" accept=".csv,.xlsx,.xls"
+                                (change)="onFileChange($event)" />
+
+                            <div class="form-text small text-danger" *ngIf="parseError">
+                                <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ parseError }}
+                            </div>
+
+                            <div class="form-text small" *ngIf="parsedPayload && !parseError">
+                                <i class="fa-solid fa-check-circle text-success me-1"></i>
+                                Parsed successfully:
+                                {{ parseStats.totalGroups }} timetable(s) •
+                                {{ parseStats.totalDays }} days •
+                                {{ parseStats.totalPeriods }} periods
+                            </div>
+                        </div>
+
+                        <!-- Parsed Preview TABLE -->
+                        <div class="col-12" *ngIf="parsedPreviewRows.length && !parseError">
+                            <div class="border rounded-3 overflow-hidden">
+                                <div
+                                    class="px-3 py-2 bg-light border-bottom d-flex align-items-center justify-content-between gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-table text-primary"></i>
+                                        <span class="fw-semibold">Uploaded Data</span>
+                                        <span class="text-muted small ms-1">Showing first {{ parsedPreviewRows.length }}
+                                            row(s)</span>
+                                    </div>
+                                    <span class="badge bg-secondary-subtle text-secondary">
+                                        {{ parseStats.totalGroups }} group(s) •
+                                        {{ parseStats.totalDays }} days •
+                                        {{ parseStats.totalPeriods }} periods
                                     </span>
                                 </div>
-                                <span class="badge bg-secondary-subtle text-secondary">
-                                    {{ parseStats.totalGroups }} group(s) • {{ parseStats.totalDays }} days • {{
-                                    parseStats.totalPeriods }} periods
-                                </span>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-0">
-                                    <thead class="table-light text-muted" style="font-size:0.75rem;">
-                                        <tr>
-                                            <th style="width:70px">#</th>
-                                            <th>BatchCode</th>
-                                            <th>CentCode</th>
-                                            <th>WkStartOn</th>
-                                            <th>Phase</th>
-                                            <th>Dates</th>
-                                            <th>TimeStart</th>
-                                            <th>TimeEnd</th>
-                                            <th>FacultyID</th>
-                                            <th>PeriodType</th>
-                                            <th>Mode</th>
-                                            <th>ZoomUrl</th>
-                                            <th>Descriptions</th>
-                                            <th>Venue</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody style="font-size:0.78rem;">
-                                        <tr *ngFor="let r of parsedPreviewRows; let i = index">
-                                            <td class="text-muted">{{ i + 1 }}</td>
-                                            <td class="fw-semibold">{{ r.BatchCode || '-' }}</td>
-                                            <td>{{ r.CentCode || '-' }}</td>
-                                            <td>{{ r.WkStartOn || '-' }}</td>
-                                            <td>{{ r.Phase || '-' }}</td>
-                                            <td>{{ r.Dates || '-' }}</td>
-                                            <td>{{ r.TimeStart || '-' }}</td>
-                                            <td>{{ r.TimeEnd || '-' }}</td>
-                                            <td>{{ r.FacultyID || '-' }}</td>
-                                            <td>{{ r.PeriodType || '-' }}</td>
-                                            <td>
-                                                <span class="badge"
-                                                    [ngClass]="r.Mode === 'ONLINE' ? 'bg-info-subtle text-info' : (r.Mode === 'HYBRID' ? 'bg-warning-subtle text-warning' : 'bg-success-subtle text-success')">
-                                                    {{ r.Mode || '-' }}
-                                                </span>
-                                            </td>
-                                            <td class="text-truncate" style="max-width:220px;"
-                                                [title]="r.ZoomUrl || ''">{{ r.ZoomUrl || '-' }}</td>
-                                            <td class="text-truncate" style="max-width:220px;"
-                                                [title]="r.Descriptions || ''">{{ r.Descriptions || '-' }}</td>
-                                            <td class="text-truncate" style="max-width:160px;" [title]="r.Venue || ''">
-                                                {{ r.Venue || '-' }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
 
-                            <div class="px-3 py-2 border-top small text-muted" *ngIf="parsedPreviewTruncated">
-                                <i class="fa-solid fa-circle-info me-1"></i>
-                                Preview truncated. File contains more rows.
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead class="table-light text-muted" style="font-size: 0.75rem">
+                                            <tr>
+                                                <th style="width: 70px">#</th>
+                                                <th>BatchCode</th>
+                                                <th>CentCode</th>
+                                                <th>WkStartOn</th>
+                                                <th>Phase</th>
+                                                <th>Dates</th>
+                                                <th>TimeStart</th>
+                                                <th>TimeEnd</th>
+                                                <th>FacultyID</th>
+                                                <th>PeriodType</th>
+                                                <th>Mode</th>
+                                                <th>ZoomUrl</th>
+                                                <th>Descriptions</th>
+                                                <th>Venue</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody style="font-size: 0.78rem">
+                                            <tr *ngFor="let r of parsedPreviewRows; let i = index">
+                                                <td class="text-muted">{{ i + 1 }}</td>
+                                                <td class="fw-semibold">{{ r.BatchCode || "-" }}</td>
+                                                <td>{{ r.CentCode || "-" }}</td>
+                                                <td>{{ r.WkStartOn || "-" }}</td>
+                                                <td>{{ r.Phase || "-" }}</td>
+                                                <td>{{ r.Dates || "-" }}</td>
+                                                <td>{{ r.TimeStart || "-" }}</td>
+                                                <td>{{ r.TimeEnd || "-" }}</td>
+                                                <td>{{ r.FacultyID || "-" }}</td>
+                                                <td>{{ r.PeriodType || "-" }}</td>
+                                                <td>
+                                                    <span class="badge" [ngClass]="
+                            r.Mode === 'ONLINE'
+                              ? 'bg-info-subtle text-info'
+                                : 'bg-success-subtle text-success'
+                          ">
+                                                        {{ r.Mode || "-" }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-truncate" style="max-width: 220px"
+                                                    [title]="r.ZoomUrl || ''">
+                                                    {{ r.ZoomUrl || "-" }}
+                                                </td>
+                                                <td class="text-truncate" style="max-width: 220px"
+                                                    [title]="r.Descriptions || ''">
+                                                    {{ r.Descriptions || "-" }}
+                                                </td>
+                                                <td class="text-truncate" style="max-width: 160px"
+                                                    [title]="r.Venue || ''">
+                                                    {{ r.Venue || "-" }}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="px-3 py-2 border-top small text-muted" *ngIf="parsedPreviewTruncated">
+                                    <i class="fa-solid fa-circle-info me-1"></i>
+                                    Preview truncated. File contains more rows.
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-12" *ngIf="!parsedPreviewRows.length">
-                        <div class="border rounded-3 small overflow-hidden">
-                            <div class="px-3 py-2 bg-light border-bottom d-flex align-items-center gap-2">
-                                <i class="fa-solid fa-circle-info text-primary"></i>
-                                <span class="fw-semibold">Column Reference</span>
-                                <span class="text-muted ms-1">— use these exact column headers in your file</span>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-0">
-                                    <thead class="table-light text-muted" style="font-size:0.75rem;">
-                                        <tr>
-                                            <th>Column</th>
-                                            <th>Required</th>
-                                            <th>Sample / Allowed Values</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody style="font-size:0.78rem;">
-                                        <tr>
-                                            <td class="fw-semibold">BatchCode</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td class="text-muted">JEE-2025-A</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">CentCode</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td class="text-muted">64</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">WkStartOn</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td class="text-muted">09-Feb-2026 <em>(dd-MMM-yyyy)</em></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">Phase</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td class="text-muted">Phase 1</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">Dates</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td class="text-muted">09-Feb-2026 <em>(dd-MMM-yyyy)</em></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">TimeStart</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td class="text-muted">09:00 <em>(HH:MM, 24h)</em></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">TimeEnd</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td class="text-muted">10:30 <em>(HH:MM, 24h)</em></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">FacultyID</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td class="text-muted">STF0016</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">PeriodType</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td>
-                                                <span
-                                                    class="badge bg-secondary-subtle text-secondary me-1">LECTURE</span>
-                                                <span class="badge bg-secondary-subtle text-secondary me-1">LAB</span>
-                                                <span class="badge bg-secondary-subtle text-secondary me-1">EXAM</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="fw-semibold">Mode</td>
-                                            <td><span class="badge bg-danger-subtle text-danger">Required</span></td>
-                                            <td>
-                                                <span class="badge bg-success-subtle text-success me-1">OFFLINE</span>
-                                                <span class="badge bg-info-subtle text-info me-1">ONLINE</span>
-                                                <span class="badge bg-warning-subtle text-warning">HYBRID</span>
-                                            </td>
-                                        </tr>
-                                        <tr class="text-muted">
-                                            <td>ZoomUrl</td>
-                                            <td><span class="badge bg-secondary-subtle text-secondary">Optional</span>
-                                            </td>
-                                            <td>https://zoom.us/j/123… <em>(only when Mode = ONLINE)</em></td>
-                                        </tr>
-                                        <tr class="text-muted">
-                                            <td>Descriptions</td>
-                                            <td><span class="badge bg-secondary-subtle text-secondary">Optional</span>
-                                            </td>
-                                            <td>Kinematics - Chapter 1</td>
-                                        </tr>
-                                        <tr class="text-muted">
-                                            <td>Venue</td>
-                                            <td><span class="badge bg-secondary-subtle text-secondary">Optional</span>
-                                            </td>
-                                            <td>Hall A, Room 101</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+
+                        <div class="col-12" *ngIf="!parsedPreviewRows.length">
+                            <!-- keep your Column Reference table here as-is -->
                         </div>
                     </div>
-                    <div class="col-12">
-                        <hr class="my-1">
+                </ng-container>
+
+                <!-- STEP 2: VALIDATE + CONFIRM -->
+                <ng-container *ngIf="showConfirm">
+                    <div class="alert alert-warning small" *ngIf="!validateLoading && validateConflicts.length">
+                        <div class="fw-semibold mb-1">
+                            Conflicts detected — fix these and re-upload.
+                        </div>
+                        <div class="text-muted">
+                            Import/Create is blocked until conflicts are resolved.
+                        </div>
                     </div>
-                </div>
-                <div class="d-flex justify-content-end gap-2 mt-4">
-                    <button type="button" class="btn btn-outline-secondary" (click)="closeUpload()">Cancel</button>
+
+                    <div class="alert alert-success small"
+                        *ngIf="!validateLoading && validateOk && !validateConflicts.length">
+                        <div class="fw-semibold mb-0">
+                            Validation passed. Ready to
+                            {{ confirmMode === "single" ? "save" : "import" }}.
+                        </div>
+                    </div>
+
+                    <div class="table-responsive border rounded-3" *ngIf="!validateLoading && validateConflicts.length">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th style="width: 70px">#</th>
+                                    <th>Batch</th>
+                                    <th>Day</th>
+                                    <th style="width: 90px" class="text-center">Period</th>
+                                    <th>Faculty</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let c of validateConflicts; let i = index">
+                                    <td class="text-muted">{{ i + 1 }}</td>
+                                    <td class="fw-semibold">{{ c.batchCode || "-" }}</td>
+                                    <td>{{ c.day || "-" }}</td>
+                                    <td class="text-center">{{ c.periodNo || "-" }}</td>
+                                    <td class="text-truncate" style="max-width: 220px" [title]="c.facultyName || ''">
+                                        {{ c.facultyName || "-" }}
+                                    </td>
+                                    <td>{{ c.message || "-" }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="small text-muted mt-2">
+                        Groups: <b>{{ parseStats.totalGroups }}</b> • Days:
+                        <b>{{ parseStats.totalDays }}</b> • Periods:
+                        <b>{{ parseStats.totalPeriods }}</b>
+                    </div>
+                </ng-container>
+            </div>
+
+            <div class="app-modal-footer d-flex justify-content-end gap-2 p-3">
+                <!-- Footer for Upload step -->
+                <ng-container *ngIf="!showConfirm">
+                    <button type="button" class="btn btn-outline-secondary" (click)="closeUpload()"
+                        [disabled]="loading || parsing">
+                        Cancel
+                    </button>
+
                     <button type="button" class="btn btn-saffron" *ngIf="parsedPayload && parseStats.totalGroups === 1"
                         [disabled]="!parsedPayload || !!parseError || loading || parsing"
                         (click)="openConfirm('single')">
-                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        <i class="fa-solid fa-floppy-disk me-1" *ngIf="!loading"></i>
-                        Go For Validation
+                        <i class="fa-solid fa-arrow-right me-1"></i> Next
                     </button>
+
                     <button type="button" class="btn btn-primary" *ngIf="parsedPayload && parseStats.totalGroups > 1"
                         [disabled]="!parsedPayload || !!parseError || loading || parsing" (click)="openConfirm('bulk')">
-                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        <i class="fa-solid fa-file-import me-1" *ngIf="!loading"></i>
-                        Import
+                        <i class="fa-solid fa-arrow-right me-1"></i> Next
                     </button>
-                </div>
+                </ng-container>
+
+                <!-- Footer for Confirm step -->
+                <ng-container *ngIf="showConfirm">
+                    <button class="btn btn-outline-secondary" (click)="closeConfirm()" [disabled]="validateLoading">
+                        Back
+                    </button>
+                    <!-- <button class="btn btn-primary" (click)="runValidateAndProceed()" [disabled]="validateLoading">
+                    <i class="fa-solid fa-shield-halved me-1"></i> Validate
+                </button> -->
+                    <button class="btn btn-primary" (click)="runValidateAndProceed()"
+                        [disabled]="validateLoading || validateOk">
+                        <span *ngIf="validateLoading" class="spinner-border spinner-border-sm me-1"></span>
+                        <i class="fa-solid fa-shield-halved me-1" *ngIf="!validateLoading"></i>
+                        {{ validateLoading ? 'Validating...' : validateOk ? 'Validated ✓' : 'Validate' }}
+                    </button>
+                    <button class="btn btn-saffron" (click)="confirmProceed()" [disabled]="
+            validateLoading || !validateOk || validateConflicts.length
+          ">
+                        <i class="fa-solid fa-circle-check me-1"></i>
+                        Confirm & {{ confirmMode === "single" ? "Save" : "Import" }}
+                    </button>
+                </ng-container>
             </div>
         </div>
     </div>
-</div>
-<!-- CONFIRM / VALIDATE POPUP -->
-<div class="app-modal-backdrop" *ngIf="showConfirm">
-    <div class="app-modal timetable-modal" style="max-width: 920px;">
-        <div class="app-modal-header d-flex justify-content-between align-items-center">
-            <div>
-                <h6 class="mb-0 fw-semibold">
-                    {{ confirmMode === 'single' ? 'Confirm Create / Update' : 'Confirm Bulk Import' }}
-                </h6>
-                <span class="text-muted small">
-                    We will validate schedule conflicts before saving.
-                </span>
-            </div>
-            <button class="btn-close" (click)="closeConfirm()" [disabled]="validateLoading"></button>
-        </div>
-        <div class="app-modal-body position-relative">
-            <div *ngIf="validateLoading" class="position-absolute top-0 start-0 w-100 h-100"
-                style="background: rgba(255,255,255,0.72); z-index: 5; border-radius: 14px;">
-                <div class="d-flex align-items-center justify-content-center h-100">
-                    <div class="text-center">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <div class="small text-muted mt-2">Validating schedule...</div>
-                    </div>
-                </div>
-            </div>
-            <div class="alert alert-warning small" *ngIf="!validateLoading && validateConflicts.length">
-                <div class="fw-semibold mb-1">
-                    Conflicts detected — fix these and re-upload.
-                </div>
-                <div class="text-muted">
-                    Import/Create is blocked until conflicts are resolved.
-                </div>
-            </div>
-            <div class="alert alert-success small" *ngIf="!validateLoading && validateOk && !validateConflicts.length">
-                <div class="fw-semibold mb-0">
-                    Validation passed. Ready to {{ confirmMode === 'single' ? 'save' : 'import' }}.
-                </div>
-            </div>
-            <div class="table-responsive border rounded-3" *ngIf="!validateLoading && validateConflicts.length">
-                <table class="table table-sm table-bordered mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th style="width:70px">#</th>
-                            <th>Batch</th>
-                            <th>Day</th>
-                            <th style="width:90px" class="text-center">Period</th>
-                            <th>Faculty</th>
-                            <th>Message</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr *ngFor="let c of validateConflicts; let i = index">
-                            <td class="text-muted">{{ i + 1 }}</td>
-                            <td class="fw-semibold">{{ c.batchCode || '-' }}</td>
-                            <td>{{ c.day || '-' }}</td>
-                            <td class="text-center">{{ c.periodNo || '-' }}</td>
-                            <td class="text-truncate" style="max-width: 220px;" [title]="c.facultyName || ''">
-                                {{ c.facultyName || '-' }}
-                            </td>
-                            <td>{{ c.message || '-' }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="small text-muted mt-2">
-                Groups: <b>{{ parseStats.totalGroups }}</b> • Days: <b>{{ parseStats.totalDays }}</b> • Periods:
-                <b>{{ parseStats.totalPeriods }}</b>
-            </div>
-        </div>
-        <div class="app-modal-footer d-flex justify-content-end gap-2 p-3">
-            <button class="btn btn-outline-secondary" (click)="closeConfirm()" [disabled]="validateLoading">
-                Cancel
-            </button>
-            <button class="btn btn-primary" (click)="runValidateAndProceed()" [disabled]="validateLoading">
-                <i class="fa-solid fa-shield-halved me-1"></i>
-                Validate
-            </button>
-            <button class="btn btn-saffron" (click)="confirmProceed()"
-                [disabled]="validateLoading || !validateOk || validateConflicts.length">
-                <i class="fa-solid fa-circle-check me-1"></i>
-                Confirm & {{ confirmMode === 'single' ? 'Save' : 'Import' }}
-            </button>
-        </div>
-    </div>
-</div>

@@ -204,13 +204,16 @@
             aria-expanded="false">
             <span class="position-relative me-2">
               <i class="fa-regular fa-bell"></i>
-              <span class="badge rounded-pill notif-badge">3</span>
+              <span class="badge rounded-pill notif-badge">0</span>
             </span>
-            <span class="user-name d-none d-md-inline">Admin</span>
+            <span class="user-name d-none d-md-inline">{{username}}</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li class="dropdown-header small text-muted">
-              Logged in as <strong>Admin</strong>
+              Logged in as <strong>{{username}}</strong>
+            </li>
+            <li class="dropdown-header small text-muted">
+              <strong>{{email}}</strong>
             </li>
             <li>
               <hr class="dropdown-divider" />

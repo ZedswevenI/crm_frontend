@@ -17,7 +17,7 @@
             <div class="col" *ngFor="let d of dates">
                 <div class="date-card text-center rounded-3 py-2 px-1"
                     [class.date-card--active]="selectedDate === d.value"
-                    [class.date-card--today]="d.value === getTodayMs() && selectedDate !== d.value"
+                    [class.date-card--today]="d.value === getTodayUtcMs() && selectedDate !== d.value"
                     (click)="selectDate(d)" style="cursor:pointer; border: 1.5px solid #dee2e6;">
                     <div class="small fw-semibold" style="font-size:0.75rem; white-space:nowrap">
                         {{ d.label }}

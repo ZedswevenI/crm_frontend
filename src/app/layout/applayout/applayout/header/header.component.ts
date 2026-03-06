@@ -8,11 +8,16 @@ import { Router } from '@angular/router';
   styleUrl: './header.component.scss'
 })
 export class HeaderComponent {
-  constructor(private router: Router){}
-logout() {
-  localStorage.clear();
-  sessionStorage.clear();
-  this.router.navigate(['/auth/login']);
-}
+  username: any = '';
+  email: any = '';
 
+  constructor(private router: Router) {
+    this.username = localStorage.getItem('name');
+    this.email = localStorage.getItem('email');
+  }
+  logout() {
+    localStorage.clear();
+    sessionStorage.clear();
+    this.router.navigate(['/auth/login']);
+  }
 }
