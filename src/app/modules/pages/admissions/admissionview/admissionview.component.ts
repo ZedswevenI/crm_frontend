@@ -793,14 +793,12 @@ export class AdmissionviewComponent implements OnInit {
   ): number[] {
     const target = this.roundRupee(targetTotal);
     if (!baseTotal || target <= 0) return amounts.map(() => 0);
-
     const raw = amounts.map((a) => (Number(a || 0) / baseTotal) * target);
     const rounded = raw.map((x) => {
       const base = Math.floor(x);
       const frac = x - base;
       return frac >= 0.5 ? base + 1 : base;
     });
-
     let sum = rounded.reduce((s, x) => s + x, 0);
     let diff = target - sum;
 
