@@ -12,7 +12,7 @@ import * as XLSX from 'xlsx';
   styleUrl: './staff.component.scss',
 })
 export class StaffComponent implements OnInit {
-  staffForm!: FormGroup;
+ staffForm!: FormGroup;
   totalRecords = 0;
   staffData: any[] = [];
   loading = false;
@@ -145,6 +145,8 @@ export class StaffComponent implements OnInit {
       facultyType: [null],
       subject: [null],
       weekoff: [[]],
+      salaryCtc: [null],
+      monthlySalary: [null],
       createSystemAccess: [false],
       status: ['Active'],
     });
@@ -228,6 +230,8 @@ export class StaffComponent implements OnInit {
       department: '',
       facultyType: null,
       subject: null,
+      salaryCtc: null,
+      monthlySalary: null,
       createSystemAccess: false,
       weekoff: [],
       status: 'Active',
@@ -279,6 +283,8 @@ export class StaffComponent implements OnInit {
       department: deptValue,
       facultyType: s.facultyType || null,
       subject: subjValue,
+      salaryCtc: s.salaryCtc ?? null,
+      monthlySalary: s.monthlySalary ?? null,
       weekoff: Array.isArray(s.weekoff) ? s.weekoff : [],
       status: this.editingStatus,
     });
@@ -341,6 +347,8 @@ export class StaffComponent implements OnInit {
         form.role === 'Faculty' && form.facultyType === 'TEACHING'
           ? form.subject
           : null,
+      salaryCtc: form.salaryCtc ? Number(form.salaryCtc) : null,
+      monthlySalary: form.monthlySalary ? Number(form.monthlySalary) : null,
       weekoff: Array.isArray(form.weekoff) ? form.weekoff : [],
       status:
         this.formMode === 'create' ? 'Active' : this.editingStatus || 'Active',
@@ -360,7 +368,7 @@ export class StaffComponent implements OnInit {
             this.formMode === 'create' ? 'Staff created' : 'Staff updated',
           );
           this.showForm = false;
-          this.fetchTableData({ page: 1, pageSize: 10 });
+          this.fetchTableData({ page: 1, pageSize: 5 });
         },
         error: (err: any) =>
           this.alert.error(err?.error?.message || 'Operation failed'),
@@ -497,7 +505,7 @@ export class StaffComponent implements OnInit {
       .subscribe({
         next: () => {
           this.alert.success('Employee retired successfully');
-          this.fetchTableData({ page: 1, pageSize: 10 });
+          this.fetchTableData({ page: 1, pageSize: 5 });
           this.openView({ recId: this.retireTarget._id });
         },
         error: (err: any) =>
@@ -618,6 +626,10 @@ export class StaffComponent implements OnInit {
     // FIX #13: lowercase payroll so it matches backend enum (suguna / z7i)
     const payroll = (get('payroll') || '').toLowerCase();
     const facultyType = get('faculty type', 'facultytype') || null;
+    const salaryCtcRaw = get('salary ctc', 'salaryctc', 'ctc');
+    const salaryCtc = salaryCtcRaw ? Number(salaryCtcRaw) : null;
+    const monthlySalaryRaw = get('monthly salary', 'monthlysalary');
+    const monthlySalary = monthlySalaryRaw ? Number(monthlySalaryRaw) : null;
     const weekoffText = get('weekoff') || '';
     const status = get('status') === 'Inactive' ? 'Inactive' : 'Active';
     const createSystemAccessText = get(
@@ -680,6 +692,8 @@ export class StaffComponent implements OnInit {
       payroll,
       department,
       facultyType,
+      salaryCtc,
+      monthlySalary,
       createSystemAccess,
       subject,
       weekoffText,
@@ -707,8 +721,8 @@ export class StaffComponent implements OnInit {
     if (this.importing) return; // FIX #16: prevent double-click
 
     const rows = this.importPreviewRows.map((r) => {
-      const joiningMs = this.dateInputToMs(r.joiningDate);
-      const relievingMs = this.dateInputToMs(r.relievingDate);
+      const joiningMs = this.parseDDMMMYYYY(r.joiningDate);
+      const relievingMs = this.parseDDMMMYYYY(r.relievingDate);
       const centerCode = (r.centerCode || '').toString().trim().toUpperCase();
       const centerId =
         r.centerId || this.resolveCenterIdByCode(centerCode) || null;
@@ -729,6 +743,8 @@ export class StaffComponent implements OnInit {
         // FIX #13: already lowercased in mapExcelRow
         payroll: r.payroll,
         department: r.department,
+        salaryCtc: r.salaryCtc || null,
+        monthlySalary: r.monthlySalary || null,
         weekoff: r.weekoffText,
         status: r.status,
         createSystemAccess: r.createSystemAccess === true,
@@ -751,8 +767,8 @@ export class StaffComponent implements OnInit {
             Number(summary?.failed || 0) ||
             (results.length
               ? results.filter(
-                  (x: any) => !(x?.ok === true || x?.status === true),
-                ).length
+                (x: any) => !(x?.ok === true || x?.status === true),
+              ).length
               : 0);
           this.importing = false;
           const msg = `Import completed. Inserted: ${inserted}, Updated: ${upserted}, Failed: ${failedComputed}`;
@@ -762,7 +778,7 @@ export class StaffComponent implements OnInit {
           }
           this.alert.success(msg);
           this.closeImport();
-          this.fetchTableData({ page: 1, pageSize: 10 });
+          this.fetchTableData({ page: 1, pageSize: 5 });
         },
         error: (err: any) => {
           this.importing = false;
@@ -779,15 +795,15 @@ export class StaffComponent implements OnInit {
               ).length;
             this.alert.error(
               resp?.message ||
-                `Import completed with errors. Inserted: ${inserted}, Updated: ${upserted}, Failed: ${failed}`,
+              `Import completed with errors. Inserted: ${inserted}, Updated: ${upserted}, Failed: ${failed}`,
             );
             return;
           }
           this.alert.error(
             resp?.message ||
-              resp?.error?.message ||
-              err?.message ||
-              'Import failed',
+            resp?.error?.message ||
+            err?.message ||
+            'Import failed',
           );
         },
       });
@@ -803,12 +819,14 @@ export class StaffComponent implements OnInit {
         Phone: '9876543210',
         Email: 'rajesh@example.com',
         'Center Code': '64',
-        'Joining Date': '2026-01-01',
+        'Joining Date': '01-Jan-2026',
         'Relieving Date': '',
         Payroll: 'z7i',
         Department: 'ACADEMICS',
         'Faculty Type': 'TEACHING',
         Subject: 'PHYSICS',
+        'Salary CTC': '600000',
+        'Monthly Salary': '50000',
         Weekoff: 'Sunday',
         Status: 'Active',
         'Create System Access': 'Yes',
@@ -968,5 +986,68 @@ export class StaffComponent implements OnInit {
       },
     );
     this.computeImportValidation();
+  }
+
+  private parseDDMMMYYYY(dateStr: any): number | null {
+    if (dateStr instanceof Date && !isNaN(dateStr.getTime()))
+      return Date.UTC(
+        dateStr.getFullYear(),
+        dateStr.getMonth(),
+        dateStr.getDate(),
+      );
+    if (
+      typeof dateStr === 'number' &&
+      Number.isFinite(dateStr) &&
+      dateStr > 59 &&
+      dateStr < 2958466
+    ) {
+      const ms = (Math.round(dateStr) - 25569) * 86400 * 1000;
+      const d = new Date(ms);
+      return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    }
+    const raw =
+      dateStr === undefined || dateStr === null ? '' : String(dateStr).trim();
+    if (!raw) return null;
+    if (/^\d{5,6}(\.\d+)?$/.test(raw)) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 59 && n < 2958466) {
+        const ms = (Math.round(n) - 25569) * 86400 * 1000;
+        const d = new Date(ms);
+        return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      }
+    }
+    const s = raw.split(/[\sT]/)[0].trim();
+    const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) {
+      const [, y, mo, dd] = iso.map(Number);
+      if (mo < 1 || mo > 12 || dd < 1 || dd > 31) return null;
+      return Date.UTC(y, mo - 1, dd);
+    }
+    const named = s.match(
+      /^(\d{1,2})[-\/\s]([A-Za-z]{3,9})[-\/\s](\d{2}|\d{4})$/,
+    );
+    if (named) {
+      const months: Record<string, number> = {
+        jan: 0,
+        feb: 1,
+        mar: 2,
+        apr: 3,
+        may: 4,
+        jun: 5,
+        jul: 6,
+        aug: 7,
+        sep: 8,
+        oct: 9,
+        nov: 10,
+        dec: 11,
+      };
+      const dd = Number(named[1]);
+      const mo = months[named[2].slice(0, 3).toLowerCase()];
+      let yyyy = Number(named[3]);
+      if (yyyy < 100) yyyy += yyyy < 50 ? 2000 : 1900;
+      if (mo === undefined || dd < 1 || dd > 31 || yyyy < 1900) return null;
+      return Date.UTC(yyyy, mo, dd);
+    }
+    return null;
   }
 }

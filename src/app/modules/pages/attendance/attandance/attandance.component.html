@@ -12,49 +12,91 @@
             </span>
         </div>
 
+        <!-- Week navigation — AO/L1 only -->
+        <div *ngIf="isAO" class="d-flex align-items-center gap-2 mb-2">
+            <button class="btn btn-sm btn-outline-secondary" (click)="prevWeek()">
+                <i class="fa-solid fa-chevron-left"></i> Prev week
+            </button>
+            <button class="btn btn-sm btn-outline-secondary ms-auto" (click)="nextWeek()">
+                Next week <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+
         <!-- Week date picker -->
         <div class="row g-2 mb-4">
             <div class="col" *ngFor="let d of dates">
                 <div class="date-card text-center rounded-3 py-2 px-1"
                     [class.date-card--active]="selectedDate === d.value"
-                    [class.date-card--today]="d.value === getTodayUtcMs() && selectedDate !== d.value"
-                    (click)="selectDate(d)" style="cursor:pointer; border: 1.5px solid #dee2e6;">
+                    [class.date-card--today]="d.isToday && selectedDate !== d.value"
+                    [class.date-card--future]="d.isFuture && selectedDate !== d.value" (click)="selectDate(d)"
+                    style="cursor:pointer; border: 1.5px solid #dee2e6;">
                     <div class="small fw-semibold" style="font-size:0.75rem; white-space:nowrap">
                         {{ d.label }}
+                    </div>
+                    <!-- today dot -->
+                    <div *ngIf="d.isToday"
+                        style="width:5px;height:5px;border-radius:50%;background:#0d6efd;margin:2px auto 0;">
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Pending periods table -->
+        <!-- Content area -->
         <div *ngIf="selectedDate">
 
             <!-- Loading -->
             <div *ngIf="loading" class="text-center py-5 text-muted">
                 <div class="spinner-border spinner-border-sm me-2"></div>
-                Loading periods...
+                Loading schedule...
             </div>
-
-            <!-- No pending -->
-            <div *ngIf="!loading && originalData.length === 0" class="text-center py-5 text-muted border rounded-3">
-                <i class="fa-solid fa-circle-check fa-2x text-success opacity-50 mb-2 d-block"></i>
-                <div class="fw-semibold">All attendance marked for this day</div>
-                <div class="small mt-1">No pending periods found</div>
-            </div>
-
-            <!-- Table -->
-            <div *ngIf="!loading && originalData.length > 0">
-                <div class="d-flex align-items-center gap-2 mb-3">
-                    <span class="badge bg-warning-subtle text-warning border fw-semibold">
-                        {{ totalRecords }} pending
-                    </span>
-                    <span class="text-muted small">Click <strong>Mark Attendance</strong> to record a period</span>
+            <ng-container *ngIf="!loading">
+                <div *ngIf="isTeacher && isPastDate" class="text-center py-5 text-muted border rounded-3">
+                    <i class="fa-solid fa-lock fa-2x text-secondary opacity-50 mb-2 d-block"></i>
+                    <div class="fw-semibold">Past date</div>
+                    <div class="small mt-1">Missed attendance? Please contact AO to mark it.</div>
                 </div>
-                <list-table [autoFitChars]="true" [columns]="columnsArray" [data]="dataArray" [actions]="actions"
-                    [searchPlaceholder]="'Search batch, subject, faculty...'" [totalRecords]="totalRecords"
-                    (requestData)="loadTableData($event)">
-                </list-table>
-            </div>
+                <div *ngIf="isTeacher && isFutureDate && originalData.length === 0"
+                    class="text-center py-5 text-muted border rounded-3">
+                    <i class="fa-solid fa-calendar-days fa-2x text-primary opacity-50 mb-2 d-block"></i>
+                    <div class="fw-semibold">Upcoming schedule</div>
+                    <div class="small mt-1">No periods have been scheduled for this date yet</div>
+                </div>
+                <div *ngIf="!isPastDate && originalData.length === 0 && !(isTeacher && isFutureDate)"
+                    class="text-center py-5 text-muted border rounded-3">
+                    <i class="fa-solid fa-circle-check fa-2x text-success opacity-50 mb-2 d-block"></i>
+                    <div class="fw-semibold">No periods scheduled for this day</div>
+                </div>
+                <div *ngIf="originalData.length > 0 && !(isTeacher && isPastDate)">
+
+                    <!-- Summary bar -->
+                    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+                        <span *ngIf="pendingCount > 0"
+                            class="badge bg-warning-subtle text-warning border fw-semibold px-3 py-2">
+                            <i class="fa-solid fa-clock me-1"></i>{{ pendingCount }} pending
+                        </span>
+                        <span *ngIf="markedCount > 0"
+                            class="badge bg-success-subtle text-success border fw-semibold px-3 py-2">
+                            <i class="fa-solid fa-circle-check me-1"></i>{{ markedCount }} marked
+                        </span>
+                        <span *ngIf="isAO && isFutureDate" class="text-muted small">
+                            <i class="fa-solid fa-eye me-1"></i>Future date — view only, no actions available
+                        </span>
+                        <span *ngIf="isTeacher && isTodaySelected && pendingCount > 0" class="text-muted small">
+                            Click <strong>Mark Attendance</strong> to record a period
+                        </span>
+                        <span *ngIf="isTeacher && isFutureDate && originalData.length > 0" class="text-muted small">
+                            <i class="fa-solid fa-eye me-1"></i>Viewing upcoming schedule — mark attendance on the day
+                        </span>
+                    </div>
+
+                    <list-table [autoFitChars]="true" [columns]="columnsArray" [data]="dataArray" [actions]="actions"
+                        [searchPlaceholder]="'Search batch, subject, faculty...'" [totalRecords]="totalRecords"
+                        (requestData)="loadTableData($event)">
+                    </list-table>
+                </div>
+
+            </ng-container>
+
         </div>
     </div>
 </div>

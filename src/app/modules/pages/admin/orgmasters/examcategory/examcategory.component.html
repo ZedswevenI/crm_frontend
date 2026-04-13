@@ -181,6 +181,77 @@
             </div>
         </div>
     </div>
+    <!-- ================= MODAL: ADD SUB-CATEGORIES ================= -->
+    <div class="app-modal-backdrop" *ngIf="showSubcategoryForm">
+        <div class="app-modal" style="max-width: 760px;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold">Add Sub-Categories</h6>
+                    <span class="text-muted small" *ngIf="subcategoryParent">
+                        Category: {{ subcategoryParent.categoryName }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" (click)="cancelSubcategory()"
+                    [disabled]="savingSubcategories"></button>
+            </div>
+
+            <div class="app-modal-body">
+                <form [formGroup]="subcategoryForm" (ngSubmit)="saveSubcategories()">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="fw-semibold small mb-0">Sub-Categories</label>
+                        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                            (click)="addSubcategoryRow()">
+                            <i class="fa-solid fa-plus"></i> Add Row
+                        </button>
+                    </div>
+
+                    <div class="border rounded p-3 bg-light" formArrayName="rows">
+                        <div *ngFor="let row of subcategoryRows.controls; let i = index; let last = last"
+                            [formGroupName]="i" class="row g-2 align-items-end" [class.mb-2]="!last"
+                            [class.pb-2]="!last" [class.border-bottom]="!last">
+                            <div class="col">
+                                <formfield [label]="i === 0 ? 'Sub-Category Name *' : ''" [required]="true"
+                                    [control]="row.get('subCategoryName')" formControlName="subCategoryName"
+                                    placeholder="Ex: Unit Test - 1">
+                                </formfield>
+                            </div>
+                            <div class="col-md-3">
+                                <formfield [label]="i === 0 ? 'Code' : ''" [required]="false"
+                                    [control]="row.get('subCategoryCode')" formControlName="subCategoryCode"
+                                    placeholder="UT1">
+                                </formfield>
+                            </div>
+                            <div class="col-md-2">
+                                <formfield [label]="i === 0 ? 'Sort' : ''" [required]="false"
+                                    [control]="row.get('sortOrder')" formControlName="sortOrder" placeholder="0">
+                                </formfield>
+                            </div>
+                            <div class="col-auto" [style.padding-bottom.px]="4">
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                    (click)="removeSubcategoryRow(i)" [disabled]="subcategoryRows.length <= 1"
+                                    title="Remove row">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" (click)="cancelSubcategory()"
+                            [disabled]="savingSubcategories">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" [disabled]="savingSubcategories">
+                            <span *ngIf="savingSubcategories" class="spinner-border spinner-border-sm me-2"
+                                role="status" aria-hidden="true"></span>
+                            Save Sub-Categories
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <delete [title]="'Delete Exam Category'" [message]="deleteMessage" [(visible)]="deleteModalVisible"
         (closed)="onDeleteModalClosed($event)">
     </delete>

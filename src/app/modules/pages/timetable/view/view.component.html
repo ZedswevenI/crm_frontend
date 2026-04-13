@@ -1,202 +1,323 @@
-<div class="timetable-view-page" *ngIf="timetable">
+<style>
+    .tt-cell {
+        min-width: 160px;
+        vertical-align: top;
+    }
+
+    /* Action menu: fixed to viewport so it escapes table overflow clipping */
+    .tt-action-menu {
+        position: fixed !important;
+        z-index: 9999 !important;
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, .15);
+        border-radius: 6px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+        min-width: 195px;
+        font-size: 0.83rem;
+        padding: 4px 0;
+    }
+
+    .tt-action-item {
+        display: block;
+        width: 100%;
+        padding: 8px 16px;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        color: #212529;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .tt-action-item:hover {
+        background: #f8f9fa;
+    }
+
+    .tt-action-item:focus {
+        outline: none;
+        background: #eef2ff;
+    }
+
+    .tt-action-item.danger {
+        color: #dc3545;
+    }
+
+    .tt-action-item.purple {
+        color: #7c3aed;
+    }
+
+    .timetable-grid .day-col {
+        width: 180px !important;
+        min-width: 180px !important;
+        max-width: 180px !important;
+    }
+
+    .timetable-grid th,
+    .timetable-grid td {
+        vertical-align: middle;
+    }
+</style>
+
+<div class="timetable-view-page" *ngIf="timetable" (click)="closeActionMenu()">
+
+    <!-- ═══ HEADER ══════════════════════════════════════════════════════════ -->
     <div class="card mb-3 shadow-sm border-0">
-        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div>
-                <h5 class="mb-1 fw-semibold">Timetable View</h5>
-                <p class="mb-0 text-muted small">
-                    {{ timetable.batchCode }} • {{ getCenterName(timetable.centerCode) }} •
-                    {{ timetable.phase || "General" }}
-                </p>
+        <div class="card-header bg-white border-0 py-3">
+            <!-- Top row: title + action buttons -->
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                <div>
+                    <h5 class="mb-1 fw-semibold">Timetable View</h5>
+                    <p class="mb-0 text-muted small">
+                        {{ timetable.batchCode }}&nbsp;&bull;&nbsp;{{ getCenterName(timetable.centerCode)
+                        }}&nbsp;&bull;&nbsp;{{ timetable.phase || 'General' }}
+                    </p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap align-items-center">
+                    <span class="badge px-3 py-2"
+                        [ngClass]="{'bg-success': isPublished, 'bg-warning text-dark': isDraft}">
+                        <i class="fa-solid me-1" [ngClass]="{'fa-circle-check': isPublished, 'fa-pencil': isDraft}"></i>
+                        {{ timetable.status }}
+                    </span>
+                    <button *ngIf="isDraft" class="btn btn-sm btn-success" (click)="confirmPublish()"
+                        [disabled]="loading">
+                        <i class="fa-solid fa-paper-plane me-1"></i>Publish
+                    </button>
+                    <button *ngIf="isPublished" class="btn btn-sm btn-outline-warning" (click)="confirmUnpublish()"
+                        [disabled]="loading">
+                        <i class="fa-solid fa-rotate-left me-1"></i>Revert to Draft
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" (click)="toggleRangeView()" [disabled]="loading">
+                        <i class="fa-solid fa-calendar-days me-1"></i>
+                        {{ viewMode === 'range' ? 'Weekly View' : 'Date Range' }}
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="back()">
+                        <i class="fa-solid fa-arrow-left me-1"></i>Back
+                    </button>
+                </div>
             </div>
-            <div class="d-flex gap-2 flex-wrap">
-                <button class="btn btn-sm btn-outline-secondary" (click)="back()">
-                    <i class="fa-solid fa-arrow-left me-1"></i> Back
+
+            <!-- Week navigation strip (only in week mode) -->
+            <div class="d-flex align-items-center gap-2" *ngIf="viewMode === 'week'">
+                <button class="btn btn-sm btn-outline-secondary" style="min-width:38px" (click)="navigateWeek('prev')"
+                    [disabled]="!hasPrevWeek || weekNavLoading || loading" title="Previous week">
+                    <span *ngIf="weekNavLoading" class="spinner-border spinner-border-sm"></span>
+                    <i class="fa-solid fa-chevron-left" *ngIf="!weekNavLoading"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-primary" type="button" (click)="toggleRangeView()"
-                    [disabled]="loading">
-                    <i class="fa-solid fa-calendar-days me-1"></i>
-                    {{ viewMode === 'range' ? 'Weekly View' : 'View By Date Range' }}
+
+                <div class="flex-grow-1 text-center">
+                    <div class="fw-semibold small">{{ currentWeekLabel }}</div>
+                    <div class="text-muted" style="font-size:0.7rem" *ngIf="currentWeekIndexDisplay">
+                        {{ currentWeekIndexDisplay }}
+                        <span class="ms-2 badge rounded-pill px-2"
+                            [ngClass]="{'bg-success-subtle text-success': isPublished, 'bg-warning-subtle text-warning-emphasis': isDraft}"
+                            style="font-size:0.62rem">
+                            {{ timetable.status }}
+                        </span>
+                    </div>
+                </div>
+
+                <button class="btn btn-sm btn-outline-secondary" style="min-width:38px" (click)="navigateWeek('next')"
+                    [disabled]="!hasNextWeek || weekNavLoading || loading" title="Next week">
+                    <span *ngIf="weekNavLoading" class="spinner-border spinner-border-sm"></span>
+                    <i class="fa-solid fa-chevron-right" *ngIf="!weekNavLoading"></i>
                 </button>
             </div>
         </div>
+
         <div class="card-body pt-0">
-            <div class="row g-3 mb-3">
-                <div class="col-md-3">
-                    <div class="border rounded-3 p-2 small">
-                        <div class="text-muted">
-                            {{ viewMode === 'range' ? 'Date Range' : 'Week Starting' }}
-                        </div>
-                        <div class="fw-semibold" *ngIf="viewMode !== 'range'">
-                            {{ timetable.wkStartOn | date: "mediumDate" }}
-                        </div>
-                        <div class="fw-semibold" *ngIf="viewMode === 'range'">
-                            {{ fromDateMs | date:'mediumDate' }}
-                            <span class="text-muted mx-1">→</span>
-                            {{ toDateMs | date:'mediumDate' }}
-                        </div>
-                    </div>
+            <!-- Meta info row (published date — range header handled by range picker) -->
+            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center"
+                *ngIf="timetable.publishedAt && isPublished && viewMode === 'week'">
+                <div class="border rounded-3 px-3 py-1 small">
+                    <span class="text-muted me-1">Published:</span>
+                    <span class="fw-semibold">{{ epochToDisplayDate(timetable.publishedAt) }}</span>
                 </div>
             </div>
 
-            <div class="row g-2 mb-3" *ngIf="viewMode === 'range'">
+            <!-- Date range picker -->
+            <div class="row g-2 mb-3 align-items-end" *ngIf="viewMode === 'range'">
                 <div class="col-md-3">
                     <label class="form-label small text-muted mb-1">From Date</label>
-                    <input class="form-control" type="date" [(ngModel)]="fromDateStr" />
+                    <input class="form-control form-control-sm" type="date" [(ngModel)]="fromDateStr" />
                 </div>
                 <div class="col-md-3">
                     <label class="form-label small text-muted mb-1">To Date</label>
-                    <input class="form-control" type="date" [(ngModel)]="toDateStr" />
+                    <input class="form-control form-control-sm" type="date" [(ngModel)]="toDateStr" />
                 </div>
-                <div class="col-md-3 d-flex align-items-end gap-2">
-                    <button class="btn btn-primary" type="button" (click)="loadByRange()"
+                <div class="col-auto d-flex gap-2">
+                    <button class="btn btn-sm btn-primary" (click)="loadByRange()"
                         [disabled]="loading || !fromDateStr">Load</button>
-                    <button class="btn btn-outline-secondary" type="button" (click)="resetToWeekly()"
+                    <button class="btn btn-sm btn-outline-secondary" (click)="resetToWeekly()"
                         [disabled]="loading">Reset</button>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <div class="small text-muted" *ngIf="rangeMetaLabel">{{ rangeMetaLabel }}</div>
-                </div>
+                <div class="col text-muted small" *ngIf="rangeMetaLabel">{{ rangeMetaLabel }}</div>
             </div>
 
-            <!-- FIX #13: HYBRID badge removed from legend -->
-            <div class="d-flex flex-wrap gap-2 mb-3 small">
-                <span class="badge bg-success-subtle text-success border border-success-subtle">
-                    <i class="fa-solid fa-circle-check me-1"></i>OFFLINE
-                </span>
-                <span class="badge bg-info-subtle text-info border border-info-subtle">
-                    <i class="fa-solid fa-wifi me-1"></i>ONLINE
-                </span>
-                <span class="badge bg-purple-subtle text-purple border"
-                    style="background:#f3e8ff;color:#7c3aed;border-color:#c4b5fd!important">
-                    <i class="fa-solid fa-file-pen me-1"></i>EXAM
-                </span>
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                    <i class="fa-solid fa-ban me-1"></i>Cancelled
-                </span>
-                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
-                    <i class="fa-solid fa-calendar-xmark me-1"></i>Holiday
-                </span>
+            <!-- DRAFT banner -->
+            <div class="alert alert-warning py-2 small d-flex align-items-start gap-2 mb-3" *ngIf="isDraft">
+                <i class="fa-solid fa-triangle-exclamation mt-1 flex-shrink-0"></i>
+                <span><strong>Draft mode:</strong> Cancel, Edit, and Replace actions update the weekly template
+                    directly. Publish when ready — after publishing, edits create date-specific overrides only.</span>
             </div>
 
+            <!-- Legend -->
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <span class="badge bg-success-subtle text-success border border-success-subtle small"><i
+                        class="fa-solid fa-building me-1"></i>Offline</span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle small"><i
+                        class="fa-solid fa-wifi me-1"></i>Online</span>
+                <span class="badge small" style="background:#f3e8ff;color:#7c3aed;border:1px solid #c4b5fd"><i
+                        class="fa-solid fa-file-pen me-1"></i>Exam</span>
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle small"><i
+                        class="fa-solid fa-ban me-1"></i>Cancelled</span>
+                <span class="badge bg-secondary-subtle text-secondary border small"><i
+                        class="fa-solid fa-calendar-xmark me-1"></i>Holiday</span>
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small"
+                    *ngIf="isPublished"><i class="fa-solid fa-wrench me-1"></i>Modified</span>
+            </div>
+
+            <!-- ═══ GRID ════════════════════════════════════════════════════════ -->
             <div class="table-responsive border rounded-3">
                 <table class="table table-bordered mb-0 timetable-grid">
                     <thead class="bg-light">
                         <tr>
-                            <th class="text-uppercase small text-muted" style="width: 150px">Day</th>
-                            <th *ngFor="let pNum of periodHeaders" class="text-center small text-muted">
-                                Period {{ pNum }}
-                            </th>
+                            <th class="day-col text-uppercase small text-muted align-middle">Day</th>
+                            <th *ngFor="let pNum of periodHeaders" class="text-center small text-muted align-middle">
+                                Period {{ pNum }}</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr *ngFor="let row of sortedSchedule">
-                            <td class="fw-bold bg-light text-center align-middle" style="min-width:140px">
-                                <div class="fw-semibold">{{ row.day }}</div>
-                                <div class="small text-muted">{{ row.dateLabel }}</div>
+                        <tr *ngFor="let row of sortedSchedule" [class.table-info]="isToday(row.day)"
+                            [class.opacity-75]="isPastDate(row.dateMs) && viewMode === 'week'">
+
+                            <!-- Day header cell -->
+                            <td class="day-col text-center align-middle bg-light">
+                                <div class="fw-semibold small">{{ row.day }}</div>
+                                <div class="text-muted" style="font-size:0.72rem">{{ row.dateLabel }}</div>
+                                <span class="badge bg-info-subtle text-info border small mt-1" *ngIf="isToday(row.day)"
+                                    style="font-size:0.6rem">Today</span>
+
+                                <!-- Day actions — shown for both DRAFT and Published -->
                                 <div class="d-flex justify-content-center gap-1 mt-2 flex-wrap"
-                                    *ngIf="viewMode !== 'range' && timetable?.status === 'Active' && !row.__isHoliday">
-                                    <button class="btn btn-sm btn-outline-danger" (click)="openCancelDay(row)"
-                                        [disabled]="loading">
+                                    *ngIf="viewMode !== 'range' && !row.__isHoliday">
+                                    <button class="btn btn-outline-danger" style="font-size:0.68rem;padding:2px 7px"
+                                        (click)="openCancelDay(row)" [disabled]="loading" title="Declare as holiday">
                                         <i class="fa-solid fa-ban me-1"></i>Holiday
                                     </button>
-                                    <button class="btn btn-sm btn-outline-secondary" (click)="openEditDay(row)"
-                                        [disabled]="loading">
-                                        <i class="fa-solid fa-pen-to-square me-1"></i>Edit Day
+                                    <button class="btn btn-outline-secondary" style="font-size:0.68rem;padding:2px 7px"
+                                        (click)="openEditDay(row)" [disabled]="loading"
+                                        title="Edit all periods for this day">
+                                        <i class="fa-solid fa-pen-to-square me-1"></i>Edit
+                                    </button>
+                                    <button class="btn btn-outline-success" style="font-size:0.68rem;padding:2px 7px"
+                                        (click)="openSpecialClass(row)" [disabled]="loading"
+                                        title="Add special class for this day">
+                                        <i class="fa-solid fa-plus me-1"></i>Special class
                                     </button>
                                 </div>
-                                <div *ngIf="row.__isHoliday" class="mt-2">
-                                    <span class="badge bg-danger">
-                                        <i class="fa-solid fa-calendar-xmark me-1"></i>Holiday
-                                    </span>
+                                <div class="mt-2" *ngIf="row.__isHoliday">
+                                    <span class="badge bg-danger"><i
+                                            class="fa-solid fa-calendar-xmark me-1"></i>Holiday</span>
                                 </div>
                             </td>
-                            <td *ngFor="let pNum of periodHeaders" class="p-0 position-relative tt-cell">
+
+                            <!-- Period cells -->
+                            <td *ngFor="let pNum of periodHeaders" class="p-0 tt-cell">
                                 <ng-container *ngIf="getRenderedPeriod(row, pNum) as p; else freeCell">
-                                    <div class="p-2 h-100 d-flex flex-column align-items-center justify-content-center gap-1"
-                                        [class.bg-danger-subtle]="p.isCancelled && !p.__dayCancelled"
-                                        [class.bg-secondary-subtle]="p.__dayCancelled"
-                                        [class.bg-warning-subtle]="p.__staffChanged && !p.isCancelled">
-                                        <ng-container *ngIf="!p.__dayCancelled; else dayCancelledTpl">
-                                            <div class="d-flex gap-1 flex-wrap justify-content-center">
-                                                <span class="badge" style="font-size:0.65rem" [ngClass]="{
-                                                    'bg-secondary-subtle text-secondary': p.periodType === 'LECTURE' || !p.periodType,
-                                                    'bg-teal-subtle text-teal': p.periodType === 'LAB',
-                                                    'bg-warning-subtle text-warning': p.periodType === 'TEST' || p.periodType === 'REVISION',
-                                                    'bg-orange-subtle text-orange': p.periodType === 'TUTORIAL'
-                                                }" [style.background]="p.periodType === 'EXAM' ? '#f3e8ff' : null"
-                                                    [style.color]="p.periodType === 'EXAM' ? '#7c3aed' : null">
-                                                    {{ p.periodType || 'LECTURE' }}
-                                                </span>
-                                            </div>
-                                            <div class="fw-bold small text-center" *ngIf="p.periodType !== 'EXAM'">
-                                                {{ resolveSubjectLabel(p) || "-" }}
-                                            </div>
-                                            <div class="text-muted small text-center" style="font-size: 0.75rem">
-                                                <span *ngIf="p.periodType === 'EXAM'" class="text-muted"
-                                                    style="font-size:0.65rem">Invigilator</span>
-                                                {{ resolveFacultyLabel(p) || "-" }}
-                                            </div>
-                                            <div class="text-muted text-center" style="font-size: 0.7rem">
-                                                {{ p.time?.startLabel }} – {{ p.time?.endLabel }}
-                                            </div>
-                                            <div *ngIf="p.periodType === 'EXAM' && p.examDescription"
-                                                class="small text-center" style="font-size:0.7rem;color:#7c3aed">
-                                                <i class="fa-solid fa-file-pen me-1"></i>{{ p.examDescription }}
-                                            </div>
-                                            <div *ngIf="p.zoomUrl" class="mt-1">
-                                                <a [href]="p.zoomUrl" target="_blank"
-                                                    class="badge bg-info-subtle text-info text-decoration-none">
-                                                    <i class="fa-solid fa-video me-1"></i>Join Zoom
-                                                </a>
-                                            </div>
-                                            <div *ngIf="p.isCancelled" class="badge bg-danger mt-1">
-                                                <i class="fa-solid fa-ban me-1"></i>Cancelled
-                                            </div>
-                                            <div class="d-flex gap-1 mt-2 flex-wrap justify-content-center"
-                                                *ngIf="viewMode !== 'range' && timetable?.status === 'Active' && !p.__dayCancelled && !p.isCancelled">
-                                                <button class="btn btn-sm btn-outline-danger"
-                                                    (click)="openCancelPeriod(row, pNum)" [disabled]="loading"
-                                                    title="Cancel this period">
-                                                    Cancel
-                                                </button>
-                                                <ng-container *ngIf="p.periodType !== 'EXAM'">
-                                                    <button class="btn btn-sm btn-outline-secondary"
-                                                        (click)="openRearrangeStaff(row, pNum)" [disabled]="loading"
-                                                        title="Change faculty">
-                                                        Staff
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-primary"
-                                                        (click)="openReplacePeriod(row, pNum)" [disabled]="loading"
-                                                        title="Replace period details">
-                                                        Replace
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-info"
-                                                        *ngIf="p.mode === 'ONLINE' && !p.zoomUrl"
-                                                        (click)="openSetZoom(row, pNum, p)" [disabled]="loading"
-                                                        title="Set Zoom link">
-                                                        <i class="fa-solid fa-video"></i>
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-secondary"
-                                                        *ngIf="p.mode !== 'ONLINE'"
-                                                        (click)="openConvertToExam(row, pNum, p)" [disabled]="loading"
-                                                        title="Convert to Exam">
-                                                        <i class="fa-solid fa-file-pen"></i>
-                                                    </button>
-                                                </ng-container>
-                                            </div>
-                                        </ng-container>
-                                        <ng-template #dayCancelledTpl>
-                                            <div class="fw-bold small">
-                                                <i class="fa-solid fa-calendar-xmark me-1 text-danger"></i>Holiday
-                                            </div>
-                                            <div class="text-muted small" style="font-size: 0.75rem">
-                                                All periods cancelled
-                                            </div>
-                                        </ng-template>
+
+                                    <!-- Whole day cancelled -->
+                                    <div *ngIf="p.__dayCancelled"
+                                        class="h-100 d-flex align-items-center justify-content-center bg-secondary-subtle p-2">
+                                        <div class="text-center">
+                                            <div class="badge bg-secondary mb-1"><i
+                                                    class="fa-solid fa-calendar-xmark me-1"></i>Holiday</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Period cancelled (not whole-day) -->
+                                    <div *ngIf="!p.__dayCancelled && p.isCancelled"
+                                        class="h-100 d-flex flex-column align-items-center justify-content-center bg-danger-subtle p-2 text-center">
+                                        <div class="badge bg-danger mb-1"><i class="fa-solid fa-ban me-1"></i>Cancelled
+                                        </div>
+                                        <!-- FIX RL-6: Show what was cancelled in muted text -->
+                                        <div class="text-muted small" style="font-size:0.72rem"
+                                            *ngIf="resolveSubjectLabel(p)">{{ resolveSubjectLabel(p) }}</div>
+                                        <div class="text-muted" style="font-size:0.65rem" *ngIf="p.cancelReason">{{
+                                            p.cancelReason }}</div>
+                                        <div class="text-muted" style="font-size:0.65rem">{{ resolveFacultyLabel(p) }}
+                                        </div>
+                                    </div>
+
+                                    <!-- Active period -->
+                                    <div *ngIf="!p.__dayCancelled && !p.isCancelled"
+                                        class="h-100 d-flex flex-column align-items-center justify-content-center p-2 gap-1 text-center"
+                                        [class.bg-warning-subtle]="p.__modified">
+
+                                        <!-- Type + mode badges -->
+                                        <div class="d-flex gap-1 flex-wrap justify-content-center">
+                                            <span class="badge" style="font-size:0.62rem" [ngClass]="{
+                          'bg-secondary-subtle text-secondary': !p.periodType || p.periodType==='LECTURE',
+                          'bg-info-subtle text-info':           p.periodType==='LAB',
+                          'bg-warning-subtle text-warning-emphasis': p.periodType==='TEST' || p.periodType==='REVISION',
+                          'bg-success-subtle text-success':     p.periodType==='TUTORIAL' ,'bg-primary-subtle text-primary': p.periodType==='PT' || p.periodType==='YOGA'
+                        }" [style.background]="p.periodType==='EXAM' ? '#f3e8ff' : null"
+                                                [style.color]="p.periodType==='EXAM' ? '#7c3aed' : null">
+                                                {{ p.periodType || 'LECTURE' }}
+                                            </span>
+                                            <span class="badge small" style="font-size:0.58rem"
+                                                [ngClass]="{'bg-success-subtle text-success': p.mode==='OFFLINE'||!p.mode, 'bg-info-subtle text-info': p.mode==='ONLINE'}">
+                                                <i class="fa-solid me-1"
+                                                    [ngClass]="{'fa-building': p.mode!=='ONLINE', 'fa-wifi': p.mode==='ONLINE'}"></i>{{
+                                                p.mode || 'OFFLINE' }}
+                                            </span>
+                                            <!-- FIX RL-4: "Modified" badge instead of "Staff Changed" -->
+                                            <span *ngIf="p.__modified"
+                                                class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"
+                                                style="font-size:0.58rem"
+                                                [title]="'Changed: ' + (p.__modifiedFields?.join(', ') || 'details')">
+                                                <i class="fa-solid fa-wrench me-1"></i>Modified
+                                            </span>
+                                        </div>
+
+                                        <div class="fw-semibold" style="font-size:0.8rem;line-height:1.2">{{
+                                            resolveSubjectLabel(p) || '—' }}</div>
+                                        <div class="text-muted" style="font-size:0.72rem">{{ resolveFacultyLabel(p) ||
+                                            '—' }}</div>
+                                        <div class="text-muted" style="font-size:0.68rem">{{ p.time?.startLabel }} – {{
+                                            p.time?.endLabel }}</div>
+
+                                        <div *ngIf="p.phaseName" style="font-size:0.62rem;color:#6366f1">
+                                            <i class="fa-solid fa-layer-group me-1"></i>{{ p.phaseName }}
+                                        </div>
+                                        <div *ngIf="p.topic" class="text-muted"
+                                            style="font-size:0.62rem;font-style:italic">{{ p.topic }}</div>
+
+                                        <a *ngIf="p.zoomUrl" [href]="p.zoomUrl" target="_blank"
+                                            class="badge bg-info-subtle text-info text-decoration-none"
+                                            style="font-size:0.6rem">
+                                            <i class="fa-solid fa-video me-1"></i>Join Zoom
+                                        </a>
+
+                                        <!-- Period actions — dropdown rendered at fixed viewport position to escape table overflow -->
+                                        <div class="tt-action-wrap mt-1" *ngIf="viewMode !== 'range'">
+                                            <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                style="font-size:0.7rem"
+                                                (click)="toggleActionMenu(actionKey(row.day, pNum), $event)"
+                                                [disabled]="loading">
+                                                <i class="fa-solid fa-ellipsis-vertical"></i>
+                                                <i class="fa-solid fa-chevron-down ms-1" style="font-size:0.6rem"></i>
+                                            </button>
+                                        </div>
+                                        <button class="btn btn-warning py-0 px-2" style="font-size:0.7rem"
+                                            title="Log Staff Late / Early Leave"
+                                            (click)="openStaffLateEntry(row, pNum, p); $event.stopPropagation()"
+                                            [disabled]="loading">
+                                            <i class="fa-solid fa-clock-rotate-left"></i>Add Staff Late Entry
+                                        </button>
                                     </div>
                                 </ng-container>
                                 <ng-template #freeCell>
-                                    <div class="text-muted small text-center p-3 opacity-25">Free</div>
+                                    <div class="text-muted text-center p-3 opacity-25 small">Free</div>
                                 </ng-template>
                             </td>
                         </tr>
@@ -206,534 +327,1047 @@
         </div>
     </div>
 
-    <!-- ===================== CANCEL DAY MODAL ===================== -->
-    <div class="app-modal-backdrop" *ngIf="showCancelDay">
+
+    <!-- ═══ PUBLISH CONFIRM MODAL ═══════════════════════════════════════════ -->
+    <div class="app-modal-backdrop" *ngIf="showPublishConfirm">
         <div class="app-modal timetable-modal">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Declare Holiday</h6>
-                    <span class="text-muted small">{{ activeDay?.day }} • {{ activeDay?.dateLabel }}</span>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-paper-plane me-2 text-success"></i>Publish
+                        Timetable</h6>
+                    <span class="text-muted small">{{ timetable.batchCode }} &bull; Week of {{
+                        epochToDisplayDate(timetable.wkStartOn) }}</span>
                 </div>
-                <button class="btn-close" (click)="closeCancelDay()"></button>
+                <button class="btn-close" (click)="cancelPublish()"></button>
             </div>
             <div class="app-modal-body">
-                <label class="form-label small text-muted">Reason</label>
-                <input class="form-control" [(ngModel)]="cancelDayReason" placeholder="Holiday reason" />
-                <div class="d-flex justify-content-end gap-2 mt-3">
-                    <button class="btn btn-outline-secondary" (click)="closeCancelDay()">Cancel</button>
-                    <button class="btn btn-danger" (click)="submitCancelDay()" [disabled]="loading">
+                <div class="alert alert-warning small mb-3">
+                    <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                    <strong>Once published:</strong>
+                    <ul class="mb-0 mt-1 ps-3">
+                        <li>The template becomes the <strong>baseline</strong> for this week.</li>
+                        <li>Further edits create <strong>date-specific overrides</strong> — the template won't change.
+                        </li>
+                        <li>A <strong>conflict check</strong> runs against all other published timetables.</li>
+                    </ul>
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" (click)="cancelPublish()">Cancel</button>
+                    <button class="btn btn-success" (click)="submitPublish()" [disabled]="loading">
                         <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        Confirm Holiday
+                        <i class="fa-solid fa-paper-plane me-1" *ngIf="!loading"></i>Publish
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== EDIT WHOLE DAY MODAL ===================== -->
-    <div class="app-modal-backdrop" *ngIf="showEditDay">
-        <div class="app-modal timetable-modal" style="max-width:720px">
+
+    <!-- ═══ UNPUBLISH CONFIRM MODAL ═════════════════════════════════════════ -->
+    <!-- FIX UX-9: Confirm before reverting to draft -->
+    <div class="app-modal-backdrop" *ngIf="showUnpublishConfirm">
+        <div class="app-modal timetable-modal">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">
-                        <i class="fa-solid fa-pen-to-square me-2 text-primary"></i>Edit Day Schedule
-                    </h6>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-rotate-left me-2 text-warning"></i>Revert to
+                        Draft</h6>
+                    <span class="text-muted small">{{ timetable.batchCode }} &bull; Week of {{
+                        epochToDisplayDate(timetable.wkStartOn) }}</span>
+                </div>
+                <button class="btn-close" (click)="cancelUnpublish()"></button>
+            </div>
+            <div class="app-modal-body">
+                <div class="alert alert-warning small mb-3">
+                    <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                    <strong>Note:</strong> Reverting to Draft means:
+                    <ul class="mb-0 mt-1 ps-3">
+                        <li>The timetable is no longer visible to students/teachers.</li>
+                        <li>All existing date overrides (cancellations, replacements) are <strong>retained</strong> but
+                            won't be active until re-published.</li>
+                    </ul>
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" (click)="cancelUnpublish()">Cancel</button>
+                    <button class="btn btn-warning" (click)="submitUnpublish()" [disabled]="loading">
+                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                        <i class="fa-solid fa-rotate-left me-1" *ngIf="!loading"></i>Revert to Draft
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══ CANCEL DAY MODAL ════════════════════════════════════════════════ -->
+    <div class="app-modal-backdrop" *ngIf="showCancelDay">
+        <div class="app-modal timetable-modal">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-calendar-xmark me-2 text-danger"></i>Declare
+                        Holiday</h6>
                     <span class="text-muted small">
                         {{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }}
-                        &nbsp;&mdash;&nbsp;
-                        <span class="text-info">{{ editDayPeriods.length }} period{{ editDayPeriods.length !== 1 ? 's' :
-                            '' }}</span>
+                        <span class="badge ms-2"
+                            [ngClass]="{'bg-warning text-dark': isDraft, 'bg-success': isPublished}"
+                            style="font-size:0.65rem">
+                            {{ isDraft ? 'All periods → cancelled' : 'CANCEL_DAY override' }}
+                        </span>
+                    </span>
+                </div>
+                <button class="btn-close" (click)="closeCancelDay()"></button>
+            </div>
+            <div class="app-modal-body">
+                <label class="form-label small text-muted">Reason</label>
+                <input class="form-control" [(ngModel)]="cancelDayReason"
+                    placeholder="e.g. Public Holiday, School Event" />
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button class="btn btn-outline-secondary" (click)="closeCancelDay()">Cancel</button>
+                    <button class="btn btn-danger" (click)="submitCancelDay()" [disabled]="loading">
+                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                        <i class="fa-solid fa-calendar-xmark me-1" *ngIf="!loading"></i>Confirm Holiday
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══ EDIT WHOLE DAY MODAL ════════════════════════════════════════════ -->
+    <div class="app-modal-backdrop" *ngIf="showEditDay">
+        <div class="app-modal timetable-modal"
+            style="max-width:780px;max-height:92vh;display:flex;flex-direction:column;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center flex-shrink-0">
+                <div>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i>Edit Day
+                        Schedule</h6>
+                    <span class="text-muted small">
+                        {{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }} &mdash;
+                        <span class="text-primary fw-semibold">{{ editDayPeriods.length }} period{{
+                            editDayPeriods.length !== 1 ? 's' : '' }}</span>
+                        <span class="text-muted ms-1">({{ editDayOriginalPeriods.length }} originally)</span>
+                        <span class="badge ms-2"
+                            [ngClass]="{'bg-warning text-dark': isDraft, 'bg-success': isPublished}"
+                            style="font-size:0.6rem">
+                            {{ isDraft ? 'Template update' : 'Date override' }}
+                        </span>
                     </span>
                 </div>
                 <button class="btn-close" (click)="closeEditDay()" [disabled]="loading || editDayValidating"></button>
             </div>
-            <div class="app-modal-body">
-                <div class="alert alert-info small d-flex align-items-start gap-2 py-2 mb-3">
-                    <i class="fa-solid fa-circle-info mt-1 flex-shrink-0"></i>
+
+            <!-- FIX ED-9: Empty day confirm inline -->
+            <div class="alert alert-warning m-3 mb-0 small d-flex align-items-center justify-content-between"
+                *ngIf="showEmptyDayConfirm">
+                <span><i class="fa-solid fa-triangle-exclamation me-2"></i><strong>No periods added.</strong> This will
+                    clear all periods for {{ activeDay?.day }}. Confirm?</span>
+                <div class="d-flex gap-2 flex-shrink-0">
+                    <button class="btn btn-sm btn-outline-secondary" (click)="showEmptyDayConfirm=false">No, add
+                        periods</button>
+                    <button class="btn btn-sm btn-danger" (click)="confirmEmptyDay()">Yes, clear day</button>
+                </div>
+            </div>
+
+            <div class="app-modal-body flex-grow-1" style="overflow-y:scroll;position:relative;">
+                <!-- Info banner -->
+                <div class="alert small py-2 mb-3 d-flex align-items-start gap-2"
+                    [ngClass]="{'alert-warning': isDraft, 'alert-info': isPublished}">
+                    <i class="fa-solid mt-1 flex-shrink-0"
+                        [ngClass]="{'fa-triangle-exclamation': isDraft, 'fa-circle-info': isPublished}"></i>
                     <div>
-                        Changes apply <strong>only to this date</strong> — the weekly template is not affected.
-                        <span class="ms-1">
-                            <i class="fa-solid fa-grip-vertical text-muted mx-1"></i>
-                            Drag rows to reorder periods.
-                        </span>
+                        <span *ngIf="isDraft"><strong>Draft:</strong> Edits the weekly template for {{ activeDay?.day }}
+                            directly. Use <i class="fa-solid fa-arrow-right-arrow-left mx-1"></i> buttons to swap
+                            content between slots — time stays fixed.</span>
+                        <span *ngIf="isPublished"><strong>Published:</strong> Creates a date override for {{
+                            activeDay?.dateLabel }}. The weekly template is unchanged. Use <i
+                                class="fa-solid fa-arrow-right-arrow-left mx-1"></i> to swap content between
+                            slots.</span>
                     </div>
                 </div>
+
+                <!-- Conflict list -->
                 <div *ngIf="editDayConflicts.length" class="alert alert-danger small mb-3">
-                    <div class="fw-semibold mb-1">
-                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                        {{ editDayConflicts.length }} conflict{{ editDayConflicts.length !== 1 ? 's' : '' }} detected —
-                        fix before saving
-                    </div>
+                    <div class="fw-semibold mb-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>{{
+                        editDayConflicts.length }} conflict(s) — fix before saving</div>
                     <ul class="mb-0 ps-3">
                         <li *ngFor="let c of editDayConflicts">
                             <span *ngIf="c.periodNo" class="fw-semibold">Period {{ c.periodNo }}: </span>
-                            <span *ngIf="c.facultyId" class="text-danger fw-semibold">{{ c.facultyId }} — </span>
-                            {{ c.message }}
+                            <span *ngIf="c.facultyId" class="text-danger fw-semibold">{{ c.facultyId }} — </span>{{
+                            c.message }}
                         </li>
                     </ul>
                 </div>
+
+                <!-- Swap instruction — shown only when a slot is selected -->
+                <div class="alert alert-primary py-2 small d-flex align-items-center gap-2 mb-2"
+                    *ngIf="editDayDragIndex !== null">
+                    <i class="fa-solid fa-arrow-right-arrow-left flex-shrink-0"></i>
+                    <span>
+                        <strong>Slot {{ editDayDragIndex + 1 }} selected.</strong>
+                        Now click <i class="fa-solid fa-arrow-right-arrow-left mx-1"></i> on another slot to swap
+                        content, or click the same button again to deselect.
+                    </span>
+                </div>
+
+                <!-- Period rows: drag via grip icon, or click ⇄ to swap -->
                 <div *ngFor="let ep of editDayPeriods; let i = index"
-                    class="tt-edit-row border rounded-3 mb-2 position-relative"
-                    [class.tt-drag-source]="editDayDragIndex === i"
-                    [class.tt-drag-over]="editDayDragIndex !== null && editDayDragIndex !== i" draggable="true"
-                    (dragstart)="onDragStart(i)" (dragover)="onDragOver($event)" (drop)="onDrop(i)"
+                    class="edit-day-row border rounded-3 mb-2 bg-white" [class.opacity-50]="editDayDragIndex === i"
+                    [class.border-primary]="editDayDragOverIndex === i && editDayDragIndex !== i"
+                    [style.box-shadow]="editDayDragOverIndex === i && editDayDragIndex !== i ? '0 0 0 2px #0d6efd' : (editDayDragIndex === i ? '0 0 0 2px #6ea8fe' : null)"
+                    (dragover)="onDragOver($event, i)" (dragleave)="onDragLeave($event, i)" (drop)="onDrop($event, i)"
                     (dragend)="onDragEnd()">
-                    <div
-                        class="tt-edit-row-header d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light rounded-top-3">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="fa-solid fa-grip-vertical text-muted tt-drag-handle" title="Drag to reorder"></i>
-                            <span class="fw-semibold small text-dark">Period {{ i + 1 }}</span>
-                            <span class="badge bg-white text-muted border small"
-                                style="font-size:0.68rem;font-weight:500">
-                                <i class="fa-regular fa-clock me-1 opacity-50"></i>
-                                {{ ep.startTime || '--:--' }} &ndash; {{ ep.endTime || '--:--' }}
+
+                    <!-- Row header strip -->
+                    <div class="d-flex justify-content-between align-items-center px-3 py-2 rounded-top-3 border-bottom"
+                        [style.background]="editDayDragIndex === i ? '#e7f1ff' : (editDayDragOverIndex === i ? '#f0f4ff' : '#f8f9fa')">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <!-- Grip: mousedown enables draggable on the row; drag starts from here -->
+                            <i class="fa-solid fa-grip-vertical text-muted"
+                                style="cursor:grab;font-size:1rem;padding:6px 4px;touch-action:none"
+                                title="Drag to reorder" (mousedown)="gripMouseDown($event)"
+                                (dragstart)="onDragStart($event, i)"></i>
+                            <!-- Click-to-swap button: alternative when drag is tricky -->
+                            <button type="button" class="btn btn-sm px-2 py-0"
+                                [ngClass]="editDayDragIndex === i ? 'btn-primary' : 'btn-outline-secondary'"
+                                style="font-size:0.72rem"
+                                [title]="editDayDragIndex === null ? 'Click to select for swap' : (editDayDragIndex === i ? 'Deselect' : 'Swap with slot ' + (editDayDragIndex + 1))"
+                                (click)="selectSlotForSwap(i)">
+                                <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                            </button>
+                            <span class="fw-semibold small">Slot {{ i + 1 }}</span>
+                            <!-- FIX BUG-2: Time shows in slot, not moving with drag -->
+                            <span class="badge bg-light text-dark border" style="font-size:0.7rem">
+                                <i class="fa-regular fa-clock me-1"></i>
+                                {{ ep.startTime || '--:--' }} – {{ ep.endTime || '--:--' }}
                             </span>
-                            <span class="badge small" style="font-size:0.65rem" [ngClass]="{
-                                'bg-secondary-subtle text-secondary': ep.periodType === 'LECTURE' || !ep.periodType,
-                                'bg-info-subtle text-info': ep.periodType === 'LAB',
-                                'bg-warning-subtle text-warning': ep.periodType === 'TEST' || ep.periodType === 'REVISION',
-                                'bg-orange-subtle text-orange': ep.periodType === 'TUTORIAL'
-                            }" [style.background]="ep.periodType === 'EXAM' ? '#f3e8ff' : null"
-                                [style.color]="ep.periodType === 'EXAM' ? '#7c3aed' : null">
-                                {{ ep.periodType || 'LECTURE' }}
-                            </span>
-                            <!-- FIX #12: HYBRID removed from mode badge -->
-                            <span class="badge small" style="font-size:0.65rem" [ngClass]="{
-                                'bg-success-subtle text-success': ep.mode === 'OFFLINE' || !ep.mode,
-                                'bg-info-subtle text-info': ep.mode === 'ONLINE'
-                            }">
-                                <i class="fa-solid me-1" [ngClass]="{
-                                    'fa-building': ep.mode === 'OFFLINE' || !ep.mode,
-                                    'fa-wifi': ep.mode === 'ONLINE'
-                                }"></i>
+                            <span class="badge bg-secondary-subtle text-secondary" style="font-size:0.65rem"
+                                *ngIf="ep.periodType">{{ ep.periodType }}</span>
+                            <span class="badge" style="font-size:0.65rem"
+                                [ngClass]="{'bg-success-subtle text-success': ep.mode==='OFFLINE'||!ep.mode, 'bg-info-subtle text-info': ep.mode==='ONLINE'}">
                                 {{ ep.mode || 'OFFLINE' }}
                             </span>
                         </div>
-                        <button class="btn btn-sm btn-outline-danger py-0 px-2" (click)="removeEditDayPeriod(i)"
-                            [disabled]="loading" title="Remove this period">
-                            <i class="fa-solid fa-trash-can" style="font-size:0.75rem"></i>
+                        <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:0.7rem"
+                            (click)="removeEditDayPeriod(i)" [disabled]="loading || editDayValidating">
+                            <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
+
+                    <!-- Row fields -->
                     <div class="px-3 py-2">
                         <div class="row g-2">
                             <div class="col-md-3">
                                 <label class="form-label small text-muted mb-1">Start Time <span
                                         class="text-danger">*</span></label>
                                 <input type="time" class="form-control form-control-sm" [(ngModel)]="ep.startTime"
-                                    [class.is-invalid]="editDaySubmitAttempted && !ep.startTime" />
+                                    (change)="onEditDayTimeChange(ep)"
+                                    [class.is-invalid]="(editDaySubmitAttempted && !ep.startTime) || !!ep.__timeError" />
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small text-muted mb-1">End Time <span
                                         class="text-danger">*</span></label>
                                 <input type="time" class="form-control form-control-sm" [(ngModel)]="ep.endTime"
-                                    [class.is-invalid]="editDaySubmitAttempted && !ep.endTime" />
+                                    (change)="onEditDayTimeChange(ep)"
+                                    [class.is-invalid]="(editDaySubmitAttempted && !ep.endTime) || !!ep.__timeError" />
+                                <!-- Inline time error shown immediately on change -->
+                                <div class="text-danger mt-1" style="font-size:0.72rem" *ngIf="ep.__timeError">
+                                    <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ ep.__timeError }}
+                                </div>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small text-muted mb-1">Period Type</label>
+                                <label class="form-label small text-muted mb-1">Type</label>
                                 <select class="form-select form-select-sm" [(ngModel)]="ep.periodType">
-                                    <option value="LECTURE">LECTURE</option>
-                                    <option value="LAB">LAB</option>
-                                    <option value="TUTORIAL">TUTORIAL</option>
-                                    <option value="TEST">TEST</option>
-                                    <option value="REVISION">REVISION</option>
-                                    <option value="EXAM">EXAM</option>
+                                    <option value="LECTURE">Lecture</option>
+                                    <option value="LAB">Lab</option>
+                                    <option value="TUTORIAL">Tutorial</option>
+                                    <option value="TEST">Test</option>
+                                    <option value="REVISION">Revision</option>
+                                    <option value="EXAM">Exam</option>
+                                    <option value="PT">PT</option>
+                                    <option value="YOGA">Yoga</option>
                                 </select>
                             </div>
-                            <!-- FIX #12: HYBRID option removed from mode select -->
                             <div class="col-md-3">
                                 <label class="form-label small text-muted mb-1">Mode</label>
                                 <select class="form-select form-select-sm" [(ngModel)]="ep.mode"
                                     (change)="onEditDayModeChange(ep)">
-                                    <option value="OFFLINE">OFFLINE</option>
-                                    <option value="ONLINE">ONLINE</option>
+                                    <option value="OFFLINE">Offline</option>
+                                    <option value="ONLINE">Online</option>
                                 </select>
                             </div>
+                            <!-- FIX DL-2: Batch subjects only -->
                             <div class="col-md-6">
                                 <label class="form-label small text-muted mb-1">Subject</label>
                                 <select class="form-select form-select-sm" [(ngModel)]="ep.subjectCode"
                                     (change)="onEditDaySubjectChange(ep)">
-                                    <option value="">Select Subject</option>
-                                    <option *ngFor="let sub of subjectsFull" [value]="sub.subjectCode">
-                                        {{ sub.subjectName }} ({{ sub.subjectCode }})
+                                    <option value="">— Select subject —</option>
+                                    <option *ngFor="let s of batchSubjects.length ? batchSubjects : subjectsFull"
+                                        [value]="s.subjectCode">
+                                        {{ s.subjectName }} ({{ s.subjectCode }})
                                     </option>
                                 </select>
                             </div>
+                            <!-- FIX BUG-3: Batch staff filtered by subject -->
                             <div class="col-md-6">
                                 <label class="form-label small text-muted mb-1">
-                                    {{ ep.periodType === 'EXAM' ? 'Invigilator' : 'Faculty' }}
-                                    <span class="text-danger">*</span>
-                                    <span *ngIf="ep.subjectId" class="text-muted fw-normal ms-1"
-                                        style="font-size:0.7rem">
-                                        — filtered by subject
-                                    </span>
+                                    Faculty <span class="text-danger">*</span>
+                                    <span class="badge bg-secondary-subtle text-secondary ms-1"
+                                        style="font-size:0.6rem">Batch Staff</span>
                                 </label>
                                 <select class="form-select form-select-sm" [(ngModel)]="ep.facultyId"
                                     (change)="onEditDayFacultyChange(ep)"
                                     [class.is-invalid]="editDaySubmitAttempted && !ep.facultyId">
-                                    <option value="">Select {{ ep.periodType === 'EXAM' ? 'Invigilator' : 'Faculty' }}
-                                    </option>
+                                    <option value="">— Select faculty —</option>
                                     <option *ngFor="let s of getStaffForSubject(ep.subjectId)" [value]="s.staffCode">
                                         {{ s.staffName }} ({{ s.staffCode }})
                                     </option>
                                 </select>
                             </div>
-                            <div class="col-md-6" *ngIf="ep.mode !== 'ONLINE'">
-                                <label class="form-label small text-muted mb-1">Venue</label>
-                                <input class="form-control form-control-sm" [(ngModel)]="ep.venue"
-                                    placeholder="Hall A" />
-                            </div>
-                            <div class="col-md-6" [class.col-md-12]="ep.mode === 'ONLINE'">
-                                <label class="form-label small text-muted mb-1">Topic / Notes</label>
-                                <input class="form-control form-control-sm" [(ngModel)]="ep.topic"
-                                    placeholder="e.g. Chapter 3 – Vectors" />
-                            </div>
-                            <div class="col-12" *ngIf="ep.mode === 'ONLINE'">
+                            <!-- Phase filtered by programId + subject -->
+                            <!-- <div class="col-md-6" *ngIf="rpPhasesFiltered.length">
                                 <label class="form-label small text-muted mb-1">
-                                    <i class="fa-solid fa-video me-1 text-info"></i>Zoom URL
-                                    <span class="text-danger">*</span>
+                                    <i class="fa-solid fa-layer-group me-1"></i>Phase
+                                    <span class="text-muted ms-1" style="font-size:0.65rem" *ngIf="rp.subjectCode">
+                                        ({{ rpPhasesFiltered.length }} for {{ rp.subjectCode }})
+                                    </span>
                                 </label>
-                                <input class="form-control form-control-sm" [(ngModel)]="ep.zoomUrl"
+                                <select class="form-select form-select-sm" [(ngModel)]="rp.phaseId"
+                                    (change)="onReplacePhaseSelected()">
+                                    <option value="">— No phase —</option>
+                                    <option *ngFor="let ph of rpPhasesFiltered" [value]="ph.phaseId">{{ ph.phaseName }}
+                                    </option>
+                                </select>
+                            </div> -->
+                            <!-- CORRECT — per period ep.phaseId: -->
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted mb-1">Phase</label>
+                                <select class="form-select form-select-sm" [(ngModel)]="ep.phaseId"
+                                    (change)="onEditDayPhaseChange(ep)">
+                                    <option value="">— No phase —</option>
+                                    <option *ngFor="let ph of getEditDayPhasesForPeriod(ep)" [value]="ph.phaseId">
+                                        {{ ph.phaseName }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">Topic</label>
+                                <input type="text" class="form-control form-control-sm" [(ngModel)]="ep.topic"
+                                    placeholder="Topic / chapter" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small text-muted mb-1">Venue</label>
+                                <input type="text" class="form-control form-control-sm" [(ngModel)]="ep.venue"
+                                    placeholder="Room / lab" />
+                            </div>
+                            <div class="col-md-6" *ngIf="ep.mode === 'ONLINE'">
+                                <label class="form-label small text-muted mb-1">Zoom URL</label>
+                                <input type="url" class="form-control form-control-sm" [(ngModel)]="ep.zoomUrl"
                                     placeholder="https://zoom.us/j/..." />
                             </div>
                         </div>
                     </div>
                 </div>
-                <div *ngIf="!editDayPeriods.length"
-                    class="border border-dashed rounded-3 text-center text-muted py-4 mb-3"
-                    style="border-style:dashed!important">
-                    <i class="fa-solid fa-calendar-xmark fa-2x opacity-25 mb-2 d-block"></i>
-                    <div class="small">No periods. Click <strong>Add Period</strong> below to start.</div>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mt-1 mb-1">
-                    <button class="btn btn-sm btn-outline-primary" (click)="addEditDayPeriod()"
-                        [disabled]="loading || editDayValidating">
-                        <i class="fa-solid fa-plus me-1"></i>Add Period
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning" (click)="resetEditDayPeriods()"
-                        [disabled]="loading || editDayValidating"
-                        title="Discard all changes and restore the original schedule for this day">
-                        <i class="fa-solid fa-rotate-left me-1"></i>Reset to Original
-                    </button>
-                </div>
-            </div>
-            <div class="app-modal-footer d-flex justify-content-end gap-2 px-3 py-2 border-top bg-light rounded-bottom">
-                <button class="btn btn-outline-secondary btn-sm" (click)="closeEditDay()"
+
+                <button class="btn btn-outline-primary btn-sm w-100 mt-1 mb-3" (click)="addEditDayPeriod()"
                     [disabled]="loading || editDayValidating">
-                    Cancel
+                    <i class="fa-solid fa-plus me-1"></i>Add Period
                 </button>
-                <button class="btn btn-primary btn-sm" (click)="validateAndSubmitEditDay()"
-                    [disabled]="loading || editDayValidating || !editDayPeriods.length">
-                    <span *ngIf="editDayValidating" class="spinner-border spinner-border-sm me-1"></span>
-                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                    <i class="fa-solid fa-shield-check me-1" *ngIf="!loading && !editDayValidating"></i>
-                    {{ editDayValidating ? 'Validating...' : (loading ? 'Saving...' : 'Validate & Save') }}
+            </div>
+
+            <!-- Footer -->
+            <div class="px-3 py-2 border-top bg-white d-flex justify-content-between align-items-center flex-shrink-0">
+                <button class="btn btn-sm btn-outline-secondary" (click)="resetEditDayPeriods()" [disabled]="loading">
+                    <i class="fa-solid fa-rotate-left me-1"></i>Reset
                 </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" (click)="closeEditDay()"
+                        [disabled]="loading || editDayValidating">Cancel</button>
+                    <button class="btn btn-primary" (click)="submitEditDay()" [disabled]="loading || editDayValidating">
+                        <span *ngIf="editDayValidating" class="spinner-border spinner-border-sm me-1"></span>
+                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                        <i class="fa-solid fa-check me-1" *ngIf="!editDayValidating && !loading"></i>
+                        {{ editDayValidating ? 'Checking conflicts…' : 'Save Changes' }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== CANCEL PERIOD MODAL ===================== -->
+
+    <!-- ═══ CANCEL PERIOD MODAL ═════════════════════════════════════════════ -->
     <div class="app-modal-backdrop" *ngIf="showCancelPeriod">
         <div class="app-modal timetable-modal">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Cancel Period</h6>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-ban me-2 text-danger"></i>Cancel Period</h6>
                     <span class="text-muted small">
-                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • Period {{ activePeriodNo }}
+                        {{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }} &bull; Period {{ activePeriodNo }}
                     </span>
                 </div>
                 <button class="btn-close" (click)="closeCancelPeriod()"></button>
             </div>
             <div class="app-modal-body">
+                <!-- FIX PA-1: Show period info -->
+                <div class="border rounded-3 p-2 mb-3 small bg-light" *ngIf="activePeriod">
+                    <div class="row g-1">
+                        <div class="col-6">
+                            <span class="text-muted">Subject: </span>
+                            <strong>{{ resolveSubjectLabel(activePeriod) || '—' }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Faculty: </span>
+                            <strong>{{ resolveFacultyLabel(activePeriod) || '—' }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Time: </span>
+                            <strong>{{ activePeriod.time?.startLabel }} – {{ activePeriod.time?.endLabel }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted">Type: </span>
+                            <strong>{{ activePeriod.periodType || 'LECTURE' }}</strong>
+                        </div>
+                    </div>
+                </div>
                 <label class="form-label small text-muted">Reason</label>
-                <input class="form-control" [(ngModel)]="cancelPeriodReason" placeholder="Cancel reason" />
+                <input class="form-control" [(ngModel)]="cancelPeriodReason" placeholder="Reason for cancellation" />
                 <div class="d-flex justify-content-end gap-2 mt-3">
                     <button class="btn btn-outline-secondary" (click)="closeCancelPeriod()">Cancel</button>
                     <button class="btn btn-danger" (click)="submitCancelPeriod()" [disabled]="loading">
                         <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        Confirm Cancel
+                        <i class="fa-solid fa-ban me-1" *ngIf="!loading"></i>Cancel Period
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== REARRANGE STAFF MODAL ===================== -->
+
+    <!-- ═══ CHANGE STAFF MODAL (All Staff) ══════════════════════════════════ -->
     <div class="app-modal-backdrop" *ngIf="showRearrangeStaff">
         <div class="app-modal timetable-modal">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Rearrange Staff</h6>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-user-pen me-2"></i>Change Faculty</h6>
                     <span class="text-muted small">
-                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • Period {{ activePeriodNo }}
+                        {{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }} &bull; Period {{ activePeriodNo }}
                     </span>
                 </div>
                 <button class="btn-close" (click)="closeRearrangeStaff()"></button>
             </div>
             <div class="app-modal-body">
-                <div class="row g-2">
-                    <div class="col-12">
-                        <label class="form-label small text-muted">New Faculty *
-                            <span *ngIf="activeSubjectId" class="text-muted fw-normal ms-1" style="font-size:0.7rem">
-                                — filtered by subject
-                            </span>
-                        </label>
-                        <select class="form-select" [(ngModel)]="newFacultyId" (change)="onNewFacultySelected()">
-                            <option value="">Select Faculty</option>
-                            <option *ngFor="let s of getStaffForSubject(activeSubjectId)" [value]="s.staffCode">
-                                {{ s.staffName }} ({{ s.staffCode }})
-                            </option>
-                        </select>
-                        <div class="form-text small" *ngIf="newFacultyName">
-                            Selected: <b>{{ newFacultyName }}</b>
-                        </div>
-                    </div>
+                <!-- FIX PA-2: Show current staff -->
+                <div class="border rounded-3 p-2 mb-3 small bg-light" *ngIf="activePeriod">
+                    <span class="text-muted">Current faculty: </span>
+                    <strong>{{ resolveFacultyLabel(activePeriod) || '—' }}</strong>
+                    <span class="ms-2 text-muted">| {{ resolveSubjectLabel(activePeriod) }}</span>
+                    <span class="ms-2 text-muted">| {{ activePeriod.time?.startLabel }} – {{ activePeriod.time?.endLabel
+                        }}</span>
                 </div>
+                <label class="form-label small text-muted mb-1">
+                    New Faculty <span class="text-danger">*</span>
+                    <span class="badge bg-secondary-subtle text-secondary ms-1" style="font-size:0.6rem">All
+                        Staff</span>
+                </label>
+                <!-- FIX BUG-3/UX: Change Staff uses getAllStaffForSubject (all staff, not batch-restricted) -->
+                <select class="form-select" [(ngModel)]="newFacultyId" (change)="onNewFacultySelected()">
+                    <option value="">— Select faculty —</option>
+                    <option *ngFor="let s of getAllStaffForSubject(activeSubjectId)" [value]="s.staffCode">
+                        {{ s.staffName }} ({{ s.staffCode }})
+                    </option>
+                </select>
                 <div class="d-flex justify-content-end gap-2 mt-3">
                     <button class="btn btn-outline-secondary" (click)="closeRearrangeStaff()">Cancel</button>
                     <button class="btn btn-primary" (click)="submitRearrangeStaff()"
                         [disabled]="loading || !newFacultyId">
                         <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        Update Staff
+                        <i class="fa-solid fa-user-check me-1" *ngIf="!loading"></i>Update Faculty
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== MOVE PERIOD MODAL ===================== -->
+
+    <!-- ═══ MOVE PERIOD MODAL ═══════════════════════════════════════════════ -->
     <div class="app-modal-backdrop" *ngIf="showMovePeriod">
-        <div class="app-modal timetable-modal">
+        <div class="app-modal timetable-modal" style="max-width:560px">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Move Period</h6>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-arrows-up-down me-2 text-info"></i>Move / Swap
+                        Period</h6>
                     <span class="text-muted small">
-                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • From Period {{ activePeriodNo }}
+                        {{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }} &bull; Period {{ activePeriodNo }}
                     </span>
                 </div>
                 <button class="btn-close" (click)="closeMovePeriod()"></button>
             </div>
             <div class="app-modal-body">
-                <label class="form-label small text-muted">Move to Period No *</label>
-                <input type="number" class="form-control" [(ngModel)]="moveToPeriodNo" min="1" />
+                <!-- Source period info -->
+                <div class="border rounded-3 p-2 mb-3 small bg-light" *ngIf="activePeriod">
+                    <div class="fw-semibold text-muted mb-1">Moving:</div>
+                    <div>{{ resolveSubjectLabel(activePeriod) || '—' }} — {{ resolveFacultyLabel(activePeriod) }}</div>
+                    <div class="text-muted">{{ activePeriod.time?.startLabel }} – {{ activePeriod.time?.endLabel }}
+                    </div>
+                </div>
+                <div class="alert alert-info small py-2 mb-3">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    Select a target slot. If it has content, the two slots will be <strong>swapped</strong>. If empty,
+                    the period moves there.
+                </div>
+
+                <!-- FIX UX-6: Slot buttons with period info -->
+                <label class="form-label small text-muted mb-2">Target Slot <span class="text-danger">*</span></label>
+                <div class="row g-2">
+                    <div class="col-6" *ngFor="let slot of availablePeriodSlots">
+                        <button class="btn w-100 text-start" style="font-size:0.78rem"
+                            [ngClass]="moveToPeriodNo === slot ? 'btn-primary' : 'btn-outline-secondary'"
+                            (click)="moveToPeriodNo = slot">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold">Period {{ slot }}</span>
+                                <ng-container *ngIf="getMoveSlotPreview(slot) as sp; else emptySlotIcon">
+                                    <span *ngIf="!sp.__dayCancelled && !sp.isCancelled">
+                                        <i class="fa-solid fa-arrow-right-arrow-left text-muted" title="Swap"></i>
+                                    </span>
+                                    <span *ngIf="sp.isCancelled" class="badge bg-danger"
+                                        style="font-size:0.58rem">Cancelled</span>
+                                </ng-container>
+                                <ng-template #emptySlotIcon>
+                                    <i class="fa-solid fa-arrow-right text-success" title="Move here"></i>
+                                </ng-template>
+                            </div>
+                            <div class="text-muted" style="font-size:0.7rem" *ngIf="getMoveSlotPreview(slot) as sp">
+                                <span *ngIf="!sp.__dayCancelled && !sp.isCancelled">{{ resolveSubjectLabel(sp) || 'Free'
+                                    }}</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="d-flex justify-content-end gap-2 mt-3">
                     <button class="btn btn-outline-secondary" (click)="closeMovePeriod()">Cancel</button>
                     <button class="btn btn-primary" (click)="submitMovePeriod()"
                         [disabled]="loading || !moveToPeriodNo">
                         <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        Move
+                        <i class="fa-solid fa-arrows-up-down me-1" *ngIf="!loading"></i>
+                        {{ moveToPeriodNo ? 'Confirm Move to Period ' + moveToPeriodNo : 'Select a slot' }}
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== REPLACE PERIOD MODAL ===================== -->
+
+    <!-- ═══ REPLACE PERIOD MODAL ════════════════════════════════════════════ -->
     <div class="app-modal-backdrop" *ngIf="showReplacePeriod">
-        <div class="app-modal timetable-modal">
-            <div class="app-modal-header d-flex justify-content-between align-items-center">
+        <div class="app-modal timetable-modal"
+            style="max-width:620px;max-height:90vh;display:flex;flex-direction:column;">
+            <div class="app-modal-header d-flex justify-content-between align-items-center flex-shrink-0">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Replace Period</h6>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-arrows-rotate me-2 text-primary"></i>Replace
+                        Period</h6>
                     <span class="text-muted small">
-                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • Period {{ activePeriodNo }}
+                        {{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }} &bull; Period {{ activePeriodNo }}
                     </span>
                 </div>
                 <button class="btn-close" (click)="closeReplacePeriod()"></button>
             </div>
-            <div class="app-modal-body">
-                <div class="alert alert-info small">
-                    Fill only what you want to change. Backend merges with template period.
+            <div class="app-modal-body flex-grow-1" style="overflow-y:auto;">
+                <!-- Time is read-only in replace modal -->
+                <div class="border rounded-3 p-2 mb-3 small bg-light d-flex align-items-center gap-3">
+                    <i class="fa-regular fa-clock text-muted"></i>
+                    <div><span class="text-muted">Time (fixed): </span><strong>{{ rp._startLabel }} – {{ rp._endLabel
+                            }}</strong></div>
+                    <div class="text-muted small ms-auto">(to change time, use Edit Day)</div>
                 </div>
-                <div class="row g-2">
+                <div class="alert alert-info small py-2 mb-3">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    Fields are pre-filled with current values. Change only what you need. Changing subject will clear
+                    faculty and topic.
+                </div>
+                <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Period Type</label>
-                        <select class="form-select" [(ngModel)]="rp.periodType">
-                            <option value="">-- No Change --</option>
-                            <option value="LECTURE">LECTURE</option>
-                            <option value="LAB">LAB</option>
-                            <option value="TUTORIAL">TUTORIAL</option>
-                            <option value="TEST">TEST</option>
-                            <option value="REVISION">REVISION</option>
+                        <label class="form-label small text-muted mb-1">Period Type</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="rp.periodType">
+                            <option value="LECTURE">Lecture</option>
+                            <option value="LAB">Lab</option>
+                            <option value="TUTORIAL">Tutorial</option>
+                            <option value="TEST">Test</option>
+                            <option value="REVISION">Revision</option>
+                            <option value="EXAM">Exam</option>
+                            <option value="PT">PT</option>
+                            <option value="YOGA">YOGA</option>
                         </select>
                     </div>
-                    <!-- FIX #12: HYBRID removed from Replace Period mode -->
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Mode</label>
-                        <select class="form-select" [(ngModel)]="rp.mode">
-                            <option value="">-- No Change --</option>
-                            <option value="OFFLINE">OFFLINE</option>
-                            <option value="ONLINE">ONLINE</option>
+                        <label class="form-label small text-muted mb-1">Mode</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="rp.mode"
+                            (change)="onReplaceModeChange()">
+                            <option value="OFFLINE">Offline</option>
+                            <option value="ONLINE">Online</option>
                         </select>
                     </div>
-                    <!-- <div class="col-md-6">
-                        <label class="form-label small text-muted">Faculty</label>
-                        <select class="form-select" [(ngModel)]="rp.facultyId" (change)="onReplaceFacultySelected()">
-                            <option value="">-- No Change --</option>
-                            <option *ngFor="let s of staffFull" [value]="s.staffCode">
-                                {{ s.staffName }} ({{ s.staffCode }})
+                    <!-- Batch subjects only -->
+                    <div class="col-md-6">
+                        <label class="form-label small text-muted mb-1">Subject</label>
+                        <select class="form-select form-select-sm" [(ngModel)]="rp.subjectCode"
+                            (change)="onReplaceSubjectSelected()">
+                            <option value="">— No change —</option>
+                            <option *ngFor="let s of batchSubjects.length ? batchSubjects : subjectsFull"
+                                [value]="s.subjectCode">
+                                {{ s.subjectName }} ({{ s.subjectCode }})
                             </option>
                         </select>
                     </div>
+                    <!-- Faculty: auto-mapped from batch staffMap, fallback to all staff for subject -->
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Faculty Name</label>
-                        <input class="form-control" [(ngModel)]="rp.facultyName" placeholder="Auto-filled" readonly />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted">Subject</label>
-                        <select class="form-select" [(ngModel)]="rp.subjectCode" (change)="onReplaceSubjectSelected()">
-                            <option value="">-- No Change --</option>
-                            <option *ngFor="let sub of subjectsFull" [value]="sub.subjectCode">
-                                {{ sub.subjectName }} ({{ sub.subjectCode }})
-                            </option>
+                        <label class="form-label small text-muted mb-1">
+                            Faculty
+                            <span class="badge bg-success-subtle text-success ms-1" style="font-size:0.6rem"
+                                *ngIf="rp.facultyId && rp.subjectCode">Auto-mapped</span>
+                        </label>
+                        <select class="form-select form-select-sm" [(ngModel)]="rp.facultyId"
+                            (change)="onReplaceFacultySelected()">
+                            <option value="">— Select faculty —</option>
+                            <ng-container *ngIf="getRpStaffList().length">
+                                <option *ngFor="let s of getRpStaffList()" [value]="s.code">
+                                    {{ s.name }} ({{ s.code }})
+                                </option>
+                            </ng-container>
+                            <ng-container *ngIf="!getRpStaffList().length">
+                                <option *ngFor="let s of getAllStaffForSubject(rp.subjectId)" [value]="s.staffCode">
+                                    {{ s.staffName }} ({{ s.staffCode }})
+                                </option>
+                            </ng-container>
                         </select>
+                        <div class="text-muted mt-1" style="font-size:0.7rem"
+                            *ngIf="!getRpStaffList().length && !getAllStaffForSubject(rp.subjectId).length && rp.subjectCode">
+                            <i class="fa-solid fa-triangle-exclamation me-1 text-warning"></i>No staff mapped to this
+                            subject
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted">Subject Name</label>
-                        <input class="form-control" [(ngModel)]="rp.subjectName" placeholder="Auto-filled" readonly />
-                    </div> -->
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted">Subject</label>
-                        <select class="form-select" [(ngModel)]="rp.subjectCode" (change)="onReplaceSubjectSelected()">
-                            <option value="">-- No Change --</option>
-                            <option *ngFor="let sub of subjectsFull" [value]="sub.subjectCode">
-                                {{ sub.subjectName }} ({{ sub.subjectCode }})
-                            </option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted">Subject Name</label>
-                        <input class="form-control" [(ngModel)]="rp.subjectName" placeholder="Auto-filled" readonly />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted">Faculty
-                            <span *ngIf="rp.subjectId" class="text-muted fw-normal ms-1" style="font-size:0.7rem">
-                                — filtered by subject
+                    <!-- Phase: loaded from API filtered by programId + classNo + subjectId -->
+                    <div class="col-md-6" *ngIf="rp.subjectId">
+                        <label class="form-label small text-muted mb-1">
+                            <i class="fa-solid fa-layer-group me-1"></i>Phase
+                            <span class="text-muted ms-1" style="font-size:0.65rem" *ngIf="rpPhases.length">
+                                ({{ rpPhases.length }} for {{ rp.subjectCode }})
                             </span>
                         </label>
-                        <select class="form-select" [(ngModel)]="rp.facultyId" (change)="onReplaceFacultySelected()">
-                            <option value="">-- No Change --</option>
-                            <option *ngFor="let s of getStaffForSubject(rp.subjectId)" [value]="s.staffCode">
-                                {{ s.staffName }} ({{ s.staffCode }})
-                            </option>
+                        <select class="form-select form-select-sm" [(ngModel)]="rp.phaseId"
+                            (change)="onReplacePhaseSelected()" [disabled]="!rpPhases.length">
+                            <option value="">{{ rpPhases.length ? '— Select phase —' : 'No phases found' }}</option>
+                            <option *ngFor="let ph of rpPhases" [value]="ph.phaseId">{{ ph.phaseName }}</option>
                         </select>
                     </div>
+                    <!-- Topic resets on subject change -->
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Faculty Name</label>
-                        <input class="form-control" [(ngModel)]="rp.facultyName" placeholder="Auto-filled" readonly />
+                        <label class="form-label small text-muted mb-1">Topic</label>
+                        <input class="form-control form-control-sm" [(ngModel)]="rp.topic"
+                            placeholder="Leave blank to keep current" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Venue</label>
-                        <input class="form-control" [(ngModel)]="rp.venue" placeholder="Hall A" />
+                        <label class="form-label small text-muted mb-1">Venue</label>
+                        <input class="form-control form-control-sm" [(ngModel)]="rp.venue"
+                            placeholder="Leave blank to keep current" />
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted">Topic</label>
-                        <input class="form-control" [(ngModel)]="rp.topic" placeholder="Topic/Description" />
-                    </div>
-                    <div class="col-12" *ngIf="rp.mode === 'ONLINE'">
-                        <label class="form-label small text-muted">Zoom URL</label>
-                        <input class="form-control" [(ngModel)]="rp.zoomUrl" placeholder="https://zoom.us/j/..." />
+                    <div class="col-md-6" *ngIf="rp.mode === 'ONLINE'">
+                        <label class="form-label small text-muted mb-1">Zoom URL</label>
+                        <input class="form-control form-control-sm" [(ngModel)]="rp.zoomUrl"
+                            placeholder="https://zoom.us/j/..." />
                     </div>
                 </div>
                 <div class="d-flex justify-content-end gap-2 mt-3">
                     <button class="btn btn-outline-secondary" (click)="closeReplacePeriod()">Cancel</button>
                     <button class="btn btn-primary" (click)="submitReplacePeriod()" [disabled]="loading">
                         <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        Replace
+                        <i class="fa-solid fa-check me-1" *ngIf="!loading"></i>Save Changes
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== SET ZOOM MODAL ===================== -->
+
+    <!-- ═══ SET ZOOM MODAL ══════════════════════════════════════════════════ -->
     <div class="app-modal-backdrop" *ngIf="showSetZoom">
         <div class="app-modal timetable-modal">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Set Zoom Link</h6>
-                    <span class="text-muted small">
-                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • Period {{ activePeriodNo }}
-                    </span>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-video me-2 text-info"></i>Set Zoom Link</h6>
+                    <span class="text-muted small">{{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }} &bull; Period
+                        {{ activePeriodNo }}</span>
                 </div>
                 <button class="btn-close" (click)="closeSetZoom()"></button>
             </div>
             <div class="app-modal-body">
-                <label class="form-label small text-muted">Zoom URL</label>
-                <input class="form-control" [(ngModel)]="zoomUrlInput" placeholder="https://zoom.us/j/1234567890" />
-                <div class="form-text small text-muted">
-                    Setting a Zoom URL will also switch the period mode to ONLINE.
-                    Leave blank to clear the existing link.
+                <div class="border rounded-3 p-2 mb-3 small bg-light" *ngIf="activePeriod">
+                    <span class="text-muted">Period: </span>
+                    <strong>{{ resolveSubjectLabel(activePeriod) }}</strong> &bull; {{ resolveFacultyLabel(activePeriod)
+                    }}
+                    <span *ngIf="activePeriod.zoomUrl" class="ms-2 text-success"><i
+                            class="fa-solid fa-check me-1"></i>Has existing link</span>
                 </div>
+                <label class="form-label small text-muted">Meeting URL</label>
+                <input class="form-control" [(ngModel)]="zoomUrlInput" placeholder="https://zoom.us/j/123456789" />
                 <div class="d-flex justify-content-end gap-2 mt-3">
                     <button class="btn btn-outline-secondary" (click)="closeSetZoom()">Cancel</button>
                     <button class="btn btn-info text-white" (click)="submitSetZoom()" [disabled]="loading">
-                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        <i class="fa-solid fa-video me-1" *ngIf="!loading"></i>
-                        Save Zoom Link
+                        <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>Save Link
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== CONVERT TO EXAM MODAL ===================== -->
+
+    <!-- ═══ CONVERT TO EXAM — CONFIRM ═══════════════════════════════════════ -->
+    <!-- FIX PA-6: Two-step — confirm first -->
+    <div class="app-modal-backdrop" *ngIf="showConvertConfirm">
+        <div class="app-modal timetable-modal">
+            <div class="app-modal-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-file-pen me-2" style="color:#7c3aed"></i>Convert
+                        to Exam?</h6>
+                    <span class="text-muted small">{{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }} &bull; Period
+                        {{ activePeriodNo }}</span>
+                </div>
+                <button class="btn-close" (click)="cancelConvertConfirm()"></button>
+            </div>
+            <div class="app-modal-body">
+                <div class="border rounded-3 p-2 mb-3 small bg-light" *ngIf="activePeriod">
+                    <strong>{{ resolveSubjectLabel(activePeriod) || '—' }}</strong> &bull; {{
+                    resolveFacultyLabel(activePeriod) }}
+                    &bull; {{ activePeriod.time?.startLabel }} – {{ activePeriod.time?.endLabel }}
+                </div>
+                <div class="alert small py-2" style="background:#f3e8ff;border-color:#c4b5fd;color:#6b21a8">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                    This will change the period type to <strong>EXAM</strong>. You can fill in the exam details on the
+                    next step.
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary" (click)="cancelConvertConfirm()">Cancel</button>
+                    <button class="btn" style="background:#7c3aed;color:white" (click)="confirmConvertToExam()">
+                        <i class="fa-solid fa-arrow-right me-1"></i>Continue to Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══ CONVERT TO EXAM — DETAILS ═══════════════════════════════════════ -->
     <div class="app-modal-backdrop" *ngIf="showConvertToExam">
         <div class="app-modal timetable-modal">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0 fw-semibold">Convert to Exam</h6>
-                    <span class="text-muted small">
-                        {{ activeDay?.day }} • {{ activeDay?.dateLabel }} • Period {{ activePeriodNo }}
-                    </span>
+                    <h6 class="mb-0 fw-semibold"><i class="fa-solid fa-file-pen me-2" style="color:#7c3aed"></i>Exam
+                        Details</h6>
+                    <span class="text-muted small">{{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }} &bull; Period
+                        {{ activePeriodNo }}</span>
                 </div>
                 <button class="btn-close" (click)="closeConvertToExam()"></button>
             </div>
             <div class="app-modal-body">
-                <div class="alert alert-warning small">
-                    This will change the period type to <b>EXAM</b>. Other details (faculty, time, venue) stay unless
-                    overridden below.
-                </div>
-                <div class="row g-2">
+                <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Exam ID <span
-                                class="text-muted fw-normal">(optional)</span></label>
-                        <input class="form-control" [(ngModel)]="examForm.examId" placeholder="EX-2026-001" />
+                        <label class="form-label small text-muted mb-1">Exam ID <span
+                                class="text-muted">(optional)</span></label>
+                        <input class="form-control" [(ngModel)]="examForm.examId" placeholder="Exam reference code" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Exam Description <span
-                                class="text-muted fw-normal">(optional)</span></label>
+                        <label class="form-label small text-muted mb-1">Description</label>
                         <input class="form-control" [(ngModel)]="examForm.examDescription"
-                            placeholder="Unit Test 1 – Physics" />
+                            placeholder="e.g. Mid-term — Algebra" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Override Faculty <span
-                                class="text-muted fw-normal">(optional)</span></label>
+                        <label class="form-label small text-muted mb-1">Invigilator</label>
                         <select class="form-select" [(ngModel)]="examForm.facultyId" (change)="onExamFacultySelected()">
-                            <option value="">-- Keep existing --</option>
-                            <option *ngFor="let s of staffFull" [value]="s.staffCode">
-                                {{ s.staffName }} ({{ s.staffCode }})
-                            </option>
+                            <option value="">— Keep current faculty —</option>
+                            <option *ngFor="let s of staffFull" [value]="s.staffCode">{{ s.staffName }} ({{ s.staffCode
+                                }})</option>
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small text-muted">Override Venue <span
-                                class="text-muted fw-normal">(optional)</span></label>
-                        <input class="form-control" [(ngModel)]="examForm.venue" placeholder="Exam Hall" />
+                        <label class="form-label small text-muted mb-1">Venue</label>
+                        <input class="form-control" [(ngModel)]="examForm.venue" placeholder="Exam hall / room" />
                     </div>
                     <div class="col-12">
-                        <label class="form-label small text-muted">Override Topic / Notes <span
-                                class="text-muted fw-normal">(optional)</span></label>
-                        <input class="form-control" [(ngModel)]="examForm.topic" placeholder="e.g. Chapters 1–5" />
+                        <label class="form-label small text-muted mb-1">Subject / Topic</label>
+                        <input class="form-control" [(ngModel)]="examForm.topic"
+                            placeholder="e.g. Algebra — Chapters 1–5" />
                     </div>
                 </div>
                 <div class="d-flex justify-content-end gap-2 mt-3">
                     <button class="btn btn-outline-secondary" (click)="closeConvertToExam()">Cancel</button>
-                    <button class="btn btn-warning" (click)="submitConvertToExam()" [disabled]="loading">
+                    <button class="btn" style="background:#7c3aed;color:white" (click)="submitConvertToExam()"
+                        [disabled]="loading">
                         <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
-                        <i class="fa-solid fa-file-pen me-1" *ngIf="!loading"></i>
-                        Convert to Exam
+                        <i class="fa-solid fa-file-pen me-1" *ngIf="!loading"></i>Convert to Exam
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Initial load spinner -->
+<div *ngIf="!timetable && loading" class="d-flex justify-content-center py-5">
+    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading…</span></div>
+</div>
+<!-- No timetable for this week -->
+<div *ngIf="!timetable && !loading"
+    class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
+    <div class="mb-3" style="opacity:0.35;">
+        <i class="fa-solid fa-calendar-xmark" style="font-size:3rem;color:#6c757d;"></i>
+    </div>
+    <div class="fw-semibold text-muted mb-1">No timetable for this week</div>
+    <div class="small text-muted">Use the navigation arrows to go to another week</div>
+    <!-- Still show week nav so user can browse -->
+    <div class="d-flex align-items-center gap-3 mt-3">
+        <button class="btn btn-sm btn-outline-secondary" (click)="navigateWeek('prev')"
+            [disabled]="!hasPrevWeek || weekNavLoading">
+            <i class="fa-solid fa-chevron-left"></i> Prev Week
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" (click)="navigateWeek('next')"
+            [disabled]="!hasNextWeek || weekNavLoading">
+            Next Week <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
+</div>
+
+<!-- ═══ PERIOD ACTION MENU — rendered OUTSIDE the table so it is never clipped ═══ -->
+<!-- Uses position:fixed with coords from getBoundingClientRect of the trigger button -->
+<div *ngIf="openActionKey" class="tt-action-menu" [style.top.px]="actionMenuTop" [style.left.px]="actionMenuLeft"
+    (click)="$event.stopPropagation()">
+    <ng-container *ngFor="let row of sortedSchedule">
+        <ng-container *ngFor="let pNum of periodHeaders">
+            <ng-container *ngIf="isActionMenuOpen(actionKey(row.day, pNum))">
+                <ng-container *ngIf="getRenderedPeriod(row, pNum) as p">
+                    <button class="tt-action-item danger" (click)="openCancelPeriod(row, pNum); closeActionMenu()">
+                        <i class="fa-solid fa-ban me-2"></i>Cancel Period
+                    </button>
+                    <button class="tt-action-item" (click)="openRearrangeStaff(row, pNum); closeActionMenu()">
+                        <i class="fa-solid fa-user-pen me-2" style="color:#6c757d"></i>Change Staff
+                    </button>
+                    <button *ngIf="p.periodType !== 'EXAM'" class="tt-action-item"
+                        (click)="openReplacePeriod(row, pNum); closeActionMenu()">
+                        <i class="fa-solid fa-arrows-rotate me-2" style="color:#0d6efd"></i>Replace Period
+                    </button>
+                    <button class="tt-action-item" (click)="openMovePeriod(row, pNum); closeActionMenu()">
+                        <i class="fa-solid fa-arrows-up-down me-2" style="color:#0dcaf0"></i>Move / Swap
+                    </button>
+                    <button *ngIf="p.mode === 'ONLINE'" class="tt-action-item"
+                        (click)="openSetZoom(row, pNum, p); closeActionMenu()">
+                        <i class="fa-solid fa-video me-2" style="color:#0dcaf0"></i>Set Zoom Link
+                    </button>
+                    <ng-container *ngIf="p.periodType !== 'EXAM'">
+                        <hr style="margin:4px 0" />
+                        <button class="tt-action-item purple"
+                            (click)="openConvertToExam(row, pNum, p); closeActionMenu()">
+                            <i class="fa-solid fa-file-pen me-2"></i>Convert to Exam
+                        </button>
+                    </ng-container>
+                </ng-container>
+            </ng-container>
+        </ng-container>
+    </ng-container>
+</div>
+
+<div class="app-modal-backdrop" *ngIf="showStaffLateModal">
+    <div class="app-modal timetable-modal" style="max-width:440px">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">
+                    <i class="fa-solid fa-clock-rotate-left me-2 text-warning"></i>Staff Late Entry
+                </h6>
+                <div class="text-muted small">
+                    {{ staffLateEntry.facultyName }} &bull;
+                    Period {{ staffLateEntry.periodNo }} &bull;
+                    {{ staffLateEntry.startLabel }} – {{ staffLateEntry.endLabel }}
+                </div>
+            </div>
+            <button class="btn-close" (click)="closeStaffLateModal()"></button>
+        </div>
+        <div class="app-modal-body">
+
+            <!-- Entry type -->
+            <div class="mb-3">
+                <label class="form-label small fw-medium">Entry Type <span class="text-danger">*</span></label>
+                <div class="d-flex gap-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" [(ngModel)]="staffLateEntry.entryType" value="LATE"
+                            id="sle_late" />
+                        <label class="form-check-label small" for="sle_late">Late Entry</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" [(ngModel)]="staffLateEntry.entryType"
+                            value="EARLY_LEAVE" id="sle_early" />
+                        <label class="form-check-label small" for="sle_early">Early Leaving</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delay minutes -->
+            <div class="mb-3">
+                <label class="form-label small fw-medium">
+                    {{ staffLateEntry.entryType === 'EARLY_LEAVE' ? 'Left Early By (minutes)' : 'Arrived Late By
+                    (minutes)' }}
+                    <span class="text-danger">*</span>
+                </label>
+                <input type="number" class="form-control form-control-sm" [(ngModel)]="staffLateEntry.delayMinutes"
+                    [placeholder]="staffLateEntry.entryType === 'EARLY_LEAVE' ? 'e.g. 10' : 'e.g. 15'" min="1" />
+            </div>
+
+            <!-- Reason -->
+            <div class="mb-3">
+                <label class="form-label small fw-medium">Reason</label>
+                <input type="text" class="form-control form-control-sm" [(ngModel)]="staffLateEntry.reason"
+                    placeholder="Optional reason" />
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeStaffLateModal()">Cancel</button>
+                <button class="btn btn-sm btn-warning" (click)="submitStaffLateEntry()"
+                    [disabled]="loading || !staffLateEntry.delayMinutes">
+                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    <i class="fa-solid fa-clock me-1" *ngIf="!loading"></i>
+                    Log {{ staffLateEntry.entryType === 'EARLY_LEAVE' ? 'Early Leave' : 'Late Entry' }}
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SPECIAL CLASS MODAL ══════════════════════════════════════════════ -->
+<div class="app-modal-backdrop" *ngIf="showSpecialClass">
+    <div class="app-modal timetable-modal" style="max-width:620px">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">
+                    <i class="fa-solid fa-circle-plus me-2 text-success"></i>Add Special Class
+                </h6>
+                <span class="text-muted small">
+                    {{ activeDay?.day }} &bull; {{ activeDay?.dateLabel }}
+                </span>
+            </div>
+            <button class="btn-close" (click)="closeSpecialClass()" [disabled]="loading"></button>
+        </div>
+        <div class="app-modal-body">
+
+            <!-- Conflict warning -->
+            <div class="alert alert-danger small py-2 mb-3" *ngIf="specialClassConflict">
+                <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ specialClassConflict }}
+            </div>
+
+            <div class="row g-3">
+                <!-- Period No -->
+                <div class="col-md-4">
+                    <label class="form-label small fw-medium">Period No <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control form-control-sm" [(ngModel)]="sc.periodNo" min="1"
+                        placeholder="e.g. 7" />
+                </div>
+                <!-- Start Time -->
+                <div class="col-md-4">
+                    <label class="form-label small fw-medium">Start Time <span class="text-danger">*</span></label>
+                    <input type="time" class="form-control form-control-sm" [(ngModel)]="sc.startTime"
+                        (change)="onSpecialClassTimeChange()" (input)="specialClassConflict = ''" />
+                </div>
+                <!-- End Time -->
+                <div class="col-md-4">
+                    <label class="form-label small fw-medium">End Time <span class="text-danger">*</span></label>
+                    <input type="time" class="form-control form-control-sm" [(ngModel)]="sc.endTime"
+                        (change)="onSpecialClassTimeChange()" (input)="specialClassConflict = ''" />
+                    <div class="text-danger mt-1" style="font-size:0.72rem" *ngIf="sc.__timeError">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>{{ sc.__timeError }}
+                    </div>
+                </div>
+                <!-- Period Type -->
+                <div class="col-md-4">
+                    <label class="form-label small fw-medium">Type</label>
+                    <select class="form-select form-select-sm" [(ngModel)]="sc.periodType">
+                        <option value="LECTURE">Lecture</option>
+                        <option value="LAB">Lab</option>
+                        <option value="TUTORIAL">Tutorial</option>
+                        <option value="TEST">Test</option>
+                        <option value="REVISION">Revision</option>
+                        <option value="EXAM">Exam</option>
+                        <option value="PT">PT</option>
+                        <option value="YOGA">Yoga</option>
+                    </select>
+                </div>
+                <!-- Mode -->
+                <div class="col-md-4">
+                    <label class="form-label small fw-medium">Mode</label>
+                    <select class="form-select form-select-sm" [(ngModel)]="sc.mode"
+                        (change)="sc.mode === 'OFFLINE' ? sc.zoomUrl = '' : null">
+                        <option value="OFFLINE">Offline</option>
+                        <option value="ONLINE">Online</option>
+                    </select>
+                </div>
+                <!-- Subject -->
+                <div class="col-md-6">
+                    <label class="form-label small fw-medium">Subject</label>
+                    <select class="form-select form-select-sm" [(ngModel)]="sc.subjectCode"
+                        (change)="onSpecialClassSubjectChange()">
+                        <option value="">— Select subject —</option>
+                        <option *ngFor="let s of batchSubjects.length ? batchSubjects : subjectsFull"
+                            [value]="s.subjectCode">
+                            {{ s.subjectName }} ({{ s.subjectCode }})
+                        </option>
+                    </select>
+                </div>
+                <!-- Faculty -->
+                <div class="col-md-6">
+                    <label class="form-label small fw-medium">
+                        Faculty <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-select form-select-sm" [(ngModel)]="sc.facultyId"
+                        (change)="onSpecialClassFacultyChange()">
+                        <option value="">— Select faculty —</option>
+                        <option *ngFor="let s of getStaffForSubject(sc.subjectId)" [value]="s.staffCode">
+                            {{ s.staffName }} ({{ s.staffCode }})
+                        </option>
+                    </select>
+                </div>
+                <!-- Phase -->
+                <div class="col-md-6" *ngIf="scPhases.length">
+                    <label class="form-label small fw-medium">
+                        <i class="fa-solid fa-layer-group me-1"></i>Phase
+                    </label>
+                    <select class="form-select form-select-sm" [(ngModel)]="sc.phaseId"
+                        (change)="onSpecialClassPhaseChange()">
+                        <option value="">— No phase —</option>
+                        <option *ngFor="let ph of scPhases" [value]="ph.phaseId">{{ ph.phaseName }}</option>
+                    </select>
+                </div>
+                <!-- Topic -->
+                <div class="col-md-6">
+                    <label class="form-label small fw-medium">Topic</label>
+                    <input type="text" class="form-control form-control-sm" [(ngModel)]="sc.topic"
+                        placeholder="Topic / chapter" />
+                </div>
+                <!-- Venue -->
+                <div class="col-md-6">
+                    <label class="form-label small fw-medium">Venue</label>
+                    <input type="text" class="form-control form-control-sm" [(ngModel)]="sc.venue"
+                        placeholder="Room / lab" />
+                </div>
+                <!-- Zoom URL -->
+                <div class="col-md-6" *ngIf="sc.mode === 'ONLINE'">
+                    <label class="form-label small fw-medium">Zoom URL</label>
+                    <input type="url" class="form-control form-control-sm" [(ngModel)]="sc.zoomUrl"
+                        placeholder="https://zoom.us/j/..." />
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="btn btn-outline-secondary" (click)="closeSpecialClass()"
+                    [disabled]="loading">Cancel</button>
+                <button class="btn btn-success" (click)="submitSpecialClass()" [disabled]="loading || !!sc.__timeError">
+                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    <i class="fa-solid fa-plus me-1" *ngIf="!loading"></i>Add Special Class
+                </button>
             </div>
         </div>
     </div>

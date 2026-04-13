@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
-import { AlertService } from '../../../../../service/alert/alert.service';
-import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import * as XLSX from 'xlsx';
 import { finalize } from 'rxjs/operators';
+import { AlertService } from '../../../../../service/alert/alert.service';
+import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 
 @Component({
   selector: 'app-examcategory',
@@ -13,7 +13,7 @@ import { finalize } from 'rxjs/operators';
   styleUrl: './examcategory.component.scss',
 })
 export class ExamcategoryComponent implements OnInit {
-  private moduleName = 'ims';
+ private moduleName = 'ims';
   entiId: any;
   form!: FormGroup;
   showForm = false;
@@ -33,6 +33,12 @@ export class ExamcategoryComponent implements OnInit {
   importInvalidCount = 0;
   importing = false;
 
+  // Add Sub-Category from Category
+  showSubcategoryForm = false;
+  subcategoryParent: any = null;
+  subcategoryForm!: FormGroup;
+  savingSubcategories = false;
+
   columns = [
     { key: 'categoryName', label: 'Category Name', sortable: true },
     { key: 'categoryCode', label: 'Code', sortable: false },
@@ -40,6 +46,12 @@ export class ExamcategoryComponent implements OnInit {
   ];
 
   actions = [
+    {
+      type: 'icon',
+      icon: 'fa-solid fa-layer-group',
+      tooltip: 'Add Sub-Categories',
+      callback: (row: any) => this.openAddSubcategory(row),
+    },
     {
       type: 'icon',
       icon: 'fa-regular fa-pen-to-square',
@@ -251,6 +263,100 @@ export class ExamcategoryComponent implements OnInit {
       });
 
     this.deleteTarget = null;
+  }
+
+  // ============== ADD SUB-CATEGORIES FROM CATEGORY ==============
+  get subcategoryRows(): FormArray {
+    return this.subcategoryForm?.get('rows') as FormArray;
+  }
+
+  private createSubcategoryRow(): FormGroup {
+    return this.fb.group({
+      subCategoryName: ['', [Validators.required, Validators.maxLength(120)]],
+      subCategoryCode: ['', [Validators.maxLength(40)]],
+      sortOrder: [0],
+    });
+  }
+
+  openAddSubcategory(row: any) {
+    this.subcategoryParent = {
+      categoryId: row.categoryId,
+      categoryName: row.categoryName,
+    };
+    this.subcategoryForm = this.fb.group({
+      rows: this.fb.array([this.createSubcategoryRow()]),
+    });
+    this.showSubcategoryForm = true;
+  }
+
+  addSubcategoryRow(): void {
+    this.subcategoryRows.push(this.createSubcategoryRow());
+  }
+
+  removeSubcategoryRow(index: number): void {
+    if (this.subcategoryRows.length > 1) {
+      this.subcategoryRows.removeAt(index);
+    }
+  }
+
+  cancelSubcategory(): void {
+    if (this.savingSubcategories) return;
+    this.showSubcategoryForm = false;
+    this.subcategoryParent = null;
+  }
+
+  saveSubcategories(): void {
+    if (this.savingSubcategories) return;
+    if (this.subcategoryRows.invalid) {
+      this.subcategoryRows.markAllAsTouched();
+      this.alert.error('Fill Sub-Category Name for all rows');
+      return;
+    }
+
+    const rows = this.subcategoryRows.value || [];
+    if (!rows.length) return;
+
+    const p = this.subcategoryParent;
+    this.savingSubcategories = true;
+    let completed = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+      const payload = {
+        entiId: this.entiId,
+        userId: localStorage.getItem('userId') || '',
+        categoryId: p.categoryId,
+        subCategoryName: (row.subCategoryName || '').toString().trim(),
+        subCategoryCode: (row.subCategoryCode || '').toString().trim() || null,
+        sortOrder: Number(row.sortOrder || 0),
+        status: 'Active',
+      };
+      this.commonApi.fetchData(payload, this.moduleName, 'exam/subcategory/create').subscribe({
+        next: (res: any) => {
+          completed++;
+          if (res?.status === false) failed++;
+          this.checkSubcategoryCompletion(rows.length, completed, failed);
+        },
+        error: () => {
+          completed++;
+          failed++;
+          this.checkSubcategoryCompletion(rows.length, completed, failed);
+        },
+      });
+    }
+  }
+
+  private checkSubcategoryCompletion(total: number, completed: number, failed: number): void {
+    if (completed < total) return;
+    this.savingSubcategories = false;
+    const success = total - failed;
+    if (success > 0) {
+      this.alert.success(`${success} sub-category(s) created${failed > 0 ? `, ${failed} failed` : ''}`);
+    } else {
+      this.alert.error('All sub-category creations failed');
+    }
+    this.showSubcategoryForm = false;
+    this.subcategoryParent = null;
   }
 
   openImport() {

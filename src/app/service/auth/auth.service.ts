@@ -7,7 +7,13 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AlertService } from '../alert/alert.service';
 
+import { RoleLevel } from '../../shared/role.config';
+
 type UserRole = 'admin' | 'manager' | 'supervisor' | 'staff';
+
+//added new
+const STAFF_ID_KEY = 'staffId';
+const ROLE_KEY = 'userRole';
 
 @Injectable({
   providedIn: 'root'
@@ -129,4 +135,14 @@ export class AuthService {
     const current = this.getRole();
     return roles.includes(current);
   }
+
+  //added new
+  getStaffId(): string {
+    return localStorage.getItem('STAFF_ID_KEY') ?? '';
+  }
+
+  getrole(){
+ return (localStorage.getItem(ROLE_KEY) ?? '') as RoleLevel;
+  }
+  
 }

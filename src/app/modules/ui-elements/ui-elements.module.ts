@@ -21,6 +21,7 @@ import { EditableComponent } from './elements/editable/editable.component';
 import { ImportfilesComponent } from './elements/importfiles/importfiles.component';
 import { ReadonlyComponent } from './elements/readonly/readonly.component';
 import { TaginputComponent } from './elements/taginput/taginput.component';
+import { OldListTableComponent } from './elements/old-list-table/old-list-table.component';
 
 @NgModule({
   declarations: [
@@ -41,7 +42,8 @@ import { TaginputComponent } from './elements/taginput/taginput.component';
     CommondeleteComponent,
     EditableComponent,
     AlertComponent,
-    BredcrumpComponent
+    BredcrumpComponent,
+    OldListTableComponent
   ],
   imports: [
     CommonModule, 

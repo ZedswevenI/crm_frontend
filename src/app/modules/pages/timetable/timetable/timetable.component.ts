@@ -4,10 +4,13 @@ import { AlertService } from '../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 import { forkJoin, Subject } from 'rxjs';
-import { takeUntil, catchError, of } from 'rxjs';
+import { takeUntil, catchError, of, finalize } from 'rxjs';
 import * as XLSX from 'xlsx';
+import { AuthService } from '../../../../service/auth/auth.service';
+import { RoleLevel } from '../../../../shared/role.config';
 
-const safeTrim = (v: any) =>
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const safeTrim = (v: any): string =>
   v === undefined || v === null ? '' : String(v).trim();
 
 const timeToMin = (timeVal: any): number | null => {
@@ -18,9 +21,7 @@ const timeToMin = (timeVal: any): number | null => {
       const mins = Math.round(timeVal * 24 * 60);
       return mins >= 0 && mins <= 24 * 60 ? mins : null;
     }
-    if (timeVal >= 1 && timeVal <= 24 * 60) {
-      return Math.trunc(timeVal);
-    }
+    if (timeVal >= 1 && timeVal <= 24 * 60) return Math.trunc(timeVal);
     if (timeVal > 20000 && timeVal < 90000) {
       const dayFraction = timeVal - Math.floor(timeVal);
       const mins = Math.round(dayFraction * 24 * 60);
@@ -31,11 +32,9 @@ const timeToMin = (timeVal: any): number | null => {
   if (!s) return null;
   const parts = s.split(':');
   if (parts.length < 2) return null;
-
   const h = parseInt(parts[0], 10);
   const m = parseInt(parts[1], 10);
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-
   return h * 60 + m;
 };
 
@@ -54,10 +53,33 @@ const VALID_PERIOD_TYPES = [
   'TUTORIAL',
   'TEST',
   'REVISION',
+  'PT',
+  'YOGA',
+  'PET',
 ];
-
 const VALID_MODES = ['OFFLINE', 'ONLINE'];
 
+const parseCsvLine = (line: string): string[] => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+};
 @Component({
   selector: 'app-timetable',
   standalone: false,
@@ -73,16 +95,18 @@ export class TimetableComponent implements OnInit, OnDestroy {
   private moduleName = 'timetable';
   timetables: any[] = [];
   totalRecords = 0;
-  pageSize = 5;
+  pageSize = 10;
   selectedBatch = '';
   selectedCenter = '';
   batchesFull: any[] = [];
   centersFull: any[] = [];
   filteredBatches: any[] = [];
+  hasSearched = false;
   private centerByCode = new Map<string, any>();
   private staffByKey = new Map<string, any>();
   private subjectById = new Map<string, any>();
-  private subjectByCode = new Map<string, any>();
+  private phasesByProgram = new Map<string, any[]>();
+  private batchProgramMap = new Map<string, string>();
   parsedPayload: any = null;
   parsedMeta: any = null;
   parseStats = { totalGroups: 0, totalDays: 0, totalPeriods: 0 };
@@ -97,25 +121,26 @@ export class TimetableComponent implements OnInit, OnDestroy {
   validateLoading = false;
   validateOk = false;
   validateConflicts: any[] = [];
-  hasSearched = false;
 
+  // ─── Columns: one row per batch ───────────────────────────────────────
   columns = [
     { key: 'batchCode', label: 'Batch', sortable: true },
     { key: 'centerCode', label: 'Center', sortable: true },
-    { key: 'wkStartOn', label: 'Week Starting', sortable: true, date: true },
-    { key: 'phase', label: 'Phase', sortable: true },
     {
-      key: 'status',
+      key: 'latestStatus',
       label: 'Status',
-      sortable: true,
+      sortable: false,
       type: 'badge',
       badgeColors: {
         Active: 'badge bg-success-subtle text-success',
+        DRAFT: 'badge bg-warning-subtle text-warning',
         Inactive: 'badge bg-secondary-subtle text-secondary',
       },
     },
+    { key: 'lastUpdatedLabel', label: 'Last Updated', sortable: false },
   ];
 
+  // ─── Only View action ─────────────────────────────────────────────────
   actions = [
     {
       type: 'icon',
@@ -130,8 +155,8 @@ export class TimetableComponent implements OnInit, OnDestroy {
     private breadcrumb: BredcrumpService,
     private router: Router,
     private commonApi: CommonapiService,
+    private authService: AuthService,
   ) {
-    // Support both old key (entiId) and new key (tenantId) from localStorage
     this.tenantId =
       localStorage.getItem('tenantId') || localStorage.getItem('entiId');
     this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Timetable' }]);
@@ -146,21 +171,25 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private previewTime(v: any): string {
-    const mins = timeToMin(v);
-    return mins === null ? safeTrim(v) : minToLabel(mins);
+  epochToDisplayDate(epoch: any): string {
+    if (!epoch) return '-';
+    const ms = Number(epoch);
+    if (!Number.isFinite(ms) || ms <= 0) return '-';
+    return new Date(ms).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    });
   }
 
-  private previewDate(v: any): string {
-    const ms = this.parseDDMMMYYYY(v);
-    if (!ms) return safeTrim(v);
-    const d = new Date(ms);
-    const dd = String(d.getUTCDate()).padStart(2, '0');
-    const mon = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
-    const yyyy = d.getUTCFullYear();
-    return `${dd}-${mon}-${yyyy}`;
+  showimport() {
+    // return (
+    //   this.authService.getRole() === 'L1' || this.authService.getRole() === 'L3'
+    // );
   }
 
+  // ─── Table data ───────────────────────────────────────────────────────
   fetchTableData(params: {
     page: number;
     pageSize: number;
@@ -168,129 +197,64 @@ export class TimetableComponent implements OnInit, OnDestroy {
     sortKey?: string;
     sortDirection?: string;
   }) {
-    if (!this.selectedCenter || !this.selectedBatch) return;
     this.loading = true;
-    const query: any = {
-      page: params.page,
-      limit: params.pageSize,
+
+    // Fetch all rows (list=full) so we can deduplicate by batchCode client-side
+    const body: any = {
+      tenantId: this.tenantId,
+      list: 'full',
     };
-    if (params.search) query.search = params.search;
-    if (this.selectedBatch) query.batchCode = this.selectedBatch;
-    if (this.selectedCenter) query.centerCode = this.selectedCenter;
-    const queryString = Object.keys(query)
-      .map(
-        (key) => `${encodeURIComponent(key)}=${encodeURIComponent(query[key])}`,
-      )
-      .join('&');
-    const body = { tenantId: this.tenantId };
+    if (this.selectedBatch) body.batchCode = this.selectedBatch;
+    if (this.selectedCenter) body.centerCode = this.selectedCenter;
+    if (params.search) body.search = params.search;
+
     this.commonApi
-      .fetchData(body, this.moduleName, `list?${queryString}`)
+      .fetchData(body, this.moduleName, 'list')
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.loading = false;
+          this.hasSearched = true;
+        }),
+      )
       .subscribe({
         next: (res: any) => {
-          this.timetables = res?.data || [];
-          this.totalRecords = res?.count || 0;
-          this.loading = false;
-          this.hasSearched = true;
+          const raw: any[] = res?.data || [];
+
+          // ── Deduplicate: one row per batchCode, most recent wkStartOn wins ──
+          const batchMap = new Map<string, any>();
+          for (const tt of raw) {
+            const existing = batchMap.get(tt.batchCode);
+            if (!existing || (tt.wkStartOn ?? 0) > (existing.wkStartOn ?? 0)) {
+              batchMap.set(tt.batchCode, tt);
+            }
+          }
+
+          this.timetables = Array.from(batchMap.values()).map((tt: any) => ({
+            ...tt,
+            _raw: tt,
+            latestStatus: tt.status,
+            lastUpdatedLabel: tt.updatedAt
+              ? new Date(tt.updatedAt).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '-',
+          }));
+
+          this.totalRecords = this.timetables.length;
         },
         error: () => {
-          this.loading = false;
-          this.hasSearched = true;
           this.alert.error('Error loading timetables');
         },
       });
   }
 
   applyFilters() {
-    if (!this.selectedCenter || !this.selectedBatch) {
-      this.alert.warning('Please select both a Center and a Batch to search.');
-      return;
-    }
     this.timetables = [];
     this.totalRecords = 0;
     this.fetchTableData({ page: 1, pageSize: this.pageSize });
-  }
-
-  loadAllLookupsAndInit() {
-    const tenantId = this.tenantId;
-    this.loading = true;
-    forkJoin({
-      center: this.commonApi
-        .fetchData({ tenantId }, 'ims', 'center/list?list=full')
-        .pipe(
-          catchError((err) => {
-            console.warn('center lookup failed', err);
-            return of({ data: [] });
-          }),
-        ),
-
-      batch: this.commonApi
-        .fetchData({ tenantId }, 'batch', 'list?list=full')
-        .pipe(
-          catchError((err) => {
-            console.warn('batch lookup failed', err);
-            return of({ data: [] });
-          }),
-        ),
-
-      staff: this.commonApi
-        .fetchData({ tenantId }, 'ims', 'staff/list?list=full')
-        .pipe(
-          catchError((err) => {
-            console.warn('staff lookup failed', err);
-            return of({ data: [] });
-          }),
-        ),
-      subject: this.commonApi
-        .fetchData({ entiId: tenantId }, 'ims', 'subject/list?list=full')
-        .pipe(
-          catchError((err) => {
-            console.warn('subject lookup failed', err);
-            return of({ data: [] });
-          }),
-        ),
-    })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: ({ center, batch, staff, subject }) => {
-          this.centersFull = center?.data || [];
-          this.batchesFull = batch?.data || [];
-          this.filteredBatches = this.batchesFull;
-
-          this.centerByCode.clear();
-          this.centersFull.forEach((c: any) => {
-            const code = safeTrim(c?.centerCode);
-            if (code) this.centerByCode.set(code, c);
-          });
-          this.staffByKey.clear();
-          const staffRows = staff?.data || [];
-          staffRows.forEach((s: any) => {
-            const keys = [
-              safeTrim(s?.staffId),
-              safeTrim(s?.staffCode),
-              safeTrim(s?.employeeId),
-              safeTrim(s?._id),
-            ]
-              .filter(Boolean)
-              .map((x) => String(x).toLowerCase());
-            keys.forEach((k) => this.staffByKey.set(k, s));
-          });
-          this.subjectById.clear();
-          this.subjectByCode.clear();
-          const subRows = subject?.data || [];
-          subRows.forEach((x: any) => {
-            const id = safeTrim(x?._id);
-            const code = safeTrim(x?.subjectCode).toLowerCase();
-            if (id) this.subjectById.set(id, x);
-            if (code) this.subjectByCode.set(code, x);
-          });
-
-          this.loading = false;
-        },
-        error: () => {
-          this.loading = false;
-          this.alert.error('Unable to load initial data!');
-        },
-      });
   }
 
   resetFilters() {
@@ -306,11 +270,11 @@ export class TimetableComponent implements OnInit, OnDestroy {
     if (this.selectedCenter) {
       const cc = String(this.selectedCenter);
       this.filteredBatches = this.batchesFull.filter((b: any) => {
-        const bCenterCode =
+        const bcc =
           safeTrim(b?.centerCode) ||
           safeTrim(b?.center?.centerCode) ||
           safeTrim(b?.centerId?.centerCode);
-        return bCenterCode ? String(bCenterCode) === cc : true;
+        return bcc ? String(bcc) === cc : true;
       });
     } else {
       this.filteredBatches = this.batchesFull;
@@ -321,29 +285,129 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.totalRecords = 0;
   }
 
+  onBatchChange() {
+    // intentionally empty — user must click Search
+  }
+
+  // ─── Boot: load lookups ───────────────────────────────────────────────
+  loadAllLookupsAndInit() {
+    const tenantId = this.tenantId;
+    this.loading = true;
+
+    forkJoin({
+      center: this.commonApi
+        .fetchData({ entiId: tenantId }, 'ims', 'center/list?list=full')
+        .pipe(catchError(() => of({ data: [] }))),
+      batch: this.commonApi
+        .fetchData({ entiId: tenantId }, 'batch', 'list?list=full')
+        .pipe(catchError(() => of({ data: [] }))),
+      staff: this.commonApi
+        .fetchData({ entiId: tenantId }, 'ims', 'staff/list?list=full')
+        .pipe(catchError(() => of({ data: [] }))),
+      subject: this.commonApi
+        .fetchData({ entiId: tenantId }, 'ims', 'subject/list?list=full')
+        .pipe(catchError(() => of({ data: [] }))),
+      phase: this.commonApi
+        .fetchData({ entiId: tenantId }, 'institue', 'phase/list?list=full')
+        .pipe(catchError(() => of({ data: [] }))),
+    })
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => (this.loading = false)),
+      )
+      .subscribe({
+        next: ({ center, batch, staff, subject, phase }) => {
+          this.centersFull = center?.data || [];
+          this.centerByCode.clear();
+          this.centersFull.forEach((c: any) => {
+            const code = safeTrim(c?.centerCode);
+            if (code) this.centerByCode.set(code, c);
+          });
+
+          this.batchesFull = batch?.data || [];
+          this.filteredBatches = this.batchesFull;
+          this.batchProgramMap.clear();
+          this.batchesFull.forEach((b: any) => {
+            const bCode = safeTrim(b?.batchCode);
+            const progId = safeTrim(
+              b?.programId || b?.program || b?.programCode,
+            );
+            if (bCode && progId) this.batchProgramMap.set(bCode, progId);
+          });
+
+          this.staffByKey.clear();
+          (staff?.data || []).forEach((s: any) => {
+            [
+              safeTrim(s?.staffId),
+              safeTrim(s?.staffCode),
+              safeTrim(s?.employeeId),
+              safeTrim(s?._id),
+            ]
+              .filter(Boolean)
+              .map((x) => x.toLowerCase())
+              .forEach((k) => this.staffByKey.set(k, s));
+          });
+
+          this.subjectById.clear();
+          (subject?.data || []).forEach((x: any) => {
+            const id = safeTrim(x?._id);
+            if (id) this.subjectById.set(id, x);
+          });
+
+          this.phasesByProgram.clear();
+          (phase?.data || []).forEach((ph: any) => {
+            const progId = safeTrim(ph?.programId);
+            if (!progId) return;
+            if (!this.phasesByProgram.has(progId))
+              this.phasesByProgram.set(progId, []);
+            this.phasesByProgram.get(progId)!.push(ph);
+          });
+        },
+        error: () => {
+          this.alert.error('Unable to load initial data!');
+        },
+      });
+  }
+
+  private resolvePhaseForBatch(
+    batchCode: string,
+    phaseName: string,
+  ): { phaseId: string; phaseName: string } | null {
+    const name = safeTrim(phaseName);
+    if (!name) return null;
+    const programId = this.batchProgramMap.get(safeTrim(batchCode));
+    if (!programId) return null;
+    const phases = this.phasesByProgram.get(programId) || [];
+    const match = phases.find(
+      (ph: any) => safeTrim(ph?.phaseName).toLowerCase() === name.toLowerCase(),
+    );
+    if (!match) return null;
+    return {
+      phaseId: safeTrim(match.phaseId),
+      phaseName: safeTrim(match.phaseName),
+    };
+  }
+
+  // ─── View — navigate by batchCode ─────────────────────────────────────
+  openView(row: any) {
+    const item = row?._raw || row;
+    this.router.navigate(['/app/timetable/view', item.batchCode]);
+  }
+
+  // ─── Upload modal ─────────────────────────────────────────────────────
   openUpload() {
     this.showUpload = true;
-    this.validateLoading = false;
-    this.validateOk = false;
-    this.validateConflicts = [];
-    this.file = null;
-    this.parsedPayload = null;
-    this.parsedMeta = null;
-    this.parseError = '';
-    this.parsing = false;
-    this.parseStats = { totalGroups: 0, totalDays: 0, totalPeriods: 0 };
-    this.parsedGroupsPreview = [];
-    this.parsedPreviewRows = [];
-    this.parsedPreviewTruncated = false;
+    this._resetUploadState();
   }
 
   closeUpload() {
     this.showUpload = false;
+    this._resetUploadState();
+  }
+
+  private _resetUploadState() {
     this.file = null;
     this.parsedPayload = null;
-    this.validateLoading = false;
-    this.validateOk = false;
-    this.validateConflicts = [];
     this.parsedMeta = null;
     this.parseError = '';
     this.parsing = false;
@@ -351,6 +415,10 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.parsedGroupsPreview = [];
     this.parsedPreviewRows = [];
     this.parsedPreviewTruncated = false;
+    this.validateLoading = false;
+    this.validateOk = false;
+    this.validateConflicts = [];
+    this.showConfirm = false;
   }
 
   onFileChange(e: any): void {
@@ -366,6 +434,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.validateLoading = false;
     this.validateOk = false;
     this.validateConflicts = [];
+    this.showConfirm = false;
     const name = f.name.toLowerCase();
     if (name.endsWith('.csv') || f.type === 'text/csv') {
       this.file = f;
@@ -396,7 +465,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
     reader.readAsText(file);
   }
 
-    parseExcel(file: File) {
+  parseExcel(file: File) {
     const reader = new FileReader();
     reader.onload = (evt: any) => {
       try {
@@ -407,13 +476,12 @@ export class TimetableComponent implements OnInit, OnDestroy {
           this.parseError = 'Excel file has no sheets.';
           return;
         }
-        const sheet = workbook.Sheets[sheetName];
-        const rows: any[] = XLSX.utils.sheet_to_json(sheet, {
-          defval: '',
-          raw: true,
-        });
+        const rows: any[] = XLSX.utils.sheet_to_json(
+          workbook.Sheets[sheetName],
+          { defval: '', raw: true },
+        );
         this.processTabularRows(rows);
-      } catch (err) {
+      } catch {
         this.parseError =
           'Failed to parse Excel file. Make sure it is a valid .xlsx/.xls file.';
       } finally {
@@ -424,7 +492,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
       this.parsing = false;
       this.parseError = 'Failed to read Excel file.';
     };
-
     reader.readAsArrayBuffer(file);
   }
 
@@ -436,59 +503,131 @@ export class TimetableComponent implements OnInit, OnDestroy {
       this.parseError = 'No valid data found in file';
       return;
     }
-    const limit = this.PREVIEW_LIMIT;
-    this.parsedPreviewRows = data.slice(0, limit).map((r: any) => ({
-      BatchCode: safeTrim(r['BatchCode']),
-      CentCode: safeTrim(r['CentCode']),
-      Phase: safeTrim(r['Phase']),
-      FacultyID: safeTrim(r['FacultyID']),
-      PeriodType: safeTrim(r['PeriodType']),
-      Mode: safeTrim(r['Mode']),
-      ZoomUrl: safeTrim(r['ZoomUrl']),
-      Descriptions: safeTrim(r['Descriptions']),
-      Venue: safeTrim(r['Venue']),
-      TimeStart: this.previewTime(r['TimeStart']),
-      TimeEnd: this.previewTime(r['TimeEnd']),
-      WkStartOn: this.previewDate(r['WkStartOn']),
-      Dates: this.previewDate(r['Dates']),
-    }));
-    this.parsedPreviewTruncated = data.length > limit;
+    this.parsedPreviewRows = data
+      .slice(0, this.PREVIEW_LIMIT)
+      .map((r: any) => ({
+        BatchCode: safeTrim(r['BatchCode']),
+        CentCode: safeTrim(r['CentCode']),
+        PhaseName: safeTrim(r['PhaseName']),
+        FacultyID: safeTrim(r['FacultyID']),
+        PeriodType: safeTrim(r['PeriodType']),
+        Mode: safeTrim(r['Mode']),
+        ZoomUrl: safeTrim(r['ZoomUrl']),
+        Descriptions: safeTrim(r['Descriptions']),
+        Venue: safeTrim(r['Venue']),
+        TimeStart: this.previewTime(r['TimeStart']),
+        TimeEnd: this.previewTime(r['TimeEnd']),
+        WkStartOn: this.previewDate(r['WkStartOn']),
+        Dates: this.previewDate(r['Dates']),
+      }));
+    this.parsedPreviewTruncated = data.length > this.PREVIEW_LIMIT;
     const groupsMap = new Map<string, any[]>();
     const metaMap = new Map<string, any>();
     for (const r of data) {
       const batchCode = safeTrim(r['BatchCode']);
       const centerCode = safeTrim(r['CentCode']);
       const phase = safeTrim(r['Phase']);
-      const wkStartOnRaw = r['WkStartOn'];
+      const wkRaw = r['WkStartOn'];
       if (!batchCode) continue;
-      const wkStartOnMs = this.parseDDMMMYYYY(wkStartOnRaw);
+      const wkStartOnMs = this.parseDDMMMYYYY(wkRaw);
       if (!wkStartOnMs) {
-        this.parseError = `Invalid date format in "WkStartOn": "${safeTrim(wkStartOnRaw)}". Use dd-MMM-yyyy like 02-Feb-2026 or keep as Excel Date`;
+        this.parseError = `Invalid date format in "WkStartOn": "${safeTrim(wkRaw)}". Use dd-MMM-yyyy like 02-Feb-2026`;
         return;
       }
-      if (centerCode) {
-        const c = this.centerByCode.get(centerCode);
-        if (!c) {
-          this.parseError = `Center not found for CentCode "${centerCode}". Please match with Center centerCode in DB.`;
-          return;
-        }
+      if (centerCode && !this.centerByCode.get(centerCode)) {
+        this.parseError = `Center not found for CentCode "${centerCode}". Please match with Center centerCode in DB.`;
+        return;
       }
-      const wkStartOnLabel = safeTrim(wkStartOnRaw);
-      const key = `${batchCode}||${centerCode}||${wkStartOnLabel}||${phase}`;
+      const key = `${batchCode}||${centerCode}||${wkStartOnMs}`;
       if (!groupsMap.has(key)) groupsMap.set(key, []);
       groupsMap.get(key)!.push(r);
-
-      if (!metaMap.has(key)) {
+      if (!metaMap.has(key))
         metaMap.set(key, {
           batchCode,
           centerCode,
-          phase,
           wkStartOn: wkStartOnMs,
-          wkStartOnLabel: wkStartOnLabel || '(excel date)',
+          wkStartOnLabel: this.previewDate(wkRaw),
         });
-      }
     }
+    this._buildPayloadFromGroups(groupsMap, metaMap);
+  }
 
+  processCsvData(csvText: string) {
+    this.parseError = '';
+    this.parsedPreviewRows = [];
+    this.parsedPreviewTruncated = false;
+    const lines = csvText.split(/\r\n|\n/).filter((l) => l.trim() !== '');
+    if (lines.length < 2) {
+      this.parseError = 'CSV is empty';
+      return;
+    }
+    const headers = parseCsvLine(lines[0]);
+    const data: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCsvLine(lines[i]);
+      if (values.length < headers.length) continue;
+      const obj: any = {};
+      headers.forEach((h, idx) => (obj[h] = safeTrim(values[idx])));
+      data.push(obj);
+    }
+    if (!data.length) {
+      this.parseError = 'No valid data found in CSV';
+      return;
+    }
+    this.parsedPreviewRows = data
+      .slice(0, this.PREVIEW_LIMIT)
+      .map((r: any) => ({
+        BatchCode: safeTrim(r['BatchCode']),
+        CentCode: safeTrim(r['CentCode']),
+        WkStartOn: this.previewDate(r['WkStartOn']),
+        PhaseName: safeTrim(r['PhaseName']),
+        Dates: this.previewDate(r['Dates']),
+        TimeStart: this.previewTime(r['TimeStart']),
+        TimeEnd: this.previewTime(r['TimeEnd']),
+        FacultyID: safeTrim(r['FacultyID']),
+        PeriodType: safeTrim(r['PeriodType']),
+        Mode: safeTrim(r['Mode']),
+        ZoomUrl: safeTrim(r['ZoomUrl']),
+        Descriptions: safeTrim(r['Descriptions']),
+        Venue: safeTrim(r['Venue']),
+      }));
+    this.parsedPreviewTruncated = data.length > this.PREVIEW_LIMIT;
+
+    const groupsMap = new Map<string, any[]>();
+    const metaMap = new Map<string, any>();
+    for (const r of data) {
+      const batchCode = safeTrim(r['BatchCode']);
+      const centerCode = safeTrim(r['CentCode']);
+      const phase = safeTrim(r['Phase']);
+      const wkRaw = safeTrim(r['WkStartOn']);
+      if (!batchCode) continue;
+      const wkStartOnMs = this.parseDDMMMYYYY(wkRaw);
+      if (!wkStartOnMs) {
+        this.parseError = `Invalid date format in "WkStartOn": "${wkRaw}". Use dd-MMM-yyyy like 02-Feb-2026`;
+        return;
+      }
+      if (centerCode && !this.centerByCode.get(centerCode)) {
+        this.parseError = `Center not found for CentCode "${centerCode}". Please match with Center centerCode in DB.`;
+        return;
+      }
+      const key = `${batchCode}||${centerCode}||${wkStartOnMs}`;
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key)!.push(r);
+      if (!metaMap.has(key))
+        metaMap.set(key, {
+          batchCode,
+          centerCode,
+          wkStartOn: wkStartOnMs,
+          wkStartOnLabel: this.previewDate(wkRaw),
+        });
+    }
+    this._buildPayloadFromGroups(groupsMap, metaMap);
+  }
+
+  private _buildPayloadFromGroups(
+    groupsMap: Map<string, any[]>,
+    metaMap: Map<string, any>,
+  ) {
     const groupKeys = Array.from(groupsMap.keys());
     if (!groupKeys.length) {
       this.parseError = 'No valid timetable meta found (BatchCode/WkStartOn)';
@@ -496,30 +635,21 @@ export class TimetableComponent implements OnInit, OnDestroy {
     }
 
     const payloadGroups: any[] = [];
-    let totalDays = 0;
-    let totalPeriods = 0;
+    let totalDays = 0,
+      totalPeriods = 0;
 
     for (const k of groupKeys) {
       const rows = groupsMap.get(k) || [];
       const meta = metaMap.get(k);
-
-      const week = this.buildWeekPayloadFromRows(rows);
+      const week = this.buildWeekPayloadFromRows(rows, meta.batchCode);
       if (!week) return;
 
       const daysCount = week.length;
       const periodsCount = week.reduce(
-        (acc, d) => acc + (d.periods || []).length,
+        (acc: number, d: any) => acc + (d.periods || []).length,
         0,
       );
-
       const allPeriods = week.flatMap((d: any) => d.periods || []);
-      const onlineCount = allPeriods.filter(
-        (p: any) => p.mode === 'ONLINE',
-      ).length;
-      const offlineCount = allPeriods.filter(
-        (p: any) => p.mode !== 'ONLINE',
-      ).length;
-
       totalDays += daysCount;
       totalPeriods += periodsCount;
 
@@ -532,8 +662,8 @@ export class TimetableComponent implements OnInit, OnDestroy {
         week,
         daysCount,
         periodsCount,
-        onlineCount,
-        offlineCount,
+        onlineCount: allPeriods.filter((p: any) => p.mode === 'ONLINE').length,
+        offlineCount: allPeriods.filter((p: any) => p.mode !== 'ONLINE').length,
       });
     }
 
@@ -583,19 +713,21 @@ export class TimetableComponent implements OnInit, OnDestroy {
   }
 
   private parseDDMMMYYYY(dateStr: any): number | null {
-    if (dateStr instanceof Date && !isNaN(dateStr.getTime())) {
+    if (dateStr instanceof Date && !isNaN(dateStr.getTime()))
       return Date.UTC(
         dateStr.getFullYear(),
         dateStr.getMonth(),
         dateStr.getDate(),
       );
-    }
-    if (typeof dateStr === 'number' && Number.isFinite(dateStr)) {
-      if (dateStr > 59 && dateStr < 2958466) {
-        const ms = (Math.round(dateStr) - 25569) * 86400 * 1000;
-        const d = new Date(ms);
-        return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-      }
+    if (
+      typeof dateStr === 'number' &&
+      Number.isFinite(dateStr) &&
+      dateStr > 59 &&
+      dateStr < 2958466
+    ) {
+      const ms = (Math.round(dateStr) - 25569) * 86400 * 1000;
+      const d = new Date(ms);
+      return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
     }
     const raw =
       dateStr === undefined || dateStr === null ? '' : String(dateStr).trim();
@@ -611,11 +743,9 @@ export class TimetableComponent implements OnInit, OnDestroy {
     const s = raw.split(/[\sT]/)[0].trim();
     const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     if (iso) {
-      const yyyy = Number(iso[1]);
-      const mm = Number(iso[2]);
-      const dd = Number(iso[3]);
-      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
-      return Date.UTC(yyyy, mm - 1, dd);
+      const [, y, mo, dd] = iso.map(Number);
+      if (mo < 1 || mo > 12 || dd < 1 || dd > 31) return null;
+      return Date.UTC(y, mo - 1, dd);
     }
     const named = s.match(
       /^(\d{1,2})[-\/\s]([A-Za-z]{3,9})[-\/\s](\d{2}|\d{4})$/,
@@ -636,31 +766,27 @@ export class TimetableComponent implements OnInit, OnDestroy {
         dec: 11,
       };
       const dd = Number(named[1]);
-      const monKey = named[2].slice(0, 3).toLowerCase();
-      const mo = months[monKey];
+      const mo = months[named[2].slice(0, 3).toLowerCase()];
       let yyyy = Number(named[3]);
-      // Handle 2-digit year: Excel formats like '3-Feb-26'
       if (yyyy < 100) yyyy += yyyy < 50 ? 2000 : 1900;
       if (mo === undefined || dd < 1 || dd > 31 || yyyy < 1900) return null;
       return Date.UTC(yyyy, mo, dd);
     }
-
     return null;
   }
 
   private getStaffFromCsv(value: string) {
-    const key = safeTrim(value).toLowerCase();
-    if (!key) return null;
-    return this.staffByKey.get(key) || null;
+    return this.staffByKey.get(safeTrim(value).toLowerCase()) || null;
   }
-
   private getSubjectFromStaff(staff: any) {
     const subId = safeTrim(staff?.subject);
-    if (!subId) return null;
-    return this.subjectById.get(subId) || null;
+    return subId ? this.subjectById.get(subId) || null : null;
   }
 
-  private buildWeekPayloadFromRows(rows: any[]) {
+  private buildWeekPayloadFromRows(
+    rows: any[],
+    batchCode: string,
+  ): any[] | null {
     const daysOrder = [
       'MONDAY',
       'TUESDAY',
@@ -676,44 +802,53 @@ export class TimetableComponent implements OnInit, OnDestroy {
       const dateStr = safeTrim(row['Dates']);
       const epoch = this.parseDDMMMYYYY(dateStr);
       if (!epoch) {
-        this.parseError = `Invalid date format in "Dates": "${dateStr}". Use dd-MMM-yyyy like 02-Feb-2026`;
+        this.parseError = `Invalid date format in "Dates": "${dateStr}". Use dd-MMM-yyyy`;
         return null;
       }
-      const dateObj = new Date(epoch);
       const dayName =
-        daysOrder[dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1];
-      // const startMin = timeToMin(row['TimeStart']);
-      // const endMin = timeToMin(row['TimeEnd']);
-      // if (startMin === null || endMin === null) continue;
+        daysOrder[
+          new Date(epoch).getUTCDay() === 0
+            ? 6
+            : new Date(epoch).getUTCDay() - 1
+        ];
       const startMin = timeToMin(row['TimeStart']);
       const endMin = timeToMin(row['TimeEnd']);
       if (startMin === null || endMin === null) {
-        this.parseError = `Invalid time on row with FacultyID "${safeTrim(row['FacultyID'])}" on date "${safeTrim(row['Dates'])}": TimeStart="${safeTrim(row['TimeStart'])}" TimeEnd="${safeTrim(row['TimeEnd'])}"`;
+        this.parseError = `Invalid time — FacultyID "${safeTrim(row['FacultyID'])}" date "${dateStr}"`;
         return null;
       }
       if (endMin <= startMin) {
-        this.parseError = `TimeEnd must be after TimeStart on row with FacultyID "${safeTrim(row['FacultyID'])}" on date "${safeTrim(row['Dates'])}" (${safeTrim(row['TimeStart'])} – ${safeTrim(row['TimeEnd'])})`;
+        this.parseError = `TimeEnd must be after TimeStart — FacultyID "${safeTrim(row['FacultyID'])}" date "${dateStr}"`;
         return null;
       }
       const facultyRaw = safeTrim(row['FacultyID']);
       const staff = this.getStaffFromCsv(facultyRaw);
       if (!staff) {
-        this.parseError = `Staff not found for FacultyID "${facultyRaw}". Please match with staffId/staffCode/employeeId in DB.`;
+        this.parseError = `Staff not found for FacultyID "${facultyRaw}". Match staffId/staffCode/employeeId in DB.`;
         return null;
       }
+
       const subj = this.getSubjectFromStaff(staff);
-      const periodTypeRaw =
-        safeTrim(row['PeriodType']).toUpperCase() || 'LECTURE';
-      const periodType = VALID_PERIOD_TYPES.includes(periodTypeRaw)
-        ? periodTypeRaw
-        : 'LECTURE';
-      const modeRaw = safeTrim(row['Mode']).toUpperCase() || 'OFFLINE';
-      const mode = VALID_MODES.includes(modeRaw) ? modeRaw : 'OFFLINE';
+      const periodType = (() => {
+        const t = safeTrim(row['PeriodType']).toUpperCase() || 'LECTURE';
+        return VALID_PERIOD_TYPES.includes(t) ? t : 'LECTURE';
+      })();
+      const mode = (() => {
+        const m = safeTrim(row['Mode']).toUpperCase() || 'OFFLINE';
+        return VALID_MODES.includes(m) ? m : 'OFFLINE';
+      })();
       const zoomUrl =
         mode === 'ONLINE' ? safeTrim(row['ZoomUrl']) || null : null;
+      const phaseNameRaw = safeTrim(row['PhaseName']) || safeTrim(row['Phase']);
+      const resolvedPhase = phaseNameRaw
+        ? this.resolvePhaseForBatch(batchCode, phaseNameRaw)
+        : null;
+      if (phaseNameRaw && !resolvedPhase)
+        console.warn(
+          `Phase "${phaseNameRaw}" not found for batch "${batchCode}" — period will have no phase link`,
+        );
 
       if (!weekMap.has(dayName)) weekMap.set(dayName, []);
-
       weekMap.get(dayName)!.push({
         startMin,
         endMin,
@@ -728,10 +863,13 @@ export class TimetableComponent implements OnInit, OnDestroy {
         subjectId: subj ? safeTrim(subj?._id) : null,
         subjectCode: subj ? safeTrim(subj?.subjectCode) : null,
         subjectName: subj ? safeTrim(subj?.subjectName) : null,
+        phaseId: resolvedPhase?.phaseId || null,
+        phaseName: resolvedPhase?.phaseName || null,
         topic: safeTrim(row['Descriptions']) || null,
         venue: safeTrim(row['Venue']) || null,
       });
     }
+
     const weekPayload: any[] = [];
     weekMap.forEach((periods, day) => {
       periods.sort((a, b) => a.startMin - b.startMin);
@@ -754,9 +892,9 @@ export class TimetableComponent implements OnInit, OnDestroy {
           topic: p.topic,
           venue: p.venue,
         };
-        if (p.mode === 'ONLINE' && p.zoomUrl) {
-          period.zoomUrl = p.zoomUrl;
-        }
+        if (p.phaseId) period.phaseId = p.phaseId;
+        if (p.phaseName) period.phaseName = p.phaseName;
+        if (p.mode === 'ONLINE' && p.zoomUrl) period.zoomUrl = p.zoomUrl;
         return period;
       });
       weekPayload.push({ day, periods: periodsWithNo });
@@ -764,165 +902,8 @@ export class TimetableComponent implements OnInit, OnDestroy {
     return weekPayload;
   }
 
-  processCsvData(csvText: string) {
-    this.parseError = '';
-    this.parsedPreviewRows = [];
-    this.parsedPreviewTruncated = false;
-    const lines = csvText.split(/\r\n|\n/).filter((line) => line.trim() !== '');
-    if (lines.length < 2) {
-      this.parseError = 'CSV is empty';
-      return;
-    }
-    const headers = lines[0].split(',').map((h) => h.trim());
-    const data: any[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const row = lines[i].split(',');
-      if (row.length < headers.length) continue;
-      const obj: any = {};
-      headers.forEach((h, idx) => (obj[h] = safeTrim(row[idx])));
-      data.push(obj);
-    }
-    if (!data.length) {
-      this.parseError = 'No valid data found in CSV';
-      return;
-    }
-    const limit = this.PREVIEW_LIMIT;
-    this.parsedPreviewRows = data.slice(0, limit).map((r: any) => ({
-      BatchCode: safeTrim(r['BatchCode']),
-      CentCode: safeTrim(r['CentCode']),
-      WkStartOn: this.previewDate(r['WkStartOn']),
-      Phase: safeTrim(r['Phase']),
-      Dates: this.previewDate(r['Dates']),
-      TimeStart: this.previewTime(r['TimeStart']),
-      TimeEnd: this.previewTime(r['TimeEnd']),
-      FacultyID: safeTrim(r['FacultyID']),
-      PeriodType: safeTrim(r['PeriodType']),
-      Mode: safeTrim(r['Mode']),
-      ZoomUrl: safeTrim(r['ZoomUrl']),
-      Descriptions: safeTrim(r['Descriptions']),
-      Venue: safeTrim(r['Venue']),
-    }));
-    this.parsedPreviewTruncated = data.length > limit;
-    const groupsMap = new Map<string, any[]>();
-    const metaMap = new Map<string, any>();
-    for (const r of data) {
-      const batchCode = safeTrim(r['BatchCode']);
-      const centerCode = safeTrim(r['CentCode']);
-      const phase = safeTrim(r['Phase']);
-      const wkStartOnStr = safeTrim(r['WkStartOn']);
-      if (!batchCode) continue;
-      const wkStartOnMs = this.parseDDMMMYYYY(wkStartOnStr);
-      if (!wkStartOnMs) {
-        this.parseError = `Invalid date format in "WkStartOn": "${wkStartOnStr}". Use dd-MMM-yyyy like 02-Feb-2026`;
-        return;
-      }
-      if (centerCode) {
-        const c = this.centerByCode.get(centerCode);
-        if (!c) {
-          this.parseError = `Center not found for CentCode "${centerCode}". Please match with Center centerCode in DB.`;
-          return;
-        }
-      }
-      const key = `${batchCode}||${centerCode}||${wkStartOnStr}||${phase}`;
-      if (!groupsMap.has(key)) groupsMap.set(key, []);
-      groupsMap.get(key)!.push(r);
-      if (!metaMap.has(key)) {
-        metaMap.set(key, {
-          batchCode,
-          centerCode,
-          phase,
-          wkStartOn: wkStartOnMs,
-          wkStartOnLabel: wkStartOnStr,
-        });
-      }
-    }
-    const groupKeys = Array.from(groupsMap.keys());
-    if (!groupKeys.length) {
-      this.parseError = 'No valid timetable meta found (BatchCode/WkStartOn)';
-      return;
-    }
-    const payloadGroups: any[] = [];
-    let totalDays = 0;
-    let totalPeriods = 0;
-    for (const k of groupKeys) {
-      const rows = groupsMap.get(k) || [];
-      const meta = metaMap.get(k);
-      const week = this.buildWeekPayloadFromRows(rows);
-      if (!week) return;
-      const daysCount = week.length;
-      const periodsCount = week.reduce(
-        (acc, d) => acc + (d.periods || []).length,
-        0,
-      );
-      const allPeriods = week.flatMap((d: any) => d.periods || []);
-      const onlineCount = allPeriods.filter(
-        (p: any) => p.mode === 'ONLINE',
-      ).length;
-      const offlineCount = allPeriods.filter(
-        (p: any) => p.mode !== 'ONLINE',
-      ).length;
-      totalDays += daysCount;
-      totalPeriods += periodsCount;
-      payloadGroups.push({
-        batchCode: meta.batchCode,
-        centerCode: meta.centerCode || null,
-        phase: meta.phase || null,
-        wkStartOn: meta.wkStartOn,
-        wkStartOnLabel: meta.wkStartOnLabel,
-        week,
-        daysCount,
-        periodsCount,
-        onlineCount,
-        offlineCount,
-      });
-    }
-    this.parseStats = {
-      totalGroups: payloadGroups.length,
-      totalDays,
-      totalPeriods,
-    };
-    if (payloadGroups.length === 1) {
-      const one = payloadGroups[0];
-      this.parsedMeta = {
-        batchCode: one.batchCode,
-        centerCode: one.centerCode,
-        phase: one.phase,
-        wkStartOn: one.wkStartOn,
-        wkStartOnLabel: one.wkStartOnLabel,
-      };
-      this.parsedPayload = {
-        batchCode: one.batchCode,
-        centerCode: one.centerCode,
-        phase: one.phase,
-        wkStartOn: one.wkStartOn,
-        week: one.week,
-      };
-      this.parsedGroupsPreview = [];
-    } else {
-      this.parsedMeta = null;
-      this.parsedPayload = payloadGroups.map((g) => ({
-        batchCode: g.batchCode,
-        centerCode: g.centerCode,
-        phase: g.phase,
-        wkStartOn: g.wkStartOn,
-        week: g.week,
-      }));
-      this.parsedGroupsPreview = payloadGroups.map((g) => ({
-        batchCode: g.batchCode,
-        centerCode: g.centerCode,
-        phase: g.phase,
-        wkStartOnLabel: g.wkStartOnLabel,
-        daysCount: g.daysCount,
-        periodsCount: g.periodsCount,
-        onlineCount: g.onlineCount,
-        offlineCount: g.offlineCount,
-      }));
-    }
-  }
-
   submitCreateFromCsv() {
-    if (!this.parsedPayload || this.parseError) return;
-    if (this.parsing) return;
+    if (!this.parsedPayload || this.parseError || this.parsing) return;
     const payload = {
       tenantId: this.tenantId,
       batchCode: safeTrim(this.parsedPayload.batchCode),
@@ -930,9 +911,10 @@ export class TimetableComponent implements OnInit, OnDestroy {
       phase: safeTrim(this.parsedPayload.phase) || undefined,
       wkStartOn: this.parsedPayload.wkStartOn,
       week: this.parsedPayload.week,
+      userId: localStorage.getItem('userId'),
     };
     if (!payload.batchCode || !payload.wkStartOn) {
-      this.alert.error('BatchCode and WkStartOn missing in CSV');
+      this.alert.error('BatchCode and WkStartOn missing');
       return;
     }
     if (!Array.isArray(payload.week) || !payload.week.length) {
@@ -940,59 +922,192 @@ export class TimetableComponent implements OnInit, OnDestroy {
       return;
     }
     this.loading = true;
-    this.commonApi.fetchData(payload, this.moduleName, 'create').subscribe({
-      next: (res: any) => {
-        this.loading = false;
-        const saved = res?.data;
-        this.alert.success('Timetable saved successfully');
-        this.closeUpload();
-        if (saved?._id) {
-          this.router.navigate(['/app/timetable/view', saved._id]);
-        } else {
-          this.applyFilters();
-        }
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Create failed');
-      },
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'create')
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => (this.loading = false)),
+      )
+      .subscribe({
+        next: (res: any) => {
+          this.alert.success('Timetable saved successfully');
+          this.closeUpload();
+          // Navigate to view screen by batchCode
+          this.router.navigate([
+            '/app/timetable/view',
+            safeTrim(this.parsedPayload.batchCode),
+          ]);
+        },
+        error: (err: any) => {
+          this.alert.error(err?.error?.message || 'Create failed');
+        },
+      });
   }
 
   submitImportFromCsv() {
     if (
       !this.parsedPayload ||
       !Array.isArray(this.parsedPayload) ||
-      this.parseError
+      this.parseError ||
+      this.parsing
     )
       return;
-    if (this.parsing) return;
     const payload = {
       tenantId: this.tenantId,
       data: this.parsedPayload,
+      userId: localStorage.getItem('userId'),
     };
     if (!payload.data.length) {
       this.alert.error('No valid timetable groups to import');
       return;
     }
     this.loading = true;
-    this.commonApi.fetchData(payload, this.moduleName, 'import').subscribe({
-      next: () => {
-        this.loading = false;
-        this.alert.success('Import completed successfully');
-        this.closeUpload();
-        this.applyFilters();
-      },
-      error: (err: any) => {
-        this.loading = false;
-        this.alert.error(err?.error?.message || 'Import failed');
-      },
-    });
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'import')
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => (this.loading = false)),
+      )
+      .subscribe({
+        next: () => {
+          this.alert.success('Import completed');
+          this.closeUpload();
+          this.applyFilters();
+        },
+        error: (err: any) => {
+          this.alert.error(err?.error?.message || 'Import failed');
+        },
+      });
   }
 
-  openView(row: any) {
-    const item = row?._raw || row;
-    this.router.navigate(['/app/timetable/view', item._id]);
+  // ─── Validate/confirm flow ────────────────────────────────────────────
+  openConfirm(mode: 'single' | 'bulk') {
+    if (!this.parsedPayload || this.parseError) return;
+    this.confirmMode = mode;
+    this.showConfirm = true;
+    this.validateLoading = false;
+    this.validateOk = false;
+    this.validateConflicts = [];
+  }
+
+  closeConfirm() {
+    if (this.validateLoading) return;
+    this.showConfirm = false;
+    this.validateLoading = false;
+    this.validateOk = false;
+    this.validateConflicts = [];
+  }
+
+  private buildValidationGroups(): any[] {
+    if (!this.parsedPayload) return [];
+    if (!Array.isArray(this.parsedPayload))
+      return [
+        {
+          batchCode: safeTrim(this.parsedPayload.batchCode),
+          centerCode: safeTrim(this.parsedPayload.centerCode) || null,
+          phase: safeTrim(this.parsedPayload.phase) || null,
+          wkStartOn: this.parsedPayload.wkStartOn,
+          week: this.parsedPayload.week,
+        },
+      ];
+    return this.parsedPayload.map((g: any) => ({
+      batchCode: safeTrim(g?.batchCode),
+      centerCode: safeTrim(g?.centerCode) || null,
+      phase: safeTrim(g?.phase) || null,
+      wkStartOn: g?.wkStartOn,
+      week: g?.week,
+    }));
+  }
+
+  runValidateAndProceed() {
+    if (this.validateLoading) return;
+    const groups = this.buildValidationGroups();
+    if (!groups.length) {
+      this.alert.error('No valid data to validate');
+      return;
+    }
+    this.validateLoading = true;
+    this.validateOk = false;
+    this.validateConflicts = [];
+    this.commonApi
+      .fetchData(
+        { tenantId: this.tenantId, data: groups },
+        this.moduleName,
+        'validate',
+      )
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => (this.validateLoading = false)),
+      )
+      .subscribe({
+        next: (res: any) => {
+          const conflicts = Array.isArray(res?.conflicts) ? res.conflicts : [];
+          this.validateConflicts = conflicts;
+          if (res?.status === true && !conflicts.length) {
+            this.validateOk = true;
+            this.alert.success('Validation passed — no conflicts found');
+          } else {
+            this.validateOk = false;
+            if (conflicts.length)
+              this.alert.warning(
+                `${conflicts.length} conflict(s) detected. Fix and re-upload.`,
+              );
+          }
+        },
+        error: (err: any) => {
+          this.validateOk = false;
+          const conflicts = Array.isArray(err?.error?.conflicts)
+            ? err.error.conflicts
+            : [];
+          this.validateConflicts = conflicts;
+          if (conflicts.length)
+            this.alert.warning(
+              `${conflicts.length} conflict(s) detected. Fix and re-upload.`,
+            );
+          else this.alert.error(err?.error?.message || 'Validation failed');
+        },
+      });
+  }
+
+  confirmProceed() {
+    if (!this.validateOk || this.validateConflicts.length) return;
+    this.showConfirm = false;
+    Array.isArray(this.parsedPayload)
+      ? this.submitImportFromCsv()
+      : this.submitCreateFromCsv();
+  }
+
+  private toAmPm(min: any): string {
+    const n = Number(min);
+    return Number.isFinite(n) && n >= 0 ? minToLabel(Math.trunc(n)) : '-';
+  }
+  conflictTimeRange(c: any): string {
+    const s = c?.startMin ?? c?.time?.startMin ?? c?.period?.time?.startMin;
+    const e = c?.endMin ?? c?.time?.endMin ?? c?.period?.time?.endMin;
+    const sn = Number(s),
+      en = Number(e);
+    if (Number.isFinite(sn) && Number.isFinite(en))
+      return `${this.toAmPm(sn)} – ${this.toAmPm(en)}`;
+    const m = String(c?.message || '').match(
+      /from\s+(\d+)\s+to\s+(\d+)\s+mins?/i,
+    );
+    if (m) {
+      const [, a, b] = m.map(Number);
+      if (Number.isFinite(a) && Number.isFinite(b))
+        return `${this.toAmPm(a)} – ${this.toAmPm(b)}`;
+    }
+    return '-';
+  }
+
+  private previewTime(v: any): string {
+    const mins = timeToMin(v);
+    return mins === null ? safeTrim(v) : minToLabel(mins);
+  }
+  private previewDate(v: any): string {
+    const ms = this.parseDDMMMYYYY(v);
+    if (!ms) return safeTrim(v);
+    const d = new Date(ms);
+    return `${String(d.getUTCDate()).padStart(2, '0')}-${d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })}-${d.getUTCFullYear()}`;
   }
 
   downloadSample() {
@@ -1007,11 +1122,10 @@ export class TimetableComponent implements OnInit, OnDestroy {
       'ZoomUrl',
       'Descriptions',
       'Venue',
-      'Phase',
+      'PhaseName',
       'CentCode',
       'WkStartOn',
     ];
-
     const rows = [
       [
         'JEE-2025-A',
@@ -1074,144 +1188,14 @@ export class TimetableComponent implements OnInit, OnDestroy {
         '09-Feb-2026',
       ],
     ];
-    const wsData = [headers, ...rows];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    headers.forEach((_, colIdx) => {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: colIdx });
-      if (ws[cellRef]) {
-        ws[cellRef].s = { font: { bold: true } };
-      }
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    headers.forEach((_, i) => {
+      const ref = XLSX.utils.encode_cell({ r: 0, c: i });
+      if (ws[ref]) ws[ref].s = { font: { bold: true } };
     });
     ws['!cols'] = headers.map((h) => ({ wch: Math.max(h.length + 4, 16) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
     XLSX.writeFile(wb, 'Timetable_Upload_Format.xlsx');
-  }
-
-  openConfirm(mode: 'single' | 'bulk') {
-    if (!this.parsedPayload || this.parseError) return;
-
-    this.confirmMode = mode;
-    this.showConfirm = true;
-
-    // reset validation state
-    this.validateLoading = false;
-    this.validateOk = false;
-    this.validateConflicts = [];
-  }
-
-  closeConfirm() {
-    if (this.validateLoading) return;
-    this.showConfirm = false;
-    this.validateLoading = false;
-    this.validateOk = false;
-    this.validateConflicts = [];
-  }
-
-  private buildValidationGroups(): any[] {
-    if (!this.parsedPayload) return [];
-    if (!Array.isArray(this.parsedPayload)) {
-      return [
-        {
-          batchCode: safeTrim(this.parsedPayload.batchCode),
-          centerCode: safeTrim(this.parsedPayload.centerCode) || null,
-          phase: safeTrim(this.parsedPayload.phase) || null,
-          wkStartOn: this.parsedPayload.wkStartOn,
-          week: this.parsedPayload.week,
-        },
-      ];
-    }
-    return this.parsedPayload.map((g: any) => ({
-      batchCode: safeTrim(g?.batchCode),
-      centerCode: safeTrim(g?.centerCode) || null,
-      phase: safeTrim(g?.phase) || null,
-      wkStartOn: g?.wkStartOn,
-      week: g?.week,
-    }));
-  }
-
-  runValidateAndProceed() {
-    if (this.validateLoading) return;
-    const groups = this.buildValidationGroups();
-    if (!groups.length) {
-      this.alert.error('No valid data to validate');
-      return;
-    }
-    this.validateLoading = true;
-    this.validateOk = false;
-    this.validateConflicts = [];
-    const payload = {
-      tenantId: this.tenantId,
-      data: groups,
-    };
-    this.commonApi.fetchData(payload, this.moduleName, 'validate').subscribe({
-      next: (res: any) => {
-        this.validateLoading = false;
-        const conflicts = Array.isArray(res?.conflicts) ? res.conflicts : [];
-        this.validateConflicts = conflicts;
-        if (res?.status === true && !conflicts.length) {
-          this.validateOk = true;
-          this.alert.success('Validation passed — no conflicts found');
-        } else {
-          this.validateOk = false;
-          if (conflicts.length) {
-            this.alert.warning(
-              `${conflicts.length} conflict(s) detected. Fix and re-upload.`,
-            );
-          }
-        }
-      },
-      error: (err: any) => {
-        this.validateLoading = false;
-        this.validateOk = false;
-        const conflicts = Array.isArray(err?.error?.conflicts)
-          ? err.error.conflicts
-          : [];
-        this.validateConflicts = conflicts;
-        if (conflicts.length) {
-          this.alert.warning(
-            `${conflicts.length} conflict(s) detected. Fix and re-upload.`,
-          );
-        } else {
-          this.alert.error(err?.error?.message || 'Validation failed');
-        }
-      },
-    });
-  }
-
-  confirmProceed() {
-    if (!this.validateOk || this.validateConflicts.length) return;
-    this.showConfirm = false;
-    if (Array.isArray(this.parsedPayload)) {
-      this.submitImportFromCsv();
-    } else {
-      this.submitCreateFromCsv();
-    }
-  }
-
-  private toAmPm(min: any): string {
-    const n = Number(min);
-    if (!Number.isFinite(n) || n < 0) return '-';
-    return minToLabel(Math.trunc(n));
-  }
-
-  conflictTimeRange(c: any): string {
-    const s = c?.startMin ?? c?.time?.startMin ?? c?.period?.time?.startMin;
-    const e = c?.endMin ?? c?.time?.endMin ?? c?.period?.time?.endMin;
-    const sn = Number(s);
-    const en = Number(e);
-    if (Number.isFinite(sn) && Number.isFinite(en)) {
-      return `${this.toAmPm(sn)} – ${this.toAmPm(en)}`;
-    }
-    const msg = String(c?.message || '');
-    const m = msg.match(/from\s+(\d+)\s+to\s+(\d+)\s+mins?/i);
-    if (m) {
-      const a = Number(m[1]);
-      const b = Number(m[2]);
-      if (Number.isFinite(a) && Number.isFinite(b)) {
-        return `${this.toAmPm(a)} – ${this.toAmPm(b)}`;
-      }
-    }
-    return '-';
   }
 }

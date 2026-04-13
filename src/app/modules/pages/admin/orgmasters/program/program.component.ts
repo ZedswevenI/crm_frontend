@@ -2,10 +2,10 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
-import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
-import { AlertService } from '../../../../../service/alert/alert.service';
-import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 import * as XLSX from 'xlsx';
+import { AlertService } from '../../../../../service/alert/alert.service';
+import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 
 type ImportMode = 'insert' | 'upsert';
 
@@ -17,78 +17,64 @@ type ImportMode = 'insert' | 'upsert';
 })
 export class ProgramComponent implements OnInit {
   programForm!: FormGroup;
-
   totalRecords = 0;
   programData: any[] = [];
   loading = false;
-
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   savingProgram = false;
   editingRecId: string | null = null;
-
   showView = false;
   viewData: any | null = null;
   viewLoading = false;
-
-  // Import
   showImport = false;
   importMode: ImportMode = 'upsert';
   importFileName = '';
   importPreviewRows: any[] = [];
   importHasInvalidRows = false;
   importInvalidCount = 0;
-
-  // Delete
   deleteModalVisible = false;
   deleteTarget: any | null = null;
   deleteMessage = '';
-
-  // Masters
   subjectOptions: any[] = [];
   private subjectByCode = new Map<string, any>();
   private subjectByName = new Map<string, any>();
-
   examCategoryOptions: any[] = [];
   examSubCategoryOptions: any[] = [];
   private examSubByCat = new Map<string, any[]>();
   private examCatById = new Map<string, any>();
   private examSubById = new Map<string, any>();
-
-  // Add Subjects modal
   showSubjectsModal = false;
   subjectsTargetRecId: string | null = null;
-  existingSubjectIds = new Set<string>(); // from view
-  private modalSelectedSubjectSet = new Set<string>(); // user's selection (includes existing)
-  modalSelectedSubjects: string[] = []; // for template binding if needed
+  existingSubjectIds = new Set<string>();
+  private modalSelectedSubjectSet = new Set<string>();
+  modalSelectedSubjects: string[] = [];
   addingSubjects = false;
-
-  // Exam Mapping modal
   showExamMappingModal = false;
   examMappingTargetRecId: string | null = null;
   savingExamMappings = false;
   examMapForm!: FormGroup;
-
   private lastTableParams: any = { page: 1, pageSize: 10 };
-
   private moduleName = 'ims';
   entiId: any;
-
+  showRemoveSubjectsModal = false;
+  removeSubjectsTargetRecId: string | null = null;
+  removeSubjectsExisting: any[] = [];
+  selectedSubjectsToRemove = new Set<string>();
+  removingSubjects = false;
   columns = [
     { key: 'name', label: 'Program Name', sortable: true },
     { key: 'code', label: 'Code', sortable: false },
     { key: 'stream', label: 'Stream', sortable: true },
     { key: 'eligibleToClass', label: 'Eligible Class', sortable: true },
     { key: 'startingClass', label: 'Start Class', sortable: true },
-    { key: 'duration', label: 'Duration', sortable: true }
+    { key: 'duration', label: 'Duration', sortable: true },
   ];
-
   streamOptions = [
     { label: 'JEE', value: 'JEE' },
     { label: 'NEET', value: 'NEET' },
     { label: 'Foundation', value: 'Foundation' },
   ];
-
   durationOptions = [1, 2, 3, 4, 5, 6].map((n) => ({
     label: String(n),
     value: n,
@@ -100,14 +86,13 @@ export class ProgramComponent implements OnInit {
       value: n,
     }),
   );
-
   startingClassOptions = Array.from({ length: 8 }, (_, i) => 5 + i).map(
     (n) => ({
       label: String(n),
       value: n,
     }),
   );
-
+  examMappingSubjectOptions: any[] = [];
   actions = [
     {
       type: 'icon',
@@ -126,6 +111,12 @@ export class ProgramComponent implements OnInit {
       icon: 'fa-solid fa-layer-group',
       tooltip: 'Add Subjects',
       callback: (row: any) => this.openSubjectsModal(row),
+    },
+    {
+      type: 'icon',
+      icon: 'fa-solid fa-circle-minus',
+      tooltip: 'Remove Subjects',
+      callback: (row: any) => this.openRemoveSubjectsModal(row),
     },
     {
       type: 'icon',
@@ -659,17 +650,43 @@ export class ProgramComponent implements OnInit {
   }
 
   // ================= Exam Mapping Modal =================
+  // openExamMappingModal(row: any) {
+  //   const recId = row?.recId || row?._raw?._id;
+  //   if (!recId) return;
+  //   this.examMappingTargetRecId = recId;
+  //   this.savingExamMappings = false;
+  //   this.showExamMappingModal = true;
+  //   this.examMappingsFA.clear();
+  //   this.commonApi
+  //     .fetchData(
+  //       { entiId: this.entiId, recId },
+  //       this.moduleName,
+  //       'program/view',
+  //     )
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         const v = res?.data || {};
+  //         const maps = Array.isArray(v.examMappings) ? v.examMappings : [];
+  //         for (const m of maps) {
+  //           this.examMappingsFA.push(this.makeExamMappingRow(m));
+  //         }
+  //       },
+  //       error: (err: any) => {
+  //         this.alert.error(
+  //           err?.error?.message || 'Failed to load exam mappings',
+  //         );
+  //       },
+  //     });
+  // }
+
   openExamMappingModal(row: any) {
     const recId = row?.recId || row?._raw?._id;
     if (!recId) return;
-
     this.examMappingTargetRecId = recId;
     this.savingExamMappings = false;
+    this.examMappingSubjectOptions = [];
     this.showExamMappingModal = true;
-
-    // clear & then append from view (your requirement)
     this.examMappingsFA.clear();
-
     this.commonApi
       .fetchData(
         { entiId: this.entiId, recId },
@@ -680,8 +697,12 @@ export class ProgramComponent implements OnInit {
         next: (res: any) => {
           const v = res?.data || {};
           const maps = Array.isArray(v.examMappings) ? v.examMappings : [];
-
-          // ✅ append existing mappings into formArray
+          const progSubs = Array.isArray(v.subjects) ? v.subjects : [];
+          this.examMappingSubjectOptions = progSubs.map((s: any) => ({
+            value: String(s?._id || s),
+            label: s?.subjectName || s?.subjectCode || String(s?._id || s),
+            code: s?.subjectCode || '',
+          }));
           for (const m of maps) {
             this.examMappingsFA.push(this.makeExamMappingRow(m));
           }
@@ -707,11 +728,27 @@ export class ProgramComponent implements OnInit {
     return this.examMapForm.get('examMappings') as FormArray;
   }
 
+  // private makeExamMappingRow(v?: any) {
+  //   return this.fb.group({
+  //     categoryId: [String(v?.categoryId || ''), Validators.required],
+  //     subCategoryId: [String(v?.subCategoryId || ''), Validators.required],
+  //     sortOrder: [this.toNum(v?.sortOrder) || 0, []],
+  //   });
+  // }
+
   private makeExamMappingRow(v?: any) {
+    const existingIds = Array.isArray(v?.subjectIds)
+      ? v.subjectIds
+          .map((x: any) =>
+            typeof x === 'object' ? String(x?._id || x) : String(x),
+          )
+          .filter(Boolean)
+      : [];
     return this.fb.group({
       categoryId: [String(v?.categoryId || ''), Validators.required],
       subCategoryId: [String(v?.subCategoryId || ''), Validators.required],
-      sortOrder: [this.toNum(v?.sortOrder) || 0, []],
+      subjectIds: [existingIds],
+      sortOrder: [this.toNum(v?.sortOrder) || 0],
     });
   }
 
@@ -736,6 +773,54 @@ export class ProgramComponent implements OnInit {
     return catId ? this.examSubByCat.get(catId) || [] : [];
   }
 
+  // saveExamMappings() {
+  //   if (this.savingExamMappings) return;
+  //   if (!this.examMappingTargetRecId) return;
+  //   this.examMappingsFA.markAllAsTouched();
+  //   if (this.examMappingsFA.invalid) {
+  //     this.alert.error('Please fix exam mapping rows');
+  //     return;
+  //   }
+  //   const rows = (this.examMappingsFA.value || []).map((x: any) => ({
+  //     categoryId: String(x.categoryId || '').trim(),
+  //     subCategoryId: String(x.subCategoryId || '').trim(),
+  //     sortOrder: this.toNum(x.sortOrder),
+  //   }));
+  //   const map = new Map<string, any>();
+  //   for (const r of rows) {
+  //     if (!r.categoryId || !r.subCategoryId) continue;
+  //     const key = `${r.categoryId}__${r.subCategoryId}`;
+  //     if (!map.has(key)) map.set(key, r);
+  //   }
+  //   const clean = Array.from(map.values());
+  //   if (!clean.length) {
+  //     this.alert.error('No valid mappings to save');
+  //     return;
+  //   }
+  //   this.savingExamMappings = true;
+  //   const payload = {
+  //     entiId: this.entiId,
+  //     recId: this.examMappingTargetRecId,
+  //     rows: clean,
+  //   };
+  //   this.commonApi
+  //     .fetchData(payload, this.moduleName, 'program/updateExamMappings')
+  //     .pipe(finalize(() => (this.savingExamMappings = false)))
+  //     .subscribe({
+  //       next: () => {
+  //         this.alert.success('Exam mappings saved');
+  //         this.savingExamMappings = false;
+  //         this.closeExamMappingModal();
+  //         this.refreshTable();
+  //       },
+  //       error: (err: any) => {
+  //         this.alert.error(
+  //           err?.error?.message || 'Failed to save exam mappings',
+  //         );
+  //       },
+  //     });
+  // }
+
   saveExamMappings() {
     if (this.savingExamMappings) return;
     if (!this.examMappingTargetRecId) return;
@@ -747,13 +832,26 @@ export class ProgramComponent implements OnInit {
     const rows = (this.examMappingsFA.value || []).map((x: any) => ({
       categoryId: String(x.categoryId || '').trim(),
       subCategoryId: String(x.subCategoryId || '').trim(),
+      subjectIds: Array.isArray(x.subjectIds)
+        ? x.subjectIds.map((s: any) => String(s)).filter(Boolean)
+        : [],
       sortOrder: this.toNum(x.sortOrder),
     }));
     const map = new Map<string, any>();
     for (const r of rows) {
       if (!r.categoryId || !r.subCategoryId) continue;
       const key = `${r.categoryId}__${r.subCategoryId}`;
-      if (!map.has(key)) map.set(key, r);
+      if (!map.has(key)) {
+        map.set(key, { ...r, subjectIds: [] });
+      }
+      const entry = map.get(key)!;
+      const existing = new Set(entry.subjectIds);
+      for (const sid of r.subjectIds) {
+        if (!existing.has(sid)) {
+          entry.subjectIds.push(sid);
+          existing.add(sid);
+        }
+      }
     }
     const clean = Array.from(map.values());
     if (!clean.length) {
@@ -768,15 +866,15 @@ export class ProgramComponent implements OnInit {
     };
     this.commonApi
       .fetchData(payload, this.moduleName, 'program/updateExamMappings')
-      .pipe(finalize(() => (this.savingExamMappings = false)))
       .subscribe({
         next: () => {
-          this.alert.success('Exam mappings saved');
           this.savingExamMappings = false;
+          this.alert.success('Exam mappings saved');
           this.closeExamMappingModal();
           this.refreshTable();
         },
         error: (err: any) => {
+          this.savingExamMappings = false;
           this.alert.error(
             err?.error?.message || 'Failed to save exam mappings',
           );
@@ -1048,5 +1146,122 @@ export class ProgramComponent implements OnInit {
       .trim()
       .toUpperCase()
       .replace(/\s+/g, ' ');
+  }
+
+  // ================= Remove Subjects Modal =================
+  openRemoveSubjectsModal(row: any) {
+    const recId = row?.recId || row?._raw?._id;
+    if (!recId) return;
+
+    this.removeSubjectsTargetRecId = recId;
+    this.removeSubjectsExisting = [];
+    this.selectedSubjectsToRemove.clear();
+    this.removingSubjects = false;
+    this.showRemoveSubjectsModal = true;
+
+    this.commonApi
+      .fetchData(
+        { entiId: this.entiId, recId },
+        this.moduleName,
+        'program/view',
+      )
+      .subscribe({
+        next: (res: any) => {
+          const v = res?.data || {};
+          const subs = Array.isArray(v.subjects) ? v.subjects : [];
+          this.removeSubjectsExisting = subs.map((s: any) => ({
+            value: String(s?._id || s),
+            label: s?.subjectName || s?.subjectCode || String(s?._id || s),
+            code: s?.subjectCode || '',
+          }));
+        },
+        error: () => {
+          this.removeSubjectsExisting = [];
+        },
+      });
+  }
+
+  closeRemoveSubjectsModal() {
+    if (this.removingSubjects) return;
+    this.showRemoveSubjectsModal = false;
+    this.removeSubjectsTargetRecId = null;
+    this.removeSubjectsExisting = [];
+    this.selectedSubjectsToRemove.clear();
+    this.removingSubjects = false;
+  }
+
+  toggleRemoveSubject(subjectId: string, checked: boolean) {
+    const id = String(subjectId);
+    checked
+      ? this.selectedSubjectsToRemove.add(id)
+      : this.selectedSubjectsToRemove.delete(id);
+  }
+
+  confirmRemoveSubjects() {
+    if (this.removingSubjects) return;
+    if (!this.removeSubjectsTargetRecId) return;
+    if (!this.selectedSubjectsToRemove.size) {
+      this.alert.error('Select at least one subject to remove');
+      return;
+    }
+    this.removingSubjects = true;
+    const payload = {
+      entiId: this.entiId,
+      recId: this.removeSubjectsTargetRecId,
+      subjects: Array.from(this.selectedSubjectsToRemove),
+    };
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'program/removesubjects')
+      .subscribe({
+        next: (res: any) => {
+          this.removingSubjects = false;
+          this.alert.success(
+            `${res?.data?.subjectsRemoved || ''} subject(s) removed. ` +
+              `${res?.data?.remainingExamMappings ?? ''} exam mapping(s) remain.`,
+          );
+          this.closeRemoveSubjectsModal();
+          this.refreshTable();
+        },
+        error: (err: any) => {
+          this.removingSubjects = false;
+          this.alert.error(err?.error?.message || 'Failed to remove subjects');
+        },
+      });
+  }
+
+  getSubjectLabels(subjectIds: any[]): string {
+    if (!Array.isArray(subjectIds) || !subjectIds.length) return '-';
+    return subjectIds
+      .map((s: any) => {
+        const id = typeof s === 'object' ? String(s?._id || s) : String(s);
+        const opt = this.subjectOptions.find(
+          (x: any) => String(x.value) === id,
+        );
+        return opt ? opt.label : id;
+      })
+      .join(', ');
+  }
+
+  toggleRowSubject(i: number, subjectId: string, checked: boolean) {
+    const g = this.examMappingsFA.at(i) as FormGroup;
+    const ctrl = g?.get('subjectIds');
+    if (!ctrl) return;
+    const current = [...((ctrl.value as string[]) || [])];
+    const id = String(subjectId);
+    if (checked && !current.includes(id)) {
+      ctrl.setValue([...current, id]);
+    } else if (!checked) {
+      ctrl.setValue(current.filter((x) => x !== id));
+    }
+    ctrl.markAsDirty();
+  }
+
+  isRowSubjectChecked(i: number, subjectId: string): boolean {
+    return this.getRowSubjectIds(i).includes(String(subjectId));
+  }
+
+  getRowSubjectIds(i: number): string[] {
+    const g = this.examMappingsFA.at(i) as FormGroup;
+    return (g?.get('subjectIds')?.value as string[]) || [];
   }
 }
