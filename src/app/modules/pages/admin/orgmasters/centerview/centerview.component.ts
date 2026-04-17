@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AlertService } from '../../../../../service/alert/alert.service';
-import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
-import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
+import { AlertService } from '../../../../../service/alert/alert.service';
+import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 
 @Component({
   selector: 'app-centerview',
@@ -13,7 +13,7 @@ import { finalize } from 'rxjs/operators';
   styleUrl: './centerview.component.scss',
 })
 export class CenterviewComponent implements OnInit {
-  entiId: any;
+ entiId: any;
   centerRecId: string = '';
   venueForm!: FormGroup;
   venueSaving = false;
@@ -29,6 +29,12 @@ export class CenterviewComponent implements OnInit {
     { key: 'status', label: 'Status', sortable: false },
   ];
   venueActions = [
+    {
+      type: 'icon',
+      icon: 'fa-regular fa-eye',
+      tooltip: 'View',
+      callback: (row: any) => this.openViewVenue(row),
+    },
     {
       type: 'icon',
       icon: 'fa-regular fa-pen-to-square',
@@ -49,6 +55,8 @@ export class CenterviewComponent implements OnInit {
   deleteVenueModalVisible = false;
   deleteVenueTarget: any | null = null;
   deleteVenueMessage = '';
+  showViewVenue = false;
+  viewVenueRec: any = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -73,14 +81,14 @@ export class CenterviewComponent implements OnInit {
     ).trim();
     this.venueForm = this.fb.group({
       venueName: ['', Validators.required],
-      capacity: [null, [Validators.required, Validators.min(1), Validators.pattern(/^\d+$/)]],
-      venueCode: ['', Validators.required],
-      address1: ['', Validators.required],
+      capacity: [null, [Validators.min(1), Validators.pattern(/^\d+$/)]],
+      venueCode: [''],
+      address1: [''],
       address2: [''],
-      city: ['', Validators.required],
-      area: ['', Validators.required],
-      state: ['', Validators.required],
-      pincode: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
+      city: [''],
+      area: [''],
+      state: [''],
+      pincode: ['', [Validators.pattern(/^\d{6}$/)]],
       phone: ['', [Validators.pattern(/^\d{10}$/)]],
       isActive: [true],
     });
@@ -163,6 +171,7 @@ export class CenterviewComponent implements OnInit {
     this.editingVenueId = row?._id || null;
     this.venueForm.patchValue({
       venueName: row.venueName,
+      venueCode: row.venueCode || '',
       capacity: row.capacity,
       isActive: row.status === 'Active',
       address1: row.address1 || '',
@@ -171,6 +180,7 @@ export class CenterviewComponent implements OnInit {
       city: row.city || '',
       state: row.state || '',
       pincode: row.pincode || '',
+      phone: row.phone || '',
     });
 
     this.showVenueForm = true;
@@ -192,13 +202,15 @@ export class CenterviewComponent implements OnInit {
       entiId: this.entiId,
       centerRecId: this.centerRecId,
       venueName: f.venueName,
-      capacity: f.capacity,
-      address1: f.address1,
-      address2: f.address2,
-      area: f.area,
-      city: f.city,
-      state: f.state,
-      pincode: f.pincode,
+      venueCode: f.venueCode || null,
+      capacity: f.capacity || null,
+      address1: f.address1 || null,
+      address2: f.address2 || null,
+      area: f.area || null,
+      city: f.city || null,
+      state: f.state || null,
+      pincode: f.pincode || null,
+      phone: f.phone || null,
       status: f.isActive ? 'Active' : 'Inactive',
     };
     const path =
@@ -247,5 +259,15 @@ export class CenterviewComponent implements OnInit {
       error: () => this.alert.error('Server error'),
     });
     this.deleteVenueTarget = null;
+  }
+
+  openViewVenue(row: any) {
+    this.viewVenueRec = row;
+    this.showViewVenue = true;
+  }
+
+  closeViewVenue() {
+    this.showViewVenue = false;
+    this.viewVenueRec = null;
   }
 }

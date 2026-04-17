@@ -30,7 +30,7 @@ export class ListComponent implements OnInit {
   pageSize = 10;
   searchText = '';
   statusFilter = 'all';
-  
+
   statusFilterOptions = [
     { label: 'All', value: 'all' },
     { label: 'Approved', value: 'approved' },
@@ -83,6 +83,14 @@ export class ListComponent implements OnInit {
       pageSize: this.pageSize,
       search: this.searchText
     });
+  }
+
+  onTable(event: any) {
+    this.pageSize = event.pageSize;
+
+    localStorage.setItem('pageSize', this.pageSize.toString());
+
+    this.fetchTableData(event);
   }
 
   fetchTableData(params: {

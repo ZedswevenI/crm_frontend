@@ -1,11 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
-import { AlertService } from '../../../../../service/alert/alert.service';
-import { CenterService } from '../../../../../service/admin/orgmasters/center.service';
-import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
+import { CenterService } from '../../../../../service/admin/orgmasters/center.service';
+import { AlertService } from '../../../../../service/alert/alert.service';
+import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 
 @Component({
   selector: 'app-center',
@@ -14,8 +14,7 @@ import { finalize } from 'rxjs/operators';
   styleUrl: './center.component.scss'
 })
 export class CenterComponent implements OnInit {
-
-  centerForm!: FormGroup;
+centerForm!: FormGroup;
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   editingId: string | null = null;
@@ -26,16 +25,6 @@ export class CenterComponent implements OnInit {
   totalRecords = 0;
   centerData: any[] = [];
   entiId: any;
-  institutes = [
-    { id: 1, name: 'Z7i Institute - Main' },
-    { id: 2, name: 'Z7i Institute - Chennai' }
-  ];
-
-  instituteOptions = this.institutes.map(i => ({
-    label: i.name,
-    value: i.id
-  }));
-
   columns = [
     { key: 'centerName', label: 'Center Name', sortable: false },
     { key: 'centerCode', label: 'Code', sortable: false },

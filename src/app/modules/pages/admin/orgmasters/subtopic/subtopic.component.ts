@@ -1,10 +1,9 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { AlertService } from '../../../../../service/alert/alert.service';
-import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import * as XLSX from 'xlsx';
 import { finalize } from 'rxjs/operators';
-
+import { AlertService } from '../../../../../service/alert/alert.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 @Component({
   selector: 'app-subtopic',
   standalone: false,
@@ -12,7 +11,7 @@ import { finalize } from 'rxjs/operators';
   styleUrl: './subtopic.component.scss',
 })
 export class SubtopicComponent implements OnInit {
-  moduleName = 'ims';
+ moduleName = 'ims';
   entiId = localStorage.getItem('tenantId');
   form!: FormGroup;
   classOptions = Array.from({ length: 8 }, (_, i) => ({
@@ -78,15 +77,38 @@ export class SubtopicComponent implements OnInit {
     this.loadSubjects();
   }
 
+  get subtopicRows(): FormArray {
+    return this.form.get('subtopicRows') as FormArray;
+  }
+
+  private createSubtopicRow(): FormGroup {
+    return this.fb.group({
+      subTopicName: ['', [Validators.required, Validators.maxLength(140)]],
+      subTopicCode: ['', [Validators.maxLength(30)]],
+      sortOrder: [0],
+    });
+  }
+
+  addSubtopicRow(): void {
+    this.subtopicRows.push(this.createSubtopicRow());
+  }
+
+  removeSubtopicRow(index: number): void {
+    if (this.subtopicRows.length > 1) {
+      this.subtopicRows.removeAt(index);
+    }
+  }
+
   private initForm() {
     this.form = this.fb.group({
       classNo: [null, Validators.required],
       subjectId: [null, Validators.required],
       topicId: [null, Validators.required],
       subTopicId: [null],
-      subTopicName: ['', [Validators.required, Validators.maxLength(140)]],
+      subTopicName: ['', [Validators.maxLength(140)]],
       subTopicCode: ['', [Validators.maxLength(30)]],
       sortOrder: [0],
+      subtopicRows: this.fb.array([this.createSubtopicRow()]),
     });
   }
 
@@ -277,6 +299,8 @@ export class SubtopicComponent implements OnInit {
       subTopicCode: '',
       sortOrder: 0,
     });
+    this.subtopicRows.clear();
+    this.subtopicRows.push(this.createSubtopicRow());
     this.topicOptions = [];
     this.showForm = true;
     this.deleteTarget = null;
@@ -290,6 +314,14 @@ export class SubtopicComponent implements OnInit {
       ? String(subjObj?._id || '')
       : String(x.subjectId || '');
     this.formMode = 'edit';
+
+    // Clear FormArray so it doesn't block validation in edit mode
+    this.subtopicRows.clear();
+
+    // Add required validator for single-row edit field
+    this.form.get('subTopicName')?.setValidators([Validators.required, Validators.maxLength(140)]);
+    this.form.get('subTopicName')?.updateValueAndValidity();
+
     this.form.patchValue({
       classNo: x.classNo,
       subjectId: subjectId,
@@ -312,46 +344,104 @@ export class SubtopicComponent implements OnInit {
 
   save() {
     if (this.saving) return;
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      this.alert.error('Fill required fields');
+
+    if (this.formMode === 'edit') {
+      if (this.form.invalid) {
+        this.form.markAllAsTouched();
+        this.alert.error('Fill required fields');
+        return;
+      }
+      const v = this.form.value || {};
+      const payload: any = {
+        entiId: this.entiId,
+        userId: localStorage.getItem('userId') || '',
+        classNo: v.classNo,
+        subjectId: v.subjectId,
+        topicId: (v.topicId || '').toString().trim(),
+        subTopicName: (v.subTopicName || '').toString().trim(),
+        subTopicCode: (v.subTopicCode || '').toString().trim() || null,
+        sortOrder: Number(v.sortOrder || 0),
+        subTopicId: v.subTopicId,
+      };
+      this.saving = true;
+      this.api
+        .fetchData(payload, this.moduleName, 'subtopic/update')
+        .pipe(finalize(() => (this.saving = false)))
+        .subscribe({
+          next: (res: any) => {
+            if (res?.status === false) {
+              this.alert.error(res?.message || 'Save failed');
+              return;
+            }
+            this.alert.success('Sub-topic updated');
+            this.showForm = false;
+            this.fetchTableData({ page: 1, pageSize: 10 });
+          },
+          error: (err: any) =>
+            this.alert.error(err?.error?.message || 'Save failed'),
+        });
       return;
     }
-    const v = this.form.value || {};
-    const payload: any = {
-      entiId: this.entiId,
-      userId: localStorage.getItem('userId') || '',
-      classNo: v.classNo,
-      subjectId: v.subjectId,
-      topicId: (v.topicId || '').toString().trim(),
-      subTopicName: (v.subTopicName || '').toString().trim(),
-      subTopicCode: (v.subTopicCode || '').toString().trim() || null,
-      sortOrder: Number(v.sortOrder || 0),
-    };
-    const endpoint =
-      this.formMode === 'create' ? 'subtopic/create' : 'subtopic/update';
-    if (this.formMode === 'edit') payload.subTopicId = v.subTopicId;
+
+    // Create mode — validate shared fields + subtopicRows
+    const classNo = this.form.get('classNo')?.value;
+    const subjectId = this.form.get('subjectId')?.value;
+    const topicId = this.form.get('topicId')?.value;
+    if (!classNo || !subjectId || !topicId) {
+      this.form.markAllAsTouched();
+      this.alert.error('Select Class, Subject and Topic');
+      return;
+    }
+    if (this.subtopicRows.invalid) {
+      this.subtopicRows.markAllAsTouched();
+      this.alert.error('Fill Sub-Topic Name for all rows');
+      return;
+    }
+
+    const rows = this.subtopicRows.value || [];
+    if (!rows.length) return;
+
     this.saving = true;
-    this.api
-      .fetchData(payload, this.moduleName, endpoint)
-      .pipe(finalize(() => (this.saving = false)))
-      .subscribe({
+    let completed = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+      const payload = {
+        entiId: this.entiId,
+        userId: localStorage.getItem('userId') || '',
+        classNo,
+        subjectId,
+        topicId: (topicId || '').toString().trim(),
+        subTopicName: (row.subTopicName || '').toString().trim(),
+        subTopicCode: (row.subTopicCode || '').toString().trim() || null,
+        sortOrder: Number(row.sortOrder || 0),
+      };
+      this.api.fetchData(payload, this.moduleName, 'subtopic/create').subscribe({
         next: (res: any) => {
-          if (res?.status === false) {
-            this.alert.error(res?.message || 'Save failed');
-            return;
-          }
-          this.alert.success(
-            this.formMode === 'create'
-              ? 'Sub-topic created'
-              : 'Sub-topic updated',
-          );
-          this.showForm = false;
-          this.fetchTableData({ page: 1, pageSize: 10 });
+          completed++;
+          if (res?.status === false) failed++;
+          this.checkCreateCompletion(rows.length, completed, failed);
         },
-        error: (err: any) =>
-          this.alert.error(err?.error?.message || 'Save failed'),
+        error: () => {
+          completed++;
+          failed++;
+          this.checkCreateCompletion(rows.length, completed, failed);
+        },
       });
+    }
+  }
+
+  private checkCreateCompletion(total: number, completed: number, failed: number): void {
+    if (completed < total) return;
+    this.saving = false;
+    const success = total - failed;
+    if (success > 0) {
+      this.alert.success(`${success} sub-topic(s) created${failed > 0 ? `, ${failed} failed` : ''}`);
+    } else {
+      this.alert.error('All sub-topic creations failed');
+    }
+    this.showForm = false;
+    this.fetchTableData({ page: 1, pageSize: 10 });
   }
 
   cancel() {

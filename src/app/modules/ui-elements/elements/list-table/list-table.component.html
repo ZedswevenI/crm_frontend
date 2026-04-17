@@ -124,7 +124,7 @@
                     </button>
 
                     <!-- dropdown group -->
-                    <div *ngIf="action.type === 'dropdown'" class="btn-group me-2">
+                    <!-- <div *ngIf="action.type === 'dropdown'" class="btn-group me-2">
                       <button type="button"
                         class="btn btn-sm submitbuttonclr d-inline-flex align-items-center whitespace-nowrap"
                         [ngClass]="action.color ? 'btn-' + action.color : 'btn-secondary'"
@@ -145,7 +145,27 @@
                           </a>
                         </li>
                       </ul>
-                    </div>
+                    </div> -->
+                    <div *ngIf="action.type === 'dropdown' && (!action.hidden || !action.hidden(row))"
+                    class="btn-group action-btn-group">
+
+                    <button type="button" class="btn btn-sm action-icon-btn" data-bs-toggle="dropdown"
+                      aria-expanded="false" #dropdownBtn>
+                      <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                      <ng-container *ngFor="let sub of action.dropdown">
+                        <li *ngIf="!sub.hidden || !sub.hidden(row)">
+                          <a class="dropdown-item d-flex align-items-center gap-2" data-bs-dismiss="dropdown"
+                            (click)="sub.callback(row)">
+                            <i *ngIf="sub.icon" [class]="sub.icon" class="icon-14"></i>
+                            {{ sub.text }}
+                          </a>
+                        </li>
+                      </ng-container>
+                    </ul>
+                  </div>
                   </ng-container>
                 </div>
               </td>

@@ -9,7 +9,7 @@
                 <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
                     <i class="fa-solid fa-file-import"></i><span>Import Staff</span>
                 </button>
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                <button *appHasRole="['L6','L1']" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
                     <i class="fa-solid fa-plus"></i><span>Add Staff</span>
                 </button>
             </div>
@@ -29,8 +29,8 @@
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">{{ formMode === "create" ? "Create Staff" : "Edit Staff" }}</h6>
-                    <span class="text-muted small">{{ formMode === "create" ? "Add a new staff record" : "Update staff
-                        details" }}</span>
+                    <span class="text-muted small">
+                        {{ formMode === "create" ? "Add a new staff record" : "Update staff details" }}</span>
                 </div>
                 <button type="button" class="btn-close" (click)="cancel()" aria-label="Close"></button>
             </div>
@@ -157,6 +157,18 @@
                                 Department is required</div>
                         </div>
 
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Salary CTC</label>
+                            <input type="number" class="form-control" formControlName="salaryCtc"
+                                placeholder="e.g. 600000" />
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Monthly Salary</label>
+                            <input type="number" class="form-control" formControlName="monthlySalary"
+                                placeholder="e.g. 50000" />
+                        </div>
+
                         <ng-container *ngIf="staffForm.get('role')?.value === 'Faculty'">
                             <div class="col-md-3">
                                 <selectbox label="Faculty Type" [required]="true" [options]="facultyTypeOptions"
@@ -222,7 +234,8 @@
                             <div class="text-muted">
                                 Staff Name | Staff Code | Employee ID | Role | Phone | Email |
                                 Create System Access | Center Code | Joining Date | Payroll |
-                                Department | Faculty Type | Subject | Weekoff | Status
+                                Department | Faculty Type | Subject | Salary CTC | Monthly Salary |
+                                Weekoff | Status
                             </div>
                             <div class="form-text mt-1">Joining Date: yyyy-MM-dd. Payroll: suguna or z7i (lowercase).
                             </div>
@@ -288,6 +301,8 @@
                                 <th>Department</th>
                                 <th>Faculty Type</th>
                                 <th>Subject</th>
+                                <th>Salary CTC</th>
+                                <th>Monthly Salary</th>
                                 <th>Weekoff</th>
                                 <th>Status</th>
                                 <th>Portal Access</th>
@@ -312,6 +327,8 @@
                                 <td>{{ r.department }}</td>
                                 <td>{{ r.facultyType || "-" }}</td>
                                 <td>{{ r.subject || "-" }}</td>
+                                <td>{{ r.salaryCtc ?? "-" }}</td>
+                                <td>{{ r.monthlySalary ?? "-" }}</td>
                                 <td>{{ r.weekoffText || "-" }}</td>
                                 <td>{{ r.status }}</td>
                                 <td>
@@ -425,6 +442,18 @@
                             <div class="small text-muted">Department</div>
                             <div class="fw-semibold">{{ viewRec.department?.departmentName || viewRec.departmentName ||
                                 "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Salary CTC</div>
+                            <div class="fw-semibold">{{ viewRec.salaryCtc ?? "-" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100">
+                            <div class="small text-muted">Monthly Salary</div>
+                            <div class="fw-semibold">{{ viewRec.monthlySalary ?? "-" }}</div>
                         </div>
                     </div>
                     <div class="col-md-4">

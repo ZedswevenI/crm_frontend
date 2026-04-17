@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
-import { AlertService } from '../../../../../service/alert/alert.service';
-import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import * as XLSX from 'xlsx';
 import { finalize } from 'rxjs/operators';
+import { AlertService } from '../../../../../service/alert/alert.service';
+import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 @Component({
   selector: 'app-topic',
   standalone: false,
@@ -39,6 +39,12 @@ export class TopicComponent implements OnInit {
   deleteTarget: any | null = null;
   deleteMessage = '';
 
+  // Add Sub-Topic from Topic
+  showSubtopicForm = false;
+  subtopicParent: any = null;
+  subtopicForm!: FormGroup;
+  savingSubtopics = false;
+
   // import
   showImport = false;
   importFileName = '';
@@ -55,6 +61,12 @@ export class TopicComponent implements OnInit {
   ];
 
   actions = [
+    {
+      type: 'icon',
+      icon: 'fa-solid fa-layer-group',
+      tooltip: 'Add Sub-Topics',
+      callback: (r: any) => this.openAddSubtopic(r),
+    },
     {
       type: 'icon',
       icon: 'fa-regular fa-pen-to-square',
@@ -381,6 +393,104 @@ export class TopicComponent implements OnInit {
   cancel() {
     if (this.saving) return;
     this.showForm = false;
+  }
+
+  // ============== ADD SUB-TOPICS FROM TOPIC ==============
+  get subtopicRows(): FormArray {
+    return this.subtopicForm?.get('rows') as FormArray;
+  }
+
+  private createSubtopicRow(): FormGroup {
+    return this.fb.group({
+      subTopicName: ['', [Validators.required, Validators.maxLength(140)]],
+      subTopicCode: ['', [Validators.maxLength(30)]],
+      sortOrder: [0],
+    });
+  }
+
+  openAddSubtopic(row: any) {
+    this.subtopicParent = {
+      classNo: row.classNo,
+      subjectId: row.subjectId,
+      subjectName: row.subjectName,
+      topicId: row.topicId,
+      topicName: row.topicName,
+    };
+    this.subtopicForm = this.fb.group({
+      rows: this.fb.array([this.createSubtopicRow()]),
+    });
+    this.showSubtopicForm = true;
+  }
+
+  addSubtopicRow(): void {
+    this.subtopicRows.push(this.createSubtopicRow());
+  }
+
+  removeSubtopicRow(index: number): void {
+    if (this.subtopicRows.length > 1) {
+      this.subtopicRows.removeAt(index);
+    }
+  }
+
+  cancelSubtopic(): void {
+    if (this.savingSubtopics) return;
+    this.showSubtopicForm = false;
+    this.subtopicParent = null;
+  }
+
+  saveSubtopics(): void {
+    if (this.savingSubtopics) return;
+    if (this.subtopicRows.invalid) {
+      this.subtopicRows.markAllAsTouched();
+      this.alert.error('Fill Sub-Topic Name for all rows');
+      return;
+    }
+
+    const rows = this.subtopicRows.value || [];
+    if (!rows.length) return;
+
+    const p = this.subtopicParent;
+    this.savingSubtopics = true;
+    let completed = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+      const payload = {
+        entiId: this.entiId,
+        userId: localStorage.getItem('userId') || '',
+        classNo: p.classNo,
+        subjectId: p.subjectId,
+        topicId: p.topicId,
+        subTopicName: (row.subTopicName || '').toString().trim(),
+        subTopicCode: (row.subTopicCode || '').toString().trim() || null,
+        sortOrder: Number(row.sortOrder || 0),
+      };
+      this.commonApi.fetchData(payload, this.moduleName, 'subtopic/create').subscribe({
+        next: (res: any) => {
+          completed++;
+          if (res?.status === false) failed++;
+          this.checkSubtopicCompletion(rows.length, completed, failed);
+        },
+        error: () => {
+          completed++;
+          failed++;
+          this.checkSubtopicCompletion(rows.length, completed, failed);
+        },
+      });
+    }
+  }
+
+  private checkSubtopicCompletion(total: number, completed: number, failed: number): void {
+    if (completed < total) return;
+    this.savingSubtopics = false;
+    const success = total - failed;
+    if (success > 0) {
+      this.alert.success(`${success} sub-topic(s) created${failed > 0 ? `, ${failed} failed` : ''}`);
+    } else {
+      this.alert.error('All sub-topic creations failed');
+    }
+    this.showSubtopicForm = false;
+    this.subtopicParent = null;
   }
 
   // ===================== IMPORT =====================

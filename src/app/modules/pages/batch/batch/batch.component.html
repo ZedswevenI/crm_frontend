@@ -1,113 +1,128 @@
+<!-- batch.component.html -->
 <div class="batch-page">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
             <h5 class="mb-0 fw-semibold">Batches (Classes)</h5>
-            <div class="text-muted small">
-                Create and manage batch, faculty mapping and student assignment.
-            </div>
+            <div class="text-muted small">Create and manage batches, faculty mapping and student assignment.</div>
         </div>
-
         <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-secondary" (click)="refresh()">
+            <button class="btn btn-outline-secondary rounded-pill fs-16 fw-medium" type="button"
+                (click)="toggleFilters()">
+                <i class="fa-solid fa-filter"></i> {{ showFilters ? 'Hide Filters' : 'Filters' }}
+            </button>
+            <button class="btn btn-outline-primary rounded-pill fs-16 fw-medium" (click)="refresh()">
                 <i class="fa-solid fa-rotate"></i> Refresh
             </button>
-            <button class="btn btn-sm btn-saffron" (click)="openCreate()">
+            <button class="btn btn-newbutton rounded-pill fs-16 fw-medium" (click)="openCreate()">
                 <i class="fa-solid fa-plus"></i> Create Batch
             </button>
         </div>
     </div>
 </div>
 
+<!-- TABLE CARD -->
 <div class="row g-3">
     <div class="col-12">
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-white border-0">
+
+            <!-- FILTERS -->
+            <div class="card-header bg-white border-0" *ngIf="showFilters">
                 <form [formGroup]="filterForm" class="row g-2 align-items-end">
                     <div class="col-12 col-md-4">
                         <formfield label="Search" formControlName="search" [control]="filterForm.get('search')"
-                            placeholder="Batch name / code / program / center">
-                        </formfield>
+                            placeholder="Batch name / code / program / center"></formfield>
                     </div>
                     <div class="col-6 col-md-2">
                         <selectbox label="Status" formControlName="status" [control]="filterForm.get('status')"
-                            [options]="statusOptions" optionLabel="label" optionValue="value">
-                        </selectbox>
+                            [options]="statusOptions" optionLabel="label" optionValue="value"></selectbox>
                     </div>
                     <div class="col-6 col-md-2">
                         <selectbox label="Program" formControlName="programId" [control]="filterForm.get('programId')"
-                            [options]="programOptions" optionLabel="label" optionValue="value">
-                        </selectbox>
+                            [options]="programOptions" optionLabel="label" optionValue="value"></selectbox>
                     </div>
                     <div class="col-6 col-md-2">
                         <selectbox label="Center" formControlName="centerId" [control]="filterForm.get('centerId')"
-                            [options]="centerOptions" optionLabel="label" optionValue="value">
-                        </selectbox>
+                            [options]="centerOptions" optionLabel="label" optionValue="value"></selectbox>
                     </div>
                     <div class="col-12 d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="clearFilters()">
-                            Clear
-                        </button>
-                        <button type="button" class="btn btn-sm btn-primary" (click)="refresh()">
-                            Search
-                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                            (click)="clearFilters()">Clear</button>
+                        <button type="button" class="btn btn-sm btn-primary" (click)="refresh()">Search</button>
                     </div>
                 </form>
             </div>
 
-            <div class="card-body pt-0">
-                <list-table [autoFitChars]="true" (requestData)="loadBatches($event)" [columns]="columns"
-                    [totalRecords]="totalRecords" [data]="batchRows" [actions]="actions" [showpageoptions]="true">
+            <div class="card-body pt-0 mt-3">
+                <list-table [autoFitChars]="true" [showsearch]="false" (requestData)="loadBatches($event)"
+                    [columns]="columns" [totalRecords]="totalRecords" [data]="batchRows" [actions]="actions"
+                    [showpageoptions]="true">
                 </list-table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- CREATE MODAL -->
+<!-- ═══════════════════════════════════════════════════════════════
+     CREATE / EDIT BATCH MODAL
+     ✅ FIX: modal title now shows Create vs Edit correctly
+     ════════════════════════════════════════════════════════════ -->
 <div class="modal-backdrop fade show" *ngIf="showEditorModal"></div>
 <div class="modal fade show d-block" tabindex="-1" *ngIf="showEditorModal">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header">
-                <h6 class="modal-title fw-semibold mb-0">Create Batch</h6>
+                <!-- ✅ FIX: dynamic title -->
+                <h6 class="modal-title fw-semibold mb-0">
+                    <i class="fa-solid fa-layer-group me-1"></i>
+                    {{ isEditMode ? 'Edit Batch' : 'Create Batch' }}
+                </h6>
                 <button type="button" class="btn-close" (click)="closeEditorModal()"></button>
             </div>
             <div class="modal-body">
                 <form [formGroup]="editorForm" class="row g-2">
                     <div class="col-12 col-md-6">
                         <formfield label="Batch Name" [required]="true" formControlName="batchName"
-                            [control]="editorForm.get('batchName')" placeholder="e.g., Batch A">
-                        </formfield>
+                            [control]="editorForm.get('batchName')" placeholder="e.g., Batch A"></formfield>
                     </div>
                     <div class="col-12 col-md-6">
                         <formfield label="Batch Code" [required]="true" formControlName="batchCode"
-                            [control]="editorForm.get('batchCode')" placeholder="e.g., BAT-01">
-                        </formfield>
+                            [control]="editorForm.get('batchCode')" placeholder="e.g., BAT-01"></formfield>
                     </div>
-
                     <div class="col-12 col-md-4">
                         <selectbox label="Course Start Year" [required]="true" formControlName="courseStartYear"
                             [control]="editorForm.get('courseStartYear')" [options]="courseStartYearOptions"
-                            optionLabel="label" optionValue="value">
-                        </selectbox>
+                            optionLabel="label" optionValue="value"></selectbox>
                     </div>
                     <div class="col-12 col-md-6">
                         <selectbox label="Program" [required]="true" formControlName="programId"
                             [control]="editorForm.get('programId')" [options]="programOptionsForEditor"
-                            optionLabel="label" optionValue="value">
-                        </selectbox>
+                            optionLabel="label" optionValue="value"></selectbox>
                     </div>
                     <div class="col-12 col-md-6">
                         <selectbox label="Center" [required]="true" formControlName="centerId"
                             [control]="editorForm.get('centerId')" [options]="centerOptionsForEditor"
-                            optionLabel="label" optionValue="value">
-                        </selectbox>
+                            optionLabel="label" optionValue="value"></selectbox>
+                    </div>
+                    <!-- Edit mode: show status -->
+                    <div class="col-12 col-md-4" *ngIf="isEditMode">
+                        <selectbox label="Status" [required]="true" formControlName="status"
+                            [control]="editorForm.get('status')" [options]="statusEditorOptions" optionLabel="label"
+                            optionValue="value"></selectbox>
+                    </div>
+                    <!-- Edit mode: show date fields -->
+                    <div class="col-6 col-md-4" *ngIf="isEditMode">
+                        <formfield label="Start Date" [required]="true" formControlName="startDate"
+                            [control]="editorForm.get('startDate')" type="date"></formfield>
+                    </div>
+                    <div class="col-6 col-md-4" *ngIf="isEditMode">
+                        <formfield label="End Date" formControlName="endDate" [control]="editorForm.get('endDate')"
+                            type="date"></formfield>
                     </div>
                     <div class="col-12 col-md-6">
                         <description label="Remarks" formControlName="remarks" [control]="editorForm.get('remarks')">
                         </description>
                     </div>
-                    <div class="col-12">
+                    <div class="col-12" *ngIf="!isEditMode">
                         <div class="alert alert-light border-0 small mb-0">
                             <i class="fa-solid fa-circle-info me-1"></i>
                             Academic Year is auto-set as the <b>first year</b> of the cohort. Dates are auto-filled from
@@ -116,23 +131,19 @@
                     </div>
                 </form>
             </div>
-
             <div class="modal-footer">
-                <button class="btn btn-sm btn-outline-secondary" (click)="closeEditorModal()">
-                    Cancel
-                </button>
-                <!-- <button class="btn btn-sm btn-primary" (click)="saveBatch()" [disabled]="loading">
-                    <i class="fa-solid fa-floppy-disk"></i> Save
-                </button> -->
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeEditorModal()">Cancel</button>
                 <button class="btn btn-sm btn-primary" (click)="saveBatch()" [disabled]="loading || editorForm.invalid">
-                    <i class="fa-solid fa-floppy-disk"></i> Save
+                    <i class="fa-solid fa-floppy-disk"></i> {{ isEditMode ? 'Update' : 'Save' }}
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ASSIGN STUDENTS MODAL -->
+<!-- ═══════════════════════════════════════════════════════════════
+     ASSIGN STUDENTS MODAL
+     ════════════════════════════════════════════════════════════ -->
 <div class="modal-backdrop fade show" *ngIf="showAssignModal"></div>
 <div class="modal fade show d-block" tabindex="-1" *ngIf="showAssignModal">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -140,9 +151,7 @@
             <div class="modal-header">
                 <div>
                     <div class="fw-semibold">Assign Students</div>
-                    <div class="text-muted small">
-                        {{ activeBatch?.batchName }} ({{ activeBatch?.batchCode }})
-                    </div>
+                    <div class="text-muted small">{{ activeBatch?.batchName }} ({{ activeBatch?.batchCode }})</div>
                 </div>
                 <button type="button" class="btn-close" (click)="closeAssignModal()"></button>
             </div>
@@ -150,17 +159,12 @@
                 <div class="d-flex gap-2 mb-2">
                     <input class="form-control form-control-sm" placeholder="Search (name / phone / admissionNo)"
                         [(ngModel)]="eligibleSearch" />
-                    <button class="btn btn-sm btn-outline-primary" (click)="applyEligibleFilter()">
-                        Go
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" (click)="resetEligibleFilter()">
-                        Reset
-                    </button>
+                    <button class="btn btn-sm btn-outline-primary" (click)="applyEligibleFilter()">Go</button>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="resetEligibleFilter()">Reset</button>
                 </div>
                 <div class="border rounded-3 p-2" style="max-height: 420px; overflow: auto;">
-                    <div *ngIf="!eligibleStudentsFiltered.length" class="text-muted small">
-                        No eligible students.
-                    </div>
+                    <div *ngIf="!eligibleStudentsFiltered.length" class="text-muted small py-3 text-center">No eligible
+                        students.</div>
                     <div *ngFor="let s of eligibleStudentsFiltered"
                         class="d-flex align-items-center gap-2 border-bottom py-2">
                         <input type="checkbox" #cb [checked]="selectedStudentIds.has(s?.studentId || '')"
@@ -180,10 +184,9 @@
                 <div class="d-flex justify-content-between align-items-center mt-2">
                     <div class="text-muted small">Selected: {{ selectedStudentIds.size }}</div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-secondary" (click)="closeAssignModal()">
-                            Cancel
-                        </button>
-                        <button class="btn btn-sm btn-primary" (click)="assignStudents()" [disabled]="loading">
+                        <button class="btn btn-sm btn-outline-secondary" (click)="closeAssignModal()">Cancel</button>
+                        <button class="btn btn-sm btn-primary" (click)="assignStudents()"
+                            [disabled]="loading || !selectedStudentIds.size">
                             Assign
                         </button>
                     </div>
@@ -193,7 +196,9 @@
     </div>
 </div>
 
-<!-- STAFF MAP MODAL -->
+<!-- ═══════════════════════════════════════════════════════════════
+     STAFF MAP MODAL
+     ════════════════════════════════════════════════════════════ -->
 <div class="modal-backdrop fade show" *ngIf="showStaffModal"></div>
 <div class="modal fade show d-block" tabindex="-1" *ngIf="showStaffModal">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -201,9 +206,8 @@
             <div class="modal-header">
                 <div>
                     <div class="fw-semibold">Batch Faculty Mapping</div>
-                    <div class="text-muted small">
-                        {{ activeBatchForStaff?.batchName }} ({{ activeBatchForStaff?.batchCode }})
-                    </div>
+                    <div class="text-muted small">{{ activeBatchForStaff?.batchName }} ({{
+                        activeBatchForStaff?.batchCode }})</div>
                 </div>
                 <button type="button" class="btn-close" (click)="closeStaffModal()"></button>
             </div>
@@ -220,13 +224,10 @@
                     </div>
                     <div class="col-12 col-md-5">
                         <selectbox label="Teaching Staff" [options]="staffOptionsFiltered" optionLabel="label"
-                            optionValue="value" [(ngModel)]="staffDraft.staffId">
-                        </selectbox>
+                            optionValue="value" [(ngModel)]="staffDraft.staffId"></selectbox>
                     </div>
                     <div class="col-12 col-md-2 d-grid">
-                        <button class="btn btn-sm btn-primary" (click)="addStaffMapRow()">
-                            Add
-                        </button>
+                        <button class="btn btn-sm btn-primary" (click)="addStaffMapRow()">Add</button>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -240,7 +241,7 @@
                         </thead>
                         <tbody>
                             <tr *ngIf="!staffMapRows.length">
-                                <td colspan="3" class="text-muted small">No mappings.</td>
+                                <td colspan="3" class="text-muted small">No mappings yet.</td>
                             </tr>
                             <tr *ngFor="let r of staffMapRows; let i = index">
                                 <td class="fw-semibold">{{ r.subjectName || '-' }}</td>
@@ -254,16 +255,380 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="text-muted small mt-2">
-                    Backend saves full staffMap array as-is.
-                </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-sm btn-outline-secondary" (click)="closeStaffModal()">
-                    Cancel
-                </button>
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeStaffModal()">Cancel</button>
                 <button class="btn btn-sm btn-primary" (click)="saveStaffMap()" [disabled]="loading">
                     <i class="fa-solid fa-floppy-disk"></i> Save Mapping
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PROMOTE BATCH MODAL
+     ════════════════════════════════════════════════════════════ -->
+<!-- <div class="modal-backdrop fade show" *ngIf="showPromoteModal"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showPromoteModal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0">
+                <h6 class="modal-title fw-semibold">
+                    <i class="fa-solid fa-arrow-up-right-dots me-1 text-primary"></i> Promote Batch
+                </h6>
+                <button type="button" class="btn-close" (click)="closePromoteModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning border-0 small mb-3">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                    This will advance the batch to the <b>next Academic Year</b> and increment the Class No. All
+                    assigned students remain in the batch.
+                </div>
+                <div class="border rounded-3 p-3 bg-light">
+                    <div class="row g-2 text-sm">
+                        <div class="col-6">
+                            <div class="text-muted small">Batch</div>
+                            <div class="fw-semibold">{{ promoteBatch?.batchName }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Current AY</div>
+                            <div class="fw-semibold">{{ promoteBatch?.academicYear }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Year No</div>
+                            <div class="fw-semibold">Year {{ promoteBatch?.yearNo }} → Year {{ (promoteBatch?.yearNo ||
+                                0) + 1 }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Class No</div>
+                            <div class="fw-semibold">Class {{ promoteBatch?.classNo }} → Class {{ (promoteBatch?.classNo
+                                || 0) + 1 }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closePromoteModal()">Cancel</button>
+                <button class="btn btn-sm btn-primary" (click)="confirmPromote()" [disabled]="loading">
+                    <i class="fa-solid fa-arrow-up-right-dots"></i> Confirm Promote
+                </button>
+            </div>
+        </div>
+    </div>
+</div> -->
+
+<div class="modal-backdrop fade show" *ngIf="showPromoteModal"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showPromoteModal">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:520px">
+        <div class="modal-content border-0 shadow">
+
+            <div class="modal-header border-0">
+                <h6 class="modal-title fw-semibold">
+                    <i class="fa-solid fa-arrow-up-right-dots me-1 text-primary"></i>
+                    Promote Batch
+                </h6>
+                <button type="button" class="btn-close" (click)="closePromoteModal()"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <!-- Success result after promote -->
+                <div *ngIf="promoteResult" class="alert alert-success border-0 rounded-3 mb-3">
+                    <div class="fw-semibold mb-1">
+                        <i class="fa-solid fa-circle-check me-1"></i>
+                        Promoted successfully
+                    </div>
+                    <div class="small">
+                        Now in <strong>{{ promoteResult.academicYear }}</strong>
+                        &nbsp;·&nbsp; Year {{ promoteResult.yearNo }}
+                        &nbsp;·&nbsp; Class {{ promoteResult.classNo }}
+                    </div>
+                    <div *ngIf="promoteResult.programSwitched" class="small mt-1 text-success">
+                        <i class="fa-solid fa-shuffle me-1"></i>
+                        Program switched to
+                        <strong>{{ promoteResult.newProgram?.programName }}</strong>
+                    </div>
+                    <div class="small mt-1 text-warning">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        Staff map has been cleared — please assign teachers for the new year
+                    </div>
+                </div>
+
+                <!-- Pre-promote form -->
+                <ng-container *ngIf="!promoteResult">
+
+                    <div class="alert alert-warning border-0 small mb-3">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        This advances the batch to the <b>next Academic Year</b>.
+                        Current staff mapping will be <strong>archived</strong> and
+                        cleared — you'll need to reassign teachers after promotion.
+                    </div>
+
+                    <!-- Current state -->
+                    <div class="border rounded-3 p-3 bg-light mb-3">
+                        <div class="row g-2 small">
+                            <div class="col-6">
+                                <div class="text-muted">Batch</div>
+                                <div class="fw-semibold">{{ promoteBatch?.batchName }}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted">Current AY</div>
+                                <div class="fw-semibold">{{ promoteBatch?.academicYear }}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted">Year No</div>
+                                <div class="fw-semibold">
+                                    Yr {{ promoteBatch?.yearNo }}
+                                    <i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:0.65rem"></i>
+                                    Yr {{ (promoteBatch?.yearNo || 0) + 1 }}
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted">Class No</div>
+                                <div class="fw-semibold">
+                                    Cls {{ promoteBatch?.classNo }}
+                                    <i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:0.65rem"></i>
+                                    Cls {{ (promoteBatch?.classNo || 0) + 1 }}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="text-muted">Current Program</div>
+                                <div class="fw-semibold">{{ promoteBatch?.programName || '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Optional program switch -->
+                    <div class="mb-1">
+                        <label class="form-label small fw-medium mb-1">
+                            Switch Program
+                            <span class="text-muted fw-normal">
+                                (optional — for stream change e.g. to NEET / JEE)
+                            </span>
+                        </label>
+                        <select class="form-select form-select-sm" [(ngModel)]="promoteNewProgramId">
+                            <option *ngFor="let p of promoteProgramOptions" [value]="p.value">
+                                {{ p.label }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Stream switch info -->
+                    <div *ngIf="promoteNewProgramId" class="alert alert-info border-0 small mt-2 mb-0 py-2">
+                        <i class="fa-solid fa-circle-info me-1"></i>
+                        Program will be switched for this batch.
+                        Student profiles retain their original enrollment program —
+                        only the batch and their <strong>AY history</strong> will
+                        reflect the new program.
+                    </div>
+
+                </ng-container>
+
+            </div>
+
+            <div class="modal-footer border-0">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closePromoteModal()">
+                    {{ promoteResult ? 'Close' : 'Cancel' }}
+                </button>
+                <button *ngIf="!promoteResult" class="btn btn-sm btn-primary" (click)="confirmPromote()"
+                    [disabled]="loading">
+                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    <i class="fa-solid fa-arrow-up-right-dots me-1" *ngIf="!loading"></i>
+                    Confirm Promote
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LATE ENTRY MODAL — Staff & Student
+     ════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop fade show" *ngIf="showLateModal"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showLateModal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <div>
+                    <h6 class="modal-title fw-semibold mb-0">
+                        <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i> Log Late Entry
+                    </h6>
+                    <div class="text-muted small">{{ lateEntryBatch?.batchName }} ({{ lateEntryBatch?.batchCode }})
+                    </div>
+                </div>
+                <button type="button" class="btn-close" (click)="closeLateModal()"></button>
+            </div>
+            <div class="modal-body">
+                <form [formGroup]="lateForm" class="row g-3">
+
+                    <!-- Type toggle -->
+                    <div class="col-12">
+                        <label class="form-label small fw-medium">Entry Type <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check" *ngFor="let opt of lateTypeOptions">
+                                <input class="form-check-input" type="radio" formControlName="type" [value]="opt.value"
+                                    [id]="'lateType_' + opt.value" (change)="onLateTypeChanged()" />
+                                <label class="form-check-label" [for]="'lateType_' + opt.value">{{ opt.label }}</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Person -->
+                    <div class="col-12">
+                        <selectbox label="Person" [required]="true" formControlName="personId"
+                            [control]="lateForm.get('personId')" [options]="latePersonOptions" optionLabel="label"
+                            optionValue="value">
+                        </selectbox>
+                        <div *ngIf="batchStudentsLoading" class="text-muted small mt-1">
+                            <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading students...
+                        </div>
+                    </div>
+
+                    <!-- Timetable ID -->
+                    <div class="col-12">
+                        <formfield label="Timetable ID" [required]="true" formControlName="timetableId"
+                            [control]="lateForm.get('timetableId')" placeholder="Auto-filled from active timetable">
+                        </formfield>
+                    </div>
+
+                    <!-- Period No + Scheduled Start -->
+                    <div class="col-6">
+                        <formfield label="Period No" [required]="true" formControlName="periodNo"
+                            [control]="lateForm.get('periodNo')" type="number" placeholder="1"></formfield>
+                    </div>
+                    <div class="col-6">
+                        <formfield label="Scheduled Start (min)" [required]="true" formControlName="scheduledStartMin"
+                            [control]="lateForm.get('scheduledStartMin')" type="number"
+                            placeholder="e.g. 540 = 9:00 AM"></formfield>
+                    </div>
+
+                    <!-- Delay -->
+                    <div class="col-6">
+                        <formfield label="Delay (minutes)" [required]="true" formControlName="delayMinutes"
+                            [control]="lateForm.get('delayMinutes')" type="number" placeholder="e.g. 15"></formfield>
+                    </div>
+
+                    <!-- Reason -->
+                    <div class="col-12">
+                        <formfield label="Reason" formControlName="reason" [control]="lateForm.get('reason')"
+                            placeholder="Optional reason"></formfield>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeLateModal()">Cancel</button>
+                <button class="btn btn-sm btn-warning" (click)="submitLateEntry()"
+                    [disabled]="loading || lateForm.invalid">
+                    <i class="fa-solid fa-clock"></i> Log Entry
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SPECIAL CLASS MODAL
+     ════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop fade show" *ngIf="showSpecialClassModal"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showSpecialClassModal">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <div>
+                    <h6 class="modal-title fw-semibold mb-0">
+                        <i class="fa-solid fa-calendar-plus me-1 text-success"></i> Add Special Class
+                    </h6>
+                    <div class="text-muted small">{{ specialClassBatch?.batchName }} ({{ specialClassBatch?.batchCode
+                        }})</div>
+                </div>
+                <button type="button" class="btn-close" (click)="closeSpecialClassModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light border-0 small mb-3">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    A special class is added as an extra period to the <b>active published timetable</b> for the
+                    selected date.
+                </div>
+                <form [formGroup]="specialClassForm" class="row g-3">
+
+                    <!-- Date + Period No -->
+                    <div class="col-6 col-md-4">
+                        <formfield label="Date" [required]="true" formControlName="date"
+                            [control]="specialClassForm.get('date')" type="date"></formfield>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <formfield label="Period No" [required]="true" formControlName="periodNo"
+                            [control]="specialClassForm.get('periodNo')" type="number" placeholder="e.g. 7"></formfield>
+                    </div>
+
+                    <!-- Time range -->
+                    <div class="col-6 col-md-3">
+                        <formfield label="Start Time" [required]="true" formControlName="startTime"
+                            [control]="specialClassForm.get('startTime')" type="time"></formfield>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <formfield label="End Time" [required]="true" formControlName="endTime"
+                            [control]="specialClassForm.get('endTime')" type="time"></formfield>
+                    </div>
+
+                    <!-- Subject -->
+                    <div class="col-12 col-md-6">
+                        <selectbox label="Subject" [required]="true" formControlName="subjectId"
+                            [control]="specialClassForm.get('subjectId')" [options]="specialClassSubjectOptions"
+                            optionLabel="label" optionValue="value">
+                        </selectbox>
+                    </div>
+
+                    <!-- Staff -->
+                    <div class="col-12 col-md-6">
+                        <selectbox label="Faculty" [required]="true" formControlName="staffId"
+                            [control]="specialClassForm.get('staffId')" [options]="specialClassStaffOptions"
+                            optionLabel="label" optionValue="value">
+                        </selectbox>
+                    </div>
+
+                    <!-- Period Type + Mode -->
+                    <div class="col-6 col-md-4">
+                        <selectbox label="Period Type" [required]="true" formControlName="periodType"
+                            [control]="specialClassForm.get('periodType')" [options]="periodTypeOptions"
+                            optionLabel="label" optionValue="value">
+                        </selectbox>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <selectbox label="Mode" [required]="true" formControlName="mode"
+                            [control]="specialClassForm.get('mode')" [options]="modeOptions" optionLabel="label"
+                            optionValue="value" (ngModelChange)="onSpecialClassModeChange()">
+                        </selectbox>
+                    </div>
+
+                    <!-- Topic -->
+                    <div class="col-12 col-md-8">
+                        <formfield label="Topic" formControlName="topic" [control]="specialClassForm.get('topic')"
+                            placeholder="Optional topic"></formfield>
+                    </div>
+
+                    <!-- Venue -->
+                    <div class="col-12 col-md-4">
+                        <formfield label="Venue" formControlName="venue" [control]="specialClassForm.get('venue')"
+                            placeholder="e.g. Room 101"></formfield>
+                    </div>
+
+                    <!-- Zoom URL (only for ONLINE) -->
+                    <div class="col-12" *ngIf="specialClassForm.get('mode')?.value === 'ONLINE'">
+                        <formfield label="Zoom URL" formControlName="zoomUrl"
+                            [control]="specialClassForm.get('zoomUrl')" placeholder="https://zoom.us/j/..."></formfield>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeSpecialClassModal()">Cancel</button>
+                <button class="btn btn-sm btn-success" (click)="submitSpecialClass()"
+                    [disabled]="loading || specialClassForm.invalid">
+                    <i class="fa-solid fa-calendar-plus"></i> Add Special Class
                 </button>
             </div>
         </div>

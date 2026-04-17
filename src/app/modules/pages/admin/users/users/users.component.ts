@@ -5,10 +5,15 @@ import { AlertService } from '../../../../../service/alert/alert.service';
 import { UserService } from '../../../../../service/admin/user.service';
 import { CenterService } from '../../../../../service/admin/orgmasters/center.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { AuthService } from '../../../../../service/auth/auth.service';
 import * as XLSX from 'xlsx';
 
-type RoleKey = 'L1' | 'L2' | 'L3' | 'L4' | 'L5';
+// FIX: L6 and L7 added
+type RoleKey = 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6' | 'L7';
 type ImportMode = 'insert' | 'upsert';
+
+// FIX: valid roles for import validation now includes L6 and L7
+const VALID_ROLE_LEVELS: RoleKey[] = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7'];
 
 interface RoleMeta {
   key: RoleKey;
@@ -24,7 +29,7 @@ interface RoleMeta {
   styleUrl: './users.component.scss',
 })
 export class UsersComponent implements OnInit {
-  userForm!: FormGroup;
+ userForm!: FormGroup;
   formMode: 'create' | 'edit' = 'create';
   showForm = false;
   editingId: string | null = null;
@@ -39,7 +44,7 @@ export class UsersComponent implements OnInit {
   users: any[] = [];
   totalRecords = 0;
   loading = false;
-  syncing = false;                          // FIX #11: loading state for sync
+  syncing = false;
   private lastTableParams: any = { page: 1, pageSize: 10 };
   showImport = false;
   importMode: ImportMode = 'upsert';
@@ -49,7 +54,6 @@ export class UsersComponent implements OnInit {
   importInvalidCount = 0;
   importing = false;
 
-  // FIX #6: added empCode and staffLinked columns so admin can see linkage
   columns = [
     { key: 'name',      label: 'User Name', sortable: true  },
     { key: 'email',     label: 'Email',     sortable: true  },
@@ -61,84 +65,126 @@ export class UsersComponent implements OnInit {
 
   actions = [
     {
-      type: 'icon',
-      icon: 'fa-solid fa-circle-info',
-      tooltip: 'Role permissions',
+      type: 'icon', icon: 'fa-solid fa-circle-info', tooltip: 'Role permissions',
       callback: (row: any) => this.openRoleInfo(row.roleLevel as RoleKey),
     },
     {
-      type: 'icon',
-      icon: 'fa-regular fa-pen-to-square',
-      tooltip: 'Edit',
+      type: 'icon', icon: 'fa-regular fa-pen-to-square', tooltip: 'Edit',
       callback: (row: any) => this.edit(row),
     },
     {
-      type: 'icon',
-      icon: 'fa-regular fa-trash-can',
-      tooltip: 'Delete',
-      hoverColor: '#D42B2B',
+      type: 'icon', icon: 'fa-regular fa-trash-can', tooltip: 'Delete', hoverColor: '#D42B2B',
       callback: (row: any) => this.openDelete(row),
     },
   ];
 
+  // FIX: labels now match Access Level excel exactly (L1–L7)
   roleOptions = [
-    { value: 'L1', label: 'L1 - Academic Head'       },
-    { value: 'L2', label: 'L2 - Admission Manager'   },
-    { value: 'L3', label: 'L3 - Accounts Manager'    },
-    { value: 'L4', label: 'L4 - Academic Operations' },
-    { value: 'L5', label: 'L5 - Teaching Faculty'    },
+    { value: 'L1', label: 'L1 - Super Admin'  },
+    { value: 'L2', label: 'L2 - Admissions'   },
+    { value: 'L3', label: 'L3 - AO'           },
+    { value: 'L4', label: 'L4 - Teacher'      },
+    { value: 'L5', label: 'L5 - Exam'         },
+    { value: 'L6', label: 'L6 - Account'      },
+    { value: 'L7', label: 'L7 - EDP'          },
   ];
 
+  // FIX: permissions rewritten to match Access Level excel exactly
   private roleMetaMap: Record<RoleKey, RoleMeta> = {
     L1: {
-      key: 'L1', title: 'L1 - Academic Head',
-      subtitle: 'Top-level access for academics and overall control.',
+      key: 'L1', title: 'L1 - Super Admin',
+      subtitle: 'Full access with no restrictions.',
       permissions: [
-        'Approval for admission',
-        'All types of report generation',
-        'Full read / write access to all academic and operational modules',
-        'Can override and approve actions from other levels',
+        'Access to all modules without any restriction',
+        'Can download all kinds of reports',
+        'Can approve or override actions from all other levels',
       ],
     },
     L2: {
-      key: 'L2', title: 'L2 - Admission Manager',
-      subtitle: 'End-to-end admissions & enrolment control.',
+      key: 'L2', title: 'L2 - Admissions',
+      subtitle: 'Admissions and student communication management.',
       permissions: [
-        'New enrolment / admission entry',
-        'Generate enrolment numbers for admitted students',
-        'Name / Address / Phone number change for students',
-        'Admission-related report generations',
-        'Program-wise students list export',
-        'Students Selected Not Joined report',
-        'Hall ticket print',
-        'View enrolment report',
-        'All admission-related report generations',
+        'Email ID and contact number update / edit for students',
+        'Blocklist defaulters and remove from blocklist',
+        'Communication and circular management',
+        'Task creation',
+        'Requires L1 approval for any edit or update',
+        'No download option for any module',
       ],
     },
     L3: {
-      key: 'L3', title: 'L3 - Accounts Manager',
-      subtitle: 'Fee, cheque tracking and financial reporting.',
+      key: 'L3', title: 'L3 - AO (Admin Officer)',
+      subtitle: 'Academic operations and administrative control.',
       permissions: [
-        'View admission entries (no edit / new entry)',
-        'Access to cheque details',
-        'MIS report for upcoming cheque deposits',
-        'Mark deposited cheques as collected / dishonoured',
-        'Handle replacement of dishonoured cheques',
-        'Accounts report generation',
+        'Timetable upload, edit classes, rearrange classes',
+        'Attendance entry and edit',
+        'Student search — view contact number and email only',
+        'Assignment enabling',
+        'View phase plan for all batches',
+        'Activities upload',
+        'Check student performance',
+        'Task creation',
+        'PTM scheduling',
+        'Library file upload',
+        'Circular creation and upload to batch / individual students',
+        'Faculty feedback scheduling',
+        'Communication access',
+        'No download option for any module',
       ],
     },
     L4: {
-      key: 'L4', title: 'L4 - Academic Operations',
-      subtitle: 'Operational control for classes and attendance.',
+      key: 'L4', title: 'L4 - Teacher',
+      subtitle: 'Teaching faculty portal access.',
       permissions: [
-        'Timetable management', 'Batch association',
-        'Faculty mapping', 'Attendance & academic reports',
+        'View timetable for their batches',
+        'Attendance entry for their classes',
+        'Assignment enabling for their batches',
+        'View phase plan for their assigned batches',
+        'View annual activities for their batches',
+        'View student performance — no sharing or downloading',
+        'View tasks and update own task status',
+        'Create personal tasks',
+        'View PTM schedule and enter comments per student',
+        'Library file upload',
+        'Apply for leave',
+        'No download option for any module',
       ],
     },
     L5: {
-      key: 'L5', title: 'L5 - Teaching Faculty',
-      subtitle: 'Faculty portal access.',
-      permissions: ['Mark attendance', 'View own timetable', 'View student list'],
+      key: 'L5', title: 'L5 - Exam',
+      subtitle: 'Exam management and reporting.',
+      permissions: [
+        'Exam schedule management',
+        'Seating plan creation',
+        'Exam report print',
+        'Consolidated exam report print',
+        'Results publishing and mail sending',
+        'Invigilation scheduling',
+        'Print allowed — no file download',
+      ],
+    },
+    L6: {
+      key: 'L6', title: 'L6 - Account',
+      subtitle: 'Staff and account management.',
+      permissions: [
+        'New teacher / staff entry',
+        'View faculty profiles individually',
+        'Change weekly off for faculty members',
+        'Email ID and contact number update for staff',
+        'Requires L1 approval for any edit or update',
+        'No download option for any module',
+      ],
+    },
+    L7: {
+      key: 'L7', title: 'L7 - EDP',
+      subtitle: 'Exam data preparation and question management.',
+      permissions: [
+        'Create exam schedule',
+        'Update answer key',
+        'QP print with or without answer key',
+        'Create questions in LaTeX',
+        'No download option for any module',
+      ],
     },
   };
 
@@ -150,6 +196,7 @@ export class UsersComponent implements OnInit {
     private centerService: CenterService,
     private api: CommonapiService,
     private cdr: ChangeDetectorRef,
+    private authService: AuthService,   // FIX: inject for self-delete guard
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
@@ -160,15 +207,13 @@ export class UsersComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // FIX #12: do NOT set Validators.required on password here — applyPasswordRules() handles it
     this.userForm = this.fb.group({
       name:     ['', Validators.required],
       email:    ['', [Validators.required, Validators.email]],
       phone:    ['', [Validators.required, Validators.pattern(/^\d{10}$/)]],
       role:     [null, Validators.required],
-      // FIX #1: empCode enabled by default; disabled only in edit mode via edit()
       empCode:  [''],
-      password: [''],   // validators applied dynamically by applyPasswordRules()
+      password: [''],
       centerId: [null, Validators.required],
       isActive: [true],
     });
@@ -176,7 +221,6 @@ export class UsersComponent implements OnInit {
     this.loadCenters();
   }
 
-  // FIX #12: validators applied after formMode is set
   private applyPasswordRules() {
     const pwd = this.userForm.get('password');
     if (!pwd) return;
@@ -190,7 +234,6 @@ export class UsersComponent implements OnInit {
     pwd.updateValueAndValidity({ emitEvent: false });
   }
 
-  // FIX #3 & #4: store both _id (mongo) and centerId (UUID) — use centerId as value
   loadCenters(): void {
     this.centerService.listCenters(this.entiId).subscribe({
       next: (res: any) => {
@@ -200,10 +243,9 @@ export class UsersComponent implements OnInit {
         }
         this.centers = res?.data || [];
         this.centerOptions = this.centers.map((c: any) => ({
-          label: c.centerName,
-          // FIX #3: use centerId UUID string as value (matches User.centerId field)
-          value: String(c.centerId || c._id || '').trim(),
-          _id:   c._id,
+          label:      c.centerName,
+          value:      String(c.centerId || c._id || '').trim(),
+          _id:        c._id,
           centerName: c.centerName,
         }));
       },
@@ -223,28 +265,22 @@ export class UsersComponent implements OnInit {
     this.lastTableParams = params || this.lastTableParams;
     this.loading = true;
     let sortParam = '';
-    if (params.sortKey) {
+    if (params.sortKey)
       sortParam = params.sortDirection === 'desc' ? `-${params.sortKey}` : params.sortKey;
-    }
+
     const query: any = { page: params.page, limit: params.pageSize };
     if (sortParam)     query.sort   = sortParam;
     if (params.search) query.search = params.search;
     const queryString = Object.keys(query)
-      .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(query[k])}`)
-      .join('&');
+      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(query[k])}`).join('&');
 
     this.api.fetchData({ entiId: this.entiId }, 'ims/user', `list?${queryString}`).subscribe({
       next: (res: any) => {
         const rows = Array.isArray(res?.data) ? res.data : [];
         this.users = rows.map((u: any) => ({
           ...u,
-          // FIX #6: expose empCode and staffLinked for table display
-          empCode:     u.empCode  || '-',
-          staffLinked: !!u.staffId,
-          roleLabel:
-            u.roleLabel ||
-            this.roleOptions.find(r => r.value === u.roleLevel)?.label ||
-            u.roleLevel || '-',
+          empCode:   u.empCode  || '-',
+          roleLabel: u.roleLabel || this.roleOptions.find((r) => r.value === u.roleLevel)?.label || u.roleLevel || '-',
         }));
         this.totalRecords = this.toNum(res?.count);
         this.loading = false;
@@ -264,7 +300,6 @@ export class UsersComponent implements OnInit {
     this.formMode = 'create';
     this.editingId = null;
     this.userForm.reset({ name: '', email: '', phone: '', role: null, centerId: null, isActive: true });
-    // FIX #1: enable empCode in create so user can type it
     this.userForm.get('empCode')?.enable({ emitEvent: false });
     this.userForm.get('empCode')?.setValue('', { emitEvent: false });
     this.applyPasswordRules();
@@ -272,18 +307,16 @@ export class UsersComponent implements OnInit {
   }
 
   edit(row: any): void {
-    this.formMode = 'edit';
+    this.formMode  = 'edit';
     this.editingId = row?._id || null;
     this.userForm.patchValue({
-      name:     row?.name     || '',
-      email:    row?.email    || '',
-      phone:    row?.phone    || '',
+      name:     row?.name      || '',
+      email:    row?.email     || '',
+      phone:    row?.phone     || '',
       role:     row?.roleLevel || null,
-      // FIX #3: centerId from user record is already the UUID string — matches centerOptions value
-      centerId: row?.centerId || null,
+      centerId: row?.centerId  || null,
       isActive: (row?.status || '') === 'Active',
     });
-    // FIX #1: empCode disabled in edit — changing staff link requires explicit re-link flow
     this.userForm.get('empCode')?.setValue(row?.empCode || '', { emitEvent: false });
     this.userForm.get('empCode')?.disable({ emitEvent: false });
     this.applyPasswordRules();
@@ -291,7 +324,7 @@ export class UsersComponent implements OnInit {
   }
 
   cancel(): void {
-    this.showForm = false;
+    this.showForm  = false;
     this.editingId = null;
   }
 
@@ -301,13 +334,9 @@ export class UsersComponent implements OnInit {
       this.alertService.error('Please fill all required fields');
       return;
     }
-    const raw = this.userForm.getRawValue() || {};
+    const raw      = this.userForm.getRawValue() || {};
     const centerId = String(raw.centerId || '').trim();
-
-    // FIX #4: find center by centerId UUID (not _id) to get centerName
-    const selectedCenter = this.centerOptions.find(
-      c => String(c.value) === centerId
-    );
+    const selectedCenter = this.centerOptions.find((c) => String(c.value) === centerId);
 
     const payload: any = {
       entiId:     this.entiId,
@@ -320,7 +349,6 @@ export class UsersComponent implements OnInit {
       centerName: selectedCenter?.centerName || null,
     };
 
-    // FIX #1: only send empCode if it has a value (create mode only since it's disabled in edit)
     const empCode = String(raw.empCode || '').trim();
     if (empCode) payload.empCode = empCode;
 
@@ -336,13 +364,8 @@ export class UsersComponent implements OnInit {
 
     api$.subscribe({
       next: (res: any) => {
-        if (res?.status === false) {
-          this.alertService.error(res?.message || 'Operation failed');
-          return;
-        }
-        this.alertService.success(
-          this.formMode === 'create' ? 'User created successfully' : 'User updated successfully'
-        );
+        if (res?.status === false) { this.alertService.error(res?.message || 'Operation failed'); return; }
+        this.alertService.success(this.formMode === 'create' ? 'User created successfully' : 'User updated successfully');
         this.showForm = false;
         this.refreshTable();
       },
@@ -351,11 +374,18 @@ export class UsersComponent implements OnInit {
   }
 
   openDelete(row: any): void {
+    // FIX: block L1 deletion
     if (row?.roleLevel === 'L1') {
-      this.alertService.error('L1 (Academic Head) users cannot be deleted.');
+      this.alertService.error('Super Admin (L1) users cannot be deleted.');
       return;
     }
-    this.deleteTarget = row;
+    // FIX: self-deletion guard — logged-in user cannot delete themselves
+    const currentUserId = localStorage.getItem('userid');
+    if (row?.userId && row.userId === currentUserId) {
+      this.alertService.error('You cannot delete your own account.');
+      return;
+    }
+    this.deleteTarget  = row;
     this.deleteMessage = `Are you sure you want to delete user "${row?.name || ''}"?`;
     this.deleteModalVisible = true;
   }
@@ -363,13 +393,9 @@ export class UsersComponent implements OnInit {
   onDeleteModalClosed(confirmed: boolean): void {
     this.deleteModalVisible = false;
     if (!confirmed || !this.deleteTarget) return;
-    // FIX #15: removed dead payload variable — service call uses correct args
     this.userService.deleteUser(this.entiId, this.deleteTarget._id).subscribe({
       next: (res: any) => {
-        if (res?.status === false) {
-          this.alertService.error(res?.message || 'Delete failed');
-          return;
-        }
+        if (res?.status === false) { this.alertService.error(res?.message || 'Delete failed'); return; }
         this.alertService.success('User deleted');
         this.refreshTable();
       },
@@ -380,7 +406,7 @@ export class UsersComponent implements OnInit {
 
   openRoleInfo(role: RoleKey | null): void {
     if (!role || !this.roleMetaMap[role]) return;
-    this.roleInfoKey  = role;
+    this.roleInfoKey     = role;
     this.roleInfoVisible = true;
   }
 
@@ -389,28 +415,18 @@ export class UsersComponent implements OnInit {
     this.roleInfoKey     = null;
   }
 
-  openImport() {
-    this.showImport = true;
-    this.resetImport();
-  }
-
-  closeImport() {
-    this.showImport  = false;
-    this.importing   = false;
-    this.resetImport();
-    this.cdr.detectChanges();
-  }
+  openImport()  { this.showImport = true;  this.resetImport(); }
+  closeImport() { this.showImport = false; this.importing = false; this.resetImport(); this.cdr.detectChanges(); }
 
   private resetImport() {
-    this.importFileName      = '';
-    this.importPreviewRows   = [];
+    this.importFileName       = '';
+    this.importPreviewRows    = [];
     this.importHasInvalidRows = false;
-    this.importInvalidCount  = 0;
-    this.importMode          = 'upsert';
-    this.importing           = false;
+    this.importInvalidCount   = 0;
+    this.importMode           = 'upsert';
+    this.importing            = false;
   }
 
-  // FIX #9: use readAsArrayBuffer instead of deprecated readAsBinaryString
   onExcelSelected(ev: any) {
     const file: File = ev?.target?.files?.[0];
     if (!file) return;
@@ -423,37 +439,33 @@ export class UsersComponent implements OnInit {
     const reader = new FileReader();
     reader.onload = (e: any) => {
       try {
-        const data: ArrayBuffer = e.target.result;
-        const wb = XLSX.read(data, { type: 'array' });     // FIX #9
-        const ws = wb.Sheets[wb.SheetNames[0]];
+        const wb  = XLSX.read(e.target.result as ArrayBuffer, { type: 'array' });
+        const ws  = wb.Sheets[wb.SheetNames[0]];
         const rawRows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' }) as any[];
         this.importPreviewRows = rawRows.map((r, idx) => this.mapExcelRow(r, idx + 2));
         this.computeImportValidation();
-      } catch (err) {
+      } catch {
         this.alertService.error('Unable to read Excel file');
         this.importPreviewRows = [];
         this.computeImportValidation();
       }
     };
     reader.onerror = () => this.alertService.error('Unable to read file');
-    reader.readAsArrayBuffer(file);                        // FIX #9
+    reader.readAsArrayBuffer(file);
   }
 
   private mapExcelRow(r: any, rowNo: number) {
     const get = (...keys: string[]) => {
       for (const k of keys) {
-        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '')
-          return String(r[k]).trim();
+        if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') return String(r[k]).trim();
       }
       return '';
     };
 
-    const name      = get('Name', 'Full Name', 'User Name', 'name');
-    const email     = get('Email', 'email').toLowerCase();
-    const phone     = get('Phone', 'phone');
-    // FIX #7: include L5 as valid role
-    const roleLevel = (get('Role', 'Role Level', 'roleLevel') || 'L4').toUpperCase();
-    // FIX #8: try center by name first, then by centerCode
+    const name       = get('Name', 'Full Name', 'User Name', 'name');
+    const email      = get('Email', 'email').toLowerCase();
+    const phone      = get('Phone', 'phone');
+    const roleLevel  = (get('Role', 'Role Level', 'roleLevel') || '').toUpperCase();
     const centerName = get('Center', 'Center Name', 'centerName');
     const centerCode = get('Center Code', 'CenterCode', 'centerCode');
     const empCode    = get('EmpCode', 'Employee Code', 'empCode');
@@ -464,17 +476,16 @@ export class UsersComponent implements OnInit {
     if (email && !this.isEmail(email)) errors.push('Invalid email');
     if (!phone) errors.push('Phone required');
     if (phone && !/^\d{10}$/.test(phone)) errors.push('Phone must be 10 digits');
-    // FIX #7: L5 is now valid
-    if (!['L1', 'L2', 'L3', 'L4', 'L5'].includes(roleLevel))
-      errors.push('Role must be L1/L2/L3/L4/L5');
+
+    // FIX: validate against full L1–L7 list
+    if (!VALID_ROLE_LEVELS.includes(roleLevel as RoleKey))
+      errors.push(`Role must be one of: ${VALID_ROLE_LEVELS.join(', ')}`);
+
     if (!centerName && !centerCode) errors.push('Center required');
 
-    // FIX #8: match by centerName OR centerCode
     const centerHit = this.centers.find((c: any) => {
-      const nameMatch = String(c?.centerName || '').trim().toLowerCase() ===
-                        String(centerName || '').trim().toLowerCase();
-      const codeMatch = String(c?.centerCode || '').trim().toUpperCase() ===
-                        String(centerCode || '').trim().toUpperCase();
+      const nameMatch = String(c?.centerName || '').trim().toLowerCase() === String(centerName || '').trim().toLowerCase();
+      const codeMatch = String(c?.centerCode || '').trim().toUpperCase() === String(centerCode || '').trim().toUpperCase();
       return nameMatch || (centerCode && codeMatch);
     });
     if (!centerHit) errors.push(`Center not found: "${centerName || centerCode}"`);
@@ -483,8 +494,9 @@ export class UsersComponent implements OnInit {
       _rowNo:     rowNo,
       _valid:     errors.length === 0,
       _errors:    errors,
-      name, email, phone, roleLevel, empCode: empCode || null,
-      // FIX #3: use centerId UUID string, not _id
+      name, email, phone,
+      roleLevel:  VALID_ROLE_LEVELS.includes(roleLevel as RoleKey) ? roleLevel : '',
+      empCode:    empCode || null,
       centerId:   centerHit ? String(centerHit.centerId || centerHit._id || '') : null,
       centerName: centerHit?.centerName || centerName || null,
       status:     'Active',
@@ -492,45 +504,33 @@ export class UsersComponent implements OnInit {
   }
 
   private computeImportValidation() {
-    const invalid = (this.importPreviewRows || []).filter(x => !x._valid || x._importOk === false);
-    this.importInvalidCount  = invalid.length;
+    const invalid         = (this.importPreviewRows || []).filter((x) => !x._valid || x._importOk === false);
+    this.importInvalidCount   = invalid.length;
     this.importHasInvalidRows = invalid.length > 0;
   }
 
   confirmImport() {
-    if (!this.importPreviewRows.length) {
-      this.alertService.error('Please upload an Excel file first');
-      return;
-    }
-    if (this.importHasInvalidRows) {
-      this.alertService.error('Fix invalid rows before importing');
-      return;
-    }
-    const rows = this.importPreviewRows.map((r: any) => ({
-      _rowNo:     r._rowNo,
-      name:       r.name,
-      email:      r.email,
-      phone:      r.phone,
-      roleLevel:  r.roleLevel,
-      empCode:    r.empCode || null,
-      centerId:   r.centerId,
-      centerName: r.centerName,
-      status:     'Active',
+    if (!this.importPreviewRows.length) { this.alertService.error('Please upload an Excel file first'); return; }
+    if (this.importHasInvalidRows)      { this.alertService.error('Fix invalid rows before importing'); return; }
+
+    const rows    = this.importPreviewRows.map((r: any) => ({
+      _rowNo: r._rowNo, name: r.name, email: r.email, phone: r.phone,
+      roleLevel: r.roleLevel, empCode: r.empCode || null,
+      centerId: r.centerId, centerName: r.centerName, status: 'Active',
     }));
     const payload = { entiId: this.entiId, mode: this.importMode, rows };
     this.importing = true;
+
     this.api.fetchData(payload, 'ims/user', 'import').subscribe({
       next: (res: any) => {
         const { summary, results, skippedRows } = this.pickImportPayload(res);
-        if (results.length)    this.applyImportResultsToPreview(results);
-        // FIX #10: mark skipped rows in preview
+        if (results.length)     this.applyImportResultsToPreview(results);
         if (skippedRows.length) this.applySkippedRowsToPreview(skippedRows);
 
         const inserted = Number(summary?.inserted || 0);
         const updated  = Number(summary?.updated  || 0);
         const skipped  = Number(summary?.skipped  || skippedRows.length || 0);
-        const failed   = Number(summary?.failed   || 0) ||
-          results.filter((x: any) => !(x?.ok === true || x?.status === true)).length;
+        const failed   = Number(summary?.failed   || 0) || results.filter((x: any) => !(x?.ok === true || x?.status === true)).length;
 
         this.importing = false;
         const msg = `Import done. Inserted: ${inserted}, Updated: ${updated}, Skipped: ${skipped}, Failed: ${failed}`;
@@ -541,8 +541,8 @@ export class UsersComponent implements OnInit {
       },
       error: (err: any) => {
         const resp = err?.error || err;
-        const { summary, results, skippedRows } = this.pickImportPayload(resp);
-        if (results.length)    this.applyImportResultsToPreview(results);
+        const { results, skippedRows } = this.pickImportPayload(resp);
+        if (results.length)     this.applyImportResultsToPreview(results);
         if (skippedRows.length) this.applySkippedRowsToPreview(skippedRows);
         this.importing = false;
         this.alertService.error(resp?.message || 'Import failed');
@@ -553,8 +553,8 @@ export class UsersComponent implements OnInit {
   downloadSampleExcel() {
     const rows = [{
       Name: 'Arun Kumar', Email: 'arun@z7i.com', Phone: '9876543210',
-      'Role Level': 'L2', Center: this.centers?.[0]?.centerName || 'Coimbatore',
-      EmpCode: 'EMP-0004', Password: 'Pass@123',
+      'Role Level': 'L4', Center: this.centers?.[0]?.centerName || 'Coimbatore',
+      EmpCode: 'EMP-0004',
     }];
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -562,17 +562,13 @@ export class UsersComponent implements OnInit {
     XLSX.writeFile(wb, 'User_Import_Sample.xlsx');
   }
 
-  // FIX #11: prevent double-click, add syncing state
   syncUsersWithStaff() {
     if (this.syncing) return;
     this.syncing = true;
     this.api.fetchData({ entiId: this.entiId }, 'ims', 'user/link/staff').subscribe({
       next: (res: any) => {
         this.syncing = false;
-        if (res?.status === false) {
-          this.alertService.error(res?.message || 'Sync failed');
-          return;
-        }
+        if (res?.status === false) { this.alertService.error(res?.message || 'Sync failed'); return; }
         this.alertService.success(res?.message || 'Sync completed');
         this.refreshTable();
       },
@@ -595,17 +591,16 @@ export class UsersComponent implements OnInit {
   }
 
   private pickImportPayload(resp: any) {
-    const root = resp || {};
-    const data = root?.data && typeof root.data === 'object' ? root.data : null;
+    const root        = resp || {};
+    const data        = root?.data && typeof root.data === 'object' ? root.data : null;
     const summary     = data?.summary     || root?.summary     || {};
     const resultsRaw  = data?.results     || root?.results     || [];
     const invalidRaw  = data?.invalidRows || root?.invalidRows || [];
-    // FIX #10: extract skippedRows from backend response
     const skippedRaw  = data?.skippedRows || root?.skippedRows || [];
 
     const results     = Array.isArray(resultsRaw) ? resultsRaw : [];
-    const invalidRows = Array.isArray(invalidRaw)  ? invalidRaw  : [];
-    const skippedRows = Array.isArray(skippedRaw)  ? skippedRaw  : [];
+    const invalidRows = Array.isArray(invalidRaw)  ? invalidRaw : [];
+    const skippedRows = Array.isArray(skippedRaw)  ? skippedRaw : [];
 
     const normalizedFromInvalid = invalidRows.map((x: any) => ({
       rowNo:   Number(x?.rowNo ?? (x?.index != null ? x.index + 2 : 0)),
@@ -613,11 +608,7 @@ export class UsersComponent implements OnInit {
       message: x?.message || x?.error || (Array.isArray(x?.errors) ? x.errors.join(', ') : 'Invalid'),
     }));
 
-    return {
-      summary,
-      skippedRows,
-      results: results.length ? results : normalizedFromInvalid,
-    };
+    return { summary, skippedRows, results: results.length ? results : normalizedFromInvalid };
   }
 
   private applyImportResultsToPreview(results: any[]) {
@@ -630,15 +621,14 @@ export class UsersComponent implements OnInit {
       const rr = map.get(Number(r._rowNo));
       if (!rr) return r;
       const ok  = rr?.ok === true || rr?.status === true;
-      const msg = rr?.message || rr?.error || rr?.reason ||
-        (Array.isArray(rr?.errors) ? rr.errors.join(', ') : '') || '';
-      if (ok) return { ...r, _importOk: true, _importError: '' };
-      return { ...r, _importOk: false, _importError: msg || 'Import failed', _valid: false, _errors: [msg || 'Import failed'] };
+      const msg = rr?.message || rr?.error || rr?.reason || (Array.isArray(rr?.errors) ? rr.errors.join(', ') : '') || '';
+      return ok
+        ? { ...r, _importOk: true,  _importError: '' }
+        : { ...r, _importOk: false, _importError: msg || 'Import failed', _valid: false, _errors: [msg || 'Import failed'] };
     });
     this.computeImportValidation();
   }
 
-  // FIX #10: mark skipped rows by email match
   private applySkippedRowsToPreview(skippedRows: any[]) {
     const emailMap = new Map<string, string>();
     (skippedRows || []).forEach((x: any) => {

@@ -71,28 +71,66 @@
                             </selectbox>
                             <div class="form-text" *ngIf="topicLoading">Loading topics…</div>
                         </div>
+                    </div>
 
-                        <!-- SUB-TOPIC NAME -->
+                    <!-- EDIT MODE: Single row -->
+                    <div *ngIf="formMode === 'edit'" class="row g-3 mt-1">
                         <div class="col-md-6">
                             <formfield label="Sub-Topic Name" [required]="true" [control]="form.get('subTopicName')"
                                 formControlName="subTopicName" placeholder="Ex: Height & Distance">
                             </formfield>
-                            <div class="form-text">Will be normalized by backend.</div>
                         </div>
-
-                        <!-- SUB-TOPIC CODE -->
                         <div class="col-md-3">
                             <formfield label="Code" [required]="false" [control]="form.get('subTopicCode')"
                                 formControlName="subTopicCode" placeholder="HD01">
                             </formfield>
                         </div>
-
-                        <!-- SORT ORDER -->
                         <div class="col-md-3">
                             <formfield label="Sort Order" [required]="false" [control]="form.get('sortOrder')"
                                 formControlName="sortOrder" placeholder="1">
                             </formfield>
-                            <div class="form-text">Number</div>
+                        </div>
+                    </div>
+
+                    <!-- CREATE MODE: Multiple rows -->
+                    <div *ngIf="formMode === 'create'" class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="fw-semibold small mb-0">Sub-Topics</label>
+                            <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                                (click)="addSubtopicRow()">
+                                <i class="fa-solid fa-plus"></i> Add Row
+                            </button>
+                        </div>
+
+                        <div class="border rounded p-3 bg-light" formArrayName="subtopicRows">
+                            <div *ngFor="let row of subtopicRows.controls; let i = index; let last = last"
+                                [formGroupName]="i" class="row g-2 align-items-end" [class.mb-2]="!last"
+                                [class.pb-2]="!last" [class.border-bottom]="!last">
+                                <div class="col">
+                                    <formfield [label]="i === 0 ? 'Sub-Topic Name *' : ''" [required]="true"
+                                        [control]="row.get('subTopicName')" formControlName="subTopicName"
+                                        placeholder="Ex: Height & Distance">
+                                    </formfield>
+                                </div>
+                                <div class="col-md-3">
+                                    <formfield [label]="i === 0 ? 'Code' : ''" [required]="false"
+                                        [control]="row.get('subTopicCode')" formControlName="subTopicCode"
+                                        placeholder="HD01">
+                                    </formfield>
+                                </div>
+                                <div class="col-md-2">
+                                    <formfield [label]="i === 0 ? 'Sort' : ''" [required]="false"
+                                        [control]="row.get('sortOrder')" formControlName="sortOrder" placeholder="0">
+                                    </formfield>
+                                </div>
+                                <div class="col-auto" [style.padding-bottom.px]="4">
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                        (click)="removeSubtopicRow(i)" [disabled]="subtopicRows.length <= 1"
+                                        title="Remove row">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -100,17 +138,13 @@
                         <button type="button" class="btn btn-outline-secondary" (click)="cancel()" [disabled]="saving">
                             Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving">
+                        <button type="submit" class="btn btn-primary" [disabled]="saving">
                             <span *ngIf="saving" class="spinner-border spinner-border-sm me-2" role="status"
                                 aria-hidden="true"></span>
                             {{ formMode === 'create' ? 'Save' : 'Update' }}
                         </button>
                     </div>
                 </form>
-
-                <div class="small text-muted mt-2" *ngIf="formMode === 'create'">
-                    Uses <b>createSubTopic</b> API.
-                </div>
             </div>
         </div>
     </div>

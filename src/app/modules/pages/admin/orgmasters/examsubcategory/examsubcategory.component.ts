@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
-import { AlertService } from '../../../../../service/alert/alert.service';
-import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import * as XLSX from 'xlsx';
 import { finalize } from 'rxjs/operators';
+import { AlertService } from '../../../../../service/alert/alert.service';
+import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 
 @Component({
   selector: 'app-examsubcategory',
@@ -78,13 +78,36 @@ export class ExamsubcategoryComponent implements OnInit {
     this.loadCategories();
   }
 
+  get subcategoryRows(): FormArray {
+    return this.form.get('subcategoryRows') as FormArray;
+  }
+
+  private createSubcategoryRow(): FormGroup {
+    return this.fb.group({
+      subCategoryName: ['', [Validators.required, Validators.maxLength(120)]],
+      subCategoryCode: ['', [Validators.maxLength(40)]],
+      sortOrder: [0],
+    });
+  }
+
+  addSubcategoryRow(): void {
+    this.subcategoryRows.push(this.createSubcategoryRow());
+  }
+
+  removeSubcategoryRow(index: number): void {
+    if (this.subcategoryRows.length > 1) {
+      this.subcategoryRows.removeAt(index);
+    }
+  }
+
   private initForm() {
     this.form = this.fb.group({
       categoryId: ['', Validators.required],
-      subCategoryName: ['', Validators.required],
+      subCategoryName: ['', Validators.maxLength(120)],
       subCategoryCode: [''],
-      sortOrder: [0, [Validators.required, Validators.min(0)]],
+      sortOrder: [0],
       isActive: [true],
+      subcategoryRows: this.fb.array([this.createSubcategoryRow()]),
     });
   }
 
@@ -236,6 +259,14 @@ export class ExamsubcategoryComponent implements OnInit {
       isActive: true,
     });
 
+    // Remove required from single-row field in create mode (FormArray handles it)
+    this.form.get('subCategoryName')?.clearValidators();
+    this.form.get('subCategoryName')?.setValidators([Validators.maxLength(120)]);
+    this.form.get('subCategoryName')?.updateValueAndValidity();
+
+    this.subcategoryRows.clear();
+    this.subcategoryRows.push(this.createSubcategoryRow());
+
     this.showForm = true;
   }
 
@@ -246,6 +277,9 @@ export class ExamsubcategoryComponent implements OnInit {
     // backend edit needs subCategoryId + categoryId
     this.editingSubCategoryId = String(x?.subCategoryId || '');
 
+    // Clear FormArray so it doesn't block validation in edit mode
+    this.subcategoryRows.clear();
+
     this.form.patchValue({
       categoryId: String(x?.categoryId || ''),
       subCategoryName: x?.subCategoryName || '',
@@ -254,61 +288,109 @@ export class ExamsubcategoryComponent implements OnInit {
       isActive: (x?.status || 'Active') === 'Active',
     });
 
+    // Add required validator for single-row edit fields
+    this.form.get('subCategoryName')?.setValidators([Validators.required, Validators.maxLength(120)]);
+    this.form.get('subCategoryName')?.updateValueAndValidity();
+
     this.showForm = true;
   }
 
   save() {
     if (this.saving) return;
 
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      this.alert.error('Please fill required fields');
+    if (this.formMode === 'edit') {
+      if (this.form.invalid) {
+        this.form.markAllAsTouched();
+        this.alert.error('Please fill required fields');
+        return;
+      }
+      const raw = this.form.getRawValue();
+      const payload: any = {
+        entiId: this.entiId,
+        userId: localStorage.getItem('userId') || '',
+        categoryId: String(raw.categoryId || '').trim(),
+        subCategoryName: String(raw.subCategoryName || '').trim(),
+        subCategoryCode: String(raw.subCategoryCode || '').trim() || null,
+        sortOrder: this.toNum(raw.sortOrder),
+        status: raw.isActive ? 'Active' : 'Inactive',
+        subCategoryId: this.editingSubCategoryId,
+      };
+      this.saving = true;
+      this.commonApi
+        .fetchData(payload, this.moduleName, 'exam/subcategory/update')
+        .pipe(finalize(() => (this.saving = false)))
+        .subscribe({
+          next: (res: any) => {
+            if (res?.status === false) {
+              this.alert.error(res?.message || 'Operation failed');
+              return;
+            }
+            this.alert.success('Sub category updated');
+            this.showForm = false;
+            this.fetchTableData({ page: 1, pageSize: 10 });
+          },
+          error: (err: any) =>
+            this.alert.error(err?.error?.message || 'Operation failed'),
+        });
       return;
     }
 
-    const raw = this.form.getRawValue();
+    // Create mode — multi-row
+    const categoryId = this.form.get('categoryId')?.value;
+    if (!categoryId) {
+      this.form.markAllAsTouched();
+      this.alert.error('Select a Category');
+      return;
+    }
+    if (this.subcategoryRows.invalid) {
+      this.subcategoryRows.markAllAsTouched();
+      this.alert.error('Fill Sub-Category Name for all rows');
+      return;
+    }
 
-    const payload: any = {
-      entiId: this.entiId,
-      userId: localStorage.getItem('userId') || '',
-      categoryId: String(raw.categoryId || '').trim(),
-      subCategoryName: String(raw.subCategoryName || '').trim(),
-      subCategoryCode: String(raw.subCategoryCode || '').trim() || null,
-      sortOrder: this.toNum(raw.sortOrder),
-      status: raw.isActive ? 'Active' : 'Inactive',
-    };
-
-    const endpoint =
-      this.formMode === 'create'
-        ? 'exam/subcategory/create'
-        : 'exam/subcategory/update';
-
-    // IMPORTANT: backend update requires subCategoryId + categoryId
-    if (this.formMode === 'edit')
-      payload.subCategoryId = this.editingSubCategoryId;
+    const rows = this.subcategoryRows.value || [];
+    if (!rows.length) return;
 
     this.saving = true;
+    let completed = 0;
+    let failed = 0;
 
-    this.commonApi
-      .fetchData(payload, this.moduleName, endpoint)
-      .pipe(finalize(() => (this.saving = false)))
-      .subscribe({
+    for (const row of rows) {
+      const payload = {
+        entiId: this.entiId,
+        userId: localStorage.getItem('userId') || '',
+        categoryId: String(categoryId).trim(),
+        subCategoryName: (row.subCategoryName || '').toString().trim(),
+        subCategoryCode: (row.subCategoryCode || '').toString().trim() || null,
+        sortOrder: this.toNum(row.sortOrder),
+        status: 'Active',
+      };
+      this.commonApi.fetchData(payload, this.moduleName, 'exam/subcategory/create').subscribe({
         next: (res: any) => {
-          if (res?.status === false) {
-            this.alert.error(res?.message || 'Operation failed');
-            return;
-          }
-          this.alert.success(
-            this.formMode === 'create'
-              ? 'Sub category created'
-              : 'Sub category updated',
-          );
-          this.showForm = false;
-          this.fetchTableData({ page: 1, pageSize: 10 });
+          completed++;
+          if (res?.status === false) failed++;
+          this.checkCreateCompletion(rows.length, completed, failed);
         },
-        error: (err: any) =>
-          this.alert.error(err?.error?.message || 'Operation failed'),
+        error: () => {
+          completed++;
+          failed++;
+          this.checkCreateCompletion(rows.length, completed, failed);
+        },
       });
+    }
+  }
+
+  private checkCreateCompletion(total: number, completed: number, failed: number): void {
+    if (completed < total) return;
+    this.saving = false;
+    const success = total - failed;
+    if (success > 0) {
+      this.alert.success(`${success} sub-category(s) created${failed > 0 ? `, ${failed} failed` : ''}`);
+    } else {
+      this.alert.error('All sub-category creations failed');
+    }
+    this.showForm = false;
+    this.fetchTableData({ page: 1, pageSize: 10 });
   }
 
   cancel() {

@@ -1,0 +1,205 @@
+<div class="app-table">
+
+  <!-- Top bar: search + page size + filter -->
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <!-- Search -->
+    <div class="position-relative app-table-search" *ngIf="showsearch">
+      <img src="assets/icons/searchicon.svg" alt="search" width="20" height="20"
+        class="position-absolute app-table-search-icon" />
+      <input [(ngModel)]="searchText" placeholder="Search Location, email, City..."
+        class="form-control app-table-search-input" [disabled]="loading" (keyup.enter)="onSearch()" />
+      <button *ngIf="searchText" type="button"
+        class="btn btn-link position-absolute app-table-search-clear text-muted px-0"
+        (click)="searchText = ''; onSearch()" aria-label="Clear search">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <!-- Right controls -->
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+      <div class="position-relative" *ngIf="showpageoptions">
+        <select [(ngModel)]="pageSize" (change)="onPageSizeChange(pageSize)" class="form-select app-table-page-size"
+          aria-label="Rows per page">
+          <option *ngFor="let opt of pageSizeOptions" [value]="opt">{{ opt }} Rows</option>
+        </select>
+      </div>
+
+      <!-- <button *ngIf="showfilter" class="btn app-table-filter-btn d-flex align-items-center gap-2" type="button"
+        (click)="onOpenFilters()">
+        <img src="assets/icons/filtericon.svg" alt="filter" width="20" height="20" />
+        <span>Filters</span>
+      </button> -->
+      <div *ngIf="showfilter && filterOptions.length" class="d-flex flex-column">
+        <label class="form-label mb-1 fw-bold">
+          {{ filterLabel }}
+        </label>
+
+        <select class="form-select form-select-sm" [(ngModel)]="selectedFilter"
+          (change)="onFilterChange(selectedFilter)">
+          <option *ngFor="let opt of filterOptions" [value]="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Table wrapper -->
+  <div class="rounded-3 overflow-hidden position-relative app-table-wrapper"
+    [ngStyle]="{ 'min-height': loading ? '320px' : 'auto' }">
+
+    <!-- overlay loader -->
+    <div *ngIf="loading" class="table-overlay">
+      <div class="spinner-border text-primary"></div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle app-table-grid" #tableWrap>
+        <thead>
+          <tr class="table-header">
+            <th class="px-4 py-3 fw-semibold text-center sno-col">
+              S.No
+            </th>
+            <th class="px-4 py-3 fw-semibold" *ngFor="let col of columns"
+              (click)="col.sortable !== false ? onSort(col.key) : null"
+              [style.cursor]="col.sortable !== false ? 'pointer' : 'default'">
+              <div class="d-flex align-items-center gap-1">
+                <span class="fw-semibold">{{ col.label }}</span>
+                <i *ngIf="col.sortable !== false" class="fas icon-14" [ngClass]="{
+                    'fa-sort': sortKey !== col.key,
+                    'fa-sort-up': sortKey === col.key && sortDirection === 'asc',
+                    'fa-sort-down': sortKey === col.key && sortDirection === 'desc'
+                  }">
+                </i>
+              </div>
+            </th>
+            <th class="px-4 py-3 fw-semibold text-center action-col" *ngIf="showaction">
+              Action
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <ng-container *ngFor="let row of data; let i = index">
+            <tr class="app-table-row">
+              <td class="px-4 py-3 text-center fw-normal">
+                {{ (currentPage - 1) * pageSize + i + 1 }}
+              </td>
+
+              <td class="px-4 py-3 fw-normal" *ngFor="let col of columns">
+                <ng-container *ngIf="col.date; else normal">
+                  <span class="truncate-cell" [style.maxWidth.px]="col.maxWidthPx || 240"
+                    [attr.title]="needsTooltip(getCellValue(row, col.key), col) ? getCellValue(row, col.key) : null">
+                    {{ (getCellValue(row, col.key) | date : 'dd/MM/yyyy') || '--' }}
+                  </span>
+                </ng-container>
+
+                <ng-template #normal>
+                  <span class="truncate-cell" [style.maxWidth.px]="col.maxWidthPx || 240"
+                    [attr.title]="needsTooltip(getCellValue(row, col.key), col) ? getCellValue(row, col.key) : null"
+                    (mouseenter)="maybeExpand(i, col.key, getCellValue(row, col.key), col)"
+                    (mouseleave)="scheduleCollapse()"
+                    (click)="maybeExpand(i, col.key, getCellValue(row, col.key), col)">
+                    {{ truncate(getCellValue(row, col.key), col) }}
+                  </span>
+                </ng-template>
+              </td>
+
+              <td class="px-4 py-3 text-center" *ngIf="showaction">
+                <div class="d-flex align-items-center justify-content-center gap-2 flex-wrap">
+                  <ng-container *ngFor="let action of actions">
+                    <!-- icon button -->
+                    <button *ngIf="action.type === 'icon'" type="button" class="btn btn-sm app-table-icon-btn"
+                      [title]="action.tooltip" (click)="action.callback(row)">
+                      <i [class]="action.icon" class="icon-20" [style.color]="action.color || ''">
+                      </i>
+                    </button>
+
+                    <!-- simple button -->
+                    <button *ngIf="action.type === 'simple'" type="button" class="btn btn-sm me-2"
+                      [ngClass]="action.color ? 'btn-' + action.color : 'btn-secondary'" (click)="action.callback(row)">
+                      <i *ngIf="action.icon" [class]="action.icon" class="me-1 icon-14"></i>
+                      {{ action.text }}
+                    </button>
+
+                    <!-- dropdown group -->
+                    <div *ngIf="action.type === 'dropdown'" class="btn-group me-2">
+                      <button type="button"
+                        class="btn btn-sm submitbuttonclr d-inline-flex align-items-center whitespace-nowrap"
+                        [ngClass]="action.color ? 'btn-' + action.color : 'btn-secondary'"
+                        (click)="action.callback(row)">
+                        <i *ngIf="action.icon" [class]="action.icon" class="me-1 icon-14"></i>
+                        {{ action.text }}
+                      </button>
+                      <button type="button" class="btn btn-sm dropdown-toggle dropdown-toggle-split submitbuttonclr"
+                        [ngClass]="action.color ? 'btn-' + action.color : 'btn-secondary'" data-bs-toggle="dropdown"
+                        aria-expanded="false">
+                        <span class="visually-hidden">Toggle Dropdown</span>
+                      </button>
+                      <ul class="dropdown-menu dropdown-menu-end">
+                        <li *ngFor="let sub of action.dropdown">
+                          <a class="dropdown-item" (click)="sub.callback(row)">
+                            <i *ngIf="sub.icon" [class]="sub.icon" class="me-1 icon-14"></i>
+                            {{ sub.text }}
+                          </a>
+                        </li>
+                      </ul>
+                    </div>
+                  </ng-container>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Expanded row -->
+            <tr *ngIf="expanded && expanded.rowIndex === i" class="row-expander">
+              <td [attr.colspan]="fullColSpan" class="bg-light p-3">
+                <div class="fw-normal text-wrap">
+                  {{ expanded.value }}
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+
+          <tr *ngIf="!data || data.length === 0">
+            <td [attr.colspan]="columns.length + (showaction ? 2 : 1)" class="text-center py-4 text-muted">
+              No data found
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div *ngIf="totalPages > 1" class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
+    <button class="btn btn-link app-table-page-link" [disabled]="currentPage <= 1"
+      (click)="onPageChange(currentPage - 1)">
+      <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20" />
+      Previous
+    </button>
+
+    <div class="d-flex align-items-center gap-1">
+      <ng-container *ngFor="let item of paginationItems">
+        <div *ngIf="item.page === '...'"
+          class="d-flex align-items-center justify-content-center app-table-page-ellipsis">
+          <span class="fw-medium text-muted small">...</span>
+        </div>
+
+        <button *ngIf="item.page !== '...'" type="button"
+          class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle app-table-page-btn"
+          [class.pagination-active]="item.isActive" (click)="onPageChange(+item.page)">
+          <span class="fw-medium small" [class.text-dark]="item.isActive" [class.text-muted]="!item.isActive">
+            {{ item.page }}
+          </span>
+        </button>
+      </ng-container>
+    </div>
+
+    <button class="btn btn-link app-table-page-link" [disabled]="currentPage >= totalPages"
+      (click)="onPageChange(currentPage + 1)">
+      Next
+      <img src="assets/icons/pageiright.svg" alt="pageright" width="20" height="20" />
+    </button>
+  </div>
+</div>

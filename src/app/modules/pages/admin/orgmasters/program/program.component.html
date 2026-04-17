@@ -39,7 +39,6 @@
                 </div>
                 <button type="button" class="btn-close" (click)="closeView()" aria-label="Close"></button>
             </div>
-
             <div class="app-modal-body" *ngIf="viewData as v">
                 <div class="row g-3">
                     <div class="col-md-6">
@@ -92,8 +91,6 @@
                         </div>
                         <ng-template #noSubs>-</ng-template>
                     </div>
-
-                    <!-- ✅ Exam Mappings View -->
                     <div class="col-12">
                         <div class="text-muted small">Exam Category Mapping</div>
                         <div *ngIf="(v.examMappings || []).length; else noMaps" class="border rounded p-2">
@@ -101,7 +98,7 @@
                                 Total: <span class="fw-semibold">{{ (v.examMappings || []).length }}</span>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-sm table-hover align-middle mb-0">
+                                <!-- <table class="table table-sm table-hover align-middle mb-0">
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width:48px;">#</th>
@@ -118,13 +115,38 @@
                                             <td>{{ m?.sortOrder ?? '-' }}</td>
                                         </tr>
                                     </tbody>
+                                </table> -->
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width:48px;">#</th>
+                                            <th>Category</th>
+                                            <th>Sub Category</th>
+                                            <th>Subjects</th>
+                                            <th style="width:80px;">Sort</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let m of (v.examMappings || []); let i = index">
+                                            <td>{{ i + 1 }}</td>
+                                            <td>{{ getExamCategoryLabel(m?.categoryId) }}</td>
+                                            <td>{{ getExamSubCategoryLabel(m?.subCategoryId) }}</td>
+                                            <td>
+                                                <span class="badge bg-light text-dark border me-1 mb-1"
+                                                    *ngFor="let sid of (m?.subjectIds || [])">
+                                                    {{ getSubjectLabels([sid]) }}
+                                                </span>
+                                                <span *ngIf="!(m?.subjectIds?.length)">-</span>
+                                            </td>
+                                            <td>{{ m?.sortOrder ?? '-' }}</td>
+                                        </tr>
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
                         <ng-template #noMaps>-</ng-template>
                     </div>
                 </div>
-
                 <div class="d-flex justify-content-end gap-2 mt-4">
                     <button type="button" class="btn btn-outline-secondary" (click)="closeView()">Close</button>
                 </div>
@@ -310,16 +332,16 @@
 
                     <div class="table-responsive" *ngIf="examCategoryOptions.length">
                         <table class="table table-sm table-hover align-middle mb-0">
-                            <thead class="table-light">
+                            <!-- <thead class="table-light">
                                 <tr>
                                     <th style="width: 48px;">#</th>
                                     <th style="min-width: 240px;">Exam Category</th>
                                     <th style="min-width: 260px;">Exam Sub Category</th>
+                                    <th style="min-width:220px;">Subjects</th>
                                     <th style="width: 140px;">Sort Order</th>
                                     <th style="width: 80px;"></th>
                                 </tr>
                             </thead>
-
                             <tbody formArrayName="examMappings">
                                 <tr *ngFor="let g of examMappingsFA.controls; let i = index" [formGroupName]="i">
                                     <td>{{ i + 1 }}</td>
@@ -370,6 +392,81 @@
                                     <td colspan="5" class="text-muted small py-3 text-center">
                                         No mappings added.
                                     </td>
+                                </tr>
+                            </tbody> -->
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:48px;">#</th>
+                                    <th style="min-width:200px;">Exam Category</th>
+                                    <th style="min-width:220px;">Exam Sub Category</th>
+                                    <th style="min-width:220px;">Subjects</th>
+                                    <th style="width:120px;">Sort Order</th>
+                                    <th style="width:60px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody formArrayName="examMappings">
+                                <tr *ngFor="let g of examMappingsFA.controls; let i = index" [formGroupName]="i">
+                                    <td>{{ i + 1 }}</td>
+                                    <td>
+                                        <select class="form-select form-select-sm" formControlName="categoryId"
+                                            (change)="onExamCategoryChanged(i)">
+                                            <option value="">-- Select --</option>
+                                            <option *ngFor="let c of examCategoryOptions" [value]="c.value">{{ c.label
+                                                }}</option>
+                                        </select>
+                                        <div class="small text-danger mt-1"
+                                            *ngIf="g.get('categoryId')?.touched && g.get('categoryId')?.invalid">
+                                            Category required
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <select class="form-select form-select-sm" formControlName="subCategoryId">
+                                            <option value="">-- Select --</option>
+                                            <option *ngFor="let s of getSubCategoryOptionsForRow(i)" [value]="s.value">
+                                                {{ s.label }}
+                                            </option>
+                                        </select>
+                                        <div class="small text-danger mt-1"
+                                            *ngIf="g.get('subCategoryId')?.touched && g.get('subCategoryId')?.invalid">
+                                            Sub category required
+                                        </div>
+                                    </td>
+                                    <!-- Subjects — checkboxes per row -->
+                                    <td>
+                                        <div class="border rounded p-2"
+                                            style="max-height:140px; overflow-y:auto; min-width:200px;">
+                                            <div *ngIf="!examMappingSubjectOptions.length" class="text-muted small">
+                                                No subjects mapped to this program yet.
+                                            </div>
+                                            <div class="form-check" *ngFor="let s of examMappingSubjectOptions">
+                                                <input class="form-check-input" type="checkbox"
+                                                    [id]="'esub_' + i + '_' + s.value"
+                                                    [checked]="isRowSubjectChecked(i, s.value)"
+                                                    (change)="toggleRowSubject(i, s.value, $any($event.target).checked)" />
+                                                <label class="form-check-label small"
+                                                    [for]="'esub_' + i + '_' + s.value">
+                                                    {{ s.label }}
+                                                    <span class="text-muted" *ngIf="s.code">({{ s.code }})</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="small text-muted mt-1">
+                                            {{ getRowSubjectIds(i).length }} selected
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm"
+                                            formControlName="sortOrder" placeholder="0" />
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                            (click)="removeExamMappingRow(i)">
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr *ngIf="examMappingsFA.length === 0">
+                                    <td colspan="6" class="text-muted small py-3 text-center">No mappings added.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -537,6 +634,60 @@
                     [disabled]="!importPreviewRows.length || importHasInvalidRows">
                     <i class="fa-solid fa-file-import me-1"></i>
                     Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= Remove Subjects Modal ================= -->
+<div class="app-modal-backdrop" *ngIf="showRemoveSubjectsModal">
+    <div class="app-modal" style="max-width: 640px;">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Remove Subjects from Program</h6>
+                <span class="text-muted small">
+                    Removing a subject also removes its exam mappings for this program.
+                </span>
+            </div>
+            <button type="button" class="btn-close" (click)="closeRemoveSubjectsModal()" aria-label="Close"></button>
+        </div>
+
+        <div class="app-modal-body">
+            <div *ngIf="!removeSubjectsExisting.length" class="text-muted small py-3 text-center">
+                <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading subjects...
+            </div>
+
+            <div class="border rounded p-2" style="max-height:360px; overflow:auto;"
+                *ngIf="removeSubjectsExisting.length">
+                <div class="row g-2">
+                    <div class="col-md-4" *ngFor="let s of removeSubjectsExisting">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" [id]="'rem_' + s.value"
+                                [checked]="selectedSubjectsToRemove.has(s.value)"
+                                (change)="toggleRemoveSubject(s.value, $any($event.target).checked)" />
+                            <label class="form-check-label" [for]="'rem_' + s.value">
+                                <span class="fw-semibold">{{ s.label }}</span>
+                                <span class="text-muted small" *ngIf="s.code"> ({{ s.code }})</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning border-0 small mt-3 mb-0" *ngIf="selectedSubjectsToRemove.size">
+                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                <strong>{{ selectedSubjectsToRemove.size }}</strong> subject(s) selected.
+                Any exam mappings tied to these subjects will also be removed.
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button type="button" class="btn btn-outline-secondary"
+                    (click)="closeRemoveSubjectsModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" (click)="confirmRemoveSubjects()"
+                    [disabled]="!selectedSubjectsToRemove.size || removingSubjects">
+                    <i class="fa-solid fa-circle-minus me-1"></i>
+                    Remove Selected
                 </button>
             </div>
         </div>

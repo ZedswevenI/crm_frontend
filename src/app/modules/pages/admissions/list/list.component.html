@@ -42,7 +42,7 @@
                 <list-table [autoFitChars]="true" [columns]="columns" [data]="admissions" [actions]="actions"
                     [showfilter]="true" [filterLabel]="'Filter Based on:'" [filterOptions]="statusFilterOptions"
                     [selectedFilter]="statusFilter" (filterChange)="onStatusFilterChange($event)" [loading]="loading"
-                    [totalRecords]="totalRecords" (requestData)="fetchTableData($event)" (change)="onStatusChange()">
+                    [totalRecords]="totalRecords" (requestData)="onTable($event)" (change)="onStatusChange()">
                 </list-table>
             </div>
         </div>

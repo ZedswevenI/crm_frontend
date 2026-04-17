@@ -1,353 +1,1093 @@
-<div class="batch-view position-relative">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+<!-- view-batch.component.html -->
+
+<!-- ── PAGE HEADER ─────────────────────────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+    <div>
+        <button class="btn btn-sm btn-link text-muted ps-0 mb-1" (click)="goBack()">
+            <i class="fa-solid fa-arrow-left me-1"></i> Batches
+        </button>
         <div class="d-flex align-items-center gap-2">
-            <button class="btn btn-light btn-sm border" (click)="back()">
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
-            <div>
-                <h5 class="mb-0 fw-bold">{{ batch?.batchName || 'Loading...' }}</h5>
-                <div class="text-muted small">
-                    {{ batch?.batchCode }} • {{ batch?.academicYear }} • {{ batch?.centerName }}
+            <h5 class="mb-0 fw-semibold">{{ batch?.batchName || 'Loading...' }}</h5>
+            <span [class]="statusBadgeClass(batch?.status)">{{ batch?.status }}</span>
+        </div>
+        <div class="text-muted small mt-1">
+            {{ batch?.batchCode }} &nbsp;·&nbsp; {{ batch?.programName || '-' }}
+            &nbsp;·&nbsp; {{ batch?.centerName || '-' }}
+            &nbsp;·&nbsp; AY: {{ batch?.academicYear || '-' }}
+        </div>
+    </div>
+    <div class="mt-2 d-flex align-items-center gap-2 small">
+        <div class="bg-light border rounded px-2 py-1">
+            <i class="fa-solid fa-user-tie text-primary me-1"></i> Class Teacher:
+            <strong class="text-dark ms-1">{{ batch?.classTeacherName || 'Not Assigned' }}</strong>
+        </div>
+        <button class="btn btn-sm btn-link text-primary p-0 text-decoration-none"
+            (click)="openOffcanvas('classTeacher')">
+            {{ batch?.classTeacherId ? 'Change' : 'Assign' }}
+        </button>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-secondary btn-sm rounded-pill" (click)="openOffcanvas('shuffle')">
+            <i class="fa-solid fa-shuffle"></i> Shuffle
+        </button>
+        <button class="btn btn-outline-warning btn-sm rounded-pill" (click)="openLateEntry()">
+            <i class="fa-solid fa-clock-rotate-left"></i> Late Entry
+        </button>
+        <button class="btn btn-outline-success btn-sm rounded-pill" (click)="openSpecialClass()">
+            <i class="fa-solid fa-calendar-plus"></i> Special Class
+        </button>
+        <button class="btn btn-outline-primary btn-sm rounded-pill" (click)="openPromoteModal()"
+            [disabled]="batch?.status !== 'ACTIVE'">
+            <i class="fa-solid fa-arrow-up-right-dots"></i> Promote
+        </button>
+        <!-- <button *appHasRole="['L1']" class="btn btn-outline-success btn-sm rounded-pill" (click)="exportBatch()">
+            <i class="fa-solid fa-file-export"></i> Export
+        </button> -->
+        <button class="btn btn-outline-success btn-sm rounded-pill" (click)="exportBatch()">
+            <i class="fa-solid fa-file-export"></i> Export
+        </button>
+        <button class="btn btn-outline-danger btn-sm rounded-pill" (click)="openCloseBatch()"
+            [disabled]="batch?.status === 'CLOSED'">
+            <i class="fa-solid fa-lock"></i> Close Batch
+        </button>
+        <button *ngIf="activeTab === 'report' && (subjectHours.length || phaseReport)"
+            class="btn btn-sm btn-outline-success rounded-pill" (click)="exportReport()">
+            <i class="fa-solid fa-file-excel me-1"></i> Export Report
+        </button>
+        <button class="btn btn-primary btn-sm rounded-pill" (click)="openOffcanvas('edit')">
+            <i class="fa-solid fa-pen-to-square"></i> Edit
+        </button>
+    </div>
+</div>
+
+<!-- ── STAT CARDS ─────────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small mb-1">Students</div>
+                <div class="fw-bold fs-4 text-primary">{{ batch?.studentCount ?? students.length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small mb-1">Duration</div>
+                <div class="fw-bold fs-5">{{ batchDuration }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small mb-1">Year / Class</div>
+                <div class="fw-bold fs-5">Yr {{ batch?.yearNo || '-' }} / Cls {{ batch?.classNo || '-' }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small mb-1">Dates</div>
+                <div class="fw-semibold small">
+                    {{ epochToDate(batch?.startDate) }} → {{ epochToDate(batch?.endDate) || '—' }}
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- ── TABBED CARD ────────────────────────────────────────────────────────── -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <ul class="nav nav-tabs card-header-tabs mb-0">
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab === 'students'" (click)="activeTab = 'students'">
+                    <i class="fa-solid fa-users me-1"></i> Students
+                    <span class="badge bg-secondary-subtle text-secondary ms-1">{{ students.length }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab === 'faculty'" (click)="activeTab = 'faculty'">
+                    <i class="fa-solid fa-chalkboard-user me-1"></i> Faculty
+                    <span class="badge bg-secondary-subtle text-secondary ms-1">{{ staffMap.length }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab === 'report'"
+                    (click)="activeTab = 'report'; loadSubjectHours()">
+                    <i class="fa-solid fa-chart-bar me-1"></i> Timetable Allotments
+                </button>
+            </li>
+        </ul>
         <div class="d-flex gap-2">
-            <button class="btn btn-white border btn-sm" *ngIf="canEditBatch()" (click)="openOffcanvas('edit')">
-                <i class="fa-regular fa-pen-to-square"></i> Edit Batch
+            <button *ngIf="activeTab === 'students'" class="btn btn-sm btn-outline-primary rounded-pill"
+                (click)="openOffcanvas('assign')">
+                <i class="fa-solid fa-user-plus me-1"></i> Assign Students
             </button>
-
-            <div class="dropdown">
-                <button class="btn btn-danger btn-sm dropdown-toggle" *ngIf="canEditBatch()" type="button"
-                    data-bs-toggle="dropdown">
-                    <i class="fa-solid fa-gear"></i> Actions
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                    <li><button class="dropdown-item text-danger" (click)="triggerConfirmation('closeBatch')">
-                            <i class="fa-solid fa-lock me-2"></i>Close Batch</button>
-                    </li>
-                </ul>
-            </div>
+            <button *ngIf="activeTab === 'faculty'" class="btn btn-sm btn-outline-primary rounded-pill"
+                (click)="openOffcanvas('staff')">
+                <i class="fa-solid fa-users-gear me-1"></i> Manage Faculty
+            </button>
         </div>
     </div>
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-4 col-sm-6">
-            <div class="card h-100 border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3">
-                <div class="icon-box bg-primary-subtle text-primary rounded-circle p-3">
-                    <i class="fa-solid fa-users fa-lg"></i>
-                </div>
-                <div>
-                    <div class="text-muted small text-uppercase fw-bold">Total Students</div>
-                    <h4 class="mb-0 fw-bold">{{ batch?.studentCount || 0 }}</h4>
+    <div class="card-body">
+        <!-- ── STUDENTS TAB ─────────────────────────────────────────────────────── -->
+        <div *ngIf="activeTab === 'students'">
+            <div *ngIf="loading" class="text-center py-4 text-muted">
+                <i class="fa-solid fa-spinner fa-spin fa-lg"></i>
+            </div>
+            <div *ngIf="!loading && !students.length" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-users fa-2x mb-2 d-block opacity-30"></i>
+                No students assigned yet.
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-primary" (click)="openOffcanvas('assign')">Assign Students</button>
                 </div>
             </div>
-        </div>
-        <div class="col-md-4 col-sm-6">
-            <div class="card h-100 border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3">
-                <div class="icon-box bg-success-subtle text-success rounded-circle p-3">
-                    <i class="fa-solid fa-calendar-day fa-lg"></i>
-                </div>
-                <div>
-                    <div class="text-muted small text-uppercase fw-bold">Duration</div>
-                    <div class="fw-semibold">{{ batch?.startDate | date:'mediumDate' }}</div>
-                    <div class="small text-muted">to {{ batch?.endDate | date:'mediumDate' }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 col-sm-12">
-            <div class="card h-100 border-0 shadow-sm p-3 d-flex flex-row align-items-center gap-3">
-                <div class="icon-box bg-info-subtle text-info rounded-circle p-3">
-                    <i class="fa-solid fa-signal fa-lg"></i>
-                </div>
-                <div>
-                    <div class="text-muted small text-uppercase fw-bold">Status</div>
-                    <span class="badge rounded-pill" [ngClass]="{
-                            'bg-success': batch?.status === 'ACTIVE',
-                            'bg-secondary': batch?.status === 'DRAFT',
-                            'bg-danger': batch?.status === 'CLOSED'
-                        }">
-                        {{ batch?.status }}
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-center pt-3 px-3">
-            <ul class="nav nav-tabs card-header-tabs">
-                <li class="nav-item">
-                    <a class="nav-link" [class.active]="activeTab==='students'" (click)="activeTab='students'"
-                        href="javascript:void(0)">
-                        <i class="fa-solid fa-user-graduate me-1"></i> Students
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" [class.active]="activeTab==='faculty'" (click)="activeTab='faculty'"
-                        href="javascript:void(0)">
-                        <i class="fa-solid fa-chalkboard-user me-1"></i> Faculty
-                    </a>
-                </li>
-            </ul>
-
-            <div class="d-flex gap-2" *ngIf="activeTab==='students'  && canManageStudents()">
-                <button class="btn btn-sm btn-outline-danger" *ngIf="selected.size > 0"
-                    (click)="triggerConfirmation('removeStudents')">
-                    <i class="fa-regular fa-trash-can"></i> Remove ({{selected.size}})
-                </button>
-                <button class="btn btn-sm btn-outline-warning" *ngIf="selected.size > 0"
-                    (click)="openOffcanvas('shuffle')">
-                    <i class="fa-solid fa-shuffle"></i> Shuffle ({{selected.size}})
-                </button>
-                <button class="btn btn-sm btn-primary" (click)="openOffcanvas('assign')">
-                    <i class="fa-solid fa-user-plus"></i> Assign Students
-                </button>
-            </div>
-
-            <div class="d-flex gap-2" *ngIf="activeTab==='faculty' && canManageFaculty()">
-                <button class="btn btn-sm btn-primary" (click)="openOffcanvas('staff')">
-                    <i class="fa-solid fa-pen"></i> Edit Faculty Map
-                </button>
+            <div class="table-responsive" *ngIf="students.length">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Admission No</th>
+                            <th>Phone</th>
+                            <th>AY</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let s of students; let i = index">
+                            <td class="text-muted small">{{ i + 1 }}</td>
+                            <td class="fw-semibold">{{ s?.student?.name || '-' }}</td>
+                            <td class="text-muted">{{ s?.admissionNo || '-' }}</td>
+                            <td class="text-muted">{{ s?.student?.phone || '-' }}</td>
+                            <td class="text-muted">{{ s?.academicYear || '-' }}</td>
+                            <td class="text-end">
+                                <!-- <button class="btn btn-sm btn-outline-danger" title="Remove"
+                                    (click)="removeStudent(s?.studentId)">
+                                    <i class="fa-solid fa-user-minus"></i>
+                                </button> -->
+                                <button class="btn btn-sm btn-outline-danger" title="Remove"
+                                    (click)="openRemoveStudent(s?.studentId, s?.student?.name)">
+                                    <i class="fa-solid fa-user-minus"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <div class="card-body p-0">
-            <div *ngIf="activeTab==='students'">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="ps-3" style="width: 40px;">
-                                    <input type="checkbox" class="form-check-input" #cbAll
-                                        (change)="selectAllCurrent(cbAll.checked)">
-                                </th>
-                                <th>Student Name</th>
-                                <th>Admission No</th>
-                                <th>Reg No</th>
-                                <th>Phone</th>
-                                <th>Parent Phone</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let s of studentRows">
-                                <td class="ps-3">
-                                    <input type="checkbox" class="form-check-input"
-                                        [checked]="selected.has(s.studentId)"
-                                        (change)="toggleSelect(s.studentId, $any($event.target).checked)">
-                                </td>
-                                <td class="fw-semibold">{{ s?.student?.name }}</td>
-                                <td>{{ s?.admissionNo }}</td>
-                                <td>{{ s?.registrationNumber || '-' }}</td>
-                                <td>{{ s?.student?.phone }}</td>
-                                <td>{{ s?.student?.parentPhone }}</td>
-                            </tr>
-                            <tr *ngIf="studentRows.length === 0">
-                                <td colspan="6" class="text-center py-5">
-                                    <div class="text-muted mb-2"><i class="fa-solid fa-users-slash fa-2x"></i></div>
-                                    <p class="text-muted mb-0">No students assigned to this batch.</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <!-- ── FACULTY TAB ──────────────────────────────────────────────────────── -->
+        <div *ngIf="activeTab === 'faculty'">
+            <div *ngIf="!staffMap.length" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-chalkboard-user fa-2x mb-2 d-block opacity-30"></i>
+                No faculty mapped yet.
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-primary" (click)="openOffcanvas('staff')">Map Faculty</button>
                 </div>
             </div>
-
-            <div *ngIf="activeTab==='faculty'" class="p-3">
-                <div class="row g-3">
-                    <div class="col-md-6 col-lg-4" *ngFor="let f of batch?.staffMap">
-                        <div class="d-flex align-items-center border rounded p-2">
-                            <div class="bg-light rounded-circle p-2 me-3">
-                                <i class="fa-solid fa-book text-secondary"></i>
-                            </div>
-                            <div>
-                                <div class="fw-bold">{{ f.subjectName || f.subjectId }}</div>
-                                <div class="text-muted small">{{ f.staffName || f.staffId }}</div>
+            <div class="row g-3" *ngIf="staffMap.length">
+                <div class="col-12 col-sm-6 col-lg-4" *ngFor="let m of staffMap">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body py-3">
+                            <div class="d-flex align-items-start gap-2">
+                                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                                    style="width:40px;height:40px;font-size:1.1rem;">
+                                    <i class="fa-solid fa-chalkboard-user"></i>
+                                </div>
+                                <div class="flex-grow-1 min-w-0">
+                                    <div class="fw-semibold text-truncate">{{ m?.staffName || '-' }}</div>
+                                    <div class="text-muted small text-truncate">{{ m?.subjectName || '-' }}</div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-12 text-center py-4 text-muted" *ngIf="!batch?.staffMap?.length">
-                        No faculty mapped yet. Click "Edit Faculty Map" to add.
-                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
+        <!-- ── REPORT TAB ──────────────────────────────────────────────────────────── -->
+        <div *ngIf="activeTab === 'report'">
+
+            <!-- Subject filter -->
+            <div class="d-flex align-items-end gap-3 mb-4 flex-wrap">
+                <div style="min-width:260px">
+                    <label class="form-label small text-muted mb-1 fw-semibold">
+                        Filter by Subject
+                    </label>
+                    <select class="form-select form-select-sm" [(ngModel)]="reportSubjectId"
+                        (ngModelChange)="onReportSubjectChanged($event)">
+                        <option value="">— All Subjects —</option>
+                        <option *ngFor="let s of batchSubjectOptions | slice:1" [value]="s.value">{{ s.label }}</option>
+                    </select>
+                </div>
+                <div *ngIf="reportLoading" class="text-muted small">
+                    <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading...
+                </div>
+            </div>
+
+            <!-- ── Subject Hours Section ─────────────────────────────────────────────── -->
+            <div class="mb-4" *ngIf="subjectHours.length">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="fa-solid fa-clock me-2 text-primary"></i>Subject Hours Allotted
+                    </h6>
+                    <span class="badge bg-primary-subtle text-primary">
+                        Total: {{ subjectHoursTotal }}h
+                    </span>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-sm-6 col-lg-4" *ngFor="let s of subjectHours"
+                        [class.border-start]="reportSubjectId && s.subjectId === reportSubjectId"
+                        [style.border-color]="'#3b82f6'">
+                        <div class="border rounded-3 p-3 h-100"
+                            [class.bg-primary-subtle]="reportSubjectId && s.subjectId === reportSubjectId">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div class="fw-semibold small text-truncate" style="max-width:160px">
+                                    {{ s.subjectName || s.subjectCode || '-' }}
+                                </div>
+                                <span class="badge rounded-pill"
+                                    style="background:#eff6ff;color:#3b82f6;font-size:0.75rem;font-weight:700">
+                                    {{ s.allottedHours }}h
+                                </span>
+                            </div>
+                            <div class="text-muted" style="font-size:0.72rem">
+                                {{ s.subjectCode || '-' }}
+                            </div>
+                            <!-- simple bar -->
+                            <div class="mt-2" style="height:4px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+                                <div style="height:100%;background:#3b82f6;border-radius:4px;transition:width 0.4s"
+                                    [style.width.%]="getProgressPct(s.allottedHours,
+                subjectHours[0]?.allottedHours ? subjectHoursMax : 1)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Phase Report Section ───────────────────────────────────────────────── -->
+            <div *ngIf="phaseReport && reportSubjectId">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="fa-solid fa-layer-group me-2 text-indigo"></i>
+                        Phase Plan Report
+                        <span class="text-muted fw-normal small ms-1">— {{ reportSubjectName }}</span>
+                    </h6>
+                </div>
+
+                <!-- Summary strip -->
+                <div class="row g-2 mb-4">
+                    <div class="col-4">
+                        <div class="rounded-3 p-3 text-center border" style="background:#f0fdf4">
+                            <div class="fw-bold" style="font-size:1.4rem;color:#16a34a">
+                                {{ phaseReport.summary?.totalEstHours ?? '-' }}h
+                            </div>
+                            <div class="small text-muted fw-semibold mt-1">Total Estimated</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="rounded-3 p-3 text-center border" style="background:#eff6ff">
+                            <div class="fw-bold" style="font-size:1.4rem;color:#3b82f6">
+                                {{ phaseReport.summary?.totalAllottedHours ?? 0 }}h
+                            </div>
+                            <div class="small text-muted fw-semibold mt-1">Total Allotted</div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="rounded-3 p-3 text-center border"
+                            [style.background]="(phaseReport.summary?.totalRemainingHours ?? 0) < 0 ? '#fef2f2' : '#fefce8'">
+                            <div class="fw-bold" style="font-size:1.4rem"
+                                [style.color]="(phaseReport.summary?.totalRemainingHours ?? 0) < 0 ? '#ef4444' : '#d97706'">
+                                {{ phaseReport.summary?.totalRemainingHours ?? '-' }}h
+                            </div>
+                            <div class="small text-muted fw-semibold mt-1">Remaining</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase rows -->
+                <div *ngFor="let ph of phaseReport.phases" class="border rounded-3 mb-3 overflow-hidden">
+
+                    <!-- Phase header -->
+                    <div class="px-3 py-3 d-flex align-items-center gap-3 cursor-pointer" style="background:#f8fafc"
+                        (click)="togglePhase(ph.phaseId)">
+
+                        <!-- Expand icon -->
+                        <i class="fa-solid fa-chevron-right text-muted"
+                            style="font-size:0.75rem;transition:transform 0.2s"
+                            [style.transform]="isPhaseExpanded(ph.phaseId) ? 'rotate(90deg)' : 'none'">
+                        </i>
+
+                        <!-- Phase name -->
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small">{{ ph.phaseName }}</div>
+                            <div class="text-muted" style="font-size:0.72rem">
+                                {{ ph.topics?.length || 0 }} topic(s)
+                            </div>
+                        </div>
+
+                        <!-- Hours chips -->
+                        <div class="d-flex gap-2 align-items-center flex-shrink-0">
+                            <span class="badge bg-success-subtle text-success" style="font-size:0.72rem">
+                                Est: {{ ph.estHours ?? '-' }}h
+                            </span>
+                            <span class="badge bg-primary-subtle text-primary" style="font-size:0.72rem">
+                                Done: {{ ph.allottedHours ?? 0 }}h
+                            </span>
+                            <span class="badge"
+                                [style.background]="(ph.remainingHours ?? 0) < 0 ? '#fef2f2' : '#fefce8'"
+                                [style.color]="(ph.remainingHours ?? 0) < 0 ? '#ef4444' : '#d97706'"
+                                style="font-size:0.72rem">
+                                Left: {{ ph.remainingHours ?? '-' }}h
+                            </span>
+                        </div>
+
+                        <!-- Progress bar -->
+                        <div style="width:80px">
+                            <div style="height:6px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+                                <div style="height:100%;border-radius:4px;transition:width 0.4s"
+                                    [style.width.%]="getProgressPct(ph.allottedHours, ph.estHours)"
+                                    [style.background]="getProgressColor(getProgressPct(ph.allottedHours, ph.estHours))">
+                                </div>
+                            </div>
+                            <div class="text-muted text-end mt-1" style="font-size:0.65rem">
+                                {{ getProgressPct(ph.allottedHours, ph.estHours) }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Topic rows (expanded) -->
+                    <div *ngIf="isPhaseExpanded(ph.phaseId)">
+                        <div *ngFor="let t of ph.topics; let last = last"
+                            class="px-4 py-2 d-flex align-items-center gap-3" [class.border-bottom]="!last"
+                            style="background:#fff">
+
+                            <i class="fa-solid fa-circle-dot text-muted" style="font-size:0.55rem;flex-shrink:0"></i>
+
+                            <div class="flex-grow-1 small">{{ t.topicName }}</div>
+
+                            <div class="d-flex gap-2 align-items-center flex-shrink-0">
+                                <span class="text-muted" style="font-size:0.72rem">
+                                    Est: {{ t.estHours ?? '-' }}h
+                                </span>
+                                <span class="text-primary fw-semibold" style="font-size:0.72rem">
+                                    Done: {{ t.allottedHours ?? 0 }}h
+                                </span>
+                                <span style="font-size:0.72rem"
+                                    [style.color]="(t.remainingHours ?? 0) < 0 ? '#ef4444' : '#94a3b8'">
+                                    Left: {{ t.remainingHours ?? '-' }}h
+                                </span>
+                            </div>
+
+                            <!-- Mini progress -->
+                            <div style="width:60px">
+                                <div style="height:4px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+                                    <div style="height:100%;border-radius:4px"
+                                        [style.width.%]="getProgressPct(t.allottedHours, t.estHours)"
+                                        [style.background]="getProgressColor(getProgressPct(t.allottedHours, t.estHours))">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div *ngIf="!ph.topics?.length" class="px-4 py-2 text-muted small">
+                            No topics defined for this phase.
+                        </div>
+                    </div>
+                </div>
+                <div *ngIf="phaseReport.unassigned" class="border rounded-3 p-3 d-flex align-items-center gap-3"
+                    style="background:#fefce8;border-color:#fde047 !important">
+                    <i class="fa-solid fa-circle-question text-warning"></i>
+                    <div class="flex-grow-1 small fw-semibold text-warning">Unassigned Hours</div>
+                    <span class="badge bg-warning-subtle text-warning">
+                        {{ phaseReport.unassigned.allottedHours }}h allotted without a phase
+                    </span>
+                </div>
+            </div>
+            <div *ngIf="!reportLoading && !subjectHours.length && !phaseReport" class="text-center py-5 text-muted">
+                <i class="fa-solid fa-chart-bar fa-2x mb-2 d-block opacity-20"></i>
+                <div class="fw-semibold">Select a subject to view the report</div>
+                <div class="small mt-1">Hours allotted and phase plan progress will appear here</div>
+            </div>
+
+        </div>
+    </div>
 </div>
 
-<div class="offcanvas offcanvas-end" [class.show]="offcanvasMode !== 'none'"
-    [style.visibility]="offcanvasMode !== 'none' ? 'visible' : 'hidden'" style="width: 450px;">
+<!-- ═══════════════════════════════════════════════════════════════
+     OFFCANVAS — Edit / Staff Map / Assign Students / Shuffle
+     ════════════════════════════════════════════════════════════ -->
+<div class="offcanvas-backdrop fade show" *ngIf="showOffcanvas" (click)="closeOffcanvas()"></div>
+<div class="offcanvas offcanvas-end show" style="width:480px" tabindex="-1" *ngIf="showOffcanvas">
 
+    <!-- HEADER -->
     <div class="offcanvas-header border-bottom">
-        <h5 class="offcanvas-title">
-            <span *ngIf="offcanvasMode === 'edit'">Edit Batch</span>
-            <span *ngIf="offcanvasMode === 'staff'">Faculty Mapping</span>
-            <span *ngIf="offcanvasMode === 'assign'">Assign Students</span>
-            <span *ngIf="offcanvasMode === 'shuffle'">Shuffle Students</span>
-        </h5>
+        <div>
+            <h6 class="offcanvas-title fw-semibold mb-0">
+                <ng-container [ngSwitch]="offcanvasMode">
+                    <span *ngSwitchCase="'edit'"><i class="fa-solid fa-pen-to-square me-1"></i> Edit Batch</span>
+                    <span *ngSwitchCase="'staff'"><i class="fa-solid fa-users-gear me-1"></i> Faculty Mapping</span>
+                    <span *ngSwitchCase="'assign'"><i class="fa-solid fa-user-plus me-1"></i> Assign Students</span>
+                    <span *ngSwitchCase="'shuffle'"><i class="fa-solid fa-shuffle me-1"></i> Shuffle Students</span>
+                    <span *ngSwitchCase="'classTeacher'"><i class="fa-solid fa-user-tie me-1"></i> Assign Class
+                        Teacher</span>
+                </ng-container>
+            </h6>
+            <div class="text-muted small">{{ batch?.batchName }} ({{ batch?.batchCode }})</div>
+        </div>
         <button type="button" class="btn-close" (click)="closeOffcanvas()"></button>
     </div>
 
-    <div class="offcanvas-body">
+    <!-- BODY -->
+    <div class="offcanvas-body overflow-auto">
 
-        <form *ngIf="offcanvasMode === 'edit'" [formGroup]="editForm">
-            <div class="mb-3">
-                <formfield label="Batch Name" [required]="true" formControlName="batchName"
-                    [control]="editForm.get('batchName')" placeholder="Batch Name">
-                </formfield>
-            </div>
-
-            <div class="mb-3">
-                <formfield label="Batch Code" [required]="true" formControlName="batchCode"
-                    [control]="editForm.get('batchCode')" placeholder="Batch Code">
-                </formfield>
-            </div>
-
-            <div class="row mb-3">
+        <!-- ── EDIT MODE ──────────────────────────────────────────────────────── -->
+        <ng-container *ngIf="offcanvasMode === 'edit'">
+            <form [formGroup]="editForm" class="row g-3">
+                <div class="col-12">
+                    <formfield label="Batch Name" [required]="true" formControlName="batchName"
+                        [control]="editForm.get('batchName')" placeholder="e.g., Batch A"></formfield>
+                </div>
+                <div class="col-12">
+                    <formfield label="Batch Code" [required]="true" formControlName="batchCode"
+                        [control]="editForm.get('batchCode')" placeholder="e.g., BAT-01"></formfield>
+                </div>
+                <div class="col-12">
+                    <selectbox label="Status" [required]="true" formControlName="status"
+                        [control]="editForm.get('status')" [options]="statusEditorOptions" optionLabel="label"
+                        optionValue="value"></selectbox>
+                </div>
+                <div class="col-12">
+                    <selectbox label="Program" [required]="true" formControlName="programId"
+                        [control]="editForm.get('programId')" [options]="programOptionsForEditor" optionLabel="label"
+                        optionValue="value" (ngModelChange)="onEditProgramChanged($event)"></selectbox>
+                </div>
+                <div class="col-12">
+                    <selectbox label="Center" [required]="true" formControlName="centerId"
+                        [control]="editForm.get('centerId')" [options]="centerOptionsForEditor" optionLabel="label"
+                        optionValue="value" (ngModelChange)="onEditCenterChanged($event)"></selectbox>
+                </div>
                 <div class="col-6">
                     <formfield label="Start Date" [required]="true" formControlName="startDate"
-                        [control]="editForm.get('startDate')" type="date">
-                    </formfield>
+                        [control]="editForm.get('startDate')" type="date"></formfield>
                 </div>
                 <div class="col-6">
-                    <formfield label="End Date" [required]="true" formControlName="endDate"
-                        [control]="editForm.get('endDate')" type="date">
-                    </formfield>
+                    <formfield label="End Date" formControlName="endDate" [control]="editForm.get('endDate')"
+                        type="date"></formfield>
+                </div>
+                <div class="col-12">
+                    <description label="Remarks" formControlName="remarks" [control]="editForm.get('remarks')">
+                    </description>
+                </div>
+            </form>
+        </ng-container>
+
+        <!-- ── STAFF MAP MODE ─────────────────────────────────────────────────── -->
+        <ng-container *ngIf="offcanvasMode === 'staff'">
+            <div class="alert alert-light border-0 small mb-3">
+                Map <b>Subject → Teaching Staff</b>. Each subject can have only one assigned staff.
+            </div>
+            <div class="row g-2 align-items-end mb-3">
+                <div class="col-12">
+                    <selectbox label="Subject" [options]="batchSubjectOptions" optionLabel="label" optionValue="value"
+                        [(ngModel)]="staffDraft.subjectId" (ngModelChange)="onStaffDraftSubjectChanged($event)">
+                    </selectbox>
+                </div>
+                <div class="col-12">
+                    <selectbox label="Teaching Staff" [options]="staffOptionsFiltered" optionLabel="label"
+                        optionValue="value" [(ngModel)]="staffDraft.staffId"></selectbox>
+                </div>
+                <div class="col-12 d-grid">
+                    <button class="btn btn-sm btn-outline-primary" (click)="addStaffMapRow()">
+                        <i class="fa-solid fa-plus me-1"></i> Add Row
+                    </button>
                 </div>
             </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Subject</th>
+                            <th>Staff</th>
+                            <th class="text-end">Del</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngIf="!staffMapRows.length">
+                            <td colspan="3" class="text-muted small py-3 text-center">No mappings yet.</td>
+                        </tr>
+                        <tr *ngFor="let r of staffMapRows; let i = index">
+                            <td class="fw-semibold small">{{ r.subjectName || '-' }}</td>
+                            <td class="small">{{ r.staffName || '-' }}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-danger" (click)="removeStaffMapRow(i)">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </ng-container>
 
+        <!-- ── ASSIGN STUDENTS MODE ───────────────────────────────────────────── -->
+        <ng-container *ngIf="offcanvasMode === 'assign'">
+            <div class="d-flex gap-2 mb-2">
+                <input class="form-control form-control-sm" placeholder="Search name / phone / admissionNo"
+                    [(ngModel)]="eligibleSearch" />
+                <button class="btn btn-sm btn-outline-primary" (click)="applyEligibleFilter()">Go</button>
+                <button class="btn btn-sm btn-outline-secondary"
+                    (click)="eligibleSearch=''; applyEligibleFilter()">Reset</button>
+            </div>
+            <div class="border rounded-3 p-1" style="max-height: 440px; overflow: auto;">
+                <div *ngIf="loading" class="text-center py-4 text-muted">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                </div>
+                <div *ngIf="!loading && !eligibleStudentsFiltered.length" class="text-muted small py-3 text-center">
+                    No eligible students.
+                </div>
+                <div *ngFor="let s of eligibleStudentsFiltered"
+                    class="d-flex align-items-center gap-2 border-bottom px-2 py-2">
+                    <input type="checkbox" #cb [checked]="selectedStudentIds.has(s?.studentId || '')"
+                        (change)="toggleStudent(s.studentId, cb.checked)" />
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold small">{{ s?.student?.name || '-' }}
+                            <span class="text-muted">({{ s?.admissionNo || '-' }})</span>
+                        </div>
+                        <div class="text-muted small">{{ s?.student?.phone || '-' }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <div class="text-muted small">Selected: {{ selectedStudentIds.size }}</div>
+            </div>
+        </ng-container>
+
+        <!-- ── SHUFFLE MODE ───────────────────────────────────────────────────── -->
+        <ng-container *ngIf="offcanvasMode === 'shuffle'">
+            <div class="alert alert-light border-0 small mb-3">
+                Select students to move and choose the target batch (same program &amp; AY).
+            </div>
             <div class="mb-3">
-                <selectbox label="Status" [required]="true" formControlName="status" [control]="editForm.get('status')"
-                    [options]="editStatusOptions" optionLabel="label" optionValue="value">
+                <selectbox label="Target Batch" [required]="true" [options]="shuffleBatchOptions" optionLabel="label"
+                    optionValue="value" [(ngModel)]="shuffleTargetBatchId"
+                    (ngModelChange)="onShuffleTargetChanged($event)"></selectbox>
+            </div>
+            <div class="border rounded-3 p-1" style="max-height:380px;overflow:auto;">
+                <div *ngIf="!studentsForShuffle.length" class="text-muted small py-3 text-center">No students in batch.
+                </div>
+                <div *ngFor="let s of studentsForShuffle"
+                    class="d-flex align-items-center gap-2 border-bottom px-2 py-2">
+                    <input type="checkbox" #sh [checked]="s._selected"
+                        (change)="toggleShuffleStudent(s.studentId, sh.checked)" />
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold small">{{ s?.student?.name || '-' }}
+                            <span class="text-muted">({{ s?.admissionNo || '-' }})</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-muted small mt-2">Selected: {{ shuffleSelectedCount }}</div>
+        </ng-container>
+
+        <ng-container *ngIf="offcanvasMode === 'classTeacher'">
+            <div class="alert alert-light border-0 small mb-3">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                Select a teaching staff member to be the primary in-charge of this batch.
+            </div>
+            <div class="mb-3">
+                <selectbox label="Class Teacher" [options]="staffOptionsAll" optionLabel="label" optionValue="value"
+                    [(ngModel)]="classTeacherId">
                 </selectbox>
             </div>
-
             <div class="mb-3">
-                <description label="Remarks" formControlName="remarks" [control]="editForm.get('remarks')">
-                </description>
+                <label class="form-label small fw-medium">Section <span
+                        class="text-muted fw-normal">(optional)</span></label>
+                <input type="text" class="form-control form-control-sm" [(ngModel)]="classTeacherSection"
+                    placeholder="e.g. A, B, C" />
+                <div class="form-text">Section label for this batch (e.g. Section A)</div>
+            </div>
+        </ng-container>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="offcanvas-footer border-top px-3 py-3 d-flex justify-content-end gap-2">
+        <button class="btn btn-sm btn-outline-secondary" (click)="closeOffcanvas()">Cancel</button>
+        <button *ngIf="offcanvasMode === 'edit'" class="btn btn-sm btn-primary" (click)="saveEdit()"
+            [disabled]="loading || editForm.invalid">
+            <i class="fa-solid fa-floppy-disk me-1"></i> Save
+        </button>
+        <button *ngIf="offcanvasMode === 'staff'" class="btn btn-sm btn-primary" (click)="saveStaffMap()"
+            [disabled]="loading">
+            <i class="fa-solid fa-floppy-disk me-1"></i> Save Mapping
+        </button>
+        <button *ngIf="offcanvasMode === 'assign'" class="btn btn-sm btn-primary" (click)="assignStudents()"
+            [disabled]="loading || !selectedStudentIds.size">
+            <i class="fa-solid fa-user-plus me-1"></i> Assign
+        </button>
+        <button *ngIf="offcanvasMode === 'shuffle'" class="btn btn-sm btn-warning" (click)="saveShuffleBatch()"
+            [disabled]="loading || !shuffleSelectedCount">
+            <i class="fa-solid fa-shuffle me-1"></i> Shuffle
+        </button>
+        <button *ngIf="offcanvasMode === 'classTeacher'" class="btn btn-sm btn-primary" (click)="assignClassTeacher()"
+            [disabled]="loading">
+            <i class="fa-solid fa-floppy-disk me-1"></i> Save Teacher
+        </button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PROMOTE MODAL
+     ════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop fade show" *ngIf="showPromoteModal"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showPromoteModal">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:520px">
+        <div class="modal-content border-0 shadow">
+
+            <div class="modal-header border-0">
+                <h6 class="modal-title fw-semibold">
+                    <i class="fa-solid fa-arrow-up-right-dots me-1 text-primary"></i>
+                    Promote Batch
+                </h6>
+                <button type="button" class="btn-close" (click)="closePromoteModal()"></button>
             </div>
 
-            <div class="d-grid">
-                <button class="btn btn-primary" type="button" (click)="saveBatch()"
-                    [disabled]="loading || editForm.invalid">
-                    Save Changes
+            <div class="modal-body">
+
+                <!-- Success result after promote -->
+                <div *ngIf="promoteResult" class="alert alert-success border-0 rounded-3 mb-3">
+                    <div class="fw-semibold mb-1">
+                        <i class="fa-solid fa-circle-check me-1"></i> Promoted successfully
+                    </div>
+                    <div class="small">
+                        Now in <strong>{{ promoteResult.academicYear }}</strong>
+                        &nbsp;·&nbsp; Year {{ promoteResult.yearNo }}
+                        &nbsp;·&nbsp; Class {{ promoteResult.classNo }}
+                    </div>
+                    <div *ngIf="promoteResult.programSwitched" class="small mt-1 text-success">
+                        <i class="fa-solid fa-shuffle me-1"></i>
+                        Program switched to <strong>{{ promoteResult.newProgram?.programName }}</strong>
+                    </div>
+                    <div class="small mt-1 text-warning">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        Staff map has been cleared — please assign teachers for the new year
+                    </div>
+                </div>
+
+                <!-- Pre-promote form -->
+                <ng-container *ngIf="!promoteResult">
+
+                    <div class="alert alert-warning border-0 small mb-3">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        This advances the batch to the <b>next Academic Year</b>.
+                        Current staff mapping will be <strong>archived</strong> and
+                        cleared — you'll need to reassign teachers after promotion.
+                    </div>
+
+                    <!-- Current state -->
+                    <div class="border rounded-3 p-3 bg-light mb-3">
+                        <div class="row g-2 small">
+                            <div class="col-6">
+                                <div class="text-muted">Batch</div>
+                                <div class="fw-semibold">{{ batch?.batchName }}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted">Current AY</div>
+                                <div class="fw-semibold">{{ batch?.academicYear }}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted">Year No</div>
+                                <div class="fw-semibold">
+                                    Yr {{ batch?.yearNo }}
+                                    <i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:0.65rem"></i>
+                                    Yr {{ (batch?.yearNo || 0) + 1 }}
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted">Class No</div>
+                                <div class="fw-semibold">
+                                    Cls {{ batch?.classNo }}
+                                    <i class="fa-solid fa-arrow-right mx-1 text-muted" style="font-size:0.65rem"></i>
+                                    Cls {{ (batch?.classNo || 0) + 1 }}
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="text-muted">Current Program</div>
+                                <div class="fw-semibold">{{ batch?.programName || '-' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Optional program switch -->
+                    <div class="mb-1">
+                        <label class="form-label small fw-medium mb-1">
+                            Switch Program
+                            <span class="text-muted fw-normal">(optional — for stream change e.g. to NEET / JEE)</span>
+                        </label>
+                        <select class="form-select form-select-sm" [(ngModel)]="promoteNewProgramId">
+                            <option *ngFor="let p of promoteProgramOptions" [value]="p.value">
+                                {{ p.label }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Stream switch warning -->
+                    <div *ngIf="promoteNewProgramId" class="alert alert-info border-0 small mt-2 mb-0 py-2">
+                        <i class="fa-solid fa-circle-info me-1"></i>
+                        Program will be switched for this batch.
+                        Student profiles will retain their original enrollment program —
+                        only the batch and their <strong>AY history</strong> will reflect the new program.
+                    </div>
+
+                </ng-container>
+
+            </div>
+
+            <div class="modal-footer border-0">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closePromoteModal()">
+                    {{ promoteResult ? 'Close' : 'Cancel' }}
+                </button>
+                <button *ngIf="!promoteResult" class="btn btn-sm btn-primary" (click)="confirmPromote()"
+                    [disabled]="loading">
+                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    <i class="fa-solid fa-arrow-up-right-dots me-1" *ngIf="!loading"></i>
+                    Confirm Promote
                 </button>
             </div>
-        </form>
 
-        <div *ngIf="offcanvasMode === 'staff'">
-            <form [formGroup]="staffForm">
-                <div formArrayName="staffMap">
-                    <div *ngFor="let g of staffFA.controls; let i=index" [formGroup]="asFormGroup(g)"
-                        class="card mb-2 bg-light border-0">
-                        <div class="card-body p-2 position-relative">
-                            <button class="btn btn-sm btn-link text-danger position-absolute top-0 end-0"
-                                (click)="removeStaffRow(i)">
-                                <i class="fa-solid fa-times"></i>
-                            </button>
-                            <div class="row g-2">
-                                <div class="col-12">
-                                    <selectbox label="Subject" [required]="true" formControlName="subjectId"
-                                        [control]="asFormGroup(g).get('subjectId')" [options]="subjectsOptions"
-                                        optionLabel="label" optionValue="value" (ngModelChange)="onSubjectChange(i)">
-                                    </selectbox>
-                                </div>
-
-                                <div class="col-12">
-                                    <selectbox label="Faculty" [required]="true" formControlName="staffId"
-                                        [control]="asFormGroup(g).get('staffId')"
-                                        [options]="staffOptionsByRow[i] || staffOptionsAll" optionLabel="label"
-                                        optionValue="value" (ngModelChange)="onStaffChange(i)">
-                                    </selectbox>
-                                </div>
-
-                                <input type="hidden" formControlName="subjectName">
-                                <input type="hidden" formControlName="staffName">
+        </div>
+    </div>
+</div>
+<!-- <div class="modal fade show d-block" tabindex="-1" *ngIf="showPromoteModal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0">
+                <h6 class="modal-title fw-semibold">
+                    <i class="fa-solid fa-arrow-up-right-dots me-1 text-primary"></i> Promote Batch
+                </h6>
+                <button type="button" class="btn-close" (click)="closePromoteModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning border-0 small mb-3">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                    This advances the batch to the <b>next Academic Year</b> and increments the Class No. All assigned
+                    students remain.
+                </div>
+                <div class="border rounded-3 p-3 bg-light">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="text-muted small">Batch</div>
+                            <div class="fw-semibold">{{ batch?.batchName }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Current AY</div>
+                            <div class="fw-semibold">{{ batch?.academicYear }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Year No</div>
+                            <div class="fw-semibold">Yr {{ batch?.yearNo }} → Yr {{ (batch?.yearNo || 0) + 1 }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small">Class No</div>
+                            <div class="fw-semibold">Cls {{ batch?.classNo }} → Cls {{ (batch?.classNo || 0) + 1 }}
                             </div>
                         </div>
                     </div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-3" (click)="addStaffRow()">
-                    + Add Mapping
-                </button>
-                <div class="d-grid">
-                    <button type="button" class="btn btn-primary" (click)="saveStaffMap()"
-                        [disabled]="loading || staffForm.invalid">
-                        Save Mapping
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <div *ngIf="offcanvasMode === 'assign'">
-            <div class="row g-2 align-items-end mb-3">
-                <div class="col">
-                    <formfield label="Search" [(ngModel)]="eligibleQuery.search" name="eligibleSearch"
-                        placeholder="Search...">
-                    </formfield>
-                </div>
-                <div class="col-auto">
-                    <button type="button" class="btn btn-outline-secondary"
-                        (click)="eligibleQuery.page=1; loadEligible()">
-                        Go
-                    </button>
-                </div>
-            </div>
-            <div class="list-group mb-3 overflow-auto" style="max-height: 400px;">
-                <label *ngFor="let s of eligibleRows" class="list-group-item d-flex gap-2">
-                    <input class="form-check-input flex-shrink-0" type="checkbox"
-                        [checked]="eligibleSelected.has(s.studentId)"
-                        (change)="toggleEligible(s.studentId, $any($event.target).checked)">
-                    <span>
-                        <div class="fw-bold small">{{ s.student?.name }}</div>
-                        <div class="text-muted small">{{ s.admissionNo }}</div>
-                    </span>
-                </label>
-                <div *ngIf="!eligibleRows.length" class="text-center p-3 text-muted">No students found</div>
-            </div>
-            <div class="d-grid">
-                <button class="btn btn-primary" (click)="assignEligibleSelected()"
-                    [disabled]="!eligibleSelected.size || loading">
-                    Assign {{ eligibleSelected.size }} Students
-                </button>
-            </div>
-        </div>
-
-        <div *ngIf="offcanvasMode === 'shuffle'">
-            <div class="alert alert-info small">
-                Moving <b>{{ selected.size }}</b> students from {{ batch?.batchName }}.
-            </div>
-            <div class="mb-3">
-                <selectbox label="Target Batch" [ngModelOptions]="{standalone: true}" [(ngModel)]="shuffleToBatchId"
-                    name="shuffleToBatchId" [options]="batchesFullOptions" optionLabel="label" optionValue="value">
-                </selectbox>
-            </div>
-            <div class="d-grid">
-                <button class="btn btn-warning" (click)="shuffleSelected()" [disabled]="!shuffleToBatchId || loading">
-                    Confirm Shuffle
-                </button>
-            </div>
-        </div>
-
-    </div>
-</div>
-<div class="offcanvas-backdrop fade show" *ngIf="offcanvasMode !== 'none'" (click)="closeOffcanvas()"></div>
-
-
-<div class="modal fade" #confirmModal tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0">
-                <h5 class="modal-title fw-bold">{{ confirmData.title }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-muted">
-                {{ confirmData.message }}
             </div>
             <div class="modal-footer border-0">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn" [ngClass]="confirmData.btnClass" (click)="confirmAction()">
-                    {{ confirmData.btnText }}
+                <button class="btn btn-sm btn-outline-secondary" (click)="closePromoteModal()">Cancel</button>
+                <button class="btn btn-sm btn-primary" (click)="confirmPromote()" [disabled]="loading">
+                    <i class="fa-solid fa-arrow-up-right-dots me-1"></i> Confirm Promote
+                </button>
+            </div>
+        </div>
+    </div>
+</div> -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LATE ENTRY MODAL
+     ════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop fade show" *ngIf="showLateModal"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showLateModal">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <div>
+                    <h6 class="modal-title fw-semibold mb-0">
+                        <i class="fa-solid fa-clock-rotate-left me-1 text-warning"></i> Log Late Entry
+                    </h6>
+                    <div class="text-muted small">{{ batch?.batchName }} ({{ batch?.batchCode }})</div>
+                </div>
+                <button type="button" class="btn-close" (click)="closeLateModal()"></button>
+            </div>
+            <div class="modal-body">
+                <!-- <form [formGroup]="lateForm" class="row g-3">
+                    <div class="col-12">
+                        <selectbox label="Person" [required]="true" formControlName="personId"
+                            [control]="lateForm.get('personId')" [options]="latePersonOptions" optionLabel="label"
+                            optionValue="value">
+                        </selectbox>
+                        <div *ngIf="batchStudentsLoading" class="text-muted small mt-1">
+                            <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading students...
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <formfield label="Date" [required]="true" formControlName="date"
+                            [control]="lateForm.get('date')" type="date"></formfield>
+                    </div>
+                    <div class="col-6">
+                        <formfield label="Timetable ID" [required]="true" formControlName="timetableId"
+                            [control]="lateForm.get('timetableId')" placeholder="Auto-filled"></formfield>
+                    </div>
+                    <div class="col-4">
+                        <formfield label="Period No" [required]="true" formControlName="periodNo"
+                            [control]="lateForm.get('periodNo')" type="number" placeholder="1"></formfield>
+                    </div>
+                    <div class="col-4">
+                        <formfield label="Sched. Start (min)" [required]="true" formControlName="scheduledStartMin"
+                            [control]="lateForm.get('scheduledStartMin')" type="number" placeholder="e.g. 540">
+                        </formfield>
+                    </div>
+                    <div class="col-4">
+                        <formfield label="Delay (min)" [required]="true" formControlName="delayMinutes"
+                            [control]="lateForm.get('delayMinutes')" type="number" placeholder="e.g. 15"></formfield>
+                    </div>
+                    <div class="col-12">
+                        <formfield label="Reason" formControlName="reason" [control]="lateForm.get('reason')"
+                            placeholder="Optional reason"></formfield>
+                    </div>
+                </form> -->
+                <form [formGroup]="lateForm" class="row g-3">
+
+                    <!-- Student -->
+                    <div class="col-12">
+                        <selectbox label="Student" [required]="true" formControlName="personId"
+                            [control]="lateForm.get('personId')" [options]="latePersonOptions" optionLabel="label"
+                            optionValue="value">
+                        </selectbox>
+                        <div *ngIf="batchStudentsLoading" class="text-muted small mt-1">
+                            <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading students...
+                        </div>
+                    </div>
+
+                    <!-- Date — triggers period reload -->
+                    <div class="col-6">
+                        <formfield label="Date" [required]="true" formControlName="date"
+                            [control]="lateForm.get('date')" type="date"
+                            (change)="onLateDateChanged(lateForm.get('date')?.value)">
+                        </formfield>
+                    </div>
+
+                    <!-- Period dropdown -->
+                    <div class="col-6">
+                        <label class="form-label small fw-medium">
+                            Period <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select form-select-sm" formControlName="periodNo"
+                            (change)="onLatePeriodSelected(lateForm.get('periodNo')?.value)">
+                            <option value="">Select Period</option>
+                            <option *ngFor="let opt of latePeriodOptions | slice:1" [value]="opt.value">
+                                {{ opt.label }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Delay -->
+                    <div class="col-6">
+                        <formfield label="Delay (minutes)" [required]="true" formControlName="delayMinutes"
+                            [control]="lateForm.get('delayMinutes')" type="number" placeholder="e.g. 15">
+                        </formfield>
+                    </div>
+
+                    <!-- Reason -->
+                    <div class="col-6">
+                        <formfield label="Reason" formControlName="reason" [control]="lateForm.get('reason')"
+                            placeholder="Optional reason">
+                        </formfield>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeLateModal()">Cancel</button>
+                <button class="btn btn-sm btn-warning" (click)="submitLateEntry()"
+                    [disabled]="loading || lateForm.invalid">
+                    <i class="fa-solid fa-clock me-1"></i> Log Entry
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SPECIAL CLASS MODAL
+     ════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop fade show" *ngIf="showSpecialClassModal"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showSpecialClassModal">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <div>
+                    <h6 class="modal-title fw-semibold mb-0">
+                        <i class="fa-solid fa-calendar-plus me-1 text-success"></i> Add Special Class
+                    </h6>
+                    <div class="text-muted small">{{ batch?.batchName }} ({{ batch?.batchCode }})</div>
+                </div>
+                <button type="button" class="btn-close" (click)="closeSpecialClassModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light border-0 small mb-3">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    Added as an extra period to the <b>active published timetable</b> for the selected date's week.
+                </div>
+                <form [formGroup]="specialClassForm" class="row g-3">
+
+                    <div class="col-6 col-md-4">
+                        <formfield label="Date" [required]="true" formControlName="date"
+                            [control]="specialClassForm.get('date')" type="date" (change)="onSpecialClassDateChanged()">
+                        </formfield>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <formfield label="Period No" [required]="true" formControlName="periodNo"
+                            [control]="specialClassForm.get('periodNo')" type="number"
+                            (input)="specialClassPeriodConflict = false" (change)="checkSpecialClassPeriodConflict()">
+                        </formfield>
+                        <div *ngIf="specialClassPeriodConflict" class="alert alert-warning small py-1 px-2 mt-1 mb-0">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                            Period {{ specialClassForm.get('periodNo')?.value }} already exists on this date.
+                            Choose a different period number.
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <formfield label="Start Time" [required]="true" formControlName="startTime"
+                            [control]="specialClassForm.get('startTime')" type="time"></formfield>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <formfield label="End Time" [required]="true" formControlName="endTime"
+                            [control]="specialClassForm.get('endTime')" type="time"></formfield>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <selectbox label="Subject" [required]="true" formControlName="subjectId"
+                            [control]="specialClassForm.get('subjectId')" [options]="specialClassSubjectOptions"
+                            optionLabel="label" optionValue="value"
+                            (ngModelChange)="onSpecialClassSubjectChanged($event)"> ← add this
+                        </selectbox>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <selectbox label="Faculty" [required]="true" formControlName="staffId"
+                            [control]="specialClassForm.get('staffId')" [options]="specialClassStaffOptions"
+                            optionLabel="label" optionValue="value"></selectbox>
+                    </div>
+
+                    <div class="col-6 col-md-4">
+                        <selectbox label="Period Type" [required]="true" formControlName="periodType"
+                            [control]="specialClassForm.get('periodType')" [options]="periodTypeOptions"
+                            optionLabel="label" optionValue="value"></selectbox>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <selectbox label="Mode" [required]="true" formControlName="mode"
+                            [control]="specialClassForm.get('mode')" [options]="modeOptions" optionLabel="label"
+                            optionValue="value"></selectbox>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small fw-medium">
+                            <i class="fa-solid fa-layer-group me-1"></i>Phase
+                            <span class="text-muted fw-normal">(optional)</span>
+                        </label>
+                        <select class="form-select form-select-sm" formControlName="phaseId">
+                            <option *ngFor="let ph of specialClassPhaseOptions" [value]="ph.value">
+                                {{ ph.label }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-8">
+                        <formfield label="Topic" formControlName="topic" [control]="specialClassForm.get('topic')"
+                            placeholder="Optional topic"></formfield>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <formfield label="Venue" formControlName="venue" [control]="specialClassForm.get('venue')"
+                            placeholder="e.g. Room 101"></formfield>
+                    </div>
+
+                    <div class="col-12" *ngIf="specialClassForm.get('mode')?.value === 'ONLINE'">
+                        <formfield label="Zoom URL" formControlName="zoomUrl"
+                            [control]="specialClassForm.get('zoomUrl')" placeholder="https://zoom.us/j/..."></formfield>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeSpecialClassModal()">Cancel</button>
+                <button class="btn btn-sm btn-success" (click)="submitSpecialClass()"
+                    [disabled]="loading || specialClassForm.invalid || specialClassPeriodConflict">
+                    <i class="fa-solid fa-calendar-plus me-1"></i> Add Special Class
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop fade show" *ngIf="showRemoveConfirm"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showRemoveConfirm">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:400px">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0">
+                <h6 class="modal-title fw-semibold text-danger">
+                    <i class="fa-solid fa-user-minus me-1"></i>Remove Student
+                </h6>
+                <button class="btn-close" (click)="closeRemoveConfirm()"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Remove <strong>{{ removeStudentName }}</strong> from this batch? This cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeRemoveConfirm()">Cancel</button>
+                <button class="btn btn-sm btn-danger" (click)="confirmRemoveStudent()" [disabled]="loading">
+                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    Remove
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop fade show" *ngIf="showCloseConfirm"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showCloseConfirm">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:420px">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0">
+                <h6 class="modal-title fw-semibold text-danger">
+                    <i class="fa-solid fa-lock me-1"></i>Close Batch
+                </h6>
+                <button class="btn-close" (click)="closeCloseBatchModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger small mb-3">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                    Closing this batch will <strong>release all assigned students</strong>
+                    and set the batch to CLOSED. This cannot be undone.
+                </div>
+                <div class="border rounded-3 p-3 bg-light small">
+                    <div><span class="text-muted">Batch:</span> <strong>{{ batch?.batchName }}</strong></div>
+                    <div><span class="text-muted">Students:</span> <strong>{{ batch?.studentCount || students.length
+                            }}</strong> will be released</div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-sm btn-outline-secondary" (click)="closeCloseBatchModal()">Cancel</button>
+                <button class="btn btn-sm btn-danger" (click)="confirmCloseBatch()" [disabled]="loading">
+                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    <i class="fa-solid fa-lock me-1" *ngIf="!loading"></i>
+                    Confirm Close
                 </button>
             </div>
         </div>
