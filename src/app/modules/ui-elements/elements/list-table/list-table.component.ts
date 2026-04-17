@@ -37,6 +37,7 @@ export class ListTableComponent {
   @Input() showaction: boolean = true;
   @Input() showfilter: boolean = false;
   @Input() pageSizeOptions = [5, 10, 20, 50];
+  @Input() pageSize = 5;
   @Input() totalRecords: number = 0;
   @Input() loading: boolean = false;
   @Input() showpageoptions: boolean = true;
@@ -70,7 +71,7 @@ export class ListTableComponent {
 
   // pagination options
   currentPage = 1;
-  pageSize = 5;
+  // pageSize = 5;
   sortKey: string = '';
   sortDirection: 'asc' | 'desc' = 'asc';
   searchText = '';
@@ -90,7 +91,8 @@ export class ListTableComponent {
   }
 
   ngOnInit(): void {
-    this.pageSize = this.pageSizeOptions[0];
+    // this.pageSize = this.pageSizeOptions[0];
+    this.pageSize = Number(localStorage.getItem('pageSize')) || 5;
     if (this.columns) {
       this.columns = this.columns.map((col) => ({
         ...col,

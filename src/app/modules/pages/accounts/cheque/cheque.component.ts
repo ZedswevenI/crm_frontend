@@ -64,6 +64,15 @@ export class ChequeComponent implements OnInit {
     this.initForms();
     this.loadDropdowns();
     this.loadBankAccounts();
+    // this.loadCheques({ page: 1, pageSize: 10 });
+
+    // added for filter
+    const savedFilters = sessionStorage.getItem('chequeFilters');
+
+    if (savedFilters) {
+      this.filterForm.patchValue(JSON.parse(savedFilters));
+    }
+
     this.loadCheques({ page: 1, pageSize: 10 });
   }
 
@@ -407,11 +416,44 @@ export class ChequeComponent implements OnInit {
     return 'bg-light text-dark';
   }
 
+  // applyFilters() {
+  //   this.loadCheques({ page: 1, pageSize: 10 });
+  // }
+
+  // added for filter
   applyFilters() {
-    this.loadCheques({ page: 1, pageSize: 10 });
+    const filters = this.filterForm.value;
+
+    sessionStorage.setItem('chequeFilters', JSON.stringify(filters));
+
+    this.loadCheques({
+      page: 1,
+      pageSize: 10
+    });
   }
 
+  // resetFilters() {
+  //   this.filterForm.reset({
+  //     search: '',
+  //     status: 'ALL',
+  //     mode: '',
+  //     centerCode: '',
+  //     programCode: '',
+  //     fromDue: '',
+  //     toDue: '',
+  //     fromPlanned: '',
+  //     toPlanned: '',
+  //     fromDeposit: '',
+  //     toDeposit: '',
+  //     includeInactive: false,
+  //   });
+  //   this.loadCheques({ page: 1, pageSize: 10 });
+  // }
+
+  // added for filter
   resetFilters() {
+    sessionStorage.removeItem('chequeFilters');
+
     this.filterForm.reset({
       search: '',
       status: 'ALL',
@@ -423,9 +465,9 @@ export class ChequeComponent implements OnInit {
       fromPlanned: '',
       toPlanned: '',
       fromDeposit: '',
-      toDeposit: '',
-      includeInactive: false,
+      toDeposit: ''
     });
+
     this.loadCheques({ page: 1, pageSize: 10 });
   }
 
