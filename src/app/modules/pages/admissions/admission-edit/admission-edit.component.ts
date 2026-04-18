@@ -28,7 +28,13 @@ interface FeePlan {
   id: string;
   name: string;
   feePlanCode?: string;
-  instalments: Array<{ seq: number; label: string; amount: number; dueDate?: string | null; instalmentDate?: number | null }>;
+  instalments: Array<{
+    seq: number;
+    label: string;
+    amount: number;
+    dueDate?: string | null;
+    instalmentDate?: number | null;
+  }>;
   feeHeads: Array<{ key: string; label: string; fee: number; stax: number }>;
 }
 
@@ -36,36 +42,27 @@ interface FeePlan {
   selector: 'app-admission-edit',
   standalone: false,
   templateUrl: './admission-edit.component.html',
-  styleUrl: './admission-edit.component.scss'
+  styleUrl: './admission-edit.component.scss',
 })
 export class AdmissionEditComponent implements OnInit {
   loading = false;
   saving = false;
-
   admissionId!: string;
   tenantId!: string;
-
   programs: ProgramItem[] = [];
   centers: CenterItem[] = [];
   feePlans: FeePlan[] = [];
   programsLoading = false;
   centersLoading = false;
   feePlansLoading = false;
-
   discountOptions = Array.from({ length: 21 }, (_, i) => i * 5);
-
-  // ✅ academic years based on selected program duration
   academicYearOptions: string[] = [];
-
   step1Form!: UntypedFormGroup;
   step2Form!: UntypedFormGroup;
-
   currentStage: string | null = null;
   rejectionReason: string | null = null;
-
+  reviewRemarks: string | null = null;
   readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
-
-  // ✅ bank list for datalist/autocomplete (use in HTML)
   bankNames: string[] = [
     'STATE BANK OF INDIA',
     'HDFC BANK',
@@ -91,7 +88,7 @@ export class AdmissionEditComponent implements OnInit {
     private router: Router,
     private alert: AlertService,
     private breadcrumb: BredcrumpService,
-    private api: CommonapiService
+    private api: CommonapiService,
   ) {
     this.breadcrumb.set([
       { label: 'Control Panel' },
@@ -107,7 +104,9 @@ export class AdmissionEditComponent implements OnInit {
       return;
     }
 
-    this.admissionId = String(this.route.snapshot.paramMap.get('id') || '').trim();
+    this.admissionId = String(
+      this.route.snapshot.paramMap.get('id') || '',
+    ).trim();
     if (!this.admissionId) {
       this.alert.error('Invalid admission id in URL.');
       return;
@@ -124,8 +123,14 @@ export class AdmissionEditComponent implements OnInit {
       this.loadFeePlans();
     });
 
-    this.step1Form.get('academicYear')?.valueChanges.subscribe(() => this.loadFeePlans());
-    this.step1Form.get('feePlanId')?.valueChanges.subscribe((id) => this.onFeePlanChanged(String(id || '').trim()));
+    this.step1Form
+      .get('academicYear')
+      ?.valueChanges.subscribe(() => this.loadFeePlans());
+    this.step1Form
+      .get('feePlanId')
+      ?.valueChanges.subscribe((id) =>
+        this.onFeePlanChanged(String(id || '').trim()),
+      );
 
     // load admission and patch
     this.loadAdmissionView();
@@ -165,7 +170,10 @@ export class AdmissionEditComponent implements OnInit {
     this.step1Form.get('phone')?.valueChanges.subscribe((v) => {
       const phone = String(v || '').trim();
       const cur = String(this.step1Form.get('parentPhone')?.value || '').trim();
-      if (phone && !cur) this.step1Form.get('parentPhone')?.setValue(phone, { emitEvent: false });
+      if (phone && !cur)
+        this.step1Form
+          .get('parentPhone')
+          ?.setValue(phone, { emitEvent: false });
     });
 
     this.step2Form = this.fb.group({
@@ -195,7 +203,9 @@ export class AdmissionEditComponent implements OnInit {
       1;
 
     // example: duration=4 => 2025-2029, 2026-2030, 2027-2031
-    this.academicYearOptions = [now - 1, now, now + 1].map((start) => `${start} - ${start + duration}`);
+    this.academicYearOptions = [now - 1, now, now + 1].map(
+      (start) => `${start} - ${start + duration}`,
+    );
 
     // if current selected academicYear not in list, keep it if already present (from server)
     const cur = String(this.step1Form.get('academicYear')?.value || '').trim();
@@ -223,7 +233,9 @@ export class AdmissionEditComponent implements OnInit {
       next: (res: any) => {
         this.loading = false;
         if (!res?.status) {
-          this.alert.error(res?.message || res?.error || 'Failed to load admission');
+          this.alert.error(
+            res?.message || res?.error || 'Failed to load admission',
+          );
           return;
         }
 
@@ -231,8 +243,8 @@ export class AdmissionEditComponent implements OnInit {
         const payments = Array.isArray(res?.payments)
           ? res.payments
           : Array.isArray(res?.data?.payments)
-          ? res.data.payments
-          : [];
+            ? res.data.payments
+            : [];
 
         if (!adm) {
           this.alert.error('Admission payload not found in response.');
@@ -241,7 +253,7 @@ export class AdmissionEditComponent implements OnInit {
 
         this.currentStage = adm?.workflow?.stage || null;
         this.rejectionReason = adm?.workflow?.rejectionReason || null;
-
+        this.reviewRemarks = adm?.workflow?.reviewRemarks || null;
         // patch step1
         this.step1Form.patchValue(
           {
@@ -252,7 +264,8 @@ export class AdmissionEditComponent implements OnInit {
             scholarshipTestId: adm.scholarshipTestId || '',
             name: adm?.student?.name || '',
             phone: adm?.student?.phone || '',
-            parentName: adm?.student?.parentName || adm?.student?.fatherName || '',
+            parentName:
+              adm?.student?.parentName || adm?.student?.fatherName || '',
             parentPhone: adm?.student?.parentPhone || adm?.student?.phone || '',
             email: adm?.student?.email || '',
             centerId: adm.centerId || '',
@@ -266,27 +279,35 @@ export class AdmissionEditComponent implements OnInit {
             baseFee: Number(adm?.fee?.baseFee || 0),
             testScholarshipPct: Number(adm?.fee?.testScholarshipPct || 0),
             scholarshipPct: Number(adm?.fee?.scholarshipPct || 0),
-            additionalScholarshipPct: Number(adm?.fee?.additionalScholarshipPct || 0),
+            additionalScholarshipPct: Number(
+              adm?.fee?.additionalScholarshipPct || 0,
+            ),
             schoolOverallPct: adm?.schoolMarks?.overallPct ?? null,
             schoolCorePct: adm?.schoolMarks?.coreSubjectPct ?? null,
             schoolRemarks: adm?.schoolMarks?.remarks || '',
           },
-          { emitEvent: false }
+          { emitEvent: false },
         );
 
         // ✅ build academic year options based on program (after patch)
-        this.buildAcademicYearOptionsByProgram(String(adm.programId || '').trim());
+        this.buildAcademicYearOptionsByProgram(
+          String(adm.programId || '').trim(),
+        );
 
         // feeplans + preview
         this.loadFeePlans(() => {
-          const cur = String(this.step1Form.get('feePlanId')?.value || '').trim();
+          const cur = String(
+            this.step1Form.get('feePlanId')?.value || '',
+          ).trim();
           this.onFeePlanChanged(cur);
         });
 
         // step2 payments patch (epoch -> date input)
         this.buildPaymentsFromPaymentsArray(payments || []);
 
-        this.alert.success('Admission loaded. You can edit and resubmit for approval.');
+        this.alert.success(
+          'Admission loaded. You can edit and resubmit for approval.',
+        );
       },
       error: () => {
         this.loading = false;
@@ -315,15 +336,17 @@ export class AdmissionEditComponent implements OnInit {
               x.durationYears != null
                 ? Number(x.durationYears)
                 : x.duration != null
-                ? Number(x.duration)
-                : x.programDurationYears != null
-                ? Number(x.programDurationYears)
-                : null,
+                  ? Number(x.duration)
+                  : x.programDurationYears != null
+                    ? Number(x.programDurationYears)
+                    : null,
           }))
           .filter((p: ProgramItem) => !!p.programId && !!p.programName);
 
         // if already selected, generate years once programs loaded
-        const curPid = String(this.step1Form.get('programId')?.value || '').trim();
+        const curPid = String(
+          this.step1Form.get('programId')?.value || '',
+        ).trim();
         if (curPid) this.buildAcademicYearOptionsByProgram(curPid);
       },
       error: () => {
@@ -360,7 +383,9 @@ export class AdmissionEditComponent implements OnInit {
   }
 
   private loadFeePlans(after?: () => void): void {
-    const programId = String(this.step1Form.get('programId')?.value || '').trim();
+    const programId = String(
+      this.step1Form.get('programId')?.value || '',
+    ).trim();
     if (!programId) {
       this.feePlans = [];
       after?.();
@@ -383,7 +408,9 @@ export class AdmissionEditComponent implements OnInit {
         this.feePlans = arr
           .map((x: any) => ({
             id: String(x.feePlanId || x.id || x._id || '').trim(),
-            name: String(x.feePlanName || x.feePlanCode || x.name || 'Fee Plan').trim(),
+            name: String(
+              x.feePlanName || x.feePlanCode || x.name || 'Fee Plan',
+            ).trim(),
             feePlanCode: x.feePlanCode ? String(x.feePlanCode).trim() : '',
             instalments: Array.isArray(x.instalments)
               ? x.instalments.map((i: any) => ({
@@ -391,7 +418,10 @@ export class AdmissionEditComponent implements OnInit {
                   label: String(i.label || `Instalment ${i.seq || ''}`).trim(),
                   amount: Number(i.amount || 0) || 0,
                   dueDate: i.dueDate ? String(i.dueDate).trim() : null,
-                  instalmentDate: typeof i.instalmentDate === 'number' ? i.instalmentDate : null,
+                  instalmentDate:
+                    typeof i.instalmentDate === 'number'
+                      ? i.instalmentDate
+                      : null,
                 }))
               : [],
             feeHeads: Array.isArray(x.feeHeads)
@@ -424,15 +454,20 @@ export class AdmissionEditComponent implements OnInit {
     const fp = this.feePlans.find((x) => x.id === feePlanId) || null;
     this.step1Form.patchValue(
       {
-        feePlanCode: fp?.feePlanCode || this.step1Form.get('feePlanCode')?.value || '',
+        feePlanCode:
+          fp?.feePlanCode || this.step1Form.get('feePlanCode')?.value || '',
         feePlanName: fp?.name || this.step1Form.get('feePlanName')?.value || '',
       },
-      { emitEvent: false }
+      { emitEvent: false },
     );
 
     const total =
-      fp?.feeHeads?.reduce((s, x) => s + (Number(x.fee || 0) + Number(x.stax || 0)), 0) || 0;
-    if (total > 0) this.step1Form.get('baseFee')?.setValue(total, { emitEvent: false });
+      fp?.feeHeads?.reduce(
+        (s, x) => s + (Number(x.fee || 0) + Number(x.stax || 0)),
+        0,
+      ) || 0;
+    if (total > 0)
+      this.step1Form.get('baseFee')?.setValue(total, { emitEvent: false });
   }
 
   // ======= Discount logic (unchanged) =======
@@ -445,18 +480,27 @@ export class AdmissionEditComponent implements OnInit {
     return Number.isFinite(v) ? v : 0;
   }
   get additionalScholarshipPct(): number {
-    const v = Number(this.step1Form.get('additionalScholarshipPct')?.value ?? 0);
+    const v = Number(
+      this.step1Form.get('additionalScholarshipPct')?.value ?? 0,
+    );
     return Number.isFinite(v) ? v : 0;
   }
   get totalDiscountPct(): number {
     const a = Math.max(0, Math.min(100, this.testScholarshipPct || 0)) / 100;
     const b = Math.max(0, Math.min(100, this.scholarshipPct || 0)) / 100;
-    const c = Math.max(0, Math.min(100, this.additionalScholarshipPct || 0)) / 100;
+    const c =
+      Math.max(0, Math.min(100, this.additionalScholarshipPct || 0)) / 100;
     const eff = 1 - (1 - a) * (1 - b) * (1 - c);
     return Math.round(eff * 10000) / 100;
   }
 
-  get feeHeadPreview(): Array<{ label: string; fee: number; stax: number; total: number; scholBenefits: number }> {
+  get feeHeadPreview(): Array<{
+    label: string;
+    fee: number;
+    stax: number;
+    total: number;
+    scholBenefits: number;
+  }> {
     const plan = this.selectedPlan;
     const heads = plan?.feeHeads || [];
     if (!heads.length) return [];
@@ -480,12 +524,16 @@ export class AdmissionEditComponent implements OnInit {
       let outTax = tax0;
       let scholBenefits = 0;
 
-      const key = String(h.key || '').trim().toLowerCase();
+      const key = String(h.key || '')
+        .trim()
+        .toLowerCase();
       const isTuition =
         key === 'tuition' ||
         key === 'tuitionfee' ||
         key === 'tuition_fee' ||
-        String(h.label || '').toLowerCase().includes('tuition');
+        String(h.label || '')
+          .toLowerCase()
+          .includes('tuition');
 
       if (isTuition) {
         const fee1 = applyPct(outFee, p1);
@@ -496,7 +544,13 @@ export class AdmissionEditComponent implements OnInit {
         scholBenefits = Math.max(0, fee0 + tax0 - (outFee + outTax));
       }
 
-      return { label: h.label, fee: outFee, stax: outTax, total: outFee + outTax, scholBenefits };
+      return {
+        label: h.label,
+        fee: outFee,
+        stax: outTax,
+        total: outFee + outTax,
+        scholBenefits,
+      };
     });
   }
 
@@ -516,10 +570,17 @@ export class AdmissionEditComponent implements OnInit {
   }
 
   private buildPaymentsFromPaymentsArray(payments: any[]): void {
-    const nefts = (payments || []).filter((p) => String(p.paymentType || '').toUpperCase() === 'NEFT');
-    const chqs = (payments || []).filter((p) => String(p.paymentType || '').toUpperCase() === 'CHEQUE');
+    const nefts = (payments || []).filter(
+      (p) => String(p.paymentType || '').toUpperCase() === 'NEFT',
+    );
+    const chqs = (payments || []).filter(
+      (p) => String(p.paymentType || '').toUpperCase() === 'CHEQUE',
+    );
 
-    const neftTotal = nefts.reduce((s, p) => s + (Number(p.amount || 0) || 0), 0);
+    const neftTotal = nefts.reduce(
+      (s, p) => s + (Number(p.amount || 0) || 0),
+      0,
+    );
     this.step2Form.get('neftAmount')?.setValue(neftTotal, { emitEvent: false });
 
     // NEFT refs
@@ -528,25 +589,46 @@ export class AdmissionEditComponent implements OnInit {
       nefts.forEach((p) => {
         neftFA.push(
           this.fb.group({
-            utr: [String(p?.neft?.utr || '').trim(), [Validators.required, Validators.minLength(6), Validators.maxLength(40)]],
-            amount: [Number(p.amount || 0), [Validators.required, Validators.min(1)]],
-            paidOn: [this.epochToISODateInput(p?.neft?.paidOn || p?.submittedOn || null)], // ✅ epoch -> yyyy-mm-dd
+            utr: [
+              String(p?.neft?.utr || '').trim(),
+              [
+                Validators.required,
+                Validators.minLength(6),
+                Validators.maxLength(40),
+              ],
+            ],
+            amount: [
+              Number(p.amount || 0),
+              [Validators.required, Validators.min(1)],
+            ],
+            paidOn: [
+              this.epochToISODateInput(
+                p?.neft?.paidOn || p?.submittedOn || null,
+              ),
+            ], // ✅ epoch -> yyyy-mm-dd
             bankName: [String(p?.neft?.bankName || '').trim()],
             referenceNote: [String(p?.neft?.referenceNote || '').trim()],
             remarks: [String(p?.remarks || '').trim()],
-          })
+          }),
         );
       });
     } else {
       neftFA.push(
         this.fb.group({
-          utr: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(40)]],
+          utr: [
+            '',
+            [
+              Validators.required,
+              Validators.minLength(6),
+              Validators.maxLength(40),
+            ],
+          ],
           amount: [0, [Validators.required, Validators.min(1)]],
           paidOn: [null],
           bankName: [''],
           referenceNote: [''],
           remarks: [''],
-        })
+        }),
       );
     }
     this.step2Form.setControl('neftRefs', neftFA);
@@ -555,29 +637,63 @@ export class AdmissionEditComponent implements OnInit {
     const chqFA = this.fb.array([]);
     if (chqs.length) {
       chqs
-        .sort((a, b) => (Number(a?.cheque?.sno || 0) || 0) - (Number(b?.cheque?.sno || 0) || 0))
+        .sort(
+          (a, b) =>
+            (Number(a?.cheque?.sno || 0) || 0) -
+            (Number(b?.cheque?.sno || 0) || 0),
+        )
         .forEach((p) => {
           chqFA.push(
             this.fb.group({
               sno: [Number(p?.cheque?.sno || 0) || 0],
 
-              chequeNo: [String(p?.cheque?.chequeNo || '').trim(), [Validators.required, Validators.minLength(4), Validators.maxLength(30)]],
+              chequeNo: [
+                String(p?.cheque?.chequeNo || '').trim(),
+                [
+                  Validators.required,
+                  Validators.minLength(4),
+                  Validators.maxLength(30),
+                ],
+              ],
 
-              chequeDate: [this.epochToISODateInput(p?.cheque?.chequeDate || null)], // ✅ epoch -> yyyy-mm-dd
-              dueDate: [this.epochToISODateInput(p?.cheque?.dueDate || null), [Validators.required]],
+              chequeDate: [
+                this.epochToISODateInput(p?.cheque?.chequeDate || null),
+              ], // ✅ epoch -> yyyy-mm-dd
+              dueDate: [
+                this.epochToISODateInput(p?.cheque?.dueDate || null),
+                [Validators.required],
+              ],
 
-              favourOf: [{ value: String(p?.cheque?.favourOf || this.DEFAULT_FAVOUR_OF).trim(), disabled: true }, [Validators.required]],
-              mode: [((p?.cheque?.mode || 'PDC') === 'CDC' ? 'CDC' : 'PDC') as ChequeMode, [Validators.required]],
+              favourOf: [
+                {
+                  value: String(
+                    p?.cheque?.favourOf || this.DEFAULT_FAVOUR_OF,
+                  ).trim(),
+                  disabled: true,
+                },
+                [Validators.required],
+              ],
+              mode: [
+                ((p?.cheque?.mode || 'PDC') === 'CDC'
+                  ? 'CDC'
+                  : 'PDC') as ChequeMode,
+                [Validators.required],
+              ],
 
               // ✅ add missing fields you requested
-              bankName: [String(p?.cheque?.bankName || '').trim(), [Validators.required]],
-              instalmentLabel: [String(p?.cheque?.instalmentLabel || '').trim() || null],
+              bankName: [
+                String(p?.cheque?.bankName || '').trim(),
+                [Validators.required],
+              ],
+              instalmentLabel: [
+                String(p?.cheque?.instalmentLabel || '').trim() || null,
+              ],
               instalmentDate: [p?.cheque?.instalmentDate ?? null], // keep as epoch (optional)
               plannedDepositDate: [p?.cheque?.plannedDepositDate ?? null], // optional (epoch)
               remarks: [String(p?.remarks || '').trim()],
 
               amount: [{ value: Number(p.amount || 0), disabled: true }],
-            })
+            }),
           );
         });
     }
@@ -585,10 +701,16 @@ export class AdmissionEditComponent implements OnInit {
   }
 
   get neftTotalEntered(): number {
-    return (this.neftRefsFA.value || []).reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
+    return (this.neftRefsFA.value || []).reduce(
+      (s: number, r: any) => s + (Number(r.amount) || 0),
+      0,
+    );
   }
   get chequeTotal(): number {
-    return (this.chequesFA.getRawValue() || []).reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
+    return (this.chequesFA.getRawValue() || []).reduce(
+      (s: number, r: any) => s + (Number(r.amount) || 0),
+      0,
+    );
   }
   get totalCollected(): number {
     return (this.neftTotalEntered || 0) + (this.chequeTotal || 0);
@@ -605,11 +727,9 @@ export class AdmissionEditComponent implements OnInit {
     this.router.navigate(['/app/admissions/view', this.admissionId]);
   }
 
-  // ✅ Main submit (update + payments/save + submit-approval)
   submitAndSendForApproval(): void {
     this.step1Form.markAllAsTouched();
     this.step2Form.markAllAsTouched();
-
     if (this.step1Form.invalid) {
       this.alert.error('Please fix required Admission details.');
       return;
@@ -618,17 +738,13 @@ export class AdmissionEditComponent implements OnInit {
       this.alert.error('Please fix required Payment details.');
       return;
     }
-
     const plan = this.selectedPlan;
     if (!plan) {
       this.alert.error('Please select a valid fee plan.');
       return;
     }
-
     this.saving = true;
-
     const s1 = this.step1Form.getRawValue();
-
     const bodyUpdate: any = {
       entiId: this.tenantId,
       admissionId: this.admissionId,
@@ -643,13 +759,18 @@ export class AdmissionEditComponent implements OnInit {
       programName: String(s1.programName || '').trim(),
       programCode: String(s1.programCode || '').trim(),
       feePlanId: String(s1.feePlanId || '').trim(),
-      feePlanCode: String(s1.feePlanCode || plan.feePlanCode || '').trim() || null,
+      feePlanCode:
+        String(s1.feePlanCode || plan.feePlanCode || '').trim() || null,
       student: {
         name: String(s1.name || '').trim(),
         phone: String(s1.phone || '').trim(),
         parentName: String(s1.parentName || '').trim(),
         parentPhone: String(s1.parentPhone || s1.phone || '').trim(),
-        email: String(s1.email || '').trim() ? String(s1.email || '').trim().toLowerCase() : null,
+        email: String(s1.email || '').trim()
+          ? String(s1.email || '')
+              .trim()
+              .toLowerCase()
+          : null,
       },
       fee: {
         baseFee: Number(s1.baseFee || 0),
@@ -670,20 +791,16 @@ export class AdmissionEditComponent implements OnInit {
         remarks: String(s1.schoolRemarks || '').trim() || null,
       },
     };
-
-    // ✅ IMPORTANT: convert paidOn to epoch
     const neftRefs = (this.neftRefsFA.getRawValue() || [])
       .map((r: any) => ({
         utr: String(r.utr || '').trim(),
         amount: Number(r.amount || 0),
-        paidOn: this.dateInputToEpoch(r.paidOn), // ✅ epoch
+        paidOn: this.dateInputToEpoch(r.paidOn),
         bankName: String(r.bankName || '').trim() || null,
         referenceNote: String(r.referenceNote || '').trim() || null,
         remarks: String(r.remarks || '').trim() || null,
       }))
       .filter((x: any) => !!x.utr && x.amount > 0);
-
-    // ✅ IMPORTANT: convert chequeDate/dueDate to epoch, and include bankName + instalment fields
     const cheques = (this.chequesFA.getRawValue() || [])
       .map((r: any) => {
         const dueEpoch = this.dateInputToEpoch(r.dueDate);
@@ -692,8 +809,10 @@ export class AdmissionEditComponent implements OnInit {
           chequeNo: String(r.chequeNo || '').trim(),
           chequeDate: this.dateInputToEpoch(r.chequeDate),
           dueDate: dueEpoch,
-          plannedDepositDate: dueEpoch, // ✅ align with your sample data
-          instalmentLabel: r.instalmentLabel ? String(r.instalmentLabel).trim() : null,
+          plannedDepositDate: dueEpoch,
+          instalmentLabel: r.instalmentLabel
+            ? String(r.instalmentLabel).trim()
+            : null,
           instalmentDate: this.dateInputToEpoch(r.instalmentDate),
           favourOf: String(this.DEFAULT_FAVOUR_OF || '').trim(),
           mode: (r.mode === 'CDC' ? 'CDC' : 'PDC') as ChequeMode,
@@ -703,46 +822,56 @@ export class AdmissionEditComponent implements OnInit {
         };
       })
       .filter((x: any) => !!x.chequeNo && !!x.dueDate && x.amount > 0);
-
     const bodyPayments: any = {
       entiId: this.tenantId,
       admissionId: this.admissionId,
       neftRefs,
       cheques,
     };
-
     this.api.fetchData(bodyUpdate, 'admi', 'update').subscribe({
       next: (r1: any) => {
         if (!r1?.status) {
           this.saving = false;
-          this.alert.error(r1?.message || r1?.error || 'Failed to update admission');
+          this.alert.error(
+            r1?.message || r1?.error || 'Failed to update admission',
+          );
           return;
         }
-
         this.api.fetchData(bodyPayments, 'admi', 'payments/save').subscribe({
           next: (r2: any) => {
             if (!r2?.status) {
               this.saving = false;
-              this.alert.error(r2?.message || r2?.error || 'Failed to save payments');
+              this.alert.error(
+                r2?.message || r2?.error || 'Failed to save payments',
+              );
               return;
             }
-
-            const bodyApproval: any = { entiId: this.tenantId, admissionId: this.admissionId };
-            this.api.fetchData(bodyApproval, 'admi', 'submit-approval').subscribe({
-              next: (r3: any) => {
-                this.saving = false;
-                if (!r3?.status) {
-                  this.alert.error(r3?.message || r3?.error || 'Failed to send for approval');
-                  return;
-                }
-                this.alert.success('Updated and sent for approval.');
-                this.router.navigate(['/app/admissions/view', this.admissionId]);
-              },
-              error: () => {
-                this.saving = false;
-                this.alert.error('Failed to send for approval');
-              },
-            });
+            const bodyApproval: any = {
+              entiId: this.tenantId,
+              admissionId: this.admissionId,
+            };
+            this.api
+              .fetchData(bodyApproval, 'admi', 'submit-approval')
+              .subscribe({
+                next: (r3: any) => {
+                  this.saving = false;
+                  if (!r3?.status) {
+                    this.alert.error(
+                      r3?.message || r3?.error || 'Failed to send for approval',
+                    );
+                    return;
+                  }
+                  this.alert.success('Updated and sent for approval.');
+                  this.router.navigate([
+                    '/app/admissions/view',
+                    this.admissionId,
+                  ]);
+                },
+                error: () => {
+                  this.saving = false;
+                  this.alert.error('Failed to send for approval');
+                },
+              });
           },
           error: () => {
             this.saving = false;
@@ -757,7 +886,6 @@ export class AdmissionEditComponent implements OnInit {
     });
   }
 
-  // ===== date helpers (same approach as payments editor) =====
   private epochToISODateInput(v: any): string | null {
     if (!v) return null;
     if (typeof v === 'string') {

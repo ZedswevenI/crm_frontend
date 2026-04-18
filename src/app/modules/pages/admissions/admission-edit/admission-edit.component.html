@@ -10,12 +10,16 @@
                 <div class="mt-2" *ngIf="currentStage">
                     <span class="badge bg-light text-muted me-2">Stage: {{ currentStage }}</span>
                     <span class="badge bg-danger-subtle text-danger"
-                        *ngIf="currentStage==='REJECTED' && rejectionReason">
+                        *ngIf="currentStage === 'REJECTED' && rejectionReason">
                         Rejection: {{ rejectionReason }}
+                    </span>
+                    <span class="badge bg-warning-subtle text-warning"
+                        *ngIf="currentStage === 'UNDER_REVIEW' && reviewRemarks">
+                        <i class="fa-solid fa-magnifying-glass me-1"></i>
+                        Under Review: {{ reviewRemarks }}
                     </span>
                 </div>
             </div>
-
             <div class="d-flex gap-2 flex-wrap">
                 <button class="btn btn-outline-secondary" type="button" (click)="cancel()" [disabled]="saving">
                     <i class="fa-solid fa-arrow-left me-1"></i>
@@ -28,18 +32,14 @@
                 </button>
             </div>
         </div>
-
         <div *ngIf="alert$ | async as msg" class="alert alert-{{ msg.type }} alert-dismissible fade show m-3"
             role="alert">
             {{ msg.text }}
             <button type="button" class="btn-close" aria-label="Close" (click)="clearAlert()"></button>
         </div>
-
         <div class="card-body pt-2">
             <div class="text-muted small" *ngIf="loading">Loading admission…</div>
-
             <form [formGroup]="step1Form" *ngIf="!loading">
-                <!-- Student + Program -->
                 <div class="border rounded-3 p-3 mb-3">
                     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                         <div>
@@ -48,25 +48,26 @@
                         </div>
                         <span class="badge bg-light text-muted">Editable</span>
                     </div>
-
                     <div class="row g-3">
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Registration No</label>
                             <input class="form-control" formControlName="registrationNumber" [disabled]="true" />
                         </div>
-
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Academic Year</label>
                             <select class="form-select" formControlName="academicYear">
                                 <option value="" disabled>Select academic year</option>
-                                <option *ngFor="let y of academicYearOptions" [value]="y">{{ y }}</option>
+                                <option *ngFor="let y of academicYearOptions" [value]="y">
+                                    {{ y }}
+                                </option>
                             </select>
-                            <div class="invalid-feedback d-block"
-                                *ngIf="step1Form.get('academicYear')?.touched && step1Form.get('academicYear')?.invalid">
+                            <div class="invalid-feedback d-block" *ngIf="
+                  step1Form.get('academicYear')?.touched &&
+                  step1Form.get('academicYear')?.invalid
+                ">
                                 Required
                             </div>
                         </div>
-
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Program</label>
                             <select class="form-select" formControlName="programId" [disabled]="programsLoading">
@@ -75,8 +76,10 @@
                                     {{ p.programCode }} - {{ p.programName }}
                                 </option>
                             </select>
-                            <div class="invalid-feedback d-block"
-                                *ngIf="step1Form.get('programId')?.touched && step1Form.get('programId')?.invalid">
+                            <div class="invalid-feedback d-block" *ngIf="
+                  step1Form.get('programId')?.touched &&
+                  step1Form.get('programId')?.invalid
+                ">
                                 Required
                             </div>
                         </div>
@@ -89,8 +92,10 @@
                                     {{ c.centerName }}
                                 </option>
                             </select>
-                            <div class="invalid-feedback d-block"
-                                *ngIf="step1Form.get('centerId')?.touched && step1Form.get('centerId')?.invalid">
+                            <div class="invalid-feedback d-block" *ngIf="
+                  step1Form.get('centerId')?.touched &&
+                  step1Form.get('centerId')?.invalid
+                ">
                                 Required
                             </div>
                         </div>
@@ -98,8 +103,10 @@
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Student Name</label>
                             <input class="form-control" formControlName="name" />
-                            <div class="invalid-feedback d-block"
-                                *ngIf="step1Form.get('name')?.touched && step1Form.get('name')?.invalid">
+                            <div class="invalid-feedback d-block" *ngIf="
+                  step1Form.get('name')?.touched &&
+                  step1Form.get('name')?.invalid
+                ">
                                 Required
                             </div>
                         </div>
@@ -107,8 +114,10 @@
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Mobile</label>
                             <input class="form-control" formControlName="phone" />
-                            <div class="invalid-feedback d-block"
-                                *ngIf="step1Form.get('phone')?.touched && step1Form.get('phone')?.invalid">
+                            <div class="invalid-feedback d-block" *ngIf="
+                  step1Form.get('phone')?.touched &&
+                  step1Form.get('phone')?.invalid
+                ">
                                 Valid 10-digit required
                             </div>
                         </div>
@@ -116,8 +125,10 @@
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Parent Name</label>
                             <input class="form-control" formControlName="parentName" />
-                            <div class="invalid-feedback d-block"
-                                *ngIf="step1Form.get('parentName')?.touched && step1Form.get('parentName')?.invalid">
+                            <div class="invalid-feedback d-block" *ngIf="
+                  step1Form.get('parentName')?.touched &&
+                  step1Form.get('parentName')?.invalid
+                ">
                                 Required
                             </div>
                         </div>
@@ -125,8 +136,10 @@
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Parent Phone</label>
                             <input class="form-control" formControlName="parentPhone" />
-                            <div class="invalid-feedback d-block"
-                                *ngIf="step1Form.get('parentPhone')?.touched && step1Form.get('parentPhone')?.invalid">
+                            <div class="invalid-feedback d-block" *ngIf="
+                  step1Form.get('parentPhone')?.touched &&
+                  step1Form.get('parentPhone')?.invalid
+                ">
                                 Valid 10-digit required
                             </div>
                         </div>
@@ -145,11 +158,15 @@
                                     {{ fp.name }}
                                 </option>
                             </select>
-                            <div class="invalid-feedback d-block"
-                                *ngIf="step1Form.get('feePlanId')?.touched && step1Form.get('feePlanId')?.invalid">
+                            <div class="invalid-feedback d-block" *ngIf="
+                  step1Form.get('feePlanId')?.touched &&
+                  step1Form.get('feePlanId')?.invalid
+                ">
                                 Required
                             </div>
-                            <div class="text-muted tiny mt-1" *ngIf="feePlansLoading">Loading fee plans…</div>
+                            <div class="text-muted tiny mt-1" *ngIf="feePlansLoading">
+                                Loading fee plans…
+                            </div>
                         </div>
 
                         <div class="col-md-3">
@@ -172,14 +189,18 @@
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Scholarship (%)</label>
                             <select class="form-select" formControlName="scholarshipPct">
-                                <option *ngFor="let d of discountOptions" [value]="d">{{ d }}%</option>
+                                <option *ngFor="let d of discountOptions" [value]="d">
+                                    {{ d }}%
+                                </option>
                             </select>
                         </div>
 
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Additional Scholarship (%)</label>
                             <select class="form-select" formControlName="additionalScholarshipPct">
-                                <option *ngFor="let d of discountOptions" [value]="d">{{ d }}%</option>
+                                <option *ngFor="let d of discountOptions" [value]="d">
+                                    {{ d }}%
+                                </option>
                             </select>
                         </div>
 
@@ -197,18 +218,22 @@
                                     <th class="text-end" style="width: 160px">Fee</th>
                                     <th class="text-end" style="width: 160px">STax</th>
                                     <th class="text-end" style="width: 160px">Total</th>
-                                    <th class="text-end" style="width: 180px">Scholarship Benefits</th>
+                                    <th class="text-end" style="width: 180px">
+                                        Scholarship Benefits
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr *ngFor="let r of feeHeadPreview">
                                     <td class="fw-medium">{{ r.label }}</td>
-                                    <td class="text-end">₹{{ r.fee | number:'1.0-0' }}</td>
-                                    <td class="text-end">₹{{ r.stax | number:'1.0-0' }}</td>
-                                    <td class="text-end fw-semibold">₹{{ r.total | number:'1.0-0' }}</td>
+                                    <td class="text-end">₹{{ r.fee | number: "1.0-0" }}</td>
+                                    <td class="text-end">₹{{ r.stax | number: "1.0-0" }}</td>
+                                    <td class="text-end fw-semibold">
+                                        ₹{{ r.total | number: "1.0-0" }}
+                                    </td>
                                     <td class="text-end">
                                         <span *ngIf="r.scholBenefits > 0" class="fw-semibold text-success">
-                                            ₹{{ r.scholBenefits | number:'1.0-0' }}
+                                            ₹{{ r.scholBenefits | number: "1.0-0" }}
                                         </span>
                                         <span *ngIf="r.scholBenefits <= 0" class="text-muted">0</span>
                                     </td>
@@ -217,7 +242,9 @@
                             <tfoot class="table-light">
                                 <tr>
                                     <th class="text-end" colspan="3">Final Fee</th>
-                                    <th class="text-end fw-bold">₹{{ finalFee | number:'1.0-0' }}</th>
+                                    <th class="text-end fw-bold">
+                                        ₹{{ finalFee | number: "1.0-0" }}
+                                    </th>
                                     <th></th>
                                 </tr>
                             </tfoot>
@@ -272,31 +299,43 @@
                             </thead>
 
                             <tbody formArrayName="neftRefs">
-                                <tr *ngFor="let r of neftRefsFA.controls; let i = index; trackBy: trackByIndex"
-                                    [formGroupName]="i">
+                                <tr *ngFor="
+                    let r of neftRefsFA.controls;
+                    let i = index;
+                    trackBy: trackByIndex
+                  " [formGroupName]="i">
                                     <td class="fw-semibold">{{ i + 1 }}</td>
                                     <td>
                                         <input class="form-control form-control-sm" formControlName="utr"
-                                            [class.is-invalid]="r.get('utr')?.touched && r.get('utr')?.invalid" />
+                                            [class.is-invalid]="
+                        r.get('utr')?.touched && r.get('utr')?.invalid
+                      " />
                                         <div class="invalid-feedback">Required</div>
                                     </td>
                                     <td>
                                         <input class="form-control form-control-sm" type="number"
-                                            formControlName="amount"
-                                            [class.is-invalid]="r.get('amount')?.touched && r.get('amount')?.invalid" />
+                                            formControlName="amount" [class.is-invalid]="
+                        r.get('amount')?.touched && r.get('amount')?.invalid
+                      " />
                                         <div class="invalid-feedback">Required</div>
                                     </td>
-                                    <td><input class="form-control form-control-sm" type="date"
-                                            formControlName="paidOn" /></td>
-                                    <td><input class="form-control form-control-sm" formControlName="remarks"
-                                            placeholder="optional" /></td>
+                                    <td>
+                                        <input class="form-control form-control-sm" type="date"
+                                            formControlName="paidOn" />
+                                    </td>
+                                    <td>
+                                        <input class="form-control form-control-sm" formControlName="remarks"
+                                            placeholder="optional" />
+                                    </td>
                                 </tr>
                             </tbody>
 
                             <tfoot class="table-light">
                                 <tr>
                                     <th colspan="2" class="text-end">Total NEFT Entered</th>
-                                    <th colspan="3" class="fw-bold">₹{{ neftTotalEntered | number:'1.0-0' }}</th>
+                                    <th colspan="3" class="fw-bold">
+                                        ₹{{ neftTotalEntered | number: "1.0-0" }}
+                                    </th>
                                 </tr>
                             </tfoot>
                         </table>
@@ -322,28 +361,40 @@
                             </thead>
 
                             <tbody formArrayName="cheques">
-                                <tr *ngFor="let row of chequesFA.controls; let idx = index; trackBy: trackByIndex"
-                                    [formGroupName]="idx">
-                                    <td class="fw-semibold">{{ row.get('sno')?.value }}</td>
+                                <tr *ngFor="
+                    let row of chequesFA.controls;
+                    let idx = index;
+                    trackBy: trackByIndex
+                  " [formGroupName]="idx">
+                                    <td class="fw-semibold">{{ row.get("sno")?.value }}</td>
 
                                     <td>
                                         <input class="form-control form-control-sm" formControlName="chequeNo"
-                                            [class.is-invalid]="row.get('chequeNo')?.touched && row.get('chequeNo')?.invalid" />
+                                            [class.is-invalid]="
+                        row.get('chequeNo')?.touched &&
+                        row.get('chequeNo')?.invalid
+                      " />
                                         <div class="invalid-feedback">Required</div>
                                     </td>
-
-                                    <td><input class="form-control form-control-sm" type="date"
-                                            formControlName="chequeDate" /></td>
 
                                     <td>
                                         <input class="form-control form-control-sm" type="date"
-                                            formControlName="dueDate"
-                                            [class.is-invalid]="row.get('dueDate')?.touched && row.get('dueDate')?.invalid" />
+                                            formControlName="chequeDate" />
+                                    </td>
+
+                                    <td>
+                                        <input class="form-control form-control-sm" type="date"
+                                            formControlName="dueDate" [class.is-invalid]="
+                        row.get('dueDate')?.touched &&
+                        row.get('dueDate')?.invalid
+                      " />
                                         <div class="invalid-feedback">Required</div>
                                     </td>
 
-                                    <td><input class="form-control form-control-sm" formControlName="favourOf"
-                                            [disabled]="true" /></td>
+                                    <td>
+                                        <input class="form-control form-control-sm" formControlName="favourOf"
+                                            [disabled]="true" />
+                                    </td>
 
                                     <td>
                                         <select class="form-select form-select-sm" formControlName="mode">
@@ -357,15 +408,19 @@
                                             [disabled]="true" />
                                     </td>
 
-                                    <td><input class="form-control form-control-sm" formControlName="remarks"
-                                            placeholder="optional" /></td>
+                                    <td>
+                                        <input class="form-control form-control-sm" formControlName="remarks"
+                                            placeholder="optional" />
+                                    </td>
                                 </tr>
                             </tbody>
 
                             <tfoot class="table-light">
                                 <tr>
                                     <th colspan="6" class="text-end">Total Cheques</th>
-                                    <th class="text-end fw-bold">₹{{ chequeTotal | number:'1.0-0' }}</th>
+                                    <th class="text-end fw-bold">
+                                        ₹{{ chequeTotal | number: "1.0-0" }}
+                                    </th>
                                     <th></th>
                                 </tr>
                             </tfoot>
@@ -379,20 +434,25 @@
                         <div class="d-flex flex-wrap gap-4">
                             <div>
                                 <div class="text-muted small">NEFT</div>
-                                <div class="fw-semibold">₹{{ neftTotalEntered | number:'1.0-0' }}</div>
+                                <div class="fw-semibold">
+                                    ₹{{ neftTotalEntered | number: "1.0-0" }}
+                                </div>
                             </div>
                             <div>
                                 <div class="text-muted small">Cheques</div>
-                                <div class="fw-semibold">₹{{ chequeTotal | number:'1.0-0' }}</div>
+                                <div class="fw-semibold">
+                                    ₹{{ chequeTotal | number: "1.0-0" }}
+                                </div>
                             </div>
                             <div>
                                 <div class="text-muted small">Total</div>
-                                <div class="fw-bold">₹{{ totalCollected | number:'1.0-0' }}</div>
+                                <div class="fw-bold">
+                                    ₹{{ totalCollected | number: "1.0-0" }}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
             </form>
         </div>
     </div>
