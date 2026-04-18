@@ -94,7 +94,7 @@ export class AuthService {
       error: err => {
         localStorage.removeItem('token');
         localStorage.removeItem('token');
-        localStorage.removeItem('tenantid');
+        localStorage.removeItem('tenantId');
         localStorage.removeItem('userid');
         localStorage.removeItem('usertype');
         localStorage.removeItem('isAdmin');

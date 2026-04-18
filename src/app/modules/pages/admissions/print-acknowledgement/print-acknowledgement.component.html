@@ -1,0 +1,184 @@
+<div class="ack-print-page">
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h5 class="mb-0 fw-semibold">Print Acknowledgement</h5>
+                <div class="text-muted small">Fill in details and print — nothing is saved.</div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" (click)="goBack()">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back
+                </button>
+                <button class="btn btn-saffron btn-sm" (click)="printAck()">
+                    <i class="fa-solid fa-print me-1"></i> Print Acknowledgement
+                </button>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <form [formGroup]="form">
+                <div class="row g-3">
+
+                    <!-- LEFT: Student + Program Details -->
+                    <div class="col-lg-6">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="fw-semibold mb-3">Student & Program Details</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">Student Name <span
+                                            class="text-danger">*</span></label>
+                                    <input class="form-control" formControlName="studentName"
+                                        placeholder="Enter student name"
+                                        [class.is-invalid]="form.get('studentName')?.touched && form.get('studentName')?.invalid" />
+                                    <div class="invalid-feedback">Required</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">Admission No</label>
+                                    <input class="form-control" formControlName="admissionNo" placeholder="optional" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">Enrolled By <span
+                                            class="text-danger">*</span></label>
+                                    <input class="form-control" formControlName="enrolledBy" placeholder="Staff name"
+                                        [class.is-invalid]="form.get('enrolledBy')?.touched && form.get('enrolledBy')?.invalid" />
+                                    <div class="invalid-feedback">Required</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Program <span
+                                            class="text-danger">*</span></label>
+                                    <select class="form-select" formControlName="programId"
+                                        [class.is-invalid]="form.get('programId')?.touched && form.get('programId')?.invalid">
+                                        <option value="" disabled>
+                                            {{ programsLoading ? 'Loading…' : 'Select program' }}
+                                        </option>
+                                        <option *ngFor="let p of programs" [value]="p.programId">
+                                            {{ p.programCode ? p.programCode + ' - ' : '' }}{{ p.programName }}
+                                        </option>
+                                    </select>
+                                    <div class="invalid-feedback">Required</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Fee Plan <span
+                                            class="text-danger">*</span></label>
+                                    <select class="form-select" formControlName="feePlanId"
+                                        [disabled]="feePlans.length === 0"
+                                        [class.is-invalid]="form.get('feePlanId')?.touched && form.get('feePlanId')?.invalid">
+                                        <option value="" disabled>
+                                            {{ feePlansLoading ? 'Loading…' : feePlans.length === 0 ?
+                                            'Select program first' : 'Select fee plan' }}
+                                        </option>
+                                        <option *ngFor="let fp of feePlans" [value]="fp.id">
+                                            {{ fp.name }}
+                                        </option>
+                                    </select>
+                                    <div class="invalid-feedback">Required</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Payment Details -->
+                    <div class="col-lg-6">
+                        <div class="border rounded-3 p-3 h-100">
+                            <div class="fw-semibold mb-3">Payment Details</div>
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">No. of NEFT / DD / UPI</label>
+                                    <input class="form-control" type="number" formControlName="neftCount" min="0" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">NEFT Total Amount (₹)</label>
+                                    <input class="form-control" type="number" formControlName="neftTotal" min="0"
+                                        placeholder="0" />
+                                    <div class="text-muted tiny mt-1" *ngIf="neftSplitAmount > 0">
+                                        Plan split: ₹{{ neftSplitAmount | number:"1.0-0" }}
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">No. of Post Dated Cheques</label>
+                                    <input class="form-control" type="number" formControlName="chequeCount" min="0" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Cheques Total Amount (₹)</label>
+                                    <input class="form-control" type="number" formControlName="chequeTotal" min="0"
+                                        placeholder="0" />
+                                </div>
+                                <div class="col-12">
+                                    <div class="border rounded-3 p-3 bg-light-subtle">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="text-muted small">Total Value of Payments</div>
+                                            <div class="fw-bold fs-5">₹{{ totalCollected | number:"1.0-0" }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Instalment Schedule Preview -->
+                    <div class="col-12" *ngIf="instalments.length > 0">
+                        <div class="border rounded-3 p-3">
+                            <div class="fw-semibold mb-2">
+                                Fee Plan Instalment Schedule
+                                <span class="badge bg-light text-muted border ms-2 small">Preview only</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width:50px" class="text-center">S.No</th>
+                                            <th style="width:120px">Due Date</th>
+                                            <th style="width:100px">Mode</th>
+                                            <th>Label / Description</th>
+                                            <th>Favour of</th>
+                                            <th style="width:130px" class="text-end">Amount (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let r of instalments">
+                                            <td class="text-center fw-semibold">{{ r.sno }}</td>
+                                            <td class="text-muted small">{{ r.dueDate || 'On Admission' }}</td>
+                                            <td>{{ r.mode }}</td>
+                                            <td>{{ r.label }}</td>
+                                            <td class="small text-muted">{{ r.favour }}</td>
+                                            <td class="text-end fw-semibold">₹{{ r.amount | number:"1.0-0" }}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <th colspan="5" class="text-end">Total</th>
+                                            <th class="text-end">
+                                                ₹{{ instalmentTotal | number:"1.0-0" }}
+                                            </th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div class="col-12" *ngIf="instalments.length === 0 && form.get('feePlanId')?.value">
+                        <div class="border rounded-3 p-3 text-center text-muted small">
+                            <i class="fa-solid fa-circle-info me-1"></i>
+                            No instalment schedule found for the selected fee plan.
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Print Footer Actions -->
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary" (click)="goBack()">
+                        <i class="fa-solid fa-xmark me-1"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-saffron" (click)="printAck()">
+                        <i class="fa-solid fa-print me-1"></i> Print Acknowledgement
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

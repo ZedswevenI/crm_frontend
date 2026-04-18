@@ -17,20 +17,24 @@ import { AdmissionbugComponent } from './admissionbug/admissionbug.component';
 import { AdmissionWaitComponent } from './admission-wait/admission-wait.component';
 import { StudentuploadComponent } from './studentupload/studentupload.component';
 import { AdmissionviewnewComponent } from './admissionviewnew/admissionviewnew.component';
-import { Admissionviewnew1Component } from './admissionviewnew1/admissionviewnew1.component';
+import { PrintAcknowledgementComponent } from './print-acknowledgement/print-acknowledgement.component';
 
 @NgModule({
   declarations: [
-    AdmissionsComponent, 
-    ListComponent, 
-    AdmissionviewComponent, 
-    AdmissionreportsComponent, 
+    AdmissionsComponent,
+    ListComponent,
+    AdmissionviewComponent,
+    AdmissionreportsComponent,
     AdmissionWaitComponent,
-    AdmissioncommunicationComponent, 
-    AdmissionfeecalComponent, 
-    AdmissionpaymentsEditorComponent, 
-    AdmissionEditComponent, 
-    AdmissionbugComponent, StudentuploadComponent, AdmissionviewnewComponent, Admissionviewnew1Component],
+    AdmissioncommunicationComponent,
+    AdmissionfeecalComponent,
+    AdmissionpaymentsEditorComponent,
+    AdmissionEditComponent,
+    AdmissionbugComponent,
+    StudentuploadComponent,
+    AdmissionviewnewComponent,
+    PrintAcknowledgementComponent
+  ],
   imports: [CommonModule, AdmissionsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })
 export class AdmissionsModule {}

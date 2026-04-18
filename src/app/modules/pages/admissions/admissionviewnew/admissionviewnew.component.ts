@@ -16,6 +16,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
+import { Location } from '@angular/common';
 
 type ChequeMode = 'PDC' | 'CDC' | '' | null;
 type ChequeStatus =
@@ -135,7 +136,6 @@ interface AdmissionViewModel {
   };
   portalStudentId: string;
   workflowStage?: string | null;
-  // CHANGE 2: new review fields
   reviewRemarks?: string | null;
   reviewedAt?: number | null;
   rejectionReason?: string | null;
@@ -155,7 +155,6 @@ interface AdmissionViewModel {
 })
 export class AdmissionviewnewComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
-
   admissionId = '';
   admissionNo = '';
   loading = true;
@@ -201,6 +200,7 @@ export class AdmissionviewnewComponent implements OnInit {
   splitRowIndex = -1;
   splitOriginalAmount = 0;
   splitForm!: UntypedFormGroup;
+  splitOriginalIndex = -1;
 
   constructor(
     private fb: UntypedFormBuilder,
@@ -209,6 +209,7 @@ export class AdmissionviewnewComponent implements OnInit {
     private alert: AlertService,
     private breadcrumb: BredcrumpService,
     private api: CommonapiService,
+    private location: Location,
   ) {
     this.breadcrumb.set([
       { label: 'Control Panel' },
@@ -230,9 +231,6 @@ export class AdmissionviewnewComponent implements OnInit {
     this.loadAdmission();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // CHANGE 1: build the inline payment form (same shape as Step 2)
-  // ─────────────────────────────────────────────────────────────
   private buildPayForm(): void {
     this.payForm = this.fb.group({
       neftAmount: [{ value: 0, disabled: true }],
@@ -251,9 +249,11 @@ export class AdmissionviewnewComponent implements OnInit {
   get neftRefsFA(): UntypedFormArray {
     return this.payForm.get('neftRefs') as UntypedFormArray;
   }
+
   get chequesFA(): UntypedFormArray {
     return this.payForm.get('cheques') as UntypedFormArray;
   }
+
   get otherPaymentsFA(): UntypedFormArray {
     return this.payForm.get('otherPayments') as UntypedFormArray;
   }
@@ -262,7 +262,6 @@ export class AdmissionviewnewComponent implements OnInit {
     return i;
   }
 
-  // Populate payForm from the rawPayments already loaded
   private loadPaymentsIntoForm(): void {
     if (this.workflowStage === 'DRAFT') {
       this.loadPaymentTemplateIntoForm();
@@ -278,16 +277,12 @@ export class AdmissionviewnewComponent implements OnInit {
     const others = payments.filter(
       (p) => String(p.paymentType || '').toUpperCase() === 'OTHER',
     );
-
-    // NEFT split amount from admission summary
-    this.neftSplitAmount = Number(
-      this.admission?.payments?.neftSplitAmount || 0,
+    this.neftSplitAmount = this.roundRupee(
+      Number(this.admission?.payments?.neftSplitAmount || 0),
     );
     this.payForm
       .get('neftAmount')
       ?.setValue(this.neftSplitAmount, { emitEvent: false });
-
-    // NEFT refs
     const neftFA = this.fb.array([]);
     if (nefts.length) {
       nefts.forEach((p) => {
@@ -313,8 +308,6 @@ export class AdmissionviewnewComponent implements OnInit {
       neftFA.push(this.buildEmptyNeftRow());
     }
     this.payForm.setControl('neftRefs', neftFA);
-
-    // Cheques
     const chqFA = this.fb.array([]);
     chqs
       .sort((a, b) => Number(a?.cheque?.sno || 0) - Number(b?.cheque?.sno || 0))
@@ -337,8 +330,6 @@ export class AdmissionviewnewComponent implements OnInit {
         );
       });
     this.payForm.setControl('cheques', chqFA);
-
-    // Other payments
     const otherFA = this.fb.array([]);
     others.forEach((p) => {
       otherFA.push(
@@ -358,7 +349,6 @@ export class AdmissionviewnewComponent implements OnInit {
       );
     });
     this.payForm.setControl('otherPayments', otherFA);
-
     if (others.length) {
       this.payForm
         .get('additionalPaymentsEnabled')
@@ -371,7 +361,6 @@ export class AdmissionviewnewComponent implements OnInit {
   private loadPaymentTemplateIntoForm(): void {
     const tenantId = this.pickTenantId();
     this.payFormLoading = true;
-
     const body = { entiId: tenantId, admissionId: this.admissionId };
     this.api.fetchData(body, 'admi', 'paymenttemplate').subscribe({
       next: (resp: any) => {
@@ -380,25 +369,20 @@ export class AdmissionviewnewComponent implements OnInit {
           this.alert.error('Failed to load payment template');
           return;
         }
-
         const data = resp.data;
-        this.neftSplitAmount = Number(data.neftSplitAmount || 0);
+        this.neftSplitAmount =this.roundRupee(Number(data.neftSplitAmount || 0));
         this.payForm
           .get('neftAmount')
           ?.setValue(this.neftSplitAmount, { emitEvent: false });
-
-        // One empty NEFT ref row
         const neftFA = this.fb.array([]);
         neftFA.push(this.buildEmptyNeftRow());
         this.payForm.setControl('neftRefs', neftFA);
-
-        // Build cheque rows from instalments (exclude instalmentDate === 0, those are NEFT)
         const instalments: any[] = Array.isArray(data.instalments)
           ? data.instalments
           : [];
         const chqFA = this.fb.array([]);
         instalments
-          .filter((i) => Number(i.instalmentDate) > 0) // date=0 means NEFT split
+          .filter((i) => Number(i.instalmentDate) > 0)
           .forEach((i, idx) => {
             chqFA.push(
               this.createChequeFormGroup({
@@ -462,6 +446,7 @@ export class AdmissionviewnewComponent implements OnInit {
     const required = this.neftSplitAmount;
     if (required === 0) return null;
     const entered = this.neftTotalEntered;
+    if (entered === 0) return null;
     if (entered < required)
       return `Short by ₹${this.roundRupee(required - entered)}`;
     if (entered > required)
@@ -495,7 +480,9 @@ export class AdmissionviewnewComponent implements OnInit {
 
   get balanceAmount(): number {
     return this.roundRupee(
-      (this.admission?.fee?.finalFee || 0) - this.grandTotal,
+      (this.admission?.fee?.finalFee || 0) -
+        this.neftTotalEntered -
+        this.chequeTotal,
     );
   }
 
@@ -525,7 +512,7 @@ export class AdmissionviewnewComponent implements OnInit {
   }
 
   private createChequeFormGroup(data: any): UntypedFormGroup {
-    return this.fb.group({
+    const grp = this.fb.group({
       sno: [data.sno],
       description: [data.description],
       instalmentDate: [data.instalmentDate],
@@ -552,11 +539,16 @@ export class AdmissionviewnewComponent implements OnInit {
       branchName: [data.branchName || ''],
       remarks: [data.remarks || ''],
     });
+    return grp;
   }
 
   private reindexCheques(): void {
+    const snos = this.chequesFA.controls
+      .map((c) => Number((c as UntypedFormGroup).getRawValue()?.sno || 1))
+      .filter((n) => n > 0);
+    const base = snos.length ? Math.min(...snos) : 1;
     this.chequesFA.controls.forEach((ctrl, i) => {
-      ctrl.patchValue({ sno: i + 1 }, { emitEvent: false });
+      ctrl.patchValue({ sno: base + i }, { emitEvent: false });
     });
   }
 
@@ -607,119 +599,105 @@ export class AdmissionviewnewComponent implements OnInit {
   }
 
   saveSplit(): void {
-    this.splitForm.markAllAsTouched();
     if (this.splitForm.invalid) return;
-
-    const splitAmt = this.roundRupee(
-      Number(this.splitForm.get('splitAmount')?.value || 0),
-    );
-    const remarks = String(this.splitForm.get('remarks')?.value || '').trim();
-    const originalAmt = this.splitOriginalAmount;
-    const balanceAmt = this.roundRupee(originalAmt - splitAmt);
-
-    if (splitAmt <= 0) {
-      this.alert.error('Split amount must be greater than zero.');
+    const { splitAmount, remarks } = this.splitForm.value;
+    const originalIndex = this.splitRowIndex;
+    const originalRow = this.chequesFA.at(originalIndex).getRawValue();
+    const originalTotal = this.splitOriginalAmount;
+    const remaining = originalTotal - Number(splitAmount);
+    if (remaining < 0) {
+      this.alert.error('Split amount cannot exceed original amount');
       return;
     }
-    if (balanceAmt <= 0) {
-      this.alert.error('Split amount must be less than the instalment amount.');
-      return;
-    }
-
-    // BUG 2+3 FIX: amount is disabled — must use setValue on the control directly
-    const originalCtrl = this.chequesFA.at(
-      this.splitRowIndex,
-    ) as UntypedFormGroup;
-    originalCtrl.get('amount')?.setValue(balanceAmt, { emitEvent: false });
-
-    const originalValues = originalCtrl.getRawValue();
-    const splitRowData = {
-      ...originalValues,
-      amount: splitAmt,
-      mode: 'PDC',
+    const instDate = originalRow.instalmentDate;
+    const uiDate = originalRow.dueDate;
+    const row1 = this.createChequeFormGroup({
+      ...originalRow,
+      amount: Number(splitAmount),
+      description: `${originalRow.description || 'Instalment'} (Part 1/2)`,
+      dueDate: uiDate,
+      instalmentDate: instDate,
+      remarks: remarks || 'Split Part 1',
+    });
+    const row2 = this.createChequeFormGroup({
+      ...originalRow,
+      amount: remaining,
+      description: `${originalRow.description || 'Instalment'} (Part 2/2)`,
+      dueDate: uiDate,
+      instalmentDate: instDate,
       chequeNo: '',
-      chequeDate: null,
       bankName: '',
-      branchName: '',
-      remarks: remarks || `Split from ₹${originalAmt}`,
-      description: `${originalValues.description || ''} (Split)`,
-    };
-
-    this.chequesFA.insert(
-      this.splitRowIndex + 1,
-      this.createChequeFormGroup(splitRowData),
-    );
-    this.reindexCheques();
-    this.selectedChequeIndices.clear();
-    this.rebuildAllowedMap();
-    this.payForm.updateValueAndValidity();
+      remarks: 'Split Part 2',
+    });
+    this.chequesFA.removeAt(originalIndex);
+    this.chequesFA.insert(originalIndex, row1);
+    this.chequesFA.insert(originalIndex + 1, row2);
     this.closeSplitModal();
-    this.alert.success(
-      'Instalment split. Fill in cheque details for the new row.',
-    );
+    this.reindexCheques();
+    this.rebuildAllowedMap();
   }
 
   mergeSelectedCheques(): void {
-    // Guard: filter stale/OOB indices
     const indices = Array.from(this.selectedChequeIndices)
       .map((i) => Number(i))
       .filter((i) => i >= 0 && i < this.chequesFA.length)
       .sort((a, b) => a - b);
-
     if (indices.length < 2) {
       this.alert.error('Select at least 2 rows to merge.');
       return;
     }
-
-    // FIX: read amount safely — disabled control getRawValue can return null
-    const rows = indices.map((i) => {
+    // const selectedRowsData = indices.map((i) =>
+    //   this.chequesFA.at(i).getRawValue(),
+    // );
+    // const totalAmount = selectedRowsData.reduce(
+    //   (sum, curr) => sum + (Number(curr.amount) || 0),
+    //   0,
+    // );
+    const selectedRowsData = indices.map((i) => {
       const ctrl = this.chequesFA.at(i) as UntypedFormGroup;
       const raw = ctrl.getRawValue();
-      const amountCtrl = ctrl.get('amount');
-      const amountVal = amountCtrl
-        ? Number(
-            raw.amount ??
-              (amountCtrl as any)._pendingValue ??
-              (amountCtrl as any).value ??
-              0,
-          )
-        : Number(raw.amount || 0);
-      return { ...raw, amount: Number.isFinite(amountVal) ? amountVal : 0 };
+      const amtCtrl = ctrl.get('amount');
+      amtCtrl?.enable({ emitEvent: false });
+      const amount = Number(amtCtrl?.value ?? 0);
+      amtCtrl?.disable({ emitEvent: false });
+      return { ...raw, amount };
     });
-
-    const validDates = rows
+    const totalAmount = selectedRowsData.reduce(
+      (sum, curr) => sum + (Number(curr.amount) || 0),
+      0,
+    );
+    const validDates = selectedRowsData
       .map((r) => Number(r.instalmentDate || 0))
       .filter((d) => d > 0);
     const minDate = validDates.length > 0 ? Math.min(...validDates) : 0;
-
-    const totalAmt = this.roundRupee(
-      rows.reduce((s, r) => s + (Number(r.amount) || 0), 0),
-    );
-
-    const merged = {
-      ...rows[0],
-      instalmentDate: minDate,
-      dueDate: this.epochToDateInput(minDate), // ← populate date input
-      amount: totalAmt,
-      chequeNo: '',
-      chequeDate: null,
-      bankName: '',
-      branchName: '',
-      remarks: `Merged ${indices.length} instalments`,
-      description: 'Merged Instalment',
-    };
-
+    const combinedLabels = selectedRowsData
+      .map((r) => r.description || r.remarks)
+      .filter(Boolean)
+      .join(' + ');
     for (let i = indices.length - 1; i >= 0; i--) {
       this.chequesFA.removeAt(indices[i]);
     }
-
-    this.chequesFA.insert(indices[0], this.createChequeFormGroup(merged));
+    const insertIndex = indices[0];
+    const mergedData = {
+      sno: 0,
+      description: combinedLabels,
+      instalmentDate: minDate,
+      dueDate: this.epochToDateInput(minDate),
+      amount: totalAmount,
+      favourOf: this.DEFAULT_FAVOUR_OF,
+      mode: 'PDC',
+      chequeNo: '',
+      bankName: '',
+      chequeDate: null,
+      remarks: `Merged ${selectedRowsData.length} items`,
+    };
+    this.chequesFA.insert(insertIndex, this.createChequeFormGroup(mergedData));
     this.selectedChequeIndices.clear();
     this.reindexCheques();
     this.rebuildAllowedMap();
     this.payForm.updateValueAndValidity();
     this.alert.success(
-      `${rows.length} instalments merged. Fill in cheque details for the new row.`,
+      `Successfully merged ${selectedRowsData.length} instalments.`,
     );
   }
 
@@ -754,12 +732,58 @@ export class AdmissionviewnewComponent implements OnInit {
     this.alert.success('Cheques reset to original.');
   }
 
-  // Save payments — calls /payments/save then reloads
+  resetPayments(): void {
+    if (!confirm('Revert all payments to the default Fee Plan?')) return;
+
+    this.loading = true;
+    this.api
+      .fetchData(
+        {
+          admissionId: this.admissionId,
+          entiId: this.pickTenantId(),
+        },
+        'admi',
+        'payments/template',
+      )
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          if (res.status && res.data?.instalments) {
+            this.chequesFA.clear();
+            res.data.instalments.forEach((inst: any, idx: number) => {
+              if (Number(inst.instalmentDate) > 0) {
+                this.chequesFA.push(
+                  this.createChequeFormGroup({
+                    sno: inst.seq || idx + 1,
+                    description: inst.label || inst.feeHead || '',
+                    instalmentDate: inst.instalmentDate,
+                    dueDate: this.epochToDateInput(inst.instalmentDate),
+                    amount: inst.amount,
+                    favourOf: inst.chequeFavour || this.DEFAULT_FAVOUR_OF,
+                    mode: inst.mode || 'PDC',
+                    remarks: '',
+                  }),
+                );
+              }
+            });
+            this.rebuildAllowedMap();
+            this.alert.success('Payments reset to default.');
+          }
+        },
+        error: () => {
+          this.loading = false;
+          this.alert.error('Failed to reset template.');
+        },
+      });
+  }
+
   savePayments(): void {
     if (this.payFormSubmitting) return;
     this.payForm.markAllAsTouched();
-    if (this.neftError) {
-      this.alert.error('NEFT total mismatch: ' + this.neftError);
+    const neftRequired = this.roundRupee(this.neftSplitAmount);
+    const neftEntered = this.neftTotalEntered;
+    if (neftRequired > 0 && neftEntered > 0 && neftEntered !== neftRequired) {
+      this.alert.error(`NEFT amount mismatch — required ₹${neftRequired}, entered ₹${neftEntered}`);
       return;
     }
     const tenantId = this.pickTenantId();
@@ -767,7 +791,6 @@ export class AdmissionviewnewComponent implements OnInit {
       this.alert.error('tenantId missing');
       return;
     }
-
     const neftRefs = (this.neftRefsFA.getRawValue() || [])
       .map((r: any) => ({
         utr: String(r.utr || '').trim(),
@@ -779,7 +802,6 @@ export class AdmissionviewnewComponent implements OnInit {
         remarks: String(r.remarks || '').trim() || null,
       }))
       .filter((x: any) => !!x.utr && x.amount > 0);
-
     const cheques = (this.chequesFA.getRawValue() || [])
       .map((r: any) => ({
         sno: Number(r.sno || 0),
@@ -797,7 +819,6 @@ export class AdmissionviewnewComponent implements OnInit {
         remarks: String(r.remarks || '').trim() || null,
       }))
       .filter((x: any) => !!x.chequeNo && !!x.dueDate && x.amount > 0);
-
     const otherPayments = this.payForm.getRawValue().additionalPaymentsEnabled
       ? (this.otherPaymentsFA.getRawValue() || [])
           .map((o: any) => ({
@@ -838,9 +859,6 @@ export class AdmissionviewnewComponent implements OnInit {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // CHANGE 2: UNDER_REVIEW modal + putUnderReview()
-  // ─────────────────────────────────────────────────────────────
   openReviewModal(): void {
     if (!this.canApproveReject) {
       this.alert.error(
@@ -894,12 +912,10 @@ export class AdmissionviewnewComponent implements OnInit {
     });
   }
 
-  // CHANGE 2: is under review getter
   get isUnderReview(): boolean {
     return this.workflowStage === 'UNDER_REVIEW';
   }
 
-  // CHANGE 2: send for approval now also works from UNDER_REVIEW
   get canSendForApproval(): boolean {
     return (
       this.workflowStage === 'PAYMENTS_SUBMITTED' ||
@@ -907,9 +923,6 @@ export class AdmissionviewnewComponent implements OnInit {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Existing methods (unchanged except where noted)
-  // ─────────────────────────────────────────────────────────────
   goToAdmissionEdit(): void {
     if (!this.admissionId) return;
     this.router.navigate(['app/admissions/edit', this.admissionId]);
@@ -950,9 +963,11 @@ export class AdmissionviewnewComponent implements OnInit {
   get workflowStage(): string {
     return String(this.admission?.workflowStage || '').toUpperCase();
   }
-  // CHANGE 1+2: isDraftOrRejected now also includes UNDER_REVIEW for payment editing
+
   get isDraftOrRejected(): boolean {
-    return ['DRAFT', 'REJECTED', 'UNDER_REVIEW'].includes(this.workflowStage);
+    return ['DRAFT', 'REJECTED', 'UNDER_REVIEW'].includes(
+      this.workflowStage,
+    );
   }
   get isRejected(): boolean {
     return this.workflowStage === 'REJECTED';
@@ -1347,10 +1362,9 @@ export class AdmissionviewnewComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/app/admissions']);
+    this.location.back();
   }
 
-  // ─── Date helpers ───
   private epochToDateInput(v: any): string | null {
     if (!v) return null;
     if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.trim()))
@@ -1389,11 +1403,6 @@ export class AdmissionviewnewComponent implements OnInit {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
-
-  // Keep all existing print methods below — no changes needed.
-  // printContract(), printEnrollmentReport(), printFeeAcknowledgement(),
-  // openPrintWindow(), buildInstallmentBreakupFromAdmission(), scalePlan(), etc.
-  // Copy them verbatim from your original admissionview.component.ts
 
   printFeeAcknowledgement(): void {
     const html = this.buildFeeAcknowledgementHtml();

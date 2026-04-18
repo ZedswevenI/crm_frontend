@@ -48,7 +48,6 @@ export class LoginComponent {
       .subscribe({
         next: (response: any) => {
           this.loading = false;
-
           if (response?.data) {
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('tenantId', response.data.tenantId);

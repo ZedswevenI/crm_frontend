@@ -13,13 +13,14 @@ import { AdmissionbugComponent } from './admissionbug/admissionbug.component';
 import { AdmissionWaitComponent } from './admission-wait/admission-wait.component';
 import { AdmissionviewnewComponent } from './admissionviewnew/admissionviewnew.component';
 import { StudentuploadComponent } from './studentupload/studentupload.component';
-import { Admissionviewnew1Component } from './admissionviewnew1/admissionviewnew1.component';
+import { PrintAcknowledgementComponent } from './print-acknowledgement/print-acknowledgement.component';
 
 const routes: Routes = [
   { path: '', component: ListComponent },
   { path: 'waitforapproval', component: AdmissionWaitComponent },
   { path: 'new1', component: AdmissionsComponent },
   { path: 'new', component: AdmissionbugComponent },
+  { path: 'print/acknowledgement', component: PrintAcknowledgementComponent },
   { path: 'view/:id', component: AdmissionviewnewComponent },
   { path: 'reports', component: AdmissionreportsComponent },
   { path: 'communication', component: AdmissioncommunicationComponent },

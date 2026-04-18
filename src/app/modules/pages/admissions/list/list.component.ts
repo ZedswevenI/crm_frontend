@@ -327,7 +327,7 @@ export class ListComponent implements OnInit {
       case 'APPROVAL_SENT':
         return 'Waiting for Approval';
       case 'UNDER_REVIEW':
-        return 'Under Review'; // CHANGE 2
+        return 'On Hold';
       case 'REJECTED':
         return 'Rejected';
       case 'PAYMENTS_SUBMITTED':

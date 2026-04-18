@@ -6,7 +6,6 @@
                 <div class="text-muted small">
                     Admission No.: <b>{{ admissionNo }}</b>
                 </div>
-                <!-- CHANGE 2: show stage badge + review/rejection remarks in header -->
                 <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
                     <span class="badge bg-light text-muted border">{{ workflowStage }}</span>
 
@@ -25,23 +24,21 @@
             </div>
 
             <div class="d-flex gap-2 flex-wrap">
-                <!-- CHANGE 1: removed separate "Edit Payments" button. Editing is now inline below. -->
-                <!-- Edit Admission only for REJECTED stage -->
                 <button *ngIf="isRejected" class="btn btn-outline-warning btn-sm" (click)="goToAdmissionEdit()">
                     <i class="fa-solid fa-pen-to-square me-1"></i> Edit Admission
                 </button>
-
-                <!-- Send for Approval: PAYMENTS_SUBMITTED or UNDER_REVIEW (change 2) -->
-                <button *ngIf="canSendForApproval" class="btn btn-saffron btn-sm" [disabled]="actionBusy"
-                    (click)="sendForApproval()">
+                <button *ngIf="canSendForApproval && !isUnderReview" class="btn btn-saffron btn-sm"
+                    [disabled]="actionBusy" (click)="sendForApproval()">
                     <i class="fa-solid fa-paper-plane me-1"></i> Send for Approval
                 </button>
-
-                <!-- Approve / Reject / Put Under Review (only L1, only APPROVAL_SENT) -->
+                <!-- UNDER_REVIEW + non-L1 user: show Re-submit -->
+                <button *ngIf="isUnderReview && !canApproveReject" class="btn btn-saffron btn-sm"
+                    [disabled]="actionBusy" (click)="sendForApproval()">
+                    <i class="fa-solid fa-paper-plane me-1"></i>Release
+                </button>
                 <ng-container *ngIf="isApprovalSent && canApproveReject">
-                    <!-- CHANGE 2: new "Under Review" button -->
                     <button class="btn btn-outline-warning btn-sm" [disabled]="actionBusy" (click)="openReviewModal()">
-                        <i class="fa-solid fa-magnifying-glass me-1"></i> Under Review
+                        <i class="fa-solid fa-hand me-1"></i> Put On Hold
                     </button>
                     <button class="btn btn-approve btn-sm" [disabled]="actionBusy" (click)="approve()">
                         <i class="fa-solid fa-circle-check me-1"></i> Approve
@@ -50,15 +47,26 @@
                         <i class="fa-solid fa-circle-xmark me-1"></i> Reject
                     </button>
                 </ng-container>
-
-                <!-- Print buttons (CONFIRMED / submitted) -->
-                <button class="btn btn-print btn-sm" *ngIf="isApproved" (click)="printContract()">
+                <!-- UNDER_REVIEW: show Release button instead of Send for Approval -->
+                <ng-container *ngIf="isUnderReview && canApproveReject">
+                    <button class="btn btn-outline-success btn-sm" [disabled]="actionBusy" (click)="sendForApproval()">
+                        <i class="fa-solid fa-lock-open me-1"></i> Release
+                    </button>
+                </ng-container>
+                <!-- Print buttons -->
+                <button class="btn btn-sm btn-print" *ngIf="isApproved" (click)="printContract()">
                     <i class="fa-solid fa-file-signature me-1"></i> Contract
                 </button>
-                <button class="btn btn-print btn-sm" *ngIf="isSubmittedOrApproved" (click)="printEnrollmentReport()">
+                <button class="btn btn-sm" style="background-color:#0891b2;border-color:#0891b2;color:#fff;"
+                    (click)="printFeeCalculation()">
+                    <i class="fa-solid fa-calculator me-1"></i> Fee Calculation Sheet
+                </button>
+                <button class="btn btn-sm" style="background-color:#7c3aed;border-color:#7c3aed;color:#fff;"
+                    *ngIf="isSubmittedOrApproved" (click)="printEnrollmentReport()">
                     <i class="fa-solid fa-file-invoice me-1"></i> Enrollment Report
                 </button>
-                <button class="btn btn-print btn-sm" *ngIf="isSubmittedOrApproved" (click)="printFeeAcknowledgement()">
+                <button class="btn btn-sm" style="background-color:#0d9488;border-color:#0d9488;color:#fff;"
+                    *ngIf="isSubmittedOrApproved" (click)="printFeeAcknowledgement()">
                     <i class="fa-solid fa-receipt me-1"></i> Acknowledgement
                 </button>
 
@@ -69,8 +77,6 @@
         </div>
 
         <div class="card-body" *ngIf="!loading; else loadingTpl">
-
-            <!-- ── Student & Academics ── -->
             <div class="row g-3">
                 <div class="col-lg-6">
                     <div class="border rounded-3 p-3 h-100">
@@ -127,8 +133,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- ── Test & School Marks ── -->
             <div class="border rounded-3 p-3 mt-3">
                 <div class="fw-semibold mb-2">Test & Result</div>
                 <div class="row g-2">
@@ -161,8 +165,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- ── Fee Plan ── -->
             <div class="border rounded-3 p-3 mt-3">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                     <div>
@@ -214,19 +216,19 @@
                     </table>
                 </div>
             </div>
-
-            <!-- ════════════════════════════════════════════════════════
-                 CHANGE 1: INLINE PAYMENT EDITING
-                 Show editable form when DRAFT / REJECTED / UNDER_REVIEW.
-                 Show read-only tables when APPROVAL_SENT / CONFIRMED.
-                 ════════════════════════════════════════════════════════ -->
-
-            <!-- EDITABLE PAYMENTS (DRAFT / REJECTED / UNDER_REVIEW) -->
             <ng-container *ngIf="isDraftOrRejected">
                 <div *ngIf="payFormLoading" class="text-muted small py-3 text-center">
                     <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading payment schedule…
                 </div>
-                <div class="border rounded-3 p-3 mt-3">
+                <!-- <div class="d-flex justify-content-end mb-2">
+                    <button type="button" class="btn btn-saffron btn-sm" [disabled]="payFormSubmitting || actionBusy"
+                        (click)="savePayments()">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>
+                        <span *ngIf="!payFormSubmitting">Save Payments</span>
+                        <span *ngIf="payFormSubmitting">Saving…</span>
+                    </button>
+                </div> -->
+                <div class="border rounded-3 p-3 bg-light-subtle">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                         <div>
                             <div class="fw-semibold">Payments
@@ -246,8 +248,6 @@
                         <datalist id="bankListView">
                             <option *ngFor="let b of bankNames" [value]="b"></option>
                         </datalist>
-
-                        <!-- NEFT -->
                         <div class="border rounded-3 p-3 mb-3">
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
@@ -330,8 +330,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Cheques -->
                         <div class="border rounded-3 p-3 mb-3">
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                                 <div class="fw-semibold">Cheque / Instalment Schedule</div>
@@ -384,7 +382,8 @@
                                             </td>
                                             <td class="text-end">
                                                 <input class="form-control form-control-sm text-end" type="number"
-                                                    formControlName="amount" readonly />
+                                                    formControlName="amount" [value]="row.get('amount')?.value"
+                                                    readonly />
                                             </td>
                                             <td>
                                                 <input class="form-control form-control-sm" formControlName="favourOf"
@@ -417,7 +416,7 @@
                                             </td>
                                             <td>
                                                 <input class="form-control form-control-sm" placeholder="optional"
-                                                    formControlName="remarks" />
+                                                    formControlName="remarks" [value]="row.get('remarks')?.value" />
                                             </td>
                                         </tr>
                                     </tbody>
@@ -433,8 +432,6 @@
                                 </table>
                             </div>
                         </div>
-
-                        <!-- Additional Payments -->
                         <div class="border rounded-3 p-3 mb-3">
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
@@ -524,8 +521,6 @@
                                 </div>
                             </ng-container>
                         </div>
-
-                        <!-- Payment Summary Bar -->
                         <div class="border rounded-3 p-3 bg-light-subtle">
                             <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center">
                                 <div class="small text-muted fw-semibold">Payment Summary</div>
@@ -550,22 +545,21 @@
                                     <div>
                                         <div class="text-muted small">Balance</div>
                                         <div class="fw-bold" [class.text-success]="balanceAmount === 0"
-                                            [class.text-danger]="balanceAmount > 0">
-                                            ₹{{ balanceAmount | number:"1.0-0" }}
+                                            [class.text-danger]="balanceAmount > 0"
+                                            [class.text-warning]="balanceAmount < 0">₹{{ balanceAmount < 0 ? 0 :
+                                                balanceAmount | number:"1.0-0" }} <span *ngIf="balanceAmount < 0"
+                                                class="small ms-1">(Excess ₹{{ (balanceAmount * -1) | number:"1.0-0"
+                                                }})</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
                     </form>
                 </div>
             </ng-container>
-
-            <!-- READ-ONLY PAYMENTS (APPROVAL_SENT / CONFIRMED / PAYMENTS_SUBMITTED) -->
             <ng-container *ngIf="!isDraftOrRejected">
                 <div class="row g-3 mt-1">
-                    <!-- NEFT read-only -->
                     <div class="col-lg-6">
                         <div class="border rounded-3 p-3 h-100">
                             <div class="d-flex justify-content-between align-items-start">
@@ -612,7 +606,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Cheques read-only -->
                     <div class="col-lg-6">
                         <div class="border rounded-3 p-3 h-100">
                             <div class="d-flex justify-content-between align-items-start">
@@ -678,8 +671,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Other payments read-only -->
                 <div class="row g-3 mt-3" *ngIf="admission.payments.otherPayments.length !== 0">
                     <div class="col-12">
                         <div class="border rounded-3 p-3 h-100">
@@ -735,9 +726,6 @@
     </div>
 </div>
 
-<!-- ════════════════════════════════════════
-     Reject Modal (unchanged)
-     ════════════════════════════════════════ -->
 <div class="modal fade" tabindex="-1" [class.show]="rejectModalOpen"
     [style.display]="rejectModalOpen ? 'block' : 'none'">
     <div class="modal-dialog modal-dialog-centered">
@@ -761,9 +749,6 @@
 </div>
 <div class="modal-backdrop fade show" *ngIf="rejectModalOpen"></div>
 
-<!-- ════════════════════════════════════════
-     CHANGE 2: Under Review Modal
-     ════════════════════════════════════════ -->
 <div class="modal fade" tabindex="-1" [class.show]="reviewModalOpen"
     [style.display]="reviewModalOpen ? 'block' : 'none'">
     <div class="modal-dialog modal-dialog-centered">
@@ -798,7 +783,6 @@
 </div>
 <div class="modal-backdrop fade show" *ngIf="reviewModalOpen"></div>
 
-<!-- Split Modal -->
 <div class="modal fade" tabindex="-1" [class.show]="splitModalOpen" [style.display]="splitModalOpen ? 'block' : 'none'">
     <div class="modal-dialog modal-sm modal-dialog-centered">
         <div class="modal-content" [formGroup]="splitForm">
