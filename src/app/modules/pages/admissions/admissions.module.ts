@@ -18,6 +18,7 @@ import { AdmissionWaitComponent } from './admission-wait/admission-wait.componen
 import { StudentuploadComponent } from './studentupload/studentupload.component';
 import { AdmissionviewnewComponent } from './admissionviewnew/admissionviewnew.component';
 import { PrintAcknowledgementComponent } from './print-acknowledgement/print-acknowledgement.component';
+import { AdmissionApproveComponent } from './admission-approve/admission-approve.component';
 
 @NgModule({
   declarations: [
@@ -33,7 +34,8 @@ import { PrintAcknowledgementComponent } from './print-acknowledgement/print-ack
     AdmissionbugComponent,
     StudentuploadComponent,
     AdmissionviewnewComponent,
-    PrintAcknowledgementComponent
+    PrintAcknowledgementComponent,
+    AdmissionApproveComponent
   ],
   imports: [CommonModule, AdmissionsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })

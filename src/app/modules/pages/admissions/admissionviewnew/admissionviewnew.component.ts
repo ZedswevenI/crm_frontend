@@ -370,7 +370,9 @@ export class AdmissionviewnewComponent implements OnInit {
           return;
         }
         const data = resp.data;
-        this.neftSplitAmount =this.roundRupee(Number(data.neftSplitAmount || 0));
+        this.neftSplitAmount = this.roundRupee(
+          Number(data.neftSplitAmount || 0),
+        );
         this.payForm
           .get('neftAmount')
           ?.setValue(this.neftSplitAmount, { emitEvent: false });
@@ -380,27 +382,83 @@ export class AdmissionviewnewComponent implements OnInit {
         const instalments: any[] = Array.isArray(data.instalments)
           ? data.instalments
           : [];
+        // const chqFA = this.fb.array([]);
+        // instalments
+        //   .filter((i) => Number(i.instalmentDate) > 0)
+        //   .forEach((i, idx) => {
+        //     chqFA.push(
+        //       this.createChequeFormGroup({
+        //         sno: i.seq ?? idx + 1,
+        //         description: i.label || i.feeHead || '',
+        //         instalmentDate: i.instalmentDate,
+        //         amount: Number(i.amount || 0),
+        //         favourOf: i.chequeFavour || this.DEFAULT_FAVOUR_OF,
+        //         mode: i.mode || 'PDC',
+        //         chequeDate: null,
+        //         dueDate: this.epochToDateInput(i.instalmentDate),
+        //         chequeNo: '',
+        //         bankName: '',
+        //         branchName: '',
+        //         remarks: '',
+        //       }),
+        //     );
+        //   });
+        // this.payForm.setControl('cheques', chqFA);
+        // Group instalments by date — same as admissionbug
+        const chequeInsts = instalments.filter(
+          (i) => Number(i.instalmentDate) > 0,
+        );
+        const groupMap = new Map<
+          number,
+          {
+            amount: number;
+            labels: string[];
+            mode: string;
+            favour: string;
+            date: number;
+          }
+        >();
+        chequeInsts.forEach((i) => {
+          const dt = Number(i.instalmentDate);
+          const existing = groupMap.get(dt);
+          if (!existing) {
+            groupMap.set(dt, {
+              amount: Number(i.amount || 0),
+              labels: [String(i.label || i.feeHead || '').trim()].filter(
+                Boolean,
+              ),
+              mode: String(i.mode || 'PDC').trim(),
+              favour: String(i.chequeFavour || this.DEFAULT_FAVOUR_OF).trim(),
+              date: dt,
+            });
+          } else {
+            existing.amount += Number(i.amount || 0);
+            const lbl = String(i.label || i.feeHead || '').trim();
+            if (lbl) existing.labels.push(lbl);
+          }
+        });
+        const grouped = Array.from(groupMap.values()).sort(
+          (a, b) => a.date - b.date,
+        );
         const chqFA = this.fb.array([]);
-        instalments
-          .filter((i) => Number(i.instalmentDate) > 0)
-          .forEach((i, idx) => {
-            chqFA.push(
-              this.createChequeFormGroup({
-                sno: i.seq ?? idx + 1,
-                description: i.label || i.feeHead || '',
-                instalmentDate: i.instalmentDate,
-                amount: Number(i.amount || 0),
-                favourOf: i.chequeFavour || this.DEFAULT_FAVOUR_OF,
-                mode: i.mode || 'PDC',
-                chequeDate: null,
-                dueDate: this.epochToDateInput(i.instalmentDate),
-                chequeNo: '',
-                bankName: '',
-                branchName: '',
-                remarks: '',
-              }),
-            );
-          });
+        grouped.forEach((g, idx) => {
+          chqFA.push(
+            this.createChequeFormGroup({
+              sno: idx + 1,
+              description: Array.from(new Set(g.labels)).join(', '),
+              instalmentDate: g.date,
+              amount: this.roundRupee(g.amount),
+              favourOf: g.favour,
+              mode: String(g.mode).toUpperCase() === 'CDC' ? 'CDC' : 'PDC',
+              chequeDate: null,
+              dueDate: this.epochToDateInput(g.date),
+              chequeNo: '',
+              bankName: '',
+              branchName: '',
+              remarks: '',
+            }),
+          );
+        });
         this.payForm.setControl('cheques', chqFA);
         this.selectedChequeIndices.clear();
         this.rebuildAllowedMap();
@@ -783,7 +841,9 @@ export class AdmissionviewnewComponent implements OnInit {
     const neftRequired = this.roundRupee(this.neftSplitAmount);
     const neftEntered = this.neftTotalEntered;
     if (neftRequired > 0 && neftEntered > 0 && neftEntered !== neftRequired) {
-      this.alert.error(`NEFT amount mismatch — required ₹${neftRequired}, entered ₹${neftEntered}`);
+      this.alert.error(
+        `NEFT amount mismatch — required ₹${neftRequired}, entered ₹${neftEntered}`,
+      );
       return;
     }
     const tenantId = this.pickTenantId();
@@ -965,9 +1025,7 @@ export class AdmissionviewnewComponent implements OnInit {
   }
 
   get isDraftOrRejected(): boolean {
-    return ['DRAFT', 'REJECTED', 'UNDER_REVIEW'].includes(
-      this.workflowStage,
-    );
+    return ['DRAFT', 'REJECTED', 'UNDER_REVIEW'].includes(this.workflowStage);
   }
   get isRejected(): boolean {
     return this.workflowStage === 'REJECTED';

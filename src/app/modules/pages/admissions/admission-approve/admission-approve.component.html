@@ -1,0 +1,456 @@
+<div class="approve-page">
+
+    <!-- ALL DONE STATE -->
+    <div *ngIf="allDone" class="card shadow-sm border-0 mb-3">
+        <div class="card-body text-center py-5">
+            <div class="mb-3">
+                <i class="fa-solid fa-circle-check fa-3x text-success"></i>
+            </div>
+            <h5 class="fw-bold mb-1">All Done!</h5>
+            <div class="text-muted small mb-4">No more admissions pending for approval.</div>
+            <button class="btn btn-outline-secondary" (click)="goBack()">
+                <i class="fa-solid fa-arrow-left me-1"></i> Back to List
+            </button>
+        </div>
+    </div>
+
+    <!-- QUEUE LOADING -->
+    <div *ngIf="queueLoading" class="card shadow-sm border-0 mb-3">
+        <div class="card-body text-center py-5">
+            <i class="fa-solid fa-spinner fa-spin fa-2x text-muted mb-3"></i>
+            <div class="text-muted small">Loading approval queue…</div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <ng-container *ngIf="!allDone && !queueLoading">
+
+        <!-- HEADER CARD -->
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-white border-0">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+                    <!-- Left: Title + counter -->
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h5 class="mb-0 fw-semibold">Approval Queue</h5>
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                <i class="fa-solid fa-clock me-1"></i>
+                                {{ positionLabel }} pending
+                            </span>
+                        </div>
+                        <div class="text-muted small mt-1" *ngIf="!loading && admission">
+                            {{ admission.student.name }} —
+                            <b>{{ admissionNo }}</b>
+                        </div>
+                    </div>
+
+                    <!-- Right: Nav + Actions -->
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+
+                        <!-- Prev / Next -->
+                        <button class="btn btn-outline-secondary btn-sm" [disabled]="!hasPrev || loading"
+                            (click)="goPrev()">
+                            <i class="fa-solid fa-chevron-left me-1"></i> Prev
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" [disabled]="!hasNext || loading"
+                            (click)="goNext()">
+                            Next <i class="fa-solid fa-chevron-right ms-1"></i>
+                        </button>
+
+                        <div class="vr"></div>
+
+                        <!-- Action buttons -->
+                        <button class="btn btn-sm btn-outline-warning" [disabled]="actionBusy || loading"
+                            (click)="openHoldModal()">
+                            <i class="fa-solid fa-hand me-1"></i> Put On Hold
+                        </button>
+                        <button class="btn btn-sm btn-reject" [disabled]="actionBusy || loading"
+                            (click)="openRejectModal()">
+                            <i class="fa-solid fa-circle-xmark me-1"></i> Reject
+                        </button>
+                        <button class="btn btn-sm btn-approve" [disabled]="actionBusy || loading" (click)="approve()">
+                            <i class="fa-solid fa-circle-check me-1"></i>
+                            <span *ngIf="!actionBusy">Approve</span>
+                            <span *ngIf="actionBusy">Processing…</span>
+                        </button>
+
+                        <div class="vr"></div>
+
+                        <button class="btn btn-back btn-sm" (click)="goBack()">
+                            <i class="fa-solid fa-arrow-left me-1"></i> Back
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Queue mini strip -->
+                <div class="mt-2 d-flex gap-1 flex-wrap" *ngIf="queue.length > 0">
+                    <span *ngFor="let q of queue; let i = index" class="badge border small"
+                        [class.bg-warning]="i === currentIndex" [class.text-dark]="i === currentIndex"
+                        [class.bg-light]="i !== currentIndex" [class.text-muted]="i !== currentIndex"
+                        style="cursor:pointer; font-size:10px;" (click)="currentIndex = i; loadAdmission(q.id)">
+                        {{ q.admissionNo || i + 1 }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMISSION LOADING -->
+        <div *ngIf="loading" class="card shadow-sm border-0 mb-3">
+            <div class="card-body text-center py-4">
+                <i class="fa-solid fa-spinner fa-spin text-muted me-2"></i>
+                <span class="text-muted small">Loading admission…</span>
+            </div>
+        </div>
+
+        <!-- ADMISSION DETAILS -->
+        <ng-container *ngIf="!loading && admission">
+
+            <div class="row g-3 mb-3">
+
+                <!-- Student Info -->
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="fw-semibold mb-2 text-muted small text-uppercase tracking-wide">
+                                Student
+                            </div>
+                            <div class="fs-6 fw-bold mb-1">{{ admission.student.name }}</div>
+                            <div class="text-muted small mb-2">
+                                Reg No: <b>{{ admission.student.regNo || '—' }}</b>
+                            </div>
+                            <div class="row g-1 small">
+                                <div class="col-6">
+                                    <div class="text-muted">Mobile</div>
+                                    <div class="fw-medium">{{ admission.student.phone }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Parent</div>
+                                    <div class="fw-medium">{{ admission.student.parentName }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Parent Mobile</div>
+                                    <div class="fw-medium">{{ admission.student.parentPhone }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Email</div>
+                                    <div class="fw-medium">{{ admission.student.email || '—' }}</div>
+                                </div>
+                                <div class="col-12 mt-1">
+                                    <div class="text-muted">Address</div>
+                                    <div class="fw-medium small">
+                                        <!-- {{ [admission.student.address, admission.student.city,
+                                        admission.student.state, admission.student.pincode]
+                                        .filter(Boolean).join(', ') || '—' }} -->
+                                        {{ studentAddress }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Program Info -->
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="fw-semibold mb-2 text-muted small text-uppercase">Program</div>
+                            <div class="fs-6 fw-bold mb-1">{{ admission.academics.programName }}</div>
+                            <div class="row g-1 small">
+                                <div class="col-6">
+                                    <div class="text-muted">Centre</div>
+                                    <div class="fw-medium">{{ admission.academics.centreName }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Batch</div>
+                                    <div class="fw-medium">{{ admission.academics.batchName || '—' }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Test Name</div>
+                                    <div class="fw-medium">{{ admission.test.testName || '—' }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Score</div>
+                                    <div class="fw-bold">{{ admission.test.score ?? '—' }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">School Overall %</div>
+                                    <div class="fw-medium">{{ admission.schoolMarks?.overallPct ?? '—' }}
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Core Subject %</div>
+                                    <div class="fw-medium">{{ admission.schoolMarks?.coreSubjectPct ?? '—'
+                                        }}</div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="text-muted">Enrolled By</div>
+                                    <div class="fw-medium">{{ admission.createdByName || '—' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fee Summary -->
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="fw-semibold mb-2 text-muted small text-uppercase">Fee</div>
+                            <div class="fs-5 fw-bold text-saffron mb-1">
+                                ₹{{ admission.fee.finalFee | number:"1.0-0" }}
+                            </div>
+                            <div class="text-muted small mb-2">{{ admission.fee.feePlanName }}</div>
+                            <div class="row g-1 small">
+                                <div class="col-6">
+                                    <div class="text-muted">Test Schol.</div>
+                                    <div class="fw-medium">{{ admission.fee.testScholarshipPct }}%</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Scholarship</div>
+                                    <div class="fw-medium">{{ admission.fee.scholarshipPct }}%</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Additional</div>
+                                    <div class="fw-medium">{{ admission.fee.additionalScholarshipPct }}%
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted">Base Fee</div>
+                                    <div class="fw-medium">₹{{ admission.fee.baseFee | number:"1.0-0" }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <div *ngFor="let r of admission.fee.breakup"
+                                    class="d-flex justify-content-between small py-1 border-bottom">
+                                    <span class="text-muted">{{ r.label }}</span>
+                                    <span class="fw-medium">₹{{ r.total | number:"1.0-0" }}
+                                        <span *ngIf="r.scholBenefits > 0" class="text-success small ms-1">
+                                            (-₹{{ r.scholBenefits | number:"1.0-0" }})
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Summary -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="fw-semibold mb-3 text-muted small text-uppercase">Payment Summary</div>
+                    <div class="row g-3">
+
+                        <!-- NEFT -->
+                        <div class="col-lg-5">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="fw-semibold small">NEFT / DD / UPI</div>
+                                    <div class="fw-bold">₹{{ neftTotal | number:"1.0-0" }}</div>
+                                </div>
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>UTR No</th>
+                                            <th class="text-end">Amount</th>
+                                            <th>Paid On</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr *ngFor="let n of admission.payments.neftRefs; let i = index">
+                                            <td>{{ i + 1 }}</td>
+                                            <td>{{ n.utrNo }}</td>
+                                            <td class="text-end">₹{{ n.amount | number:"1.0-0" }}</td>
+                                            <td>{{ n.paidOn ? (n.paidOn | date:'dd-MMM-yyyy') : '—' }}</td>
+                                        </tr>
+                                        <tr *ngIf="!admission.payments.neftRefs.length">
+                                            <td colspan="4" class="text-center text-muted small">No NEFT</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Cheques -->
+                        <div class="col-lg-7">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <div class="fw-semibold small">Post Dated Cheques</div>
+                                        <div class="text-muted tiny">
+                                            Total: {{ admission.payments.chequeSummary.totalCheques }}
+                                            • Pending: {{ admission.payments.chequeSummary.pendingCount }}
+                                        </div>
+                                    </div>
+                                    <div class="fw-bold">₹{{ chequeTotal | number:"1.0-0" }}</div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Sno</th>
+                                                <th>Due Date</th>
+                                                <th>Cheque No</th>
+                                                <th>Mode</th>
+                                                <th class="text-end">Amount</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr *ngFor="let c of admission.payments.cheques">
+                                                <td class="fw-semibold">{{ c.sno }}</td>
+                                                <td>{{ c.dueDate ? (c.dueDate | date:'dd-MMM-yyyy') : '—' }}</td>
+                                                <td>{{ c.chequeNo || '—' }}</td>
+                                                <td>{{ c.mode }}</td>
+                                                <td class="text-end">₹{{ c.amount | number:"1.0-0" }}</td>
+                                                <td>
+                                                    <span class="badge" [class.bg-secondary]="c.status === 'pending'"
+                                                        [class.bg-success]="c.status === 'cleared'"
+                                                        [class.bg-danger]="c.status === 'bounced'"
+                                                        [class.bg-info]="c.status === 'deposited'">
+                                                        {{ c.status }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr *ngIf="!admission.payments.cheques.length">
+                                                <td colspan="6" class="text-center text-muted small">No cheques</td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot class="table-light">
+                                            <tr>
+                                                <th colspan="4" class="text-end">Total</th>
+                                                <th class="text-end">₹{{ chequeTotal | number:"1.0-0" }}</th>
+                                                <th></th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grand Total bar -->
+                        <div class="col-12">
+                            <div
+                                class="border rounded-3 p-3 bg-light-subtle d-flex flex-wrap gap-4 justify-content-between align-items-center">
+                                <div class="small text-muted fw-semibold">Payment Totals</div>
+                                <div class="d-flex flex-wrap gap-4">
+                                    <div>
+                                        <div class="text-muted small">NEFT</div>
+                                        <div class="fw-semibold">₹{{ neftTotal | number:"1.0-0" }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted small">Cheques</div>
+                                        <div class="fw-semibold">₹{{ chequeTotal | number:"1.0-0" }}</div>
+                                    </div>
+                                    <div *ngIf="otherTotal > 0">
+                                        <div class="text-muted small">Other</div>
+                                        <div class="fw-semibold">₹{{ otherTotal | number:"1.0-0" }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted small">Grand Total</div>
+                                        <div class="fw-bold fs-6">₹{{ grandTotal | number:"1.0-0" }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted small">Fee Due</div>
+                                        <div class="fw-bold fs-6 text-saffron">
+                                            ₹{{ admission.fee.finalFee | number:"1.0-0" }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom action bar -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" [disabled]="!hasPrev || loading"
+                            (click)="goPrev()">
+                            <i class="fa-solid fa-chevron-left me-1"></i> Prev
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" [disabled]="!hasNext || loading"
+                            (click)="goNext()">
+                            Next <i class="fa-solid fa-chevron-right ms-1"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-warning" [disabled]="actionBusy || loading"
+                            (click)="openHoldModal()">
+                            <i class="fa-solid fa-hand me-1"></i> Put On Hold
+                        </button>
+                        <button class="btn btn-sm btn-reject" [disabled]="actionBusy || loading"
+                            (click)="openRejectModal()">
+                            <i class="fa-solid fa-circle-xmark me-1"></i> Reject
+                        </button>
+                        <button class="btn btn-sm btn-approve" [disabled]="actionBusy || loading" (click)="approve()">
+                            <i class="fa-solid fa-circle-check me-1"></i>
+                            <span *ngIf="!actionBusy">Approve</span>
+                            <span *ngIf="actionBusy">Processing…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </ng-container>
+    </ng-container>
+</div>
+
+<!-- ── Reject Modal ── -->
+<div class="modal fade" tabindex="-1" [class.show]="rejectModalOpen"
+    [style.display]="rejectModalOpen ? 'block' : 'none'">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reject Admission</h5>
+                <button type="button" class="btn-close" (click)="closeRejectModal()"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Rejection Remarks <span class="text-danger">*</span></label>
+                <textarea class="form-control" rows="4" [(ngModel)]="rejectReason"
+                    placeholder="Enter reason for rejection…"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" (click)="closeRejectModal()">Cancel</button>
+                <button class="btn btn-danger" [disabled]="actionBusy || !rejectReason.trim()" (click)="rejectNow()">
+                    <i class="fa-solid fa-circle-xmark me-1"></i> Reject
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show" *ngIf="rejectModalOpen"></div>
+
+<!-- ── Hold Modal ── -->
+<div class="modal fade" tabindex="-1" [class.show]="holdModalOpen" [style.display]="holdModalOpen ? 'block' : 'none'">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Put On Hold</h5>
+                <button type="button" class="btn-close" (click)="closeHoldModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning small mb-3">
+                    <i class="fa-solid fa-hand me-1"></i>
+                    This will move the admission to <b>UNDER REVIEW</b> stage so the manager can edit and
+                    re-submit.
+                </div>
+                <label class="form-label">Hold Remarks <span class="text-danger">*</span></label>
+                <textarea class="form-control" rows="4" [(ngModel)]="holdRemarks"
+                    placeholder="Enter what needs to be corrected…"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" (click)="closeHoldModal()">Cancel</button>
+                <button class="btn btn-warning" [disabled]="actionBusy || !holdRemarks.trim()" (click)="putOnHold()">
+                    <i class="fa-solid fa-hand me-1"></i> Put On Hold
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop fade show" *ngIf="holdModalOpen"></div>

@@ -16,15 +16,13 @@ type ListStatusFilter = 'all' | 'approved' | 'rejected' | 'waiting';
   selector: 'app-admission-wait',
   standalone: false,
   templateUrl: './admission-wait.component.html',
-  styleUrl: './admission-wait.component.scss'
+  styleUrl: './admission-wait.component.scss',
 })
 export class AdmissionWaitComponent {
- admissions: any[] = [];
+  admissions: any[] = [];
   loading = false;
   searchRegNo = '';
   totalRecords = 0;
-
-  //filter
   pageSize = 5;
   searchText = '';
   statusFilter = 'waiting';
@@ -32,9 +30,8 @@ export class AdmissionWaitComponent {
     { label: 'All', value: 'all' },
     { label: 'Approved', value: 'approved' },
     { label: 'Rejected', value: 'rejected' },
-    { label: 'Waiting for approval', value: 'waiting' }
+    { label: 'Waiting for approval', value: 'waiting' },
   ];
-
   columns = [
     { key: 'regNo', label: 'Reg No', sortable: false },
     { key: 'name', label: 'Student', sortable: false },
@@ -47,10 +44,11 @@ export class AdmissionWaitComponent {
   actions = [
     {
       type: 'icon',
-      icon: 'fa-regular fa-eye',
-      tooltip: 'View',
-      color: '#2563EB',
-      callback: (row: any) => this.view(row.id),
+      icon: 'fa-solid fa-check-circle',
+      tooltip: 'Approve Queue',
+      color: '#16a34a',
+      callback: (row: any) =>
+        this.router.navigate(['/app/admissions/approve', row.id]),
     },
   ];
 
@@ -58,7 +56,7 @@ export class AdmissionWaitComponent {
     private router: Router,
     private breadcrumb: BredcrumpService,
     private api: CommonapiService,
-    private alert: AlertService
+    private alert: AlertService,
   ) {
     this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Admissions' }]);
   }
@@ -78,7 +76,7 @@ export class AdmissionWaitComponent {
     this.fetchTableData({
       page: 1,
       pageSize: this.pageSize,
-      search: this.searchText
+      search: this.searchText,
     });
   }
 
@@ -103,14 +101,12 @@ export class AdmissionWaitComponent {
 
     if (params.sortKey) {
       const sort =
-        params.sortDirection === 'desc'
-          ? `-${params.sortKey}`
-          : params.sortKey;
+        params.sortDirection === 'desc' ? `-${params.sortKey}` : params.sortKey;
       route += `&sort=${encodeURIComponent(sort)}`;
     }
 
     const body = {
-      entiId: localStorage.getItem('tenantId')
+      entiId: localStorage.getItem('tenantId'),
     };
 
     this.api.fetchData(body, 'admi', route).subscribe({
@@ -125,10 +121,9 @@ export class AdmissionWaitComponent {
 
         this.totalRecords = res.data?.total || 0;
 
-        const raw =
-          Array.isArray(res.data)
-            ? res.data
-            : res.data?.rows || res.data?.items || [];
+        const raw = Array.isArray(res.data)
+          ? res.data
+          : res.data?.rows || res.data?.items || [];
 
         this.admissions = raw.map((a: any) => ({
           id: a.admissionId || a._id || a.id,
@@ -142,14 +137,14 @@ export class AdmissionWaitComponent {
             (a?.workflow?.stage ||
               a.status ||
               a.admissionStatus ||
-              'draft') as AdmissionStatus
-          )
+              'draft') as AdmissionStatus,
+          ),
         }));
       },
       error: (err) => {
         this.loading = false;
         this.alert.error('Error loading admissions');
-      }
+      },
     });
   }
 
