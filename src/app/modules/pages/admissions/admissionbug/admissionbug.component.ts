@@ -1055,7 +1055,7 @@ export class AdmissionbugComponent implements OnInit {
     );
     finalFee = finalFee + this.roundRupee(otherTotal);
     const diff = Math.abs(totalPaid - finalFee);
-    if (diff > 2) {
+    if (diff > 5) {
       this.alert.error(
         `Total Mismatch. Paid: ₹${totalPaid}, Due: ₹${finalFee} (Diff: ₹${diff})`,
       );
