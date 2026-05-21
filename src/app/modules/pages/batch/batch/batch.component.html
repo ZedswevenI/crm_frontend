@@ -6,18 +6,72 @@
             <div class="text-muted small">Create and manage batches, faculty mapping and student assignment.</div>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary rounded-pill fs-16 fw-medium" type="button"
-                (click)="toggleFilters()">
-                <i class="fa-solid fa-filter"></i> {{ showFilters ? 'Hide Filters' : 'Filters' }}
-            </button>
+        
             <button class="btn btn-outline-primary rounded-pill fs-16 fw-medium" (click)="refresh()">
                 <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+             <button class="btn btn-outline-secondary rounded-pill fs-16 fw-medium" type="button"
+                (click)="toggleFilters()">
+                <i class="fa-solid fa-filter"></i> {{ showFilters ? 'Hide Filters' : 'Filters' }}
             </button>
             <button class="btn btn-newbutton rounded-pill fs-16 fw-medium" (click)="openCreate()">
                 <i class="fa-solid fa-plus"></i> Create Batch
             </button>
+            <!-- <button class="btn btn-shuffle fs-16 fw-medium" (click)="refresh()">
+                <i class="fa-solid fa-rotate btn-icon"></i> Refresh
+            </button>
+            <button class="btn btn-back fs-16 fw-medium" type="button" (click)="toggleFilters()">
+                <i class="fa-solid fa-filter btn-icon"></i> {{ showFilters ? 'Hide Filters' : 'Filters' }}
+            </button>
+            <button class="btn btn-create fs-16 fw-medium" (click)="openCreate()">
+                <i class="fa-solid fa-plus btn-icon"></i> Create Batch
+            </button> -->
         </div>
     </div>
+    <!-- <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex gap-2"> -->
+            <!-- Create/Add -->
+            <!-- <button class="btn btn-create fs-16 fw-medium">
+                <i class="fa-solid fa-plus btn-icon"></i> Create
+            </button> -->
+
+            <!-- Edit -->
+            <!-- <button class="btn btn-edit fs-16 fw-medium">
+                <i class="fa-regular fa-pen-to-square btn-icon"></i> Edit
+            </button> -->
+
+            <!-- Import -->
+            <!-- <button class="btn btn-import fs-16 fw-medium">
+                <i class="fa-solid fa-cloud-arrow-up btn-icon"></i> Import
+            </button> -->
+
+            <!-- Export -->
+            <!-- <button class="btn btn-export fs-16 fw-medium">
+                <i class="fa-solid fa-cloud-arrow-down btn-icon"></i> Export
+            </button> -->
+
+            <!-- Close/ Cancel -->
+            <!-- <button class="btn btn-close-custom fs-16 fw-medium">
+                <i class="fa-solid fa-xmark btn-icon"></i>Close
+            </button> -->
+
+            <!-- Back -->
+            <!-- <button class="btn btn-back fs-16 fw-medium">
+                <i class="fa-solid fa-arrow-left btn-icon"></i>Back
+            </button> -->
+
+            <!-- Late Entry -->
+            <!-- <button class="btn btn-late-entry fs-16 fw-medium">
+                <i class="fa-solid fa-clock btn-icon"></i> Late Entry
+            </button> -->
+
+            <!-- Shuffle -->
+            <!-- <button class="btn btn-shuffle fs-16 fw-medium">
+                <i class="fa-solid fa-shuffle btn-icon"></i> Shuffle
+            </button> -->
+
+        <!-- </div>
+    </div> -->
 </div>
 
 <!-- TABLE CARD -->
@@ -27,7 +81,7 @@
 
             <!-- FILTERS -->
             <div class="card-header bg-white border-0" *ngIf="showFilters">
-                <form [formGroup]="filterForm" class="row g-2 align-items-end">
+                <form [formGroup]="filterForm" class="row g-2 align-items-end" (keydown.enter)="refresh()">
                     <div class="col-12 col-md-4">
                         <formfield label="Search" formControlName="search" [control]="filterForm.get('search')"
                             placeholder="Batch name / code / program / center"></formfield>
@@ -49,13 +103,18 @@
                             (click)="clearFilters()">Clear</button>
                         <button type="button" class="btn btn-sm btn-primary" (click)="refresh()">Search</button>
                     </div>
+                     <!-- <div class="col-12 d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-close-custom fs-16 fw-medium"
+                            (click)="clearFilters()">Clear</button>
+                        <button type="button" class="btn btn-create fs-16 fw-medium" (click)="refresh()">Search</button>
+                    </div> -->
                 </form>
             </div>
 
             <div class="card-body pt-0 mt-3">
                 <list-table [autoFitChars]="true" [showsearch]="false" (requestData)="loadBatches($event)"
                     [columns]="columns" [totalRecords]="totalRecords" [data]="batchRows" [actions]="actions"
-                    [showpageoptions]="true">
+                    [showpageoptions]="true" (rowClick)="onRowSelected($event)">
                 </list-table>
             </div>
         </div>

@@ -19,7 +19,7 @@ const safeTrim = (v: any) =>
   styleUrl: './batchview.component.scss',
 })
 export class BatchviewComponent implements OnInit {
-   loading = false;
+  loading = false;
   entiId: any;
   batchId = '';
   batch: any = null;
@@ -27,8 +27,13 @@ export class BatchviewComponent implements OnInit {
   staffMap: any[] = [];
   activeTab: 'students' | 'faculty' | 'report' = 'students';
   showOffcanvas = false;
-  offcanvasMode: 'edit' | 'staff' | 'assign' | 'shuffle' | 'classTeacher' =
-    'edit';
+  offcanvasMode:
+    | 'edit'
+    | 'staff'
+    | 'assign'
+    | 'shuffle'
+    | 'classTeacher'
+    | 'import' = 'edit';
   programsFull: any[] = [];
   centersFull: any[] = [];
   staffListFull: any[] = [];
@@ -110,6 +115,10 @@ export class BatchviewComponent implements OnInit {
   promoteProgramOptions: any[] = [];
   promoteLoading = false;
   promoteResult: any = null;
+  importRows: any[] = [];
+  importUnmatched: any[] = [];
+  importLoading = false;
+  importFileName = '';
 
   constructor(
     private route: ActivatedRoute,
@@ -125,9 +134,7 @@ export class BatchviewComponent implements OnInit {
   ngOnInit(): void {
     this.batchId = safeTrim(this.route.snapshot.paramMap.get('batchId'));
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Masters' },
-      { label: 'Batches', link: '/app/batches' },
+      { label: 'Batches', link: '/app/batch' },
       { label: 'View' },
     ]);
     this.initForms();
@@ -310,7 +317,7 @@ export class BatchviewComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['/app/batches']);
+    this.router.navigate(['/app/batch']);
   }
 
   get batchDuration(): string {
@@ -394,7 +401,7 @@ export class BatchviewComponent implements OnInit {
   }
 
   openOffcanvas(
-    mode: 'edit' | 'staff' | 'assign' | 'shuffle' | 'classTeacher',
+    mode: 'edit' | 'staff' | 'assign' | 'shuffle' | 'classTeacher' | 'import',
   ) {
     this.offcanvasMode = mode;
     if (mode === 'edit') {
@@ -519,11 +526,25 @@ export class BatchviewComponent implements OnInit {
   }
 
   onStaffDraftSubjectChanged(subjectId: any) {
+    // const sid = safeTrim(subjectId);
+    // const filtered = sid
+    //   ? this.staffListFull.filter(
+    //       (st: any) => safeTrim(String(st?.subject)) === sid,
+    //     )
+    //   : this.staffListFull;
     const sid = safeTrim(subjectId);
     const filtered = sid
-      ? this.staffListFull.filter(
-          (st: any) => safeTrim(String(st?.subject)) === sid,
-        )
+      ? this.staffListFull.filter((st: any) => {
+          const subjects = Array.isArray(st?.subject)
+            ? st.subject
+            : st?.subject
+              ? [st.subject]
+              : [];
+          return subjects.some((s: any) => {
+            const id = safeTrim(String(s?._id || s));
+            return id === sid;
+          });
+        })
       : this.staffListFull;
     this.staffOptionsFiltered = [
       { label: 'Select', value: '' },
@@ -1800,6 +1821,32 @@ export class BatchviewComponent implements OnInit {
       });
   }
 
+  // loadPhaseReport() {
+  //   if (!this.reportSubjectId || !this.batch?.classNo) return;
+  //   this.reportLoading = true;
+  //   this.commonApi
+  //     .fetchData(
+  //       {
+  //         entiId: this.entiId,
+  //         batchCode: safeTrim(this.batch?.batchCode),
+  //         subjectId: this.reportSubjectId,
+  //         classNo: this.batch.classNo,
+  //       },
+  //       'institue/phase',
+  //       'allotment/report',
+  //     )
+  //     .subscribe({
+  //       next: (res: any) => {
+  //         this.reportLoading = false;
+  //         this.phaseReport = res?.data || null;
+  //       },
+  //       error: () => {
+  //         this.reportLoading = false;
+  //         this.phaseReport = null;
+  //       },
+  //     });
+  // }
+
   loadPhaseReport() {
     if (!this.reportSubjectId || !this.batch?.classNo) return;
     this.reportLoading = true;
@@ -1811,13 +1858,13 @@ export class BatchviewComponent implements OnInit {
           subjectId: this.reportSubjectId,
           classNo: this.batch.classNo,
         },
-        'institue/phase',
-        'allotment/report',
+        'institue',
+        'phase/allotment/report',
       )
       .subscribe({
         next: (res: any) => {
           this.reportLoading = false;
-          this.phaseReport = res?.data || null;
+          this.phaseReport = res?.data || (res?.phases ? res : null);
         },
         error: () => {
           this.reportLoading = false;
@@ -1986,5 +2033,158 @@ export class BatchviewComponent implements OnInit {
     const pNo = Number(this.specialClassForm.get('periodNo')?.value);
     this.specialClassPeriodConflict =
       !!pNo && this.specialClassExistingPeriods.includes(pNo);
+  }
+
+  onImportFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    this.importFileName = file.name;
+    this.importRows = [];
+    this.importUnmatched = [];
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        const enrollmentKey = this._detectEnrollmentKey(json[0] || {});
+        if (!enrollmentKey) {
+          this.alert.error(
+            'Could not find an enrollment/registration number column in the Excel file.',
+          );
+          return;
+        }
+        const eligibleMap = new Map<string, any>();
+        for (const s of this.eligibleStudents) {
+          const reg = safeTrim(s?.registrationNumber).toLowerCase();
+          const adm = safeTrim(s?.admissionNo).toLowerCase();
+          if (reg) eligibleMap.set(reg, s);
+          if (adm) eligibleMap.set(adm, s);
+        }
+        const matched: any[] = [];
+        const unmatched: any[] = [];
+        for (const row of json) {
+          const rawVal = safeTrim(
+            String(row[enrollmentKey] ?? ''),
+          ).toLowerCase();
+          if (!rawVal) continue;
+          const student = eligibleMap.get(rawVal) || null;
+          if (student) {
+            if (!matched.some((m: any) => m.studentId === student.studentId)) {
+              matched.push({
+                excelValue: safeTrim(String(row[enrollmentKey])),
+                registrationNumber: student.registrationNumber || '',
+                admissionNo: student.admissionNo || '',
+                studentName: student?.student?.name || '—',
+                studentId: student.studentId,
+                matched: true,
+              });
+            }
+          } else {
+            unmatched.push({
+              excelValue: safeTrim(String(row[enrollmentKey])),
+              matched: false,
+            });
+          }
+        }
+        this.importRows = matched;
+        this.importUnmatched = unmatched;
+        if (!matched.length && !unmatched.length) {
+          this.alert.error('No enrollment numbers found in the file.');
+        }
+      } catch (err) {
+        this.alert.error(
+          'Failed to read Excel file. Ensure it is a valid .xlsx or .csv file.',
+        );
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    input.value = '';
+  }
+
+  private _detectEnrollmentKey(firstRow: any): string {
+    const candidates = [
+      'Enrollment No',
+      'registrationNumber',
+      'registration_number',
+      'Registration Number',
+      'RegistrationNumber',
+      'reg_no',
+      'RegNo',
+      'Reg No',
+      'Enrollment No',
+      'enrollmentNumber',
+      'enrollment_number',
+      'EnrollmentNo',
+      'Enrollment Number',
+      'admissionNo',
+      'admission_no',
+      'Admission No',
+      'AdmissionNo',
+      'Adm No',
+      'adm_no',
+    ];
+    for (const key of candidates) {
+      if (key in firstRow) return key;
+    }
+    const keys = Object.keys(firstRow);
+    return keys.length ? keys[0] : '';
+  }
+
+  submitImport(): void {
+    const studentIds = this.importRows
+      .filter((r: any) => r.matched)
+      .map((r: any) => r.studentId);
+    if (!studentIds.length) {
+      this.alert.error('No matched students to assign.');
+      return;
+    }
+    this.loading = true;
+    this.commonApi
+      .fetchData(
+        { entiId: this.entiId, batchId: this.batchId, studentIds },
+        'batch',
+        'students/assign',
+      )
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          this.alert.success(
+            res?.message ||
+              `${studentIds.length} student(s) assigned successfully`,
+          );
+          this.closeOffcanvas();
+          this.loadBatch();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(err?.error?.message || 'Import assign failed');
+        },
+      });
+  }
+
+  downloadSampleExcel(): void {
+    const sampleData = [
+      { 'Enrollment No': '1154642680001' },
+      { 'Enrollment No': '1154642680002' },
+      { 'Enrollment No': '1154642680003' },
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Students');
+    XLSX.writeFile(wb, 'sample_student_import.xlsx');
+  }
+
+  viewStudent(s: any){
+    const stu = s?._raw || s;
+    this.router.navigate(['/app/students/view', stu.studentId]);
+  }
+
+   viewTeacher(staffId: any) {
+    this.router.navigate(['/app/teachers/view'], {
+      queryParams: { staffId: staffId },
+    });
   }
 }

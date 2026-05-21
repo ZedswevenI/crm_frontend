@@ -87,7 +87,7 @@ const parseCsvLine = (line: string): string[] => {
   styleUrl: './timetable.component.scss',
 })
 export class TimetableComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
+ private destroy$ = new Subject<void>();
   showUpload = false;
   file: File | null = null;
   loading = false;
@@ -121,8 +121,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
   validateLoading = false;
   validateOk = false;
   validateConflicts: any[] = [];
-
-  // ─── Columns: one row per batch ───────────────────────────────────────
   columns = [
     { key: 'batchCode', label: 'Batch', sortable: true },
     { key: 'centerCode', label: 'Center', sortable: true },
@@ -139,16 +137,28 @@ export class TimetableComponent implements OnInit, OnDestroy {
     },
     { key: 'lastUpdatedLabel', label: 'Last Updated', sortable: false },
   ];
-
-  // ─── Only View action ─────────────────────────────────────────────────
   actions = [
     {
       type: 'icon',
       icon: 'fa-regular fa-eye',
       tooltip: 'View Timetable',
+      color: '#6B7280',
+      hoverColor: '#0066FF',
       callback: (row: any) => this.openView(row),
     },
+    {
+      type: 'icon',
+      icon: 'fa-solid fa-paper-plane',
+      tooltip: 'Publish Timetable',
+      color: '#6B7280',
+      hoverColor: '#0066FF',
+      show: (row: any) => (row?.status).toUpperCase() !== 'DRAFT',
+      callback: (row: any) => this.openPublishConfirmRow(row),
+    },
   ];
+  showPublishConfirmRow = false;
+  publishTargetRow: any = null;
+  saveError = false;
 
   constructor(
     private alert: AlertService,
@@ -159,7 +169,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
   ) {
     this.tenantId =
       localStorage.getItem('tenantId') || localStorage.getItem('entiId');
-    this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Timetable' }]);
+       this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Timetable' }]);
   }
 
   ngOnInit(): void {
@@ -189,7 +199,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
     // );
   }
 
-  // ─── Table data ───────────────────────────────────────────────────────
   fetchTableData(params: {
     page: number;
     pageSize: number;
@@ -198,8 +207,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
     sortDirection?: string;
   }) {
     this.loading = true;
-
-    // Fetch all rows (list=full) so we can deduplicate by batchCode client-side
     const body: any = {
       tenantId: this.tenantId,
       list: 'full',
@@ -207,7 +214,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
     if (this.selectedBatch) body.batchCode = this.selectedBatch;
     if (this.selectedCenter) body.centerCode = this.selectedCenter;
     if (params.search) body.search = params.search;
-
     this.commonApi
       .fetchData(body, this.moduleName, 'list')
       .pipe(
@@ -220,8 +226,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (res: any) => {
           const raw: any[] = res?.data || [];
-
-          // ── Deduplicate: one row per batchCode, most recent wkStartOn wins ──
           const batchMap = new Map<string, any>();
           for (const tt of raw) {
             const existing = batchMap.get(tt.batchCode);
@@ -229,20 +233,18 @@ export class TimetableComponent implements OnInit, OnDestroy {
               batchMap.set(tt.batchCode, tt);
             }
           }
-
           this.timetables = Array.from(batchMap.values()).map((tt: any) => ({
             ...tt,
             _raw: tt,
             latestStatus: tt.status,
             lastUpdatedLabel: tt.updatedAt
               ? new Date(tt.updatedAt).toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
               : '-',
           }));
-
           this.totalRecords = this.timetables.length;
         },
         error: () => {
@@ -285,15 +287,11 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.totalRecords = 0;
   }
 
-  onBatchChange() {
-    // intentionally empty — user must click Search
-  }
+  onBatchChange() { }
 
-  // ─── Boot: load lookups ───────────────────────────────────────────────
   loadAllLookupsAndInit() {
     const tenantId = this.tenantId;
     this.loading = true;
-
     forkJoin({
       center: this.commonApi
         .fetchData({ entiId: tenantId }, 'ims', 'center/list?list=full')
@@ -419,6 +417,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.validateOk = false;
     this.validateConflicts = [];
     this.showConfirm = false;
+    this.saveError = false;
   }
 
   onFileChange(e: any): void {
@@ -633,17 +632,14 @@ export class TimetableComponent implements OnInit, OnDestroy {
       this.parseError = 'No valid timetable meta found (BatchCode/WkStartOn)';
       return;
     }
-
     const payloadGroups: any[] = [];
     let totalDays = 0,
       totalPeriods = 0;
-
     for (const k of groupKeys) {
       const rows = groupsMap.get(k) || [];
       const meta = metaMap.get(k);
       const week = this.buildWeekPayloadFromRows(rows, meta.batchCode);
       if (!week) return;
-
       const daysCount = week.length;
       const periodsCount = week.reduce(
         (acc: number, d: any) => acc + (d.periods || []).length,
@@ -652,7 +648,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
       const allPeriods = week.flatMap((d: any) => d.periods || []);
       totalDays += daysCount;
       totalPeriods += periodsCount;
-
       payloadGroups.push({
         batchCode: meta.batchCode,
         centerCode: meta.centerCode || null,
@@ -666,13 +661,11 @@ export class TimetableComponent implements OnInit, OnDestroy {
         offlineCount: allPeriods.filter((p: any) => p.mode !== 'ONLINE').length,
       });
     }
-
     this.parseStats = {
       totalGroups: payloadGroups.length,
       totalDays,
       totalPeriods,
     };
-
     if (payloadGroups.length === 1) {
       const one = payloadGroups[0];
       this.parsedMeta = {
@@ -778,9 +771,36 @@ export class TimetableComponent implements OnInit, OnDestroy {
   private getStaffFromCsv(value: string) {
     return this.staffByKey.get(safeTrim(value).toLowerCase()) || null;
   }
-  private getSubjectFromStaff(staff: any) {
-    const subId = safeTrim(staff?.subject);
-    return subId ? this.subjectById.get(subId) || null : null;
+
+  private getSubjectFromStaff(staff: any, batchCode?: string): any {
+    if (batchCode) {
+      const batch = this.batchesFull.find(
+        (b: any) => safeTrim(b?.batchCode) === safeTrim(batchCode),
+      );
+      const staffMap = Array.isArray(batch?.staffMap) ? batch.staffMap : [];
+      const staffId = safeTrim(staff?.staffId || staff?._id);
+      const mapEntry = staffMap.find(
+        (m: any) => safeTrim(m?.staffId) === staffId,
+      );
+      if (mapEntry?.subjectId) {
+        const subId = safeTrim(mapEntry.subjectId);
+        const found = this.subjectById.get(subId);
+        if (found) return found;
+      }
+    }
+    const subjects = Array.isArray(staff?.subject)
+      ? staff.subject
+      : staff?.subject
+        ? [staff.subject]
+        : [];
+    for (const s of subjects) {
+      const id = safeTrim(s?._id || s);
+      if (id) {
+        const found = this.subjectById.get(id);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
   private buildWeekPayloadFromRows(
@@ -807,9 +827,9 @@ export class TimetableComponent implements OnInit, OnDestroy {
       }
       const dayName =
         daysOrder[
-          new Date(epoch).getUTCDay() === 0
-            ? 6
-            : new Date(epoch).getUTCDay() - 1
+        new Date(epoch).getUTCDay() === 0
+          ? 6
+          : new Date(epoch).getUTCDay() - 1
         ];
       const startMin = timeToMin(row['TimeStart']);
       const endMin = timeToMin(row['TimeEnd']);
@@ -827,8 +847,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
         this.parseError = `Staff not found for FacultyID "${facultyRaw}". Match staffId/staffCode/employeeId in DB.`;
         return null;
       }
-
-      const subj = this.getSubjectFromStaff(staff);
+      const subj = this.getSubjectFromStaff(staff, batchCode);
       const periodType = (() => {
         const t = safeTrim(row['PeriodType']).toUpperCase() || 'LECTURE';
         return VALID_PERIOD_TYPES.includes(t) ? t : 'LECTURE';
@@ -869,7 +888,6 @@ export class TimetableComponent implements OnInit, OnDestroy {
         venue: safeTrim(row['Venue']) || null,
       });
     }
-
     const weekPayload: any[] = [];
     weekMap.forEach((periods, day) => {
       periods.sort((a, b) => a.startMin - b.startMin);
@@ -932,14 +950,32 @@ export class TimetableComponent implements OnInit, OnDestroy {
         next: (res: any) => {
           this.alert.success('Timetable saved successfully');
           this.closeUpload();
-          // Navigate to view screen by batchCode
           this.router.navigate([
             '/app/timetable/view',
             safeTrim(this.parsedPayload.batchCode),
           ]);
         },
         error: (err: any) => {
-          this.alert.error(err?.error?.message || 'Create failed');
+          // this.alert.error(err?.error?.message || 'Create failed');
+          const errBody = err?.error || {};
+          const conflicts = Array.isArray(errBody?.conflicts)
+            ? errBody.conflicts
+            : errBody?.message
+              ? [
+                {
+                  batchCode: safeTrim(this.parsedPayload?.batchCode) || '-',
+                  message: errBody.message,
+                },
+              ]
+              : [];
+          if (conflicts.length) {
+            this.validateConflicts = conflicts;
+            this.validateOk = false;
+            this.saveError = true;
+            this.showConfirm = true;
+          } else {
+            this.alert.error(errBody?.message || 'Create failed');
+          }
         },
       });
   }
@@ -975,12 +1011,25 @@ export class TimetableComponent implements OnInit, OnDestroy {
           this.applyFilters();
         },
         error: (err: any) => {
-          this.alert.error(err?.error?.message || 'Import failed');
+          // this.alert.error(err?.error?.message || 'Import failed');
+          const errBody = err?.error || {};
+          const conflicts = Array.isArray(errBody?.conflicts)
+            ? errBody.conflicts
+            : errBody?.message
+              ? [{ batchCode: '-', message: errBody.message }]
+              : [];
+          if (conflicts.length) {
+            this.validateConflicts = conflicts;
+            this.validateOk = false;
+            this.saveError = true;
+            this.showConfirm = true;
+          } else {
+            this.alert.error(errBody?.message || 'Import failed');
+          }
         },
       });
   }
 
-  // ─── Validate/confirm flow ────────────────────────────────────────────
   openConfirm(mode: 'single' | 'bulk') {
     if (!this.parsedPayload || this.parseError) return;
     this.confirmMode = mode;
@@ -996,6 +1045,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.validateLoading = false;
     this.validateOk = false;
     this.validateConflicts = [];
+    this.saveError = false;
   }
 
   private buildValidationGroups(): any[] {
@@ -1021,6 +1071,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
 
   runValidateAndProceed() {
     if (this.validateLoading) return;
+    this.saveError = false;
     const groups = this.buildValidationGroups();
     if (!groups.length) {
       this.alert.error('No valid data to validate');
@@ -1197,5 +1248,56 @@ export class TimetableComponent implements OnInit, OnDestroy {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
     XLSX.writeFile(wb, 'Timetable_Upload_Format.xlsx');
+  }
+
+  openPublishConfirmRow(row: any) {
+    const item = row?._raw || row;
+    if (item?.status !== 'DRAFT') {
+      this.alert.warning('Only DRAFT timetables can be published.');
+      return;
+    }
+    this.publishTargetRow = item;
+    this.showPublishConfirmRow = true;
+  }
+
+  closePublishConfirmRow() {
+    this.showPublishConfirmRow = false;
+    this.publishTargetRow = null;
+  }
+
+  submitPublishRow() {
+    if (!this.publishTargetRow?._id) return;
+    this.loading = true;
+    this.commonApi
+      .fetchData(
+        {
+          tenantId: this.tenantId,
+          timetableId: this.publishTargetRow._id,
+          userId: localStorage.getItem('userId'),
+        },
+        this.moduleName,
+        'publish',
+      )
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.loading = false;
+          this.closePublishConfirmRow();
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.alert.success('Timetable published successfully');
+          this.applyFilters();
+        },
+        error: (err: any) => {
+          this.alert.error(err?.error?.message || 'Publish failed');
+        },
+      });
+  }
+
+  onRowSelected(row: any) {
+    const item = row?._raw || row;
+    this.router.navigate(['/app/timetable/view', item.batchCode]);
   }
 }
