@@ -35,7 +35,7 @@ export class ChequeDepositComponent implements OnInit {
     private router: Router,
   ) {
     this.entiId = localStorage.getItem('tenantId');
-    this.breadcrumb.set([{ label: 'Accounts' }, { label: 'Deposit Batches' }]);
+    this.breadcrumb.set([{ label: 'Accounts' }, { label: 'Cheque Deposit' }]);
   }
 
   ngOnInit(): void {

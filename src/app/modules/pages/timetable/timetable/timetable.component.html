@@ -2,12 +2,12 @@
     <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
         <div class="d-flex flex-column gap-4">
             <div class="d-flex align-items-center justify-content-between">
-                <h1 class="fw-bold mb-0" style="font-size:30px">
+                <h1 class="fw-bold mb-0" style="font-size: 30px">
                     <i class="fa-solid fa-calendar-days me-2"></i>Time Table Management
                 </h1>
-                <button *ngIf="showimport()" class="btn btn-outline-primary" style="border-radius:25px"
+                <button *ngIf="showimport()" class="btn btn-import fs-16 fw-medium"
                     (click)="openUpload()">
-                    <i class="fa-solid fa-cloud-arrow-up me-1"></i>Upload Timetable
+                    <i class="fa-solid fa-cloud-arrow-up btn-icon"></i>Upload Timetable
                 </button>
             </div>
         </div>
@@ -20,8 +20,9 @@
                     <select class="form-select form-select-sm" [(ngModel)]="selectedCenter"
                         (change)="onCenterFilterChange()">
                         <option value="">All Centers</option>
-                        <option *ngFor="let c of centersFull" [value]="c.centerCode">{{ c.centerName }} ({{ c.centerCode
-                            }})</option>
+                        <option *ngFor="let c of centersFull" [value]="c.centerCode">
+                            {{ c.centerName }} ({{ c.centerCode }})
+                        </option>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -29,12 +30,13 @@
                     <select class="form-select form-select-sm" [(ngModel)]="selectedBatch"
                         (ngModelChange)="onBatchChange()" [disabled]="!!selectedCenter && !filteredBatches.length">
                         <option value="">All Batches</option>
-                        <option *ngFor="let b of filteredBatches" [value]="b.batchCode">{{ b.batchName }} ({{
-                            b.batchCode }})</option>
+                        <option *ngFor="let b of filteredBatches" [value]="b.batchCode">
+                            {{ b.batchName }} ({{ b.batchCode }})
+                        </option>
                     </select>
                 </div>
                 <div class="col-md-4 d-flex gap-2 justify-content-md-end">
-                    <button class="btn btn-sm btn-outline-secondary" [disabled]="loading" (click)="resetFilters()">
+                     <button class="btn btn-sm btn-outline-secondary" [disabled]="loading" (click)="resetFilters()">
                         <i class="fa-solid fa-rotate-left me-1"></i>Reset
                     </button>
                     <button class="btn btn-sm btn-primary" [disabled]="loading" (click)="applyFilters()">
@@ -48,7 +50,12 @@
                 <!-- Loading overlay -->
                 <div *ngIf="loading && !showUpload"
                     class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-                    style="background:rgba(255,255,255,0.65);z-index:3;border-radius:12px;min-height:120px;">
+                    style="
+            background: rgba(255, 255, 255, 0.65);
+            z-index: 3;
+            border-radius: 12px;
+            min-height: 120px;
+          ">
                     <div class="text-center">
                         <div class="spinner-border text-primary" role="status"></div>
                         <div class="small text-muted mt-2">Loading timetables...</div>
@@ -58,30 +65,35 @@
                 <!-- State 1: prompt -->
                 <div *ngIf="!hasSearched && !loading"
                     class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
-                    <div class="mb-3" style="opacity:0.35;">
-                        <i class="fa-solid fa-calendar-days" style="font-size:3rem;color:#6c757d;"></i>
+                    <div class="mb-3" style="opacity: 0.35">
+                        <i class="fa-solid fa-calendar-days" style="font-size: 3rem; color: #6c757d"></i>
                     </div>
-                    <div class="fw-semibold text-muted mb-1">Use filters to narrow results or click Search to load all
+                    <div class="fw-semibold text-muted mb-1">
+                        Use filters to narrow results or click Search to load all
                     </div>
-                    <div class="small text-muted">Filter by Center, Batch, or both — then click <strong>Search</strong>
+                    <div class="small text-muted">
+                        Filter by Center, Batch, or both — then click
+                        <strong>Search</strong>
                     </div>
                 </div>
 
                 <!-- State 2: no results -->
                 <div *ngIf="hasSearched && !loading && !timetables.length"
                     class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
-                    <div class="mb-3" style="opacity:0.35;">
-                        <i class="fa-solid fa-calendar-xmark" style="font-size:3rem;color:#6c757d;"></i>
+                    <div class="mb-3" style="opacity: 0.35">
+                        <i class="fa-solid fa-calendar-xmark" style="font-size: 3rem; color: #6c757d"></i>
                     </div>
                     <div class="fw-semibold text-muted mb-1">No timetables found</div>
-                    <div class="small text-muted">No timetables exist for the selected filters</div>
+                    <div class="small text-muted">
+                        No timetables exist for the selected filters
+                    </div>
                 </div>
 
                 <!-- State 3: table — one row per batch -->
                 <div *ngIf="hasSearched && timetables.length">
                     <list-table [autoFitChars]="true" [columns]="columns" [data]="timetables"
                         [totalRecords]="totalRecords" [actions]="actions" [showpageoptions]="true"
-                        (requestData)="fetchTableData($event)">
+                        (requestData)="fetchTableData($event)" (rowClick)="onRowSelected($event)">
                     </list-table>
                 </div>
             </div>
@@ -89,38 +101,60 @@
     </div>
 </div>
 
-
 <!-- ═══════════════════════ UPLOAD MODAL ═══════════════════════════════════ -->
 <div class="app-modal-backdrop" *ngIf="showUpload">
-    <div class="app-modal timetable-modal"
-        style="position:relative;max-height:92vh;display:flex;flex-direction:column;">
+    <div class="app-modal timetable-modal" style="
+      position: relative;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+    ">
         <div class="app-modal-header d-flex justify-content-between align-items-center flex-shrink-0">
             <div>
                 <h6 class="mb-0 fw-semibold">
-                    {{ showConfirm ? (confirmMode === 'single' ? 'Confirm Create / Update' : 'Confirm Bulk Import') :
-                    'Upload Timetable' }}
+                    {{
+                    showConfirm
+                    ? confirmMode === "single"
+                    ? "Confirm Create / Update"
+                    : "Confirm Bulk Import"
+                    : "Upload Timetable"
+                    }}
                 </h6>
                 <span class="text-muted small" *ngIf="!showConfirm">Upload CSV or Excel (.xlsx / .xls) to create/update
-                    (single) or import multiple</span>
+                    (single) or
+                    import multiple</span>
                 <span class="text-muted small" *ngIf="showConfirm">We will validate schedule conflicts before
                     saving.</span>
             </div>
-            <button class="btn-close" (click)="showConfirm ? closeConfirm() : closeUpload()"
-                [disabled]="validateLoading || parsing || (loading && showUpload)"
-                [title]="validateLoading ? 'Validation in progress...' : parsing ? 'Parsing file...' : ''">
-            </button>
+            <!-- <button class="btn-close" (click)="showConfirm ? closeConfirm() : closeUpload()"
+                [disabled]="validateLoading || parsing || (loading && showUpload)" [title]="
+          validateLoading
+            ? 'Validation in progress...'
+            : parsing
+              ? 'Parsing file...'
+              : ''
+        "></button> -->
         </div>
 
-        <div class="app-modal-body position-relative flex-grow-1" style="overflow-y:auto;">
+        <div class="app-modal-body position-relative flex-grow-1" style="overflow-y: auto">
             <!-- Modal overlay loader -->
             <div *ngIf="parsing || validateLoading || (loading && showUpload)"
-                class="position-absolute top-0 start-0 w-100 h-100"
-                style="background:rgba(255,255,255,0.72);z-index:5;border-radius:14px;">
+                class="position-absolute top-0 start-0 w-100 h-100" style="
+          background: rgba(255, 255, 255, 0.72);
+          z-index: 5;
+          border-radius: 14px;
+        ">
                 <div class="d-flex align-items-center justify-content-center h-100">
                     <div class="text-center">
                         <div class="spinner-border text-primary" role="status"></div>
                         <div class="small text-muted mt-2">
-                            {{ parsing ? 'Parsing file...' : validateLoading ? 'Validating schedule...' : 'Saving...' }}
+                            {{
+                            parsing
+                            ? "Parsing file..."
+                            : validateLoading
+                            ? "Validating schedule..."
+                            : "Saving..."
+                            }}
                         </div>
                     </div>
                 </div>
@@ -136,8 +170,8 @@
 
                 <div class="row g-3">
                     <div class="col-12">
-                        <label class="form-label small fw-bold">Select File <span class="text-muted fw-normal">(CSV,
-                                XLSX or XLS)</span></label>
+                        <label class="form-label small fw-bold">Select File
+                            <span class="text-muted fw-normal">(CSV, XLSX or XLS)</span></label>
                         <input type="file" class="form-control" accept=".csv,.xlsx,.xls"
                             (change)="onFileChange($event)" />
                         <div class="form-text small text-danger" *ngIf="parseError">
@@ -145,8 +179,9 @@
                         </div>
                         <div class="form-text small" *ngIf="parsedPayload && !parseError">
                             <i class="fa-solid fa-check-circle text-success me-1"></i>
-                            Parsed successfully: {{ parseStats.totalGroups }} timetable(s) &bull;
-                            {{ parseStats.totalDays }} days &bull; {{ parseStats.totalPeriods }} periods
+                            Parsed successfully: {{ parseStats.totalGroups }} timetable(s)
+                            &bull; {{ parseStats.totalDays }} days &bull;
+                            {{ parseStats.totalPeriods }} periods
                         </div>
                     </div>
 
@@ -159,10 +194,10 @@
                                     Groups</span>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-0" style="font-size:0.8rem;">
+                                <table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem">
                                     <thead class="table-light text-muted">
                                         <tr>
-                                            <th style="width:40px">#</th>
+                                            <th style="width: 40px">#</th>
                                             <th>Batch</th>
                                             <th>Center</th>
                                             <th>Phase</th>
@@ -176,17 +211,22 @@
                                     <tbody>
                                         <tr *ngFor="let g of parsedGroupsPreview; let i = index">
                                             <td class="text-muted">{{ i + 1 }}</td>
-                                            <td class="fw-semibold">{{ g.batchCode || '-' }}</td>
-                                            <td>{{ g.centerCode || '-' }}</td>
-                                            <td>{{ g.phase || '-' }}</td>
-                                            <td>{{ g.wkStartOnLabel || '-' }}</td>
+                                            <td class="fw-semibold">{{ g.batchCode || "-" }}</td>
+                                            <td>{{ g.centerCode || "-" }}</td>
+                                            <td>{{ g.phase || "-" }}</td>
+                                            <td>{{ g.wkStartOnLabel || "-" }}</td>
                                             <td class="text-center">{{ g.daysCount }}</td>
                                             <td class="text-center">{{ g.periodsCount }}</td>
-                                            <td class="text-center"><span class="badge bg-info-subtle text-info">{{
-                                                    g.onlineCount }}</span></td>
-                                            <td class="text-center"><span
-                                                    class="badge bg-success-subtle text-success">{{ g.offlineCount
-                                                    }}</span></td>
+                                            <td class="text-center">
+                                                <span class="badge bg-info-subtle text-info">{{
+                                                    g.onlineCount
+                                                    }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-success-subtle text-success">{{
+                                                    g.offlineCount
+                                                    }}</span>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -206,15 +246,16 @@
                                         row(s)</span>
                                 </div>
                                 <span class="badge bg-secondary-subtle text-secondary">
-                                    {{ parseStats.totalGroups }} group(s) &bull; {{ parseStats.totalDays }} days &bull;
+                                    {{ parseStats.totalGroups }} group(s) &bull;
+                                    {{ parseStats.totalDays }} days &bull;
                                     {{ parseStats.totalPeriods }} periods
                                 </span>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered mb-0">
-                                    <thead class="table-light text-muted" style="font-size:0.75rem">
+                                    <thead class="table-light text-muted" style="font-size: 0.75rem">
                                         <tr>
-                                            <th style="width:50px">#</th>
+                                            <th style="width: 50px">#</th>
                                             <th>BatchCode</th>
                                             <th>CentCode</th>
                                             <th>WkStartOn</th>
@@ -231,43 +272,56 @@
                                             <th>Venue</th>
                                         </tr>
                                     </thead>
-                                    <tbody style="font-size:0.78rem">
+                                    <tbody style="font-size: 0.78rem">
                                         <tr *ngFor="let r of parsedPreviewRows; let i = index">
                                             <td class="text-muted">{{ i + 1 }}</td>
-                                            <td class="fw-semibold">{{ r.BatchCode || '-' }}</td>
-                                            <td>{{ r.CentCode || '-' }}</td>
-                                            <td>{{ r.WkStartOn || '-' }}</td>
-                                            <td>{{ r.Phase || '-' }}</td>
+                                            <td class="fw-semibold">{{ r.BatchCode || "-" }}</td>
+                                            <td>{{ r.CentCode || "-" }}</td>
+                                            <td>{{ r.WkStartOn || "-" }}</td>
+                                            <td>{{ r.Phase || "-" }}</td>
                                             <td>
-                                                <span *ngIf="r.PhaseName" class="badge border"
-                                                    style="font-size:0.65rem;background:#eef2ff!important;color:#4f46e5!important;border-color:#c7d2fe!important">
+                                                <span *ngIf="r.PhaseName" class="badge border" style="
+                            font-size: 0.65rem;
+                            background: #eef2ff !important;
+                            color: #4f46e5 !important;
+                            border-color: #c7d2fe !important;
+                          ">
                                                     <i class="fa-solid fa-layer-group me-1"></i>{{ r.PhaseName }}
                                                 </span>
                                                 <span *ngIf="!r.PhaseName" class="text-muted">-</span>
                                             </td>
-                                            <td>{{ r.Dates || '-' }}</td>
-                                            <td>{{ r.TimeStart || '-' }}</td>
-                                            <td>{{ r.TimeEnd || '-' }}</td>
-                                            <td>{{ r.FacultyID || '-' }}</td>
-                                            <td>{{ r.PeriodType || '-' }}</td>
+                                            <td>{{ r.Dates || "-" }}</td>
+                                            <td>{{ r.TimeStart || "-" }}</td>
+                                            <td>{{ r.TimeEnd || "-" }}</td>
+                                            <td>{{ r.FacultyID || "-" }}</td>
+                                            <td>{{ r.PeriodType || "-" }}</td>
                                             <td>
-                                                <span class="badge"
-                                                    [ngClass]="r.Mode === 'ONLINE' ? 'bg-info-subtle text-info' : 'bg-success-subtle text-success'">
-                                                    {{ r.Mode || '-' }}
+                                                <span class="badge" [ngClass]="
+                            r.Mode === 'ONLINE'
+                              ? 'bg-info-subtle text-info'
+                              : 'bg-success-subtle text-success'
+                          ">
+                                                    {{ r.Mode || "-" }}
                                                 </span>
                                             </td>
-                                            <td class="text-truncate" style="max-width:200px" [title]="r.ZoomUrl || ''">
-                                                {{ r.ZoomUrl || '-' }}</td>
-                                            <td class="text-truncate" style="max-width:200px"
-                                                [title]="r.Descriptions || ''">{{ r.Descriptions || '-' }}</td>
-                                            <td class="text-truncate" style="max-width:150px" [title]="r.Venue || ''">{{
-                                                r.Venue || '-' }}</td>
+                                            <td class="text-truncate" style="max-width: 200px"
+                                                [title]="r.ZoomUrl || ''">
+                                                {{ r.ZoomUrl || "-" }}
+                                            </td>
+                                            <td class="text-truncate" style="max-width: 200px"
+                                                [title]="r.Descriptions || ''">
+                                                {{ r.Descriptions || "-" }}
+                                            </td>
+                                            <td class="text-truncate" style="max-width: 150px" [title]="r.Venue || ''">
+                                                {{ r.Venue || "-" }}
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                             <div class="px-3 py-2 border-top small text-muted" *ngIf="parsedPreviewTruncated">
-                                <i class="fa-solid fa-circle-info me-1"></i>Preview truncated — file contains more rows.
+                                <i class="fa-solid fa-circle-info me-1"></i>Preview truncated —
+                                file contains more rows.
                             </div>
                         </div>
                     </div>
@@ -275,25 +329,31 @@
             </ng-container>
 
             <!-- STEP 2: VALIDATE + CONFIRM -->
-            <ng-container *ngIf="showConfirm">
+            <!-- <ng-container *ngIf="showConfirm">
                 <div class="alert alert-warning small" *ngIf="!validateLoading && validateConflicts.length">
-                    <div class="fw-semibold mb-1">Conflicts detected — fix these and re-upload.</div>
-                    <div class="text-muted">Import/Create is blocked until conflicts are resolved.</div>
+                    <div class="fw-semibold mb-1">
+                        Conflicts detected — fix these and re-upload.
+                    </div>
+                    <div class="text-muted">
+                        Import/Create is blocked until conflicts are resolved.
+                    </div>
                 </div>
                 <div class="alert alert-success small"
                     *ngIf="!validateLoading && validateOk && !validateConflicts.length">
-                    <div class="fw-semibold mb-0">Validation passed. Ready to {{ confirmMode === 'single' ? 'save' :
-                        'import' }}.</div>
+                    <div class="fw-semibold mb-0">
+                        Validation passed. Ready to
+                        {{ confirmMode === "single" ? "save" : "import" }}.
+                    </div>
                 </div>
 
                 <div class="table-responsive border rounded-3" *ngIf="!validateLoading && validateConflicts.length">
                     <table class="table table-sm table-bordered mb-0">
                         <thead class="bg-light">
                             <tr>
-                                <th style="width:50px">#</th>
+                                <th style="width: 50px">#</th>
                                 <th>Batch</th>
                                 <th>Day</th>
-                                <th class="text-center" style="width:80px">Period</th>
+                                <th class="text-center" style="width: 80px">Period</th>
                                 <th>Faculty</th>
                                 <th>Message</th>
                             </tr>
@@ -301,21 +361,85 @@
                         <tbody>
                             <tr *ngFor="let c of validateConflicts; let i = index">
                                 <td class="text-muted">{{ i + 1 }}</td>
-                                <td class="fw-semibold">{{ c.batchCode || '-' }}</td>
-                                <td>{{ c.day || '-' }}</td>
-                                <td class="text-center">{{ c.periodNo || '-' }}</td>
-                                <td class="text-truncate" style="max-width:200px" [title]="c.facultyName || ''">{{
-                                    c.facultyName || '-' }}</td>
-                                <td>{{ c.message || '-' }}</td>
+                                <td class="fw-semibold">{{ c.batchCode || "-" }}</td>
+                                <td>{{ c.day || "-" }}</td>
+                                <td class="text-center">{{ c.periodNo || "-" }}</td>
+                                <td class="text-truncate" style="max-width: 200px" [title]="c.facultyName || ''">
+                                    {{ c.facultyName || "-" }}
+                                </td>
+                                <td>{{ c.message || "-" }}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
                 <div class="small text-muted mt-2">
-                    Groups: <b>{{ parseStats.totalGroups }}</b> &bull;
-                    Days: <b>{{ parseStats.totalDays }}</b> &bull;
-                    Periods: <b>{{ parseStats.totalPeriods }}</b>
+                    Groups: <b>{{ parseStats.totalGroups }}</b> &bull; Days:
+                    <b>{{ parseStats.totalDays }}</b> &bull; Periods:
+                    <b>{{ parseStats.totalPeriods }}</b>
+                </div>
+            </ng-container> -->
+            <ng-container *ngIf="showConfirm">
+
+                <!-- Ready to validate -->
+                <div class="alert alert-info small"
+                    *ngIf="!validateLoading && !validateOk && !validateConflicts.length && !saveError">
+                    <i class="fa-solid fa-shield-halved me-1"></i>
+                    Click <strong>Validate</strong> to check for conflicts before saving.
+                </div>
+
+                <!-- Validate passed -->
+                <div class="alert alert-success small"
+                    *ngIf="!validateLoading && validateOk && !validateConflicts.length">
+                    <i class="fa-solid fa-circle-check me-1"></i>
+                    <strong>Validation passed.</strong> Ready to
+                    {{ confirmMode === "single" ? "save" : "import" }}.
+                </div>
+                <!-- Validate conflicts (yellow) -->
+                <div class="alert alert-warning small"
+                    *ngIf="!validateLoading && validateConflicts.length && !saveError">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                    <strong>{{ validateConflicts.length }} conflict(s) detected.</strong>
+                    Fix these in your file and re-upload.
+                </div>
+                <!-- Save/Import errors (red) -->
+                <div class="alert alert-danger small" *ngIf="!validateLoading && validateConflicts.length && saveError">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                    <strong>Save failed — {{ validateConflicts.length }} issue(s) found.</strong>
+                    Fix these in your file and re-upload.
+                </div>
+                <!-- Conflicts table — same for both -->
+                <div class="table-responsive border rounded-3 mb-3"
+                    *ngIf="!validateLoading && validateConflicts.length">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 40px">#</th>
+                                <th>Batch</th>
+                                <th>Day</th>
+                                <th class="text-center" style="width: 80px">Period</th>
+                                <th>Faculty</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let c of validateConflicts; let i = index">
+                                <td class="text-muted">{{ i + 1 }}</td>
+                                <td class="fw-semibold">{{ c.batchCode || "-" }}</td>
+                                <td>{{ c.day || "-" }}</td>
+                                <td class="text-center">{{ c.periodNo || "-" }}</td>
+                                <td class="text-truncate" style="max-width: 200px" [title]="c.facultyName || ''">
+                                    {{ c.facultyName || "-" }}
+                                </td>
+                                <td class="small">{{ c.message || "-" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="small text-muted">
+                    Groups: <b>{{ parseStats.totalGroups }}</b> &bull; Days:
+                    <b>{{ parseStats.totalDays }}</b> &bull; Periods:
+                    <b>{{ parseStats.totalPeriods }}</b>
                 </div>
             </ng-container>
         </div>
@@ -324,7 +448,9 @@
         <div class="app-modal-footer d-flex justify-content-end gap-2 p-3 flex-shrink-0 border-top">
             <ng-container *ngIf="!showConfirm">
                 <button type="button" class="btn btn-outline-secondary" (click)="closeUpload()"
-                    [disabled]="loading || parsing">Cancel</button>
+                    [disabled]="loading || parsing">
+                    Cancel
+                </button>
                 <button type="button" class="btn btn-saffron" *ngIf="parsedPayload && parseStats.totalGroups === 1"
                     [disabled]="!parsedPayload || !!parseError || loading || parsing" (click)="openConfirm('single')">
                     <i class="fa-solid fa-arrow-right me-1"></i>Next
@@ -336,20 +462,75 @@
             </ng-container>
 
             <ng-container *ngIf="showConfirm">
-                <button class="btn btn-outline-secondary" (click)="closeConfirm()"
-                    [disabled]="validateLoading">Back</button>
+                <button class="btn btn-outline-secondary" (click)="closeConfirm()" [disabled]="validateLoading">
+                    Back
+                </button>
                 <button class="btn btn-primary" (click)="runValidateAndProceed()"
                     [disabled]="validateLoading || validateOk">
                     <span *ngIf="validateLoading" class="spinner-border spinner-border-sm me-1"></span>
                     <i class="fa-solid fa-shield-halved me-1" *ngIf="!validateLoading"></i>
-                    {{ validateLoading ? 'Validating...' : validateOk ? 'Validated ✓' : 'Validate' }}
+                    {{
+                    validateLoading
+                    ? "Validating..."
+                    : validateOk
+                    ? "Validated ✓"
+                    : "Validate"
+                    }}
                 </button>
-                <button class="btn btn-saffron" (click)="confirmProceed()"
-                    [disabled]="validateLoading || !validateOk || validateConflicts.length">
+                <button class="btn btn-saffron" (click)="confirmProceed()" [disabled]="
+            validateLoading || !validateOk || validateConflicts.length|| saveError
+          ">
                     <i class="fa-solid fa-circle-check me-1"></i>
-                    Confirm &amp; {{ confirmMode === 'single' ? 'Save' : 'Import' }}
+                    Confirm &amp; {{ confirmMode === "single" ? "Save" : "Import" }}
                 </button>
             </ng-container>
+        </div>
+    </div>
+</div>
+
+<!-- Publish Model -->
+<div class="app-modal-backdrop" *ngIf="showPublishConfirmRow">
+    <div class="app-modal timetable-modal">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">
+                    <i class="fa-solid fa-paper-plane me-2 text-success"></i>Publish
+                    Timetable
+                </h6>
+                <span class="text-muted small">
+                    {{ publishTargetRow?.batchCode }} &bull; Week of
+                    {{ epochToDisplayDate(publishTargetRow?.wkStartOn) }}
+                </span>
+            </div>
+            <button class="btn-close" (click)="closePublishConfirmRow()" [disabled]="loading"></button>
+        </div>
+        <div class="app-modal-body">
+            <div class="alert alert-warning small mb-3">
+                <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                <strong>Once published:</strong>
+                <ul class="mb-0 mt-1 ps-3">
+                    <li>
+                        The template becomes the <strong>baseline</strong> for this week.
+                    </li>
+                    <li>
+                        Further edits create <strong>date-specific overrides</strong> — the
+                        template won't change.
+                    </li>
+                    <li>
+                        A <strong>conflict check</strong> runs against all other published
+                        timetables.
+                    </li>
+                </ul>
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-close-custom fs-16 fw-medium me-2" (click)="closePublishConfirmRow()" [disabled]="loading">
+                    Cancel
+                </button>
+                <button class="btn btn-create fs-16 fw-medium" (click)="submitPublishRow()" [disabled]="loading">
+                    <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    <i class="fa-solid fa-paper-plane me-1" *ngIf="!loading"></i>Publish
+                </button>
+            </div>
         </div>
     </div>
 </div>

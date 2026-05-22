@@ -66,8 +66,7 @@ centerForm!: FormGroup;
   ) {
     this.entiId = localStorage.getItem('tenantId')
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Masters' },
+      { label: 'Org Configs' },
       { label: 'Centers' }
     ]);
   }

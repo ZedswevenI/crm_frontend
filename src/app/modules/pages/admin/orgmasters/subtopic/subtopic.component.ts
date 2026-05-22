@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { finalize } from 'rxjs/operators';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 @Component({
   selector: 'app-subtopic',
   standalone: false,
@@ -70,7 +71,10 @@ export class SubtopicComponent implements OnInit {
     private fb: FormBuilder,
     private alert: AlertService,
     private api: CommonapiService,
-  ) {}
+    private breadcrumb: BredcrumpService
+  ) {
+      this.breadcrumb.set([{ label: 'Org Configs' }, { label: 'Subtopics' }]);
+  }
 
   ngOnInit(): void {
     this.initForm();

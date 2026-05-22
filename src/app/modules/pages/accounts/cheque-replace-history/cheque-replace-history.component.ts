@@ -32,7 +32,7 @@ export class ChequeReplaceHistoryComponent {
     private router: Router
   ) {
     this.entiId = localStorage.getItem('tenantId');
-    this.breadcrumb.set([{ label: 'Accounts' }, { label: 'Cheque Replacement History' }]);
+    this.breadcrumb.set([{ label: 'Accounts' }, { label: 'Cheque Replacements' }]);
 
     this.searchForm = this.fb.group({
       paymentId: [''],

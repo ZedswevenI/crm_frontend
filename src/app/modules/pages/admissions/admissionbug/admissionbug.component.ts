@@ -173,8 +173,8 @@ export class AdmissionbugComponent implements OnInit {
     private api: CommonapiService,
   ) {
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Admissions' },
+      { label: 'Admissions & Fees' },
+      { label: 'Admission' },
       { label: 'New Admission' },
     ]);
   }

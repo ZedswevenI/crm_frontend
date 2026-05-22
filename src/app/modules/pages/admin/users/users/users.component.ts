@@ -200,9 +200,8 @@ export class UsersComponent implements OnInit {
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
-      { label: 'Control Panel' },
+      { label: 'Org configs' },
       { label: 'Users & Roles' },
-      { label: 'Users' },
     ]);
   }
 

@@ -47,7 +47,7 @@ export class ChequeDepositViewComponent implements OnInit {
     ).trim();
     this.breadcrumb.set([
       { label: 'Accounts' },
-      { label: 'Deposit Batches' },
+      { label: 'Cheque Deposit' },
       { label: 'Deposit View' },
     ]);
     this.reconcileForm = this.fb.group({

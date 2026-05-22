@@ -66,9 +66,8 @@ export class ExamsubcategoryComponent implements OnInit {
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Masters' },
-      { label: 'Exam Sub Category' },
+      { label: 'Org Configs' },
+      { label: 'Exam Subcategory' },
     ]);
   }
 

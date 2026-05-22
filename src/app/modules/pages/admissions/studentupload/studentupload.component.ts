@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 import * as XLSX from 'xlsx';
+import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 
 const safeTrim = (v: any) => (v === undefined || v === null ? '' : String(v).trim());
 
@@ -52,9 +53,11 @@ export class StudentuploadComponent implements OnInit {
     private router: Router,
     private alert: AlertService,
     private commonApi: CommonapiService,
+    private breadcrumb: BredcrumpService
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.userId = localStorage.getItem('userId'); // keep your pattern
+    this.breadcrumb.set([{ label: 'Admissions & Fees' }, { label: 'Admission' }, { label: 'Student Bulk Upload' }]);
   }
 
   ngOnInit(): void {

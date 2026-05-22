@@ -1,21 +1,5 @@
-<!-- view-batch.component.html -->
-
 <!-- ── PAGE HEADER ─────────────────────────────────────────────────────────── -->
 <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-    <div>
-        <button class="btn btn-sm btn-link text-muted ps-0 mb-1" (click)="goBack()">
-            <i class="fa-solid fa-arrow-left me-1"></i> Batches
-        </button>
-        <div class="d-flex align-items-center gap-2">
-            <h5 class="mb-0 fw-semibold">{{ batch?.batchName || 'Loading...' }}</h5>
-            <span [class]="statusBadgeClass(batch?.status)">{{ batch?.status }}</span>
-        </div>
-        <div class="text-muted small mt-1">
-            {{ batch?.batchCode }} &nbsp;·&nbsp; {{ batch?.programName || '-' }}
-            &nbsp;·&nbsp; {{ batch?.centerName || '-' }}
-            &nbsp;·&nbsp; AY: {{ batch?.academicYear || '-' }}
-        </div>
-    </div>
     <div class="mt-2 d-flex align-items-center gap-2 small">
         <div class="bg-light border rounded px-2 py-1">
             <i class="fa-solid fa-user-tie text-primary me-1"></i> Class Teacher:
@@ -26,7 +10,75 @@
             {{ batch?.classTeacherId ? 'Change' : 'Assign' }}
         </button>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
+    <div>
+        <button class="btn btn-primary btn-sm rounded-pill" *appHasRole="['L1']" (click)="openOffcanvas('edit')">
+            <i class="fa-regular fa-pen-to-square btn-icon"></i> Edit
+        </button>
+          <button class="btn btn-sm btn-link text-muted ps-0 mb-1" (click)="goBack()">
+            <i class="fa-solid fa-arrow-left btn-icon"></i> Back
+        </button>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+    <div>
+        <!-- <button class="btn btn-sm btn-link text-muted ps-0 mb-1" (click)="goBack()">
+            <i class="fa-solid fa-arrow-left me-1"></i> Batches
+        </button> -->
+        <div class="d-flex align-items-center gap-2">
+            <h5 class="mb-0 fw-semibold">{{ batch?.batchName || 'Loading...' }}</h5>
+            <span [class]="statusBadgeClass(batch?.status)">{{ batch?.status }}</span>
+        </div>
+        <div class="text-muted small mt-1">
+            {{ batch?.batchCode }} &nbsp;·&nbsp; {{ batch?.programName || '-' }}
+            &nbsp;·&nbsp; {{ batch?.centerName || '-' }}
+            &nbsp;·&nbsp; AY: {{ batch?.academicYear || '-' }}
+        </div>
+    </div>
+    <div class="d-flex justify-content-end align-items-start mb-3 flex-wrap gap-2">
+        <!-- Shuffle -->
+        <button class="btn btn-outline-secondary btn-sm rounded-pill" (click)="openOffcanvas('shuffle')">
+            <i class="fa-solid fa-shuffle btn-icon"></i> Shuffle
+        </button>
+        <!-- Late Entry -->
+        <button class="btn btn-outline-warning btn-sm rounded-pill" (click)="openLateEntry()">
+            <i class="fa-solid fa-clock-rotate-left btn-icon"></i> Late Entry
+        </button>
+        <!-- Spl class -->
+        <button class="btn btn-outline-success btn-sm rounded-pill" (click)="openSpecialClass()">
+            <i class="fa-solid fa-calendar-plus btn-icon"></i> Special Class
+        </button>
+        <!-- Promote -->
+        <button class="btn btn-outline-primary btn-sm rounded-pill" *appHasRole="['L1']" (click)="openPromoteModal()"
+            [disabled]="batch?.status !== 'ACTIVE'">
+            <i class="fa-solid fa-arrow-up-right-dots btn-icon"></i> Promote
+        </button>
+        <!-- Export -->
+        <button class="btn btn-outline-success btn-sm rounded-pil" *appHasRole="['L1']" (click)="exportBatch()">
+            <i class="fa-solid fa-file-export btn-icon"></i> Export
+        </button>
+        <!-- Close -->
+        <button class="btn btn-outline-danger btn-sm rounded-pill" *appHasRole="['L1']" (click)="openCloseBatch()"
+            [disabled]="batch?.status === 'CLOSED'">
+            <i class="fa-solid fa-lock btn-icon"></i>Close
+        </button>
+        <!-- Export Report -->
+        <button *ngIf="activeTab === 'report' && (subjectHours.length || phaseReport)"
+            class="btn btn-sm btn-outline-success rounded-pill" (click)="exportReport()">
+            <i class="fa-solid fa-arrow-left btn-icon"></i> Export Report
+        </button>
+    </div>
+    <!-- <div class="mt-2 d-flex align-items-center gap-2 small">
+        <div class="bg-light border rounded px-2 py-1">
+            <i class="fa-solid fa-user-tie text-primary me-1"></i> Class Teacher:
+            <strong class="text-dark ms-1">{{ batch?.classTeacherName || 'Not Assigned' }}</strong>
+        </div>
+        <button class="btn btn-sm btn-link text-primary p-0 text-decoration-none"
+            (click)="openOffcanvas('classTeacher')">
+            {{ batch?.classTeacherId ? 'Change' : 'Assign' }}
+        </button>
+    </div> -->
+    <!-- <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-outline-secondary btn-sm rounded-pill" (click)="openOffcanvas('shuffle')">
             <i class="fa-solid fa-shuffle"></i> Shuffle
         </button>
@@ -36,17 +88,14 @@
         <button class="btn btn-outline-success btn-sm rounded-pill" (click)="openSpecialClass()">
             <i class="fa-solid fa-calendar-plus"></i> Special Class
         </button>
-        <button class="btn btn-outline-primary btn-sm rounded-pill" (click)="openPromoteModal()"
+        <button class="btn btn-outline-primary btn-sm rounded-pill" *appHasRole="['L1']" (click)="openPromoteModal()"
             [disabled]="batch?.status !== 'ACTIVE'">
             <i class="fa-solid fa-arrow-up-right-dots"></i> Promote
         </button>
-        <!-- <button *appHasRole="['L1']" class="btn btn-outline-success btn-sm rounded-pill" (click)="exportBatch()">
-            <i class="fa-solid fa-file-export"></i> Export
-        </button> -->
-        <button class="btn btn-outline-success btn-sm rounded-pill" (click)="exportBatch()">
+        <button *appHasRole="['L1']" class="btn btn-outline-success btn-sm rounded-pill" (click)="exportBatch()">
             <i class="fa-solid fa-file-export"></i> Export
         </button>
-        <button class="btn btn-outline-danger btn-sm rounded-pill" (click)="openCloseBatch()"
+        <button class="btn btn-outline-danger btn-sm rounded-pill" *appHasRole="['L1']" (click)="openCloseBatch()"
             [disabled]="batch?.status === 'CLOSED'">
             <i class="fa-solid fa-lock"></i> Close Batch
         </button>
@@ -54,10 +103,10 @@
             class="btn btn-sm btn-outline-success rounded-pill" (click)="exportReport()">
             <i class="fa-solid fa-file-excel me-1"></i> Export Report
         </button>
-        <button class="btn btn-primary btn-sm rounded-pill" (click)="openOffcanvas('edit')">
+        <button class="btn btn-primary btn-sm rounded-pill" *appHasRole="['L1']" (click)="openOffcanvas('edit')">
             <i class="fa-solid fa-pen-to-square"></i> Edit
         </button>
-    </div>
+    </div> -->
 </div>
 
 <!-- ── STAT CARDS ─────────────────────────────────────────────────────────── -->
@@ -122,14 +171,34 @@
             </li>
         </ul>
         <div class="d-flex gap-2">
-            <button *ngIf="activeTab === 'students'" class="btn btn-sm btn-outline-primary rounded-pill"
+            <button *ngIf="activeTab === 'students'" class="btn btn-create fs-16 fw-medium"
+                (click)="openOffcanvas('assign')">
+                <i class="fa-solid fa-user-plus btn-icon"></i> Assign Students
+            </button>
+            <ng-container *appHasRole="['L1']">
+                <button *ngIf="activeTab === 'students'" class="btn btn-import fs-16 fw-medium"
+                    (click)="openOffcanvas('import')">
+                    <i class="fa-solid fa-file-import btn-icon"></i> Import from Excel
+                </button>
+            </ng-container>
+            <button *ngIf="activeTab === 'faculty'" class="btn btn-create fs-16 fw-medium"
+                (click)="openOffcanvas('staff')">
+                <i class="fa-solid fa-users-gear btn-icon"></i> Manage Faculty
+            </button>
+            <!-- <button *ngIf="activeTab === 'students'" class="btn btn-sm btn-outline-primary rounded-pill"
                 (click)="openOffcanvas('assign')">
                 <i class="fa-solid fa-user-plus me-1"></i> Assign Students
-            </button>
-            <button *ngIf="activeTab === 'faculty'" class="btn btn-sm btn-outline-primary rounded-pill"
+            </button> -->
+            <!-- <ng-container *appHasRole="['L1']">
+                <button *ngIf="activeTab === 'students'" class="btn btn-sm btn-outline-success rounded-pill"
+                    (click)="openOffcanvas('import')">
+                    <i class="fa-solid fa-file-import me-1"></i> Import from Excel
+                </button>
+            </ng-container> -->
+            <!-- <button *ngIf="activeTab === 'faculty'" class="btn btn-sm btn-outline-primary rounded-pill"
                 (click)="openOffcanvas('staff')">
                 <i class="fa-solid fa-users-gear me-1"></i> Manage Faculty
-            </button>
+            </button> -->
         </div>
     </div>
 
@@ -170,6 +239,10 @@
                                     (click)="removeStudent(s?.studentId)">
                                     <i class="fa-solid fa-user-minus"></i>
                                 </button> -->
+                                <button class="btn btn-sm btn-outline-secondary me-2" title="View"
+                                    (click)="viewStudent(s)">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
                                 <button class="btn btn-sm btn-outline-danger" title="Remove"
                                     (click)="openRemoveStudent(s?.studentId, s?.student?.name)">
                                     <i class="fa-solid fa-user-minus"></i>
@@ -203,7 +276,12 @@
                                     <div class="fw-semibold text-truncate">{{ m?.staffName || '-' }}</div>
                                     <div class="text-muted small text-truncate">{{ m?.subjectName || '-' }}</div>
                                 </div>
+                                <button class="btn btn-sm btn-outline-secondary me-2" title="View"
+                                (click)="viewTeacher(m.staffId)">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -212,7 +290,6 @@
 
         <!-- ── REPORT TAB ──────────────────────────────────────────────────────────── -->
         <div *ngIf="activeTab === 'report'">
-
             <!-- Subject filter -->
             <div class="d-flex align-items-end gap-3 mb-4 flex-wrap">
                 <div style="min-width:260px">
@@ -229,7 +306,6 @@
                     <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading...
                 </div>
             </div>
-
             <!-- ── Subject Hours Section ─────────────────────────────────────────────── -->
             <div class="mb-4" *ngIf="subjectHours.length">
                 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -240,7 +316,6 @@
                         Total: {{ subjectHoursTotal }}h
                     </span>
                 </div>
-
                 <div class="row g-3">
                     <div class="col-12 col-sm-6 col-lg-4" *ngFor="let s of subjectHours"
                         [class.border-start]="reportSubjectId && s.subjectId === reportSubjectId"
@@ -262,15 +337,13 @@
                             <!-- simple bar -->
                             <div class="mt-2" style="height:4px;background:#e2e8f0;border-radius:4px;overflow:hidden">
                                 <div style="height:100%;background:#3b82f6;border-radius:4px;transition:width 0.4s"
-                                    [style.width.%]="getProgressPct(s.allottedHours,
-                subjectHours[0]?.allottedHours ? subjectHoursMax : 1)">
+                                    [style.width.%]="getProgressPct(s.allottedHours, subjectHoursMax || 1)">>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
             <!-- ── Phase Report Section ───────────────────────────────────────────────── -->
             <div *ngIf="phaseReport && reportSubjectId">
                 <div class="d-flex align-items-center justify-content-between mb-3">
@@ -280,7 +353,6 @@
                         <span class="text-muted fw-normal small ms-1">— {{ reportSubjectName }}</span>
                     </h6>
                 </div>
-
                 <!-- Summary strip -->
                 <div class="row g-2 mb-4">
                     <div class="col-4">
@@ -310,20 +382,16 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Phase rows -->
                 <div *ngFor="let ph of phaseReport.phases" class="border rounded-3 mb-3 overflow-hidden">
-
                     <!-- Phase header -->
                     <div class="px-3 py-3 d-flex align-items-center gap-3 cursor-pointer" style="background:#f8fafc"
                         (click)="togglePhase(ph.phaseId)">
-
                         <!-- Expand icon -->
                         <i class="fa-solid fa-chevron-right text-muted"
                             style="font-size:0.75rem;transition:transform 0.2s"
                             [style.transform]="isPhaseExpanded(ph.phaseId) ? 'rotate(90deg)' : 'none'">
                         </i>
-
                         <!-- Phase name -->
                         <div class="flex-grow-1">
                             <div class="fw-semibold small">{{ ph.phaseName }}</div>
@@ -331,7 +399,6 @@
                                 {{ ph.topics?.length || 0 }} topic(s)
                             </div>
                         </div>
-
                         <!-- Hours chips -->
                         <div class="d-flex gap-2 align-items-center flex-shrink-0">
                             <span class="badge bg-success-subtle text-success" style="font-size:0.72rem">
@@ -347,7 +414,6 @@
                                 Left: {{ ph.remainingHours ?? '-' }}h
                             </span>
                         </div>
-
                         <!-- Progress bar -->
                         <div style="width:80px">
                             <div style="height:6px;background:#e2e8f0;border-radius:4px;overflow:hidden">
@@ -361,18 +427,14 @@
                             </div>
                         </div>
                     </div>
-
                     <!-- Topic rows (expanded) -->
                     <div *ngIf="isPhaseExpanded(ph.phaseId)">
                         <div *ngFor="let t of ph.topics; let last = last"
                             class="px-4 py-2 d-flex align-items-center gap-3" [class.border-bottom]="!last"
                             style="background:#fff">
-
                             <i class="fa-solid fa-circle-dot text-muted" style="font-size:0.55rem;flex-shrink:0"></i>
-
                             <div class="flex-grow-1 small">{{ t.topicName }}</div>
-
-                            <div class="d-flex gap-2 align-items-center flex-shrink-0">
+                            <!-- <div class="d-flex gap-2 align-items-center flex-shrink-0">
                                 <span class="text-muted" style="font-size:0.72rem">
                                     Est: {{ t.estHours ?? '-' }}h
                                 </span>
@@ -383,17 +445,16 @@
                                     [style.color]="(t.remainingHours ?? 0) < 0 ? '#ef4444' : '#94a3b8'">
                                     Left: {{ t.remainingHours ?? '-' }}h
                                 </span>
-                            </div>
-
+                            </div> -->
                             <!-- Mini progress -->
-                            <div style="width:60px">
+                            <!-- <div style="width:60px">
                                 <div style="height:4px;background:#e2e8f0;border-radius:4px;overflow:hidden">
                                     <div style="height:100%;border-radius:4px"
                                         [style.width.%]="getProgressPct(t.allottedHours, t.estHours)"
                                         [style.background]="getProgressColor(getProgressPct(t.allottedHours, t.estHours))">
                                     </div>
                                 </div>
-                            </div>
+                            </div> -->
                         </div>
                         <div *ngIf="!ph.topics?.length" class="px-4 py-2 text-muted small">
                             No topics defined for this phase.
@@ -422,9 +483,12 @@
 <!-- ═══════════════════════════════════════════════════════════════
      OFFCANVAS — Edit / Staff Map / Assign Students / Shuffle
      ════════════════════════════════════════════════════════════ -->
-<div class="offcanvas-backdrop fade show" *ngIf="showOffcanvas" (click)="closeOffcanvas()"></div>
-<div class="offcanvas offcanvas-end show" style="width:480px" tabindex="-1" *ngIf="showOffcanvas">
-
+<!-- <div class="offcanvas-backdrop fade show" *ngIf="showOffcanvas" (click)="closeOffcanvas()"></div> -->
+<div class="offcanvas-backdrop fade show" *ngIf="showOffcanvas" (click)="closeOffcanvas()" style="top:60px;">
+</div>
+<!-- <div class="offcanvas offcanvas-end show" style="width:480px" tabindex="-1" *ngIf="showOffcanvas"> -->
+<div class="offcanvas offcanvas-end show" style="width:480px; top:60px; height:calc(100vh - 60px);" tabindex="-1"
+    *ngIf="showOffcanvas">
     <!-- HEADER -->
     <div class="offcanvas-header border-bottom">
         <div>
@@ -436,6 +500,9 @@
                     <span *ngSwitchCase="'shuffle'"><i class="fa-solid fa-shuffle me-1"></i> Shuffle Students</span>
                     <span *ngSwitchCase="'classTeacher'"><i class="fa-solid fa-user-tie me-1"></i> Assign Class
                         Teacher</span>
+                    <span *ngSwitchCase="'import'">
+                        <i class="fa-solid fa-file-import me-1"></i> Import Students from Excel
+                    </span>
                 </ng-container>
             </h6>
             <div class="text-muted small">{{ batch?.batchName }} ({{ batch?.batchCode }})</div>
@@ -445,7 +512,6 @@
 
     <!-- BODY -->
     <div class="offcanvas-body overflow-auto">
-
         <!-- ── EDIT MODE ──────────────────────────────────────────────────────── -->
         <ng-container *ngIf="offcanvasMode === 'edit'">
             <form [formGroup]="editForm" class="row g-3">
@@ -613,28 +679,138 @@
                 <div class="form-text">Section label for this batch (e.g. Section A)</div>
             </div>
         </ng-container>
+
+        <ng-container *ngIf="offcanvasMode === 'import'">
+            <!-- Instructions -->
+            <div class="alert alert-light border-0 small mb-3">
+                <i class="fa-solid fa-circle-info me-1 text-primary"></i>
+                Upload an Excel file with a column containing <strong>Registration Numbers</strong>
+                or <strong>Admission Numbers</strong>. Only students who are eligible
+                (same program, center, academic year, and not yet in a batch) will be matched.
+            </div>
+            <!-- Add this after the form-text div inside the file upload section -->
+            <div class="d-flex align-items-center gap-2 mt-2">
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" (click)="downloadSampleExcel()">
+                    <i class="fa-solid fa-download me-1"></i> Download Sample Excel
+                </button>
+                <span class="text-muted" style="font-size:11px;">
+                    Column header must be: <code>registrationNumber</code>
+                </span>
+            </div>
+            <!-- File upload -->
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Upload Excel / CSV</label>
+                <input type="file" class="form-control form-control-sm" accept=".xlsx,.xls,.csv"
+                    (change)="onImportFileSelected($event)" />
+                <div class="form-text">Supported: .xlsx, .xls, .csv</div>
+            </div>
+            <!-- Loading eligible students -->
+            <div *ngIf="importLoading" class="text-center py-3 text-muted small">
+                <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading eligible students...
+            </div>
+            <!-- Results — only shown after file is parsed -->
+            <div *ngIf="!importLoading && (importRows.length || importUnmatched.length)">
+                <!-- Summary chips -->
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                    <span class="badge rounded-pill px-3 py-2"
+                        style="background:#dcfce7; color:#166534; font-size:13px;">
+                        <i class="fa-solid fa-circle-check me-1"></i>
+                        {{ importRows.length }} matched
+                    </span>
+                    <span *ngIf="importUnmatched.length" class="badge rounded-pill px-3 py-2"
+                        style="background:#fee2e2; color:#991b1b; font-size:13px;">
+                        <i class="fa-solid fa-circle-xmark me-1"></i>
+                        {{ importUnmatched.length }} not found
+                    </span>
+                </div>
+                <!-- Matched students table -->
+                <div *ngIf="importRows.length" class="mb-3">
+                    <div class="fw-semibold small mb-2 text-success">
+                        <i class="fa-solid fa-circle-check me-1"></i>Matched Students
+                    </div>
+                    <div class="border rounded-3 overflow-hidden" style="max-height:280px; overflow-y:auto;">
+                        <table class="table table-sm align-middle mb-0" style="font-size:13px;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Excel Value</th>
+                                    <th>Name</th>
+                                    <th>Enrollment No</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let r of importRows; let i = index">
+                                    <td class="text-muted">{{ i + 1 }}</td>
+                                    <td class="fw-semibold">{{ r.excelValue }}</td>
+                                    <td>{{ r.studentName }}</td>
+                                    <td class="text-muted">{{ r.admissionNo }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Unmatched rows -->
+                <div *ngIf="importUnmatched.length">
+                    <div class="fw-semibold small mb-2 text-danger">
+                        <i class="fa-solid fa-circle-xmark me-1"></i>
+                        Not Found / Not Eligible ({{ importUnmatched.length }})
+                    </div>
+                    <div class="border rounded-3 overflow-hidden"
+                        style="max-height:160px; overflow-y:auto; background:#fef2f2;">
+                        <table class="table table-sm align-middle mb-0" style="font-size:12px;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Excel Value</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let r of importUnmatched; let i = index">
+                                    <td class="text-muted">{{ i + 1 }}</td>
+                                    <td class="text-danger fw-semibold">{{ r.excelValue }}</td>
+                                    <td class="text-muted small">Not eligible or already in a batch</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- Empty state before file upload -->
+            <div *ngIf="!importLoading && !importRows.length && !importUnmatched.length && !importFileName"
+                class="text-center py-5 text-muted">
+                <i class="fa-solid fa-file-excel fa-2x mb-2 d-block opacity-25"></i>
+                <div class="small">Upload an Excel file to begin matching</div>
+            </div>
+        </ng-container>
     </div>
 
     <!-- FOOTER -->
     <div class="offcanvas-footer border-top px-3 py-3 d-flex justify-content-end gap-2">
-        <button class="btn btn-sm btn-outline-secondary" (click)="closeOffcanvas()">Cancel</button>
-        <button *ngIf="offcanvasMode === 'edit'" class="btn btn-sm btn-primary" (click)="saveEdit()"
+        <button class="btn btn-close-custom fs-16 fw-medium" (click)="closeOffcanvas()">Cancel</button>
+        <button *ngIf="offcanvasMode === 'edit'" class="btn btn-create fs-16 fw-medium" (click)="saveEdit()"
             [disabled]="loading || editForm.invalid">
             <i class="fa-solid fa-floppy-disk me-1"></i> Save
         </button>
-        <button *ngIf="offcanvasMode === 'staff'" class="btn btn-sm btn-primary" (click)="saveStaffMap()"
+        <button *ngIf="offcanvasMode === 'staff'" class="btn btn-create fs-16 fw-medium" (click)="saveStaffMap()"
             [disabled]="loading">
             <i class="fa-solid fa-floppy-disk me-1"></i> Save Mapping
         </button>
-        <button *ngIf="offcanvasMode === 'assign'" class="btn btn-sm btn-primary" (click)="assignStudents()"
+        <button *ngIf="offcanvasMode === 'assign'" class="btn btn-create fs-16 fw-medium" (click)="assignStudents()"
             [disabled]="loading || !selectedStudentIds.size">
             <i class="fa-solid fa-user-plus me-1"></i> Assign
         </button>
-        <button *ngIf="offcanvasMode === 'shuffle'" class="btn btn-sm btn-warning" (click)="saveShuffleBatch()"
+        <button *ngIf="offcanvasMode === 'import'" class="btn btn-create fs-16 fw-medium" (click)="submitImport()"
+            [disabled]="loading || !importRows.length">
+            <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
+            <i class="fa-solid fa-user-plus me-1" *ngIf="!loading"></i>
+            Assign {{ importRows.length }} Student{{ importRows.length !== 1 ? 's' : '' }}
+        </button>
+        <button *ngIf="offcanvasMode === 'shuffle'" class="btn btn-create fs-16 fw-medium" (click)="saveShuffleBatch()"
             [disabled]="loading || !shuffleSelectedCount">
             <i class="fa-solid fa-shuffle me-1"></i> Shuffle
         </button>
-        <button *ngIf="offcanvasMode === 'classTeacher'" class="btn btn-sm btn-primary" (click)="assignClassTeacher()"
+        <button *ngIf="offcanvasMode === 'classTeacher'" class="btn btn-create fs-16 fw-medium" (click)="assignClassTeacher()"
             [disabled]="loading">
             <i class="fa-solid fa-floppy-disk me-1"></i> Save Teacher
         </button>
@@ -749,10 +925,10 @@
             </div>
 
             <div class="modal-footer border-0">
-                <button class="btn btn-sm btn-outline-secondary" (click)="closePromoteModal()">
+                <button class="btn btn-close-custom fs-16 fw-medium" (click)="closePromoteModal()">
                     {{ promoteResult ? 'Close' : 'Cancel' }}
                 </button>
-                <button *ngIf="!promoteResult" class="btn btn-sm btn-primary" (click)="confirmPromote()"
+                <button *ngIf="!promoteResult" class="btn btn-create fs-16 fw-medium" (click)="confirmPromote()"
                     [disabled]="loading">
                     <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
                     <i class="fa-solid fa-arrow-up-right-dots me-1" *ngIf="!loading"></i>
@@ -763,53 +939,6 @@
         </div>
     </div>
 </div>
-<!-- <div class="modal fade show d-block" tabindex="-1" *ngIf="showPromoteModal">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header border-0">
-                <h6 class="modal-title fw-semibold">
-                    <i class="fa-solid fa-arrow-up-right-dots me-1 text-primary"></i> Promote Batch
-                </h6>
-                <button type="button" class="btn-close" (click)="closePromoteModal()"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-warning border-0 small mb-3">
-                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                    This advances the batch to the <b>next Academic Year</b> and increments the Class No. All assigned
-                    students remain.
-                </div>
-                <div class="border rounded-3 p-3 bg-light">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <div class="text-muted small">Batch</div>
-                            <div class="fw-semibold">{{ batch?.batchName }}</div>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-muted small">Current AY</div>
-                            <div class="fw-semibold">{{ batch?.academicYear }}</div>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-muted small">Year No</div>
-                            <div class="fw-semibold">Yr {{ batch?.yearNo }} → Yr {{ (batch?.yearNo || 0) + 1 }}</div>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-muted small">Class No</div>
-                            <div class="fw-semibold">Cls {{ batch?.classNo }} → Cls {{ (batch?.classNo || 0) + 1 }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer border-0">
-                <button class="btn btn-sm btn-outline-secondary" (click)="closePromoteModal()">Cancel</button>
-                <button class="btn btn-sm btn-primary" (click)="confirmPromote()" [disabled]="loading">
-                    <i class="fa-solid fa-arrow-up-right-dots me-1"></i> Confirm Promote
-                </button>
-            </div>
-        </div>
-    </div>
-</div> -->
-
 <!-- ═══════════════════════════════════════════════════════════════
      LATE ENTRY MODAL
      ════════════════════════════════════════════════════════════ -->
@@ -915,10 +1044,10 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-sm btn-outline-secondary" (click)="closeLateModal()">Cancel</button>
-                <button class="btn btn-sm btn-warning" (click)="submitLateEntry()"
+                <button class="btn btn-close-custom fs-16 fw-medium" (click)="closeLateModal()">Cancel</button>
+                <button class="btn btn-create fs-16 fw-medium" (click)="submitLateEntry()"
                     [disabled]="loading || lateForm.invalid">
-                    <i class="fa-solid fa-clock me-1"></i> Log Entry
+                    <i class="fa-solid fa-clock me-1 btn-icon"></i> Log Entry
                 </button>
             </div>
         </div>
@@ -1025,8 +1154,8 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-sm btn-outline-secondary" (click)="closeSpecialClassModal()">Cancel</button>
-                <button class="btn btn-sm btn-success" (click)="submitSpecialClass()"
+                <button class="btn btn-close-custom fs-16 fw-medium" (click)="closeSpecialClassModal()">Cancel</button>
+                <button class="btn btn-create fs-16 fw-medium" (click)="submitSpecialClass()"
                     [disabled]="loading || specialClassForm.invalid || specialClassPeriodConflict">
                     <i class="fa-solid fa-calendar-plus me-1"></i> Add Special Class
                 </button>
@@ -1083,8 +1212,8 @@
                 </div>
             </div>
             <div class="modal-footer border-0">
-                <button class="btn btn-sm btn-outline-secondary" (click)="closeCloseBatchModal()">Cancel</button>
-                <button class="btn btn-sm btn-danger" (click)="confirmCloseBatch()" [disabled]="loading">
+                <button class="btn btn-close-custom fs-16 fw-medium" (click)="closeCloseBatchModal()">Cancel</button>
+                <button class="btn btn-create fs-16 fw-medium" (click)="confirmCloseBatch()" [disabled]="loading">
                     <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
                     <i class="fa-solid fa-lock me-1" *ngIf="!loading"></i>
                     Confirm Close

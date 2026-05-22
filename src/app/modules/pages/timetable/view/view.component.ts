@@ -2,8 +2,9 @@ import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
-import { forkJoin, Subject } from 'rxjs';
+import { forkJoin, map, Subject } from 'rxjs';
 import { takeUntil, catchError, of, finalize } from 'rxjs';
+import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 
 const safeTrim = (v: any): string =>
   v === undefined || v === null ? '' : String(v).trim();
@@ -62,6 +63,7 @@ const CONTENT_FIELDS = [
   'venue',
   'zoomUrl',
 ];
+
 @Component({
   selector: 'app-view',
   standalone: false,
@@ -69,7 +71,7 @@ const CONTENT_FIELDS = [
   styleUrl: './view.component.scss',
 })
 export class ViewComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
+   private destroy$ = new Subject<void>();
 
   loading = false;
   tenantId: any;
@@ -218,19 +220,23 @@ export class ViewComponent implements OnInit, OnDestroy {
     zoomUrl: '',
     __timeError: '',
   };
+  showCloneConfirm = false;
+  cloneResult: any = null;
+  phasesPerSubject: Record<string, any[]> = {};
 
   constructor(
     private router: Router,
     private route: ActivatedRoute,
     private alert: AlertService,
     private commonApi: CommonapiService,
+    private breadcrumb: BredcrumpService
   ) {
     this.tenantId =
       localStorage.getItem('tenantId') || localStorage.getItem('entiId');
+        this.breadcrumb.set([{ label: 'Timetable & Attendance' },{ label: 'Timetable', link: '/app/timetable' }, {label: 'View'}]);
   }
 
   ngOnInit(): void {
-    // this.timetableId = safeTrim(this.route.snapshot.paramMap.get('id'));
     this.batchCode = safeTrim(this.route.snapshot.paramMap.get('id'));
     this.currentWkStartOn = this.getMondayOfCurrentWeek();
     if (!this.batchCode) {
@@ -407,11 +413,17 @@ export class ViewComponent implements OnInit, OnDestroy {
   private buildSubjectStaffMap() {
     this.subjectIdToStaff = new Map<string, any[]>();
     this.staffFull.forEach((s: any) => {
-      const subId = safeTrim(s?.subject);
-      if (!subId) return;
-      if (!this.subjectIdToStaff.has(subId))
-        this.subjectIdToStaff.set(subId, []);
-      this.subjectIdToStaff.get(subId)!.push(s);
+      const subjects = Array.isArray(s?.subject)
+        ? s.subject
+        : s?.subject
+          ? [s.subject]
+          : [];
+      subjects.forEach((sub: any) => {
+        const id = safeTrim(sub?._id || sub);
+        if (!id) return;
+        if (!this.subjectIdToStaff.has(id)) this.subjectIdToStaff.set(id, []);
+        this.subjectIdToStaff.get(id)!.push(s);
+      });
     });
   }
 
@@ -479,11 +491,17 @@ export class ViewComponent implements OnInit, OnDestroy {
           this.batchSubjects.map((s: any) => safeTrim(s?._id)).filter(Boolean),
         );
         this.batchStaffFull = batchSubjectIds.size
-          ? this.staffFull.filter((s: any) =>
-              batchSubjectIds.has(safeTrim(s?.subject)),
-            )
+          ? this.staffFull.filter((s: any) => {
+              const subjects = Array.isArray(s?.subject)
+                ? s.subject
+                : s?.subject
+                  ? [s.subject]
+                  : [];
+              return subjects.some((sub: any) =>
+                batchSubjectIds.has(safeTrim(sub?._id || sub)),
+              );
+            })
           : this.staffFull;
-
         if (!this.batchStaffFull.length) this.batchStaffFull = this.staffFull;
       });
   }
@@ -568,7 +586,6 @@ export class ViewComponent implements OnInit, OnDestroy {
           }
         },
         error: (err: any) => {
-          // this.alert.error(err?.error?.message || 'Failed to load timetable');
           this.loading = false;
           this.timetable = null;
           if (err?.status !== 404) {
@@ -732,67 +749,6 @@ export class ViewComponent implements OnInit, OnDestroy {
     }
   }
 
-  // getRenderedPeriod(dayRow: any, pNum: number): any {
-  //   const day = String(dayRow?.day || '').toUpperCase();
-  //   if (!day) return null;
-  //   if (this.viewMode === 'range') {
-  //     if (dayRow?.__isHoliday)
-  //       return { __dayCancelled: true, isCancelled: true, time: {} };
-  //     const list = Array.isArray(dayRow?.periods) ? dayRow.periods : [];
-  //     return list.find((p: any) => toInt(p?.periodNo) === toInt(pNum)) || null;
-  //   }
-  //   if (this.isDraft) {
-  //     if (this.isDayCancelled(toInt(dayRow?.dateMs), day))
-  //       return { __dayCancelled: true, isCancelled: true, time: {} };
-  //     const dayData = (this.timetable?.week || []).find(
-  //       (d: any) => String(d?.day || '').toUpperCase() === day,
-  //     );
-  //     if (!dayData) return null;
-  //     const period = (dayData.periods || []).find(
-  //       (p: any) => toInt(p?.periodNo) === toInt(pNum),
-  //     );
-  //     return period || null;
-  //   }
-  //   const dateMs = toInt(dayRow?.dateMs);
-  //   if (this.isDayCancelled(dateMs, day))
-  //     return { __dayCancelled: true, isCancelled: true, time: {} };
-  //   const replacedPeriods = this.getDayReplacementPeriods(dateMs, day);
-  //   const basePeriods =
-  //     replacedPeriods ?? (Array.isArray(dayRow?.periods) ? dayRow.periods : []);
-  //   const baseMap = new Map<number, any>();
-  //   basePeriods.forEach((p: any) => {
-  //     const pn = toInt(p?.periodNo);
-  //     if (pn) baseMap.set(pn, p);
-  //   });
-  //   this.applyMoveOverrides(dateMs, day, baseMap);
-  //   const cancelOv = this.findPeriodOverride(
-  //     dateMs,
-  //     day,
-  //     pNum,
-  //     'CANCEL_PERIOD',
-  //   );
-  //   const replaceOv = this.findPeriodOverride(
-  //     dateMs,
-  //     day,
-  //     pNum,
-  //     'REPLACE_PERIOD',
-  //   );
-  //   let result = baseMap.get(pNum) || null;
-  //   if (cancelOv)
-  //     return { ...result, isCancelled: true, cancelReason: cancelOv.reason };
-  //   if (replaceOv) {
-  //     const modifiedFields = (CONTENT_FIELDS as string[]).filter(
-  //       (f) => replaceOv.period?.[f] !== result?.[f],
-  //     );
-  //     return {
-  //       ...replaceOv.period,
-  //       __modified: true,
-  //       __modifiedFields: modifiedFields,
-  //     };
-  //   }
-  //   return result;
-  // }
-
   getRenderedPeriod(dayRow: any, pNum: number): any {
     const day = String(dayRow?.day || '').toUpperCase();
     if (!day) return null;
@@ -943,15 +899,6 @@ export class ViewComponent implements OnInit, OnDestroy {
       });
   }
 
-  // private updateWeekNavFlags() {
-  //   const cur = toInt(this.timetable?.wkStartOn, 0) || this.currentWkStartOn;
-  //   const idx = this.weekIndex.findIndex(
-  //     (w) => toInt(w.wkStartOn) === toInt(cur),
-  //   );
-  //   this.hasPrevWeek = idx > 0;
-  //   this.hasNextWeek = idx >= 0 && idx < this.weekIndex.length - 1;
-  // }
-
   private updateWeekNavFlags() {
     if (!this.weekIndex.length) {
       this.hasPrevWeek = false;
@@ -988,65 +935,20 @@ export class ViewComponent implements OnInit, OnDestroy {
     return `Week ${idx + 1} of ${this.weekIndex.length}`;
   }
 
-  // navigateWeek(direction: 'prev' | 'next') {
-  //   const cur = toInt(this.timetable?.wkStartOn, 0) || this.currentWkStartOn;
-  //   const idx = this.weekIndex.findIndex(
-  //     (w) => toInt(w.wkStartOn) === toInt(cur),
-  //   );
-  //   const target =
-  //     direction === 'prev' ? this.weekIndex[idx - 1] : this.weekIndex[idx + 1];
-  //   if (!target) return;
-  //   this.weekNavLoading = true;
-  //   this.commonApi
-  //     .fetchData(
-  //       {
-  //         tenantId: this.tenantId,
-  //         batchCode: this.batchCode,
-  //         wkStartOn: target.wkStartOn,
-  //       },
-  //       this.moduleName,
-  //       'view',
-  //     )
-  //     .pipe(
-  //       takeUntil(this.destroy$),
-  //       finalize(() => (this.weekNavLoading = false)),
-  //     )
-  //     .subscribe({
-  //       next: (res: any) => {
-  //         this.timetable = res?.data || null;
-  //         this.timetableId = this.timetable?._id || '';
-  //         this.currentWkStartOn = toInt(target.wkStartOn);
-  //         this.lastWeeklyTimetable = this.timetable;
-  //         this.viewMode = 'week';
-  //         this.processSchedule();
-  //         this.updateWeekNavFlags();
-  //       },
-  //       error: (err: any) => {
-  //         this.alert.error(err?.error?.message || 'Failed to load week');
-  //       },
-  //     });
-  // }
-
   navigateWeek(direction: 'prev' | 'next') {
     const cur = toInt(this.timetable?.wkStartOn, 0) || this.currentWkStartOn;
     let idx = this.weekIndex.findIndex(
       (w) => toInt(w.wkStartOn) === toInt(cur),
     );
-
-    // No timetable this week — find virtual insertion point
     if (idx < 0) {
       const beforeCount = this.weekIndex.filter(
         (w) => toInt(w.wkStartOn) < toInt(cur),
       ).length;
-      // prev → last week before cur, next → first week after cur
       idx = direction === 'prev' ? beforeCount : beforeCount - 1;
     }
-
     const target =
       direction === 'prev' ? this.weekIndex[idx - 1] : this.weekIndex[idx + 1];
-
     if (!target) return;
-
     this.weekNavLoading = true;
     this.commonApi
       .fetchData(
@@ -1117,12 +1019,15 @@ export class ViewComponent implements OnInit, OnDestroy {
   confirmPublish() {
     this.showPublishConfirm = true;
   }
+
   cancelPublish() {
     this.showPublishConfirm = false;
   }
+
   confirmUnpublish() {
     this.showUnpublishConfirm = true;
   }
+
   cancelUnpublish() {
     this.showUnpublishConfirm = false;
   }
@@ -1231,6 +1136,69 @@ export class ViewComponent implements OnInit, OnDestroy {
       });
   }
 
+  // openEditDay(row: any) {
+  //   this.activeDay = row;
+  //   const day = String(row?.day || '').toUpperCase();
+  //   let periodsToEdit: any[];
+  //   if (this.isDraft) {
+  //     const templateDay = (this.timetable?.week || []).find(
+  //       (d: any) => String(d?.day || '').toUpperCase() === day,
+  //     );
+  //     periodsToEdit = (
+  //       Array.isArray(templateDay?.periods) ? [...templateDay.periods] : []
+  //     )
+  //       .filter((p: any) => !p.isCancelled)
+  //       .sort((a: any, b: any) => toInt(a.periodNo) - toInt(b.periodNo));
+  //   } else {
+  //     periodsToEdit = this.getAllRenderedPeriodsForDay(row).sort(
+  //       (a: any, b: any) => toInt(a.__slotNo) - toInt(b.__slotNo),
+  //     );
+  //   }
+  //   const mapped = periodsToEdit.map((p: any) => {
+  //     const rawId = safeTrim(p.facultyId) || '';
+  //     const staff = this.staffByCode[rawId] || this.staffById[rawId] || null;
+  //     const startMin = toInt(p?.time?.startMin);
+  //     const endMin = toInt(p?.time?.endMin);
+  //     return {
+  //       periodNo: toInt(p.periodNo || p.__slotNo || 0),
+  //       startTime: minToTimeStr(startMin),
+  //       endTime: minToTimeStr(endMin),
+  //       startMin,
+  //       endMin,
+  //       periodType: p.periodType || 'LECTURE',
+  //       mode: p.mode || 'OFFLINE',
+  //       facultyId: staff ? safeTrim(staff.staffId) : rawId,
+  //       facultyName: staff
+  //         ? safeTrim(staff.staffName)
+  //         : safeTrim(p.facultyName) || '',
+  //       subjectCode: safeTrim(p.subjectCode) || '',
+  //       subjectName: safeTrim(p.subjectName) || '',
+  //       subjectId: safeTrim(p.subjectId) || '',
+  //       phaseId: safeTrim(p.phaseId) || '',
+  //       phaseName: safeTrim(p.phaseName) || '',
+  //       topic: safeTrim(p.topic) || '',
+  //       venue: safeTrim(p.venue) || '',
+  //       zoomUrl: safeTrim(p.zoomUrl) || '',
+  //       isCancelled: false,
+  //     };
+  //   });
+  //   const uniqueSubjectIds = [
+  //     ...new Set(
+  //       mapped.map((ep: any) => safeTrim(ep.subjectId)).filter(Boolean),
+  //     ),
+  //   ];
+  //   uniqueSubjectIds.forEach((sid) => this.loadPhasesForSubject(sid));
+  //   this.editDayPeriods = mapped;
+  //   this.editDayOriginalPeriods = mapped.map((ep) => ({ ...ep }));
+  //   this.editDayConflicts = [];
+  //   this.editDayDragIndex = null;
+  //   this.editDayDragOverIndex = null;
+  //   this.editDaySubmitAttempted = false;
+  //   this.showEmptyDayConfirm = false;
+  //   if (!this.editDayPeriods.length) this.addEditDayPeriod();
+  //   this.showEditDay = true;
+  // }
+
   openEditDay(row: any) {
     this.activeDay = row;
     const day = String(row?.day || '').toUpperCase();
@@ -1262,7 +1230,7 @@ export class ViewComponent implements OnInit, OnDestroy {
         endMin,
         periodType: p.periodType || 'LECTURE',
         mode: p.mode || 'OFFLINE',
-        facultyId: staff ? safeTrim(staff.staffCode) : rawId,
+        facultyId: staff ? safeTrim(staff.staffId) : rawId,
         facultyName: staff
           ? safeTrim(staff.staffName)
           : safeTrim(p.facultyName) || '',
@@ -1271,21 +1239,123 @@ export class ViewComponent implements OnInit, OnDestroy {
         subjectId: safeTrim(p.subjectId) || '',
         phaseId: safeTrim(p.phaseId) || '',
         phaseName: safeTrim(p.phaseName) || '',
+        __phases: [],
         topic: safeTrim(p.topic) || '',
         venue: safeTrim(p.venue) || '',
         zoomUrl: safeTrim(p.zoomUrl) || '',
         isCancelled: false,
       };
     });
-    this.editDayPeriods = mapped;
-    this.editDayOriginalPeriods = mapped.map((ep) => ({ ...ep }));
+    // this.editDayPeriods = mapped;
+    // this.editDayOriginalPeriods = mapped.map((ep) => ({ ...ep }));
+    // this.editDayPeriods = mapped.map((ep: any) => ({
+    //   ...ep,
+    //   __phases: this.phasesPerSubject[ep.subjectId] || [],
+    // }));
+    // this.editDayOriginalPeriods = this.editDayPeriods.map((ep) => ({ ...ep }));
+    this.editDayPeriods = mapped.map((ep: any) => {
+      const phases = this.phasesPerSubject[ep.subjectId] || [];
+      const phaseExists = phases.some(
+        (ph: any) => safeTrim(ph.phaseId) === safeTrim(ep.phaseId),
+      );
+      return {
+        ...ep,
+        __phases: phases,
+        phaseId: phaseExists ? ep.phaseId : '',
+        phaseName: ep.phaseName,
+      };
+    });
+    this.editDayOriginalPeriods = this.editDayPeriods.map((ep) => ({ ...ep }));
     this.editDayConflicts = [];
     this.editDayDragIndex = null;
     this.editDayDragOverIndex = null;
     this.editDaySubmitAttempted = false;
     this.showEmptyDayConfirm = false;
     if (!this.editDayPeriods.length) this.addEditDayPeriod();
-    this.showEditDay = true;
+    const uniqueSubjectIds = [
+      ...new Set(
+        mapped.map((ep: any) => safeTrim(ep.subjectId)).filter(Boolean),
+      ),
+    ] as string[];
+    if (!uniqueSubjectIds.length) {
+      this.showEditDay = true;
+      return;
+    }
+    const toFetch = uniqueSubjectIds.filter(
+      (sid) => !this.phasesPerSubject[sid],
+    );
+    if (!toFetch.length) {
+      this.showEditDay = true;
+      return;
+    }
+    forkJoin(
+      toFetch.map((sid) =>
+        this.commonApi
+          .fetchData(
+            { entiId: this.tenantId },
+            'institue',
+            `phase/list?classNo=${this.batchClassNo}&subjectId=${sid}&programId=${this.batchProgramId}`,
+          )
+          .pipe(
+            catchError(() => of({ data: [] })),
+            takeUntil(this.destroy$),
+            map((res: any) => ({
+              subjectId: sid,
+              phases: Array.isArray(res) ? res : res?.data || [],
+            })),
+          ),
+      ),
+    ).subscribe({
+      // next: (results: any[]) => {
+      //   console.log('3. forkJoin results:', results);
+      //   const newEntries: Record<string, any[]> = {};
+      //   results.forEach((r) => {
+      //     newEntries[r.subjectId] = r.phases;
+      //   });
+      //   this.phasesPerSubject = { ...this.phasesPerSubject, ...newEntries };
+      //   this.editDayPeriods = this.editDayPeriods.map((ep: any) => ({
+      //     ...ep,
+      //     __phases:
+      //       newEntries[ep.subjectId] ||
+      //       this.phasesPerSubject[ep.subjectId] ||
+      //       [],
+      //   }));
+      //   this.editDayOriginalPeriods = this.editDayPeriods.map((ep) => ({
+      //     ...ep,
+      //   }));
+      //   this.showEditDay = true;
+      // },
+      next: (results: any[]) => {
+        const newEntries: Record<string, any[]> = {};
+        results.forEach((r) => {
+          newEntries[r.subjectId] = r.phases;
+        });
+        this.phasesPerSubject = { ...this.phasesPerSubject, ...newEntries };
+        this.editDayPeriods = this.editDayPeriods.map((ep: any) => {
+          const phases =
+            newEntries[ep.subjectId] ||
+            this.phasesPerSubject[ep.subjectId] ||
+            [];
+          const phaseExists = phases.some(
+            (ph: any) => safeTrim(ph.phaseId) === safeTrim(ep.phaseId),
+          );
+          console.log('ep.phaseId:', ep.phaseId, 'phaseExists:', phaseExists, 'phases:', phases.map((p:any) => p.phaseId));
+          return {
+            ...ep,
+            __phases: phases,
+            phaseId: phaseExists ? ep.phaseId : '',
+            phaseName: phaseExists ? ep.phaseName : '',
+          };
+        });
+        this.editDayOriginalPeriods = this.editDayPeriods.map((ep) => ({
+          ...ep,
+        }));
+        this.showEditDay = true;
+      },
+      error: () => {
+        this.showEditDay = true;
+      },
+    });
   }
 
   closeEditDay() {
@@ -1299,6 +1369,7 @@ export class ViewComponent implements OnInit, OnDestroy {
     this.editDayDragIndex = null;
     this.editDayDragOverIndex = null;
     this.showEmptyDayConfirm = false;
+    this.phasesPerSubject = {};
   }
 
   gripMouseDown(event: MouseEvent) {
@@ -1451,10 +1522,23 @@ export class ViewComponent implements OnInit, OnDestroy {
   }
 
   onEditDayFacultyChange(ep: any) {
-    const s = this.staffByCode[safeTrim(ep.facultyId)];
+    const s = this.staffById[safeTrim(ep.facultyId)];
     ep.facultyName = s?.staffName || '';
     this.editDayConflicts = [];
   }
+
+  // onEditDaySubjectChange(ep: any) {
+  //   const sub = this.subjectByCode[safeTrim(ep.subjectCode)];
+  //   ep.subjectName = sub?.subjectName || '';
+  //   ep.subjectId = sub?._id || '';
+  //   ep.facultyId = '';
+  //   ep.facultyName = '';
+  //   ep.topic = '';
+  //   ep.phaseId = '';
+  //   ep.phaseName = '';
+  //   this.editDayConflicts = [];
+  //   if (ep.subjectId) this.loadPhasesForSubject(ep.subjectId);
+  // }
 
   onEditDaySubjectChange(ep: any) {
     const sub = this.subjectByCode[safeTrim(ep.subjectCode)];
@@ -1463,11 +1547,46 @@ export class ViewComponent implements OnInit, OnDestroy {
     ep.facultyId = '';
     ep.facultyName = '';
     ep.topic = '';
+    ep.phaseId = '';
+    ep.phaseName = '';
+    ep.__phases = [];
     this.editDayConflicts = [];
+    if (ep.subjectId) {
+      if (this.phasesPerSubject[ep.subjectId]) {
+        ep.__phases = this.phasesPerSubject[ep.subjectId];
+      } else {
+        this.commonApi
+          .fetchData(
+            { entiId: this.tenantId },
+            'institue',
+            `phase/list?classNo=${this.batchClassNo}&subjectId=${ep.subjectId}&programId=${this.batchProgramId}`,
+          )
+          .pipe(
+            catchError(() => of({ data: [] })),
+            takeUntil(this.destroy$),
+          )
+          .subscribe((res: any) => {
+            const phases = Array.isArray(res) ? res : res?.data || [];
+            this.phasesPerSubject = {
+              ...this.phasesPerSubject,
+              [ep.subjectId]: phases,
+            };
+            ep.__phases = phases;
+          });
+      }
+    }
   }
 
+  // onEditDayPhaseChange(ep: any) {
+  //   const ph = this.phasesFull.find(
+  //     (p: any) => safeTrim(p?.phaseId) === safeTrim(ep.phaseId),
+  //   );
+  //   ep.phaseName = ph?.phaseName || '';
+  //   this.editDayConflicts = [];
+  // }
+
   onEditDayPhaseChange(ep: any) {
-    const ph = this.phasesFull.find(
+    const ph = (ep.__phases || []).find(
       (p: any) => safeTrim(p?.phaseId) === safeTrim(ep.phaseId),
     );
     ep.phaseName = ph?.phaseName || '';
@@ -1492,7 +1611,7 @@ export class ViewComponent implements OnInit, OnDestroy {
     return null;
   }
 
-  getRpStaffList(): { code: string; name: string }[] {
+  getRpStaffList(): { code: string; name: string; id: string }[] {
     if (!this.rp?.subjectId) return [];
     return this.batchStaffMap
       .filter(
@@ -1504,7 +1623,7 @@ export class ViewComponent implements OnInit, OnDestroy {
         const name = rec
           ? safeTrim(rec.staffName)
           : safeTrim(sm.staffName) || code;
-        return { code, name };
+        return { code, name, id: safeTrim(rec?.staffId || sm.staffId) };
       });
   }
 
@@ -1563,8 +1682,12 @@ export class ViewComponent implements OnInit, OnDestroy {
         subjectCode: safeTrim(ep.subjectCode) || null,
         subjectName: safeTrim(ep.subjectName) || null,
         subjectId: safeTrim(ep.subjectId) || null,
+        // phaseId: safeTrim(ep.phaseId) || null,
+        // phaseName: safeTrim(ep.phaseName) || null,
         phaseId: safeTrim(ep.phaseId) || null,
-        phaseName: safeTrim(ep.phaseName) || null,
+        phaseName: safeTrim(ep.phaseId)
+          ? safeTrim(ep.phaseName) || null
+          : safeTrim(ep.phaseName) || null,
         topic: safeTrim(ep.topic) || null,
         venue: safeTrim(ep.venue) || null,
         isCancelled: false,
@@ -1596,51 +1719,7 @@ export class ViewComponent implements OnInit, OnDestroy {
         return;
       }
       payload.date = dateMs;
-      this.editDayValidating = true;
-      this.editDayConflicts = [];
-      const allDays: any[] = this.sortedSchedule.map((row: any) => {
-        const isActiveDay = String(row.day || '').toUpperCase() === day;
-        if (isActiveDay) return { day, periods };
-        const dayPeriods: any[] = [];
-        for (const pNum of this.periodHeaders) {
-          const p = this.getRenderedPeriod(row, pNum);
-          if (p && !p.__dayCancelled && !p.isCancelled) dayPeriods.push(p);
-        }
-        return {
-          day: String(row.day || '').toUpperCase(),
-          periods: dayPeriods,
-        };
-      });
-      this.commonApi
-        .fetchData(
-          {
-            tenantId: this.tenantId,
-            data: [
-              {
-                batchCode: safeTrim(this.timetable?.batchCode),
-                timetableId: this.timetableId,
-                wkStartOn: toInt(this.timetable?.wkStartOn),
-                week: allDays,
-              },
-            ],
-          },
-          this.moduleName,
-          'validate',
-        )
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: () => {
-            this.editDayValidating = false;
-            this.doSubmitEditDay(payload);
-          },
-          error: (err: any) => {
-            this.editDayValidating = false;
-            const conflicts = err?.error?.conflicts;
-            if (Array.isArray(conflicts) && conflicts.length)
-              this.editDayConflicts = conflicts;
-            else this.alert.error(err?.error?.message || 'Validation failed');
-          },
-        });
+      this.doSubmitEditDay(payload);
     } else {
       this.doSubmitEditDay(payload);
     }
@@ -1752,7 +1831,7 @@ export class ViewComponent implements OnInit, OnDestroy {
   }
 
   onNewFacultySelected() {
-    const s = this.staffByCode[safeTrim(this.newFacultyId)];
+    const s = this.staffById[safeTrim(this.newFacultyId)];
     this.newFacultyName = s?.staffName || '';
   }
 
@@ -1862,7 +1941,7 @@ export class ViewComponent implements OnInit, OnDestroy {
     const rawId = safeTrim(p.facultyId) || '';
     const staff = this.staffByCode[rawId] || this.staffById[rawId] || null;
     this.rp = {
-      facultyId: staff ? safeTrim(staff.staffCode) : rawId,
+      facultyId: staff ? safeTrim(staff.staffId) : rawId,
       facultyName: staff
         ? safeTrim(staff.staffName)
         : safeTrim(p.facultyName) || '',
@@ -1911,7 +1990,7 @@ export class ViewComponent implements OnInit, OnDestroy {
   }
 
   onReplaceFacultySelected() {
-    const s = this.staffByCode[safeTrim(this.rp?.facultyId)];
+    const s = this.staffById[safeTrim(this.rp?.facultyId)];
     this.rp.facultyName = s?.staffName || '';
   }
 
@@ -1931,8 +2010,11 @@ export class ViewComponent implements OnInit, OnDestroy {
       );
       if (mapped) {
         const staffRec = this.staffById[safeTrim(mapped.staffId)] || null;
+        // this.rp.facultyId = staffRec
+        //   ? safeTrim(staffRec.staffCode)
+        //   : safeTrim(mapped.staffId);
         this.rp.facultyId = staffRec
-          ? safeTrim(staffRec.staffCode)
+          ? safeTrim(staffRec.staffId)
           : safeTrim(mapped.staffId);
         this.rp.facultyName = staffRec
           ? safeTrim(staffRec.staffName)
@@ -2234,15 +2316,22 @@ export class ViewComponent implements OnInit, OnDestroy {
       });
   }
 
+  // getEditDayPhasesForPeriod(ep: any): any[] {
+  //   if (!ep?.subjectId || !this.batchProgramId || !this.batchClassNo) return [];
+  //   return this.phasesFull.filter(
+  //     (ph: any) =>
+  //       safeTrim(ph?.programId) === this.batchProgramId &&
+  //       toInt(ph?.classNo) === this.batchClassNo &&
+  //       safeTrim(ph?.subjectId?._id || ph?.subjectId) ===
+  //         safeTrim(ep.subjectId),
+  //   );
+  // }
+
   getEditDayPhasesForPeriod(ep: any): any[] {
-    if (!ep?.subjectId || !this.batchProgramId || !this.batchClassNo) return [];
-    return this.phasesFull.filter(
-      (ph: any) =>
-        safeTrim(ph?.programId) === this.batchProgramId &&
-        toInt(ph?.classNo) === this.batchClassNo &&
-        safeTrim(ph?.subjectId?._id || ph?.subjectId) ===
-          safeTrim(ep.subjectId),
-    );
+    const id = safeTrim(ep?.subjectId);
+    console.log('getEditDayPhasesForPeriod', id, this.phasesPerSubject[id]);
+    if (!id) return [];
+    return this.phasesPerSubject[id] || [];
   }
 
   openStaffLateEntry(row: any, pNum: number, period: any) {
@@ -2405,7 +2494,7 @@ export class ViewComponent implements OnInit, OnDestroy {
       if (mapped) {
         const staffRec = this.staffById[safeTrim(mapped.staffId)] || null;
         this.sc.facultyId = staffRec
-          ? safeTrim(staffRec.staffCode)
+          ? safeTrim(staffRec.staffId)
           : safeTrim(mapped.staffId);
         this.sc.facultyName = staffRec
           ? safeTrim(staffRec.staffName)
@@ -2416,7 +2505,7 @@ export class ViewComponent implements OnInit, OnDestroy {
   }
 
   onSpecialClassFacultyChange() {
-    const s = this.staffByCode[safeTrim(this.sc.facultyId)];
+    const s = this.staffById[safeTrim(this.sc.facultyId)];
     this.sc.facultyName = s?.staffName || '';
   }
 
@@ -2518,6 +2607,105 @@ export class ViewComponent implements OnInit, OnDestroy {
             err?.error?.message || 'Failed to add special class',
           );
         },
+      });
+  }
+
+  confirmCloneWeek() {
+    this.showCloneConfirm = true;
+  }
+
+  cancelCloneWeek() {
+    this.showCloneConfirm = false;
+    this.cloneResult = null;
+  }
+
+  submitCloneWeek() {
+    this.showCloneConfirm = false;
+    this.loading = true;
+    this.commonApi
+      .fetchData(
+        {
+          tenantId: this.tenantId,
+          timetableId: this.timetableId,
+          userId: localStorage.getItem('userId'),
+        },
+        this.moduleName,
+        'clone-week',
+      )
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => (this.loading = false)),
+      )
+      .subscribe({
+        next: (res: any) => {
+          this.cloneResult = res?.data || null;
+          this.alert.success(res?.message || 'Week cloned successfully');
+          this.loadWeekIndex(this.batchCode);
+        },
+        error: (err: any) => {
+          const conflicts = err?.error?.conflicts;
+          if (Array.isArray(conflicts) && conflicts.length) {
+            this.alert.error(
+              `Clone blocked: ${conflicts.length} issue(s) — ${conflicts[0]?.message}`,
+            );
+          } else {
+            this.alert.error(err?.error?.message || 'Clone failed');
+          }
+        },
+      });
+  }
+
+  submitUncancelDay(row: any) {
+    const dateMs = toInt(row.dateMs);
+    if (!dateMs) {
+      this.alert.error('Cannot determine date for this day.');
+      return;
+    }
+    this.loading = true;
+    this.commonApi
+      .fetchData(
+        {
+          tenantId: this.tenantId,
+          timetableId: this.timetableId,
+          date: dateMs,
+          userId: localStorage.getItem('userId'),
+        },
+        this.moduleName,
+        'day/uncancel',
+      )
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => (this.loading = false)),
+      )
+      .subscribe({
+        next: () => {
+          this.alert.success('Holiday removed');
+          this.loadTimetable();
+        },
+        error: (err: any) => {
+          this.alert.error(err?.error?.message || 'Failed to remove holiday');
+        },
+      });
+  }
+
+  private loadPhasesForSubject(subjectId: string) {
+    if (!subjectId || !this.batchProgramId || !this.batchClassNo) return;
+    if (this.phasesPerSubject[subjectId]) return;
+    this.commonApi
+      .fetchData(
+        { entiId: this.tenantId },
+        'institue',
+        `phase/list?classNo=${this.batchClassNo}&subjectId=${subjectId}&programId=${this.batchProgramId}`,
+      )
+      .pipe(
+        catchError(() => of({ data: [] })),
+        takeUntil(this.destroy$),
+      )
+      .subscribe((res: any) => {
+        this.phasesPerSubject = {
+          ...this.phasesPerSubject,
+          [subjectId]: Array.isArray(res) ? res : res?.data || [],
+        };
       });
   }
 }

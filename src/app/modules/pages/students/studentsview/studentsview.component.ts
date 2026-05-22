@@ -37,7 +37,7 @@ export class StudentsviewComponent implements OnInit {
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
-      { label: 'Control Panel' },
+      { label: 'Students & Batches' },
       { label: 'Students', link: '/app/students' },
       { label: 'Student Detail' }
     ]);

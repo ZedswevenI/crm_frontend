@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 
 type ReportType = 'snj' | 'enrollment';
 
@@ -120,6 +121,10 @@ export class AdmissionreportsComponent implements OnInit {
     { month: 'Dec', y2024: 30, y2025: 65 }
   ];
 
+  constructor(private breadcrumb: BredcrumpService) {
+    this.breadcrumb.set([{ label: 'Admissions & Fees' }, { label: 'Admission' }, { label: 'Reports' }]);
+  }
+
   // ---------------- Derived: Filtered Data ----------------
   get filteredSNJ(): any[] {
     const s = (this.snjFilter.search || '').toLowerCase().trim();
@@ -187,7 +192,7 @@ export class AdmissionreportsComponent implements OnInit {
     }));
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void { }
 
   setReport(type: ReportType): void {
     this.reportType = type;

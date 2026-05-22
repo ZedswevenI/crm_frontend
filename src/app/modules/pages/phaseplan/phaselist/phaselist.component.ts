@@ -117,7 +117,9 @@ export class PhaselistComponent implements OnInit {
     private authService: AuthService,
   ) {
     this.tenantId = localStorage.getItem('tenantId') || '';
-    this.breadcrump.set([{ label: 'Phase Plan', link: '/app/phase' }]);
+    this.breadcrump.set([
+      { label: 'Students & Batches' },
+      { label: 'Phase Plan', link: '/app/phase' }]);
   }
 
   ngOnInit(): void {
