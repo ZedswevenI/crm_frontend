@@ -74,8 +74,7 @@ export class ExamcategoryComponent implements OnInit {
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Masters' },
+      { label: 'Org configs' },
       { label: 'Exam Category' },
     ]);
   }

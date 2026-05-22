@@ -169,7 +169,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
   ) {
     this.tenantId =
       localStorage.getItem('tenantId') || localStorage.getItem('entiId');
-       this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Timetable' }]);
+       this.breadcrumb.set([{ label: 'Timetable & Attendance' }, { label: 'Timetable' }]);
   }
 
   ngOnInit(): void {

@@ -46,7 +46,7 @@ export class PaymentsComponent implements OnInit {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
       { label: 'Accounts' },
-      { label: 'Payments Register' },
+      { label: 'All Payments' },
     ]);
   }
 

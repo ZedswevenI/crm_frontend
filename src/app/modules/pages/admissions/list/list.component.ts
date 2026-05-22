@@ -235,7 +235,7 @@ export class ListComponent implements OnInit {
     private api: CommonapiService,
     private alert: AlertService,
   ) {
-    this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Admissions' }]);
+    this.breadcrumb.set([{ label: 'Admissions & Fees' }, { label: 'Admission' }, { label: 'Search Enrollment'}]);
   }
 
   ngOnInit(): void {}

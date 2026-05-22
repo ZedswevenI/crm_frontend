@@ -69,7 +69,7 @@ export class StudentsComponent implements OnInit {
     private commonApi: CommonapiService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
-    this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Students' }]);
+    this.breadcrumb.set([{ label: 'Students & Batches' }, { label: 'Students' }]);
   }
 
   ngOnInit(): void {

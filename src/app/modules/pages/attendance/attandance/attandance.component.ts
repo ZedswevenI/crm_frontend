@@ -52,7 +52,7 @@ export class AttandanceComponent implements OnInit, OnDestroy {
     private commonApi: CommonapiService,
     private auth: AuthService,
   ) {
-    this.breadcrumb.set([{ label: 'Attendance' }]);
+    this.breadcrumb.set([ { label: 'Timetable & Attendance'}, { label: 'Attendance' }]);
   }
 
   ngOnInit(): void {

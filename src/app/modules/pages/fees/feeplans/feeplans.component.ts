@@ -84,7 +84,7 @@ export class FeeplansComponent implements OnInit {
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.userId = localStorage.getItem('userId') || localStorage.getItem('userid') || ''; // follow your pattern
-    this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Masters' }, { label: 'Fee Plans' }]);
+    this.breadcrumb.set([{ label: 'Admissions & Fees' }, { label: 'Fee Plans' }]);
   }
 
   ngOnInit(): void {

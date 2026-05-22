@@ -79,9 +79,8 @@ export class SubjectComponent implements OnInit {
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Masters' },
-      { label: 'Subjects' },
+      { label: 'Org Configs' },
+      { label: 'Subject' },
     ]);
   }
 

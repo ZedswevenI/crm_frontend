@@ -134,6 +134,7 @@ export class BatchviewComponent implements OnInit {
   ngOnInit(): void {
     this.batchId = safeTrim(this.route.snapshot.paramMap.get('batchId'));
     this.breadcrumb.set([
+      { label: 'Students & Batches'},
       { label: 'Batches', link: '/app/batch' },
       { label: 'View' },
     ]);

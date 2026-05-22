@@ -80,8 +80,8 @@ export class AdmissionfeecalComponent implements OnInit {
     private api: CommonapiService,
   ) {
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Admissions' },
+      { label: 'Admissions & Fees' },
+      { label: 'Admission' },
       { label: 'Fee Calculator' },
     ]);
   }

@@ -58,7 +58,7 @@ export class AdmissionWaitComponent {
     private api: CommonapiService,
     private alert: AlertService,
   ) {
-    this.breadcrumb.set([{ label: 'Control Panel' }, { label: 'Admissions' }]);
+        this.breadcrumb.set([{ label: 'Admissions & Fees' }, { label: 'Admission' }, { label: 'Waiting For Approval'}]);
   }
 
   ngOnInit(): void {

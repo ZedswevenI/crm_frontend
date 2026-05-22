@@ -141,8 +141,7 @@ export class ProgramComponent implements OnInit {
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Masters' },
+      { label: 'Org Configs' },
       { label: 'Programs' },
     ]);
   }

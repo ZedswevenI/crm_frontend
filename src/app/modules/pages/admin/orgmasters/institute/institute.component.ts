@@ -24,9 +24,8 @@ export class InstituteComponent implements OnInit {
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
-      { label: 'Control Panel' },
-      { label: 'Masters' },
-      { label: 'Institute Information' },
+      { label: 'Org Configs' },
+      { label: 'Institute' },
     ]);
   }
 

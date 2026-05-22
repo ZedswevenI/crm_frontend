@@ -233,7 +233,7 @@ export class ViewComponent implements OnInit, OnDestroy {
   ) {
     this.tenantId =
       localStorage.getItem('tenantId') || localStorage.getItem('entiId');
-        this.breadcrumb.set([{ label: 'Timetable', link: '/app/timetable' }, {label: 'View'}]);
+        this.breadcrumb.set([{ label: 'Timetable & Attendance' },{ label: 'Timetable', link: '/app/timetable' }, {label: 'View'}]);
   }
 
   ngOnInit(): void {
