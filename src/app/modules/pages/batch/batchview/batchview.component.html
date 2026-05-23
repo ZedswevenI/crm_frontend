@@ -171,17 +171,17 @@
             </li>
         </ul>
         <div class="d-flex gap-2">
-            <button *ngIf="activeTab === 'students'" class="btn btn-create fs-16 fw-medium"
+            <button *ngIf="activeTab === 'students'" class="btn btn-outline-primary fs-16 fw-medium"
                 (click)="openOffcanvas('assign')">
                 <i class="fa-solid fa-user-plus btn-icon"></i> Assign Students
             </button>
             <ng-container *appHasRole="['L1']">
-                <button *ngIf="activeTab === 'students'" class="btn btn-import fs-16 fw-medium"
+                <button *ngIf="activeTab === 'students'" class="btn btn-outline-success fs-16 fw-medium"
                     (click)="openOffcanvas('import')">
                     <i class="fa-solid fa-file-import btn-icon"></i> Import from Excel
                 </button>
             </ng-container>
-            <button *ngIf="activeTab === 'faculty'" class="btn btn-create fs-16 fw-medium"
+            <button *ngIf="activeTab === 'faculty'" class="btn btn-outline-primary fs-16 fw-medium"
                 (click)="openOffcanvas('staff')">
                 <i class="fa-solid fa-users-gear btn-icon"></i> Manage Faculty
             </button>
@@ -220,8 +220,8 @@
                     <thead class="table-light">
                         <tr>
                             <th>#</th>
-                            <th>Name</th>
-                            <th>Admission No</th>
+                            <th>Student Name</th>
+                            <th>Enrollment No.</th>
                             <th>Phone</th>
                             <th>AY</th>
                             <th class="text-end">Action</th>
@@ -276,10 +276,10 @@
                                     <div class="fw-semibold text-truncate">{{ m?.staffName || '-' }}</div>
                                     <div class="text-muted small text-truncate">{{ m?.subjectName || '-' }}</div>
                                 </div>
-                                <button class="btn btn-sm btn-outline-secondary me-2" title="View"
+                                <!-- <button class="btn btn-sm btn-outline-secondary me-2" title="View"
                                 (click)="viewTeacher(m.staffId)">
                                     <i class="fa-solid fa-eye"></i>
-                                </button>
+                                </button> -->
                             </div>
 
                         </div>
