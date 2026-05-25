@@ -318,7 +318,7 @@ export class BatchviewComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['/app/batch']);
+    this.router.navigate(['/app/batches']);
   }
 
   get batchDuration(): string {
