@@ -80,6 +80,7 @@ const parseCsvLine = (line: string): string[] => {
   result.push(current.trim());
   return result;
 };
+
 @Component({
   selector: 'app-timetable',
   standalone: false,
@@ -87,7 +88,7 @@ const parseCsvLine = (line: string): string[] => {
   styleUrl: './timetable.component.scss',
 })
 export class TimetableComponent implements OnInit, OnDestroy {
- private destroy$ = new Subject<void>();
+  private destroy$ = new Subject<void>();
   showUpload = false;
   file: File | null = null;
   loading = false;
@@ -169,7 +170,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
   ) {
     this.tenantId =
       localStorage.getItem('tenantId') || localStorage.getItem('entiId');
-       this.breadcrumb.set([{ label: 'Timetable & Attendance' }, { label: 'Timetable' }]);
+    this.breadcrumb.set([{ label: 'Timetable & Attendance' }, { label: 'Timetable' }]);
   }
 
   ngOnInit(): void {

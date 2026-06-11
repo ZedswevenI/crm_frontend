@@ -36,7 +36,7 @@
                     </select>
                 </div>
                 <div class="col-md-4 d-flex gap-2 justify-content-md-end">
-                     <button class="btn btn-sm btn-outline-secondary" [disabled]="loading" (click)="resetFilters()">
+                    <button class="btn btn-sm btn-outline-secondary" [disabled]="loading" (click)="resetFilters()">
                         <i class="fa-solid fa-rotate-left me-1"></i>Reset
                     </button>
                     <button class="btn btn-sm btn-primary" [disabled]="loading" (click)="applyFilters()">
@@ -523,10 +523,10 @@
                 </ul>
             </div>
             <div class="d-flex justify-content-end gap-2">
-                <button class="btn btn-outline-secondary fs-16 fw-medium me-2" (click)="closePublishConfirmRow()" [disabled]="loading">
+                <button class="btn btn-close-custom fs-16 fw-medium me-2" (click)="closePublishConfirmRow()" [disabled]="loading">
                     Cancel
                 </button>
-                <button class="btn btn-outline-success fs-16 fw-medium" (click)="submitPublishRow()" [disabled]="loading">
+                <button class="btn btn-create fs-16 fw-medium" (click)="submitPublishRow()" [disabled]="loading">
                     <span *ngIf="loading" class="spinner-border spinner-border-sm me-1"></span>
                     <i class="fa-solid fa-paper-plane me-1" *ngIf="!loading"></i>Publish
                 </button>
