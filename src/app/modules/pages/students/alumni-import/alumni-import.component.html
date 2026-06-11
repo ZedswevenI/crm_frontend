@@ -1,0 +1,165 @@
+<div class="app-modal-backdrop" *ngIf="showModal">
+    <div class="app-modal" style="max-width:860px">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">
+                    <i class="fa-solid fa-trophy me-2 text-danger"></i>Alumni / Entrance Exam Import
+                </h6>
+                <span class="text-muted small">Upload JEE Main, JEE Advanced, NEET scores for alumni students</span>
+            </div>
+            <button type="button" class="btn-close" (click)="close()"></button>
+        </div>
+        <div class="app-modal-body">
+            <!-- ══ STEP 1: UPLOAD ══════════════════════════════════════════════════ -->
+            <ng-container *ngIf="step === 'upload'">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="small text-muted">
+                        All exam columns are <b>optional</b>. Only columns present in your file will be updated.
+                        Mandatory: <b>Enrollment Number</b>.
+                    </div>
+                    <button class="btn btn-sm btn-outline-success flex-shrink-0 ms-3" (click)="downloadSample()">
+                        <i class="fa-solid fa-download me-1"></i>Sample
+                    </button>
+                </div>
+                <!-- Column reference accordion -->
+                <div class="border rounded p-2 mb-3 bg-light" style="font-size:12px">
+                    <div class="fw-semibold mb-1 text-muted">Available columns in sample Excel:</div>
+                    <div class="d-flex flex-wrap gap-1">
+                        <span class="badge bg-primary bg-opacity-10 text-primary border">JEE Main
+                            Physics/Chemistry/Maths/Total/Rank/Selected</span>
+                        <span class="badge bg-success bg-opacity-10 text-success border">JEE Adv P1 &amp; P2
+                            Physics/Chemistry/Maths/Total</span>
+                        <span class="badge bg-success bg-opacity-10 text-success border">JEE Adv Grand
+                            Total/Rank/Selected</span>
+                        <span class="badge bg-warning bg-opacity-10 text-warning border">NEET
+                            Physics/Chemistry/Biology/Total/Rank/College/Course</span>
+                    </div>
+                </div>
+                <div class="upload-zone"
+                    [class.upload-zone--success]="selectedFile && !parseErrors.length && !parseLoading"
+                    [class.upload-zone--error]="parseErrors.length > 0" (click)="fileInput.click()">
+                    <ng-container *ngIf="!selectedFile && !parseLoading">
+                        <i class="fa-solid fa-cloud-arrow-up text-muted fs-2 mb-2 d-block"></i>
+                        <p class="mb-0 fw-medium text-muted">Click to upload .xlsx file</p>
+                    </ng-container>
+                    <ng-container *ngIf="parseLoading">
+                        <span class="spinner-border text-primary d-block mx-auto mb-2"
+                            style="width:2rem;height:2rem"></span>
+                        <p class="mb-0 text-muted">Parsing file...</p>
+                    </ng-container>
+                    <ng-container *ngIf="selectedFile && !parseLoading && parseErrors.length">
+                        <i class="fa-solid fa-triangle-exclamation text-danger fs-2 mb-2 d-block"></i>
+                        <p class="mb-1 fw-medium text-danger">{{ parseErrors.length }} error(s) found</p>
+                        <button class="btn btn-sm btn-outline-secondary d-block mx-auto mt-2"
+                            (click)="clearFile(); $event.stopPropagation()">
+                            <i class="fa-solid fa-rotate-left me-1"></i>Try again
+                        </button>
+                    </ng-container>
+                    <ng-container *ngIf="selectedFile && !parseLoading && !parseErrors.length">
+                        <i class="fa-solid fa-file-excel text-success fs-2 mb-2 d-block"></i>
+                        <p class="mb-1 fw-medium">{{ fileName }}</p>
+                        <span class="badge bg-success">{{ parsedRows.length }} rows ready</span>
+                    </ng-container>
+                </div>
+                <input #fileInput type="file" accept=".xlsx,.xls" class="d-none" (change)="onFileChange($event)">
+                <div *ngIf="parseErrors.length" class="mt-3 p-3 rounded border border-danger bg-danger bg-opacity-10">
+                    <p class="fw-semibold text-danger small mb-2"><i
+                            class="fa-solid fa-triangle-exclamation me-1"></i>Errors:</p>
+                    <ul class="mb-0 ps-3">
+                        <li *ngFor="let e of parseErrors" class="small text-danger mb-1">{{ e }}</li>
+                    </ul>
+                </div>
+            </ng-container>
+            <!-- ══ STEP 2: PREVIEW ═════════════════════════════════════════════════ -->
+            <ng-container *ngIf="step === 'preview'">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <p class="fw-semibold mb-0">{{ parsedRows.length }} rows ready</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" (click)="clearFile()">
+                        <i class="fa-solid fa-rotate-left me-1"></i>Change file
+                    </button>
+                </div>
+                <!-- Preview: show enrollment + which exams have data (badge pills) -->
+                <div class="table-responsive" style="max-height:320px;overflow-y:auto">
+                    <table class="table table-sm table-bordered align-middle mb-0" style="font-size:13px">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>#</th>
+                                <th>Enrollment No</th>
+                                <th>Exams Present</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let r of parsedRows; let i = index">
+                                <td class="text-muted">{{ i + 1 }}</td>
+                                <td class="fw-medium">{{ r.enrollmentNumber }}</td>
+                                <td>
+                                    <span *ngFor="let b of getExamBadges(r)" class="badge me-1" [ngClass]="{
+                      'bg-primary': b === 'JEE Main',
+                      'bg-success': b === 'JEE Adv',
+                      'bg-warning text-dark': b === 'NEET'
+                    }">{{ b }}</span>
+                                    <span *ngIf="!getExamBadges(r).length" class="text-muted small">No exam data</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </ng-container>
+            <!-- ══ STEP 3: DONE ════════════════════════════════════════════════════ -->
+            <ng-container *ngIf="step === 'done' && summary">
+                <div class="row g-3 mb-3">
+                    <div class="col-3 text-center">
+                        <div class="p-3 rounded-3 bg-success bg-opacity-10">
+                            <div class="fs-4 fw-bold text-success">{{ summary.updated }}</div>
+                            <div class="small text-muted">Updated</div>
+                        </div>
+                    </div>
+                    <div class="col-3 text-center">
+                        <div class="p-3 rounded-3 bg-primary bg-opacity-10">
+                            <div class="fs-4 fw-bold text-primary">{{ summary.created }}</div>
+                            <div class="small text-muted">Created</div>
+                        </div>
+                    </div>
+                    <div class="col-3 text-center">
+                        <div class="p-3 rounded-3 bg-warning bg-opacity-10">
+                            <div class="fs-4 fw-bold text-warning">{{ summary.unmatched }}</div>
+                            <div class="small text-muted">Not in Profile</div>
+                        </div>
+                    </div>
+                    <div class="col-3 text-center">
+                        <div class="p-3 rounded-3 bg-light">
+                            <div class="fs-4 fw-bold">{{ summary.totalRows }}</div>
+                            <div class="small text-muted">Total Rows</div>
+                        </div>
+                    </div>
+                </div>
+                <div *ngIf="unmatchedList.length" class="alert alert-warning small">
+                    <b>{{ unmatchedList.length }}</b> enrollment number(s) had no matching student profile
+                    — their alumni records were still saved.
+                </div>
+            </ng-container>
+        </div><!-- /modal-body -->
+        <div class="app-modal-footer d-flex justify-content-end gap-2">
+            <ng-container *ngIf="step === 'upload'">
+                <button class="btn btn-danger fs-16 fw-medium mb-3 me-3" (click)="close()">Cancel</button>
+            </ng-container>
+            <ng-container *ngIf="step === 'preview'">
+                <button class="btn btn-outline-secondary fs-16 fw-medium mb-3 me-2" (click)="clearFile()">
+                    <i class="fa-solid fa-arrow-left me-1"></i>Back
+                </button>
+                <button class="btn btn-primary fs-16 fw-medium mb-3 me-3" [disabled]="submitting || !canSubmit" (click)="submit()">
+                    <span *ngIf="!submitting"><i class="fa-solid fa-file-import me-1"></i>Import {{ parsedRows.length }}
+                        Rows</span>
+                    <span *ngIf="submitting"><span
+                            class="spinner-border spinner-border-sm me-1"></span>Importing...</span>
+                </button>
+            </ng-container>
+            <ng-container *ngIf="step === 'done'">
+                <button class="btn btn-outline-secondary fs-16 fw-medium mb-3 me-2" (click)="reset()">Import Another</button>
+                <button class="btn btn-primary fs-16 fw-medium mb-3 me-3" (click)="close()">Done</button>
+            </ng-container>
+        </div>
+    </div>
+</div>
