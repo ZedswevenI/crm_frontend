@@ -74,15 +74,15 @@
                         <i class="fa-solid me-1" [ngClass]="{'fa-circle-check': isPublished, 'fa-pencil': isDraft}"></i>
                         {{ timetable.status }}
                     </span>
-                    <button *ngIf="isDraft" class="btn btn-sm btn-success" (click)="confirmPublish()"
+                    <button *ngIf="isDraft" class="btn btn-import fs-16 fw-medium me-2" (click)="confirmPublish()"
                         [disabled]="loading">
                         <i class="fa-solid fa-paper-plane me-1"></i>Publish
                     </button>
-                    <button *ngIf="isPublished" class="btn btn-sm btn-outline-warning" (click)="confirmUnpublish()"
-                        [disabled]="loading">
+                    <button *ngIf="isPublished" class="btn btn-late-entry fs-16 fw-medium me-2" (click)="confirmUnpublish()"
+                    [disabled]="loading">
                         <i class="fa-solid fa-rotate-left me-1"></i>Revert to Draft
                     </button>
-                    <button class="btn btn-sm btn-outline-primary" (click)="toggleRangeView()" [disabled]="loading">
+                    <button class="btn btn-shuffle fs-16 fw-medium me-2" (click)="toggleRangeView()" [disabled]="loading">
                         <i class="fa-solid fa-calendar-days me-1"></i>
                         {{ viewMode === 'range' ? 'Weekly View' : 'Date Range' }}
                     </button>
