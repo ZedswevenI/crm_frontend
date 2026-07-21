@@ -8,6 +8,7 @@ import { Location } from '@angular/common';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
+import { ActivatedRoute, Router } from '@angular/router';
 
 interface FeePlan {
   id: string;
@@ -68,6 +69,7 @@ export class PrintAcknowledgementComponent implements OnInit {
     private alert: AlertService,
     private breadcrumb: BredcrumpService,
     private api: CommonapiService,
+    private router: Router
   ) {
     this.breadcrumb.set([
       { label: 'Admissions & Fees' },
@@ -278,7 +280,8 @@ export class PrintAcknowledgementComponent implements OnInit {
   }
 
   goBack(): void {
-    this.location.back();
+    // this.location.back();
+        this.router.navigate(['/app/admissions']);
   }
 
   printAck(): void {
