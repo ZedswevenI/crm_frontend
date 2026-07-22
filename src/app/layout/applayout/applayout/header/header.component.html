@@ -202,15 +202,17 @@
         </li>
       </ul>
 
-      <!-- RIGHT: User dropdown (notifications + logout) -->
+      <!-- RIGHT: Notification bell + User dropdown (logout) -->
       <div class="d-flex align-items-center">
+        <button type="button" class="btn btn-icon position-relative me-2" (click)="toggleNotifPanel()"
+          aria-label="Notifications">
+          <i class="fa-regular fa-bell"></i>
+          <span class="badge rounded-pill notif-badge" *ngIf="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+        </button>
+
         <div class="dropdown">
           <button class="btn btn-user dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown"
             aria-expanded="false">
-            <span class="position-relative me-2">
-              <i class="fa-regular fa-bell"></i>
-              <span class="badge rounded-pill notif-badge">0</span>
-            </span>
             <span class="user-name d-none d-md-inline">{{username}}</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
@@ -224,11 +226,6 @@
               <hr class="dropdown-divider" />
             </li>
             <li>
-              <button type="button" class="dropdown-item">
-                <i class="fa-regular fa-bell me-2"></i> Notifications
-              </button>
-            </li>
-            <li>
               <button type="button" class="dropdown-item text-danger" (click)="logout()">
                 <i class="fa-solid fa-right-from-bracket me-2"></i> Sign Out
               </button>
@@ -239,3 +236,47 @@
     </div>
   </div>
 </nav>
+
+<!-- Notification side panel -->
+<div class="notif-overlay" *ngIf="notifPanelOpen" (click)="closeNotifPanel()"></div>
+<div class="notif-panel" [class.notif-panel-open]="notifPanelOpen">
+  <div class="notif-panel-header">
+    <h6 class="mb-0">Notifications</h6>
+    <div class="d-flex align-items-center">
+      <button type="button" class="btn btn-link btn-sm text-decoration-none" (click)="markAllRead()"
+        *ngIf="notifications.length">
+        Mark all as read
+      </button>
+      <button type="button" class="btn-close ms-2" aria-label="Close" (click)="closeNotifPanel()"></button>
+    </div>
+  </div>
+
+  <div class="notif-panel-body">
+    <div class="text-center text-muted py-4" *ngIf="notifLoading">
+      <i class="fa-solid fa-spinner fa-spin"></i> Loading...
+    </div>
+
+    <div class="text-center text-muted py-4" *ngIf="!notifLoading && !notifications.length">
+      No notifications
+    </div>
+
+    <div class="notif-item" *ngFor="let notif of notifications" [class.notif-item-unread]="!notif.isRead"
+      (click)="onNotificationClick(notif)">
+      <div class="notif-item-main">
+        <div class="notif-item-title">{{ notif.title }}</div>
+        <div class="notif-item-body">{{ notif.body }}</div>
+        <div class="notif-item-time">{{ notif.createdAt | date: 'dd MMM y, h:mm a' }}</div>
+      </div>
+      <div class="notif-item-actions">
+        <button type="button" class="btn btn-sm btn-link p-0" title="Mark as read" *ngIf="!notif.isRead"
+          (click)="toggleRead(notif, $event)">
+          <i class="fa-regular fa-circle-dot"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-link p-0 text-muted" title="Dismiss"
+          (click)="dismissNotification(notif, $event)">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

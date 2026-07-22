@@ -71,15 +71,118 @@
   background-color: #f9fafb;
 }
 
+/* Notification bell button */
+.btn-icon {
+  border: none;
+  background: transparent;
+  color: #374151;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 6px 8px;
+}
+
+.btn-icon:hover {
+  color: var(--z7i-saffron);
+}
+
 /* Notification badge on the bell */
 .notif-badge {
   position: absolute;
-  top: -4px;
-  right: -6px;
+  top: -2px;
+  right: -2px;
   background-color: #ef4444;
   color: #ffffff;
-  font-size: 0.65rem;
-  padding: 2px 4px;
+  font-size: 0.6rem;
+  padding: 2px 5px;
+}
+
+/* Notification side panel */
+.notif-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1040;
+}
+
+.notif-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 380px;
+  max-width: 92vw;
+  background: #ffffff;
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s ease-in-out;
+}
+
+.notif-panel-open {
+  transform: translateX(0);
+}
+
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.notif-panel-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f3f5;
+  cursor: pointer;
+}
+
+.notif-item:hover {
+  background-color: #f9fafb;
+}
+
+.notif-item-unread {
+  background-color: #fff7ed;
+}
+
+.notif-item-main {
+  min-width: 0;
+}
+
+.notif-item-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #111827;
+}
+
+.notif-item-body {
+  font-size: 0.8rem;
+  color: #4b5563;
+  margin-top: 2px;
+}
+
+.notif-item-time {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+.notif-item-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 /* Mobile tweaks */

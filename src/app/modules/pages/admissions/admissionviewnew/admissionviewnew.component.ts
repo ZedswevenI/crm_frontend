@@ -100,6 +100,7 @@ interface AdmissionViewModel {
     duration?: string | number | null;
     courseStart?: string | null;
     startMonth?: string | null;
+    academicYear?: string | null;
   };
   test: {
     testDate?: string | null;
@@ -1216,8 +1217,13 @@ export class AdmissionviewnewComponent implements OnInit {
         batchName: adm.batchName || null,
         className: adm.classLabel || adm.student?.className || null,
         duration,
-        courseStart: adm.academicYear ? adm.academicYear.split(' - ')[0] : null,
+        courseStart: adm.courseStartYear
+          ? String(adm.courseStartYear)
+          : adm.academicYear
+            ? adm.academicYear.split(' - ')[0]
+            : null,
         startMonth: null,
+        academicYear: adm.academicYear || null,
       },
       test: {
         testDate: adm.test?.testDate || null,
@@ -1927,7 +1933,7 @@ export class AdmissionviewnewComponent implements OnInit {
           <div class="kv-label">Parent Mobile</div>
           <div>${this.esc(a?.student?.parentPhone || '')}</div>
           <div class="kv-label">Academic Year</div>
-          <div>${this.esc((a as any)?.academicYear || '')}</div>
+          <div>${this.esc(a?.academics?.academicYear || '—')}</div>
           <div class="kv-label">Program</div>
           <div>${this.esc(a?.academics?.programName || '')}</div>
           <div class="kv-label">Fee Plan</div>
@@ -1991,6 +1997,17 @@ export class AdmissionviewnewComponent implements OnInit {
 
     const studentName = this.esc(s.name || '');
     const parentName = this.esc(s.parentName || '');
+    const dob = s.dateOfBirth
+      ? new Date(s.dateOfBirth).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '—';
+    const gender = this.esc(s.gender || '—');
+    const courseCommencement = this.esc(
+      ac.courseStart || ac.academicYear || '—',
+    );
 
     // Address
     const addrParts = [];
@@ -2141,6 +2158,14 @@ export class AdmissionviewnewComponent implements OnInit {
                  <td><b>${studentName}</b></td>
                </tr>
                <tr>
+                 <td>Date of Birth</td>
+                 <td>${dob}</td>
+               </tr>
+               <tr>
+                 <td>Gender</td>
+                 <td>${gender}</td>
+               </tr>
+               <tr>
                  <td>Enrolment Number</td>
                  <td><b>${admissionNo}</b></td>
                </tr>
@@ -2186,7 +2211,7 @@ export class AdmissionviewnewComponent implements OnInit {
                </tr>
                <tr>
                  <td>Course Commencement</td>
-                <td></td>
+                 <td>${courseCommencement}</td>
                </tr>
                <tr>
                  <td>Study Centre</td>
