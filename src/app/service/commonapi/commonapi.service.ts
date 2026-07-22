@@ -11,7 +11,7 @@ import { map, catchError } from 'rxjs/operators';
 export class CommonapiService {
   headers = new HttpHeaders().set('Content-Type', 'application/json');
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   // =========================
   // GENERIC POST (existing)
@@ -56,4 +56,10 @@ export class CommonapiService {
     window.alert(errorMessage);
     return errorMessage;
   }
+
+  uploadImage(payload: any, module: string, endpoint: string): Observable<any> {
+    return this.http
+      .post(`${environment.baseURL}/${module}/${endpoint}`, payload);
+  }
+
 }

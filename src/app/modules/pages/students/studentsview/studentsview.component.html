@@ -4,11 +4,19 @@
         <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
 
             <div class="d-flex align-items-center gap-3">
-                <div class="avatar-circle-lg bg-light rounded-circle d-flex align-items-center justify-content-center"
+                <!-- <div class="avatar-circle-lg bg-light rounded-circle d-flex align-items-center justify-content-center"
                     style="width: 64px; height: 64px; font-size: 1.5rem;">
                     <span class="avatar-initials-lg fw-bold text-primary">
                         {{ getInitials(student.basic?.name) }}
                     </span>
+                </div> -->
+
+                <div class="avatar-circle-lg bg-light rounded-circle d-flex align-items-center justify-content-center">
+                    <img *ngIf="photoObjectUrl" [src]="photoObjectUrl" class="rounded-circle object-fit-cover border"
+                        style="width:56px;height:56px;" alt="Photo" />
+                    <div *ngIf="!photoObjectUrl" class="avatar">
+                        {{ getInitials(student.basic?.name) }}
+                    </div>
                 </div>
                 <div>
                     <h5 class="mb-1 fw-bold">{{ student.basic?.name }}</h5>
@@ -39,6 +47,24 @@
                     </span>
                 </div>
 
+                <button *appHasRole="['L1']" class="btn btn-sm btn-primary d-flex align-items-center gap-1"
+                    (click)="exportToExcel()">
+                    <i class="fa-solid fa-file-excel btn-icon"></i> Export Excel
+                </button>
+                <button *appHasRole="['L1']" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                    (click)="openEditProfile()">
+                    <i class="fa-solid fa-pen btn-icon"></i> Edit Profile
+                </button>
+                <!-- <button *appHasRole="['L1']" class="btn fs-16 fw-medium"
+                    [ngClass]="student.basic?.isTabletBlocked ? 'btn-success' : 'btn-danger'"
+                    [disabled]="tabletLockLoading" (click)="toggleTabletLock()">
+                    <span *ngIf="tabletLockLoading" class="spinner-border spinner-border-sm btn-icon"></span>
+                    <i *ngIf="!tabletLockLoading" class="btn-icon"
+                        [ngClass]="student.basic?.isTabletBlocked ? 'fa-solid fa-lock-open' : 'fa-solid fa-lock'">
+                    </i>
+                    {{ student.basic?.isTabletBlocked ? 'Unlock Tablet' : 'Lock Tablet' }}
+                </button> -->
+
                 <button type="button" class="btn btn-outline-secondary btn-sm" routerLink="/app/students">
                     <i class="fa-solid fa-arrow-left-long me-1"></i> Back
                 </button>
@@ -61,19 +87,29 @@
                     <div class="mb-3">
                         <div class="text-muted small">Mobile</div>
                         <div class="fw-medium">
-                            <i class="fa-solid fa-phone me-1 text-muted"></i>{{ student.basic?.mobile }}
+                            <p><i class="fa-solid fa-phone me-2"></i>{{ student.basic?.mobile || '—' }}</p>
+                            <p><i class="fa-solid fa-phone me-2"></i>{{ student.basic?.phone1 || '—' }}</p>
+                            <p><i class="fa-solid fa-phone me-2"></i>{{ student.basic?.phone2 || '—' }}</p>
+                            <!-- <i class="fa-solid fa-phone me-1 text-muted"></i>{{ student.basic?.mobile }} -->
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <div class="text-muted small">Email</div>
-                        <div class="fw-medium text-break">{{ student.basic?.email || '--' }}</div>
+                        <p><i class="fa-solid fa-envelope me-2"></i>{{ student.basic?.email || '—' }}</p>
+                        <p><i class="fa-solid fa-envelope me-2"></i>{{ student.basic?.email1 || '—' }}</p>
+                        <p><i class="fa-solid fa-envelope me-2"></i>{{ student.basic?.email2 || '—' }}</p>
+                        <!-- <div class="fw-medium text-break">{{ student.basic?.email || '--' }}</div> -->
                     </div>
 
                     <div class="mb-3">
-                        <div class="text-muted small">Parent Name & Phone</div>
+                        <div class="text-muted small">Parent Name</div>
                         <div class="fw-medium">{{ student.basic?.parentName }}</div>
-                        <div class="small">{{ student.basic?.parentMobile }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="text-muted small">Parent Mobile</div>
+                        <div class="fw-medium">{{ student.basic?.parentMobile }}</div>
                     </div>
 
                     <!-- <div class="mb-3">
@@ -89,7 +125,7 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0">
+            <!-- <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-0">
                     <h6 class="mb-0 fw-semibold">Quick Stats</h6>
                 </div>
@@ -109,9 +145,71 @@
                         <span class="fw-semibold text-success">₹{{ student.fees?.paidAmount | number : '1.0-0' }}</span>
                     </div>
                 </div>
+            </div> -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3">Quick Stats</h6>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Attendance</span>
+                        <span class="fw-semibold" *ngIf="attendanceSummary">
+                            {{ attendanceSummary.present }}/{{ attendanceSummary.totalPeriods }}
+                            <span class="text-muted small ms-1">
+                                ({{ attendanceSummary.attendancePercentage }}%)
+                            </span>
+                        </span>
+                        <span class="fw-semibold text-muted" *ngIf="!attendanceSummary">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Avg. Exam Score</span>
+                        <span class="fw-semibold">{{ student.exams?.averageScore || 0 }}%</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Fees Paid</span>
+                        <span class="fw-semibold text-success">₹{{ student.fees?.paidAmount | number : '1.0-0' }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Tests Completed</span>
+                        <strong>{{ dataArray1.length || 0 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Late Entries</span>
+                        <strong>{{ lateEntries.length || 0 }}</strong>
+                    </div>
+                    <!-- <div class="d-flex justify-content-between mb-2">
+                        <span>Tablet Access</span>
+                        <span class="badge" [ngClass]="student.basic?.isTabletBlocked ? 'bg-danger' : 'bg-success'">
+                            {{ student.basic?.isTabletBlocked ? 'Blocked' : 'Enabled' }}
+                        </span>
+                    </div> -->
+                    <!-- RPA IDs -->
+                    <ng-container *ngIf="student.basic?.studentRpa?.length">
+                        <hr>
+                        <p class="mb-1"><strong>RPA</strong></p>
+                        <div class="d-flex mb-2">
+                            <span *ngFor="let rpa of student.basic.studentRpa"
+                                class="badge bg-primary  mx-1 text-white">
+                                {{ rpa }}
+                            </span>
+                        </div>
+                    </ng-container>
+                    <!-- <div class="d-flex justify-content-between mb-2">
+                            <span>Fees Paid</span>
+                            <span class="fw-semibold text-success">
+                                ₹{{ (student.fees?.paidAmount || 0) | number:'1.0-0' }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Outstanding</span>
+                            <span class="fw-semibold text-danger">
+                                ₹{{ (student.fees?.outstandingAmount || 0) | number:'1.0-0' }}
+                            </span>
+                        </div> -->
+                </div>
             </div>
         </div>
 
+
+        <!-- Right -->
         <div class="col-lg-8">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-0 pb-0">
@@ -127,6 +225,7 @@
 
                 <div class="card-body pt-3 border-top">
 
+                    <!-- ── PROGRAM TAB ────────────────────────────────────────── -->
                     <ng-container *ngIf="activeTab === 'program'">
                         <div class="row g-3 small">
                             <div class="col-md-6">
@@ -166,20 +265,86 @@
                         </div>
                     </ng-container>
 
+                    <!-- ── ATTENDANCE TAB ────────────────────────────────────────── -->
                     <ng-container *ngIf="activeTab === 'attendance'">
-                        <div class="text-center py-5 text-muted">
+                        <!-- <div class="text-center py-5 text-muted">
                             <i class="fa-regular fa-calendar-xmark fa-2x mb-2"></i>
                             <p>Attendance module not yet integrated.</p>
+                        </div> -->
+                        <div *ngIf="attendanceSummary" class="row g-2 mb-3">
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 text-center">
+                                    <div class="fw-bold text-primary">{{ attendanceSummary.totalPeriods }}</div>
+                                    <div class="small text-muted">Total</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 text-center">
+                                    <div class="fw-bold text-success">{{ attendanceSummary.present }}</div>
+                                    <div class="small text-muted">Present</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 text-center">
+                                    <div class="fw-bold text-danger">{{ attendanceSummary.absent }}</div>
+                                    <div class="small text-muted">Absent</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="border rounded p-2 text-center">
+                                    <div class="fw-bold text-info">{{ attendanceSummary.attendancePercentage }}%
+                                    </div>
+                                    <div class="small text-muted">Percentage</div>
+                                </div>
+                            </div>
                         </div>
+                        <div *ngIf="!dataArray.length" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-calendar-check fa-2x mb-2 d-block"></i>
+                            No attendance records found.
+                        </div>
+                        <list-table *ngIf="dataArray.length" [autoFitChars]="true" [columns]="columnsArray"
+                            [data]="dataArray" [showaction]="false" [success]="'PRESENT'" [danger]="'ABSENT'"
+                            [warn]="'LATE'" [searchPlaceholder]="'Search attendance...'">
+                        </list-table>
                     </ng-container>
 
+                    <!-- ── ASSIGNMENT TAB ────────────────────────────────────────── -->
                     <ng-container *ngIf="activeTab === 'assignments'">
-                        <div class="text-center py-5 text-muted">
+                        <!-- <div class="text-center py-5 text-muted">
                             <i class="fa-solid fa-book-open fa-2x mb-2"></i>
                             <p>Assignments module not yet integrated.</p>
+                        </div> -->
+                        <!-- Topic-wise summary cards -->
+                        <div *ngIf="topicSummaryKeys.length" class="row g-2 mb-3">
+                            <div class="col-12 col-sm-6 col-md-4" *ngFor="let topic of topicSummaryKeys">
+                                <div class="border rounded-3 p-3">
+                                    <div class="fw-semibold small text-truncate mb-1">{{ topic }}</div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted small">Tests</span>
+                                        <span class="fw-semibold">
+                                            {{ topicSummary[topic].completed }}/{{ topicSummary[topic].total }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-1"
+                                        style="height:4px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+                                        <div style="height:100%;background:#3b82f6;border-radius:4px" [style.width.%]="topicSummary[topic].total
+                          ? (topicSummary[topic].completed / topicSummary[topic].total) * 100
+                          : 0">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                        <div *ngIf="!dataArray1.length" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-file-pen fa-2x mb-2 d-block"></i>
+                            No assignment results found.
+                        </div>
+                        <list-table *ngIf="dataArray1.length" [autoFitChars]="true" [columns]="columnsArray1"
+                            [data]="dataArray1" [showaction]="false" [searchPlaceholder]="'Search results...'">
+                        </list-table>
                     </ng-container>
 
+                    <!-- ── EXAM TAB ────────────────────────────────────────── -->
                     <ng-container *ngIf="activeTab === 'exams'">
                         <div class="text-center py-5 text-muted">
                             <i class="fa-solid fa-file-pen fa-2x mb-2"></i>
@@ -187,6 +352,7 @@
                         </div>
                     </ng-container>
 
+                    <!-- ── FEES TAB ────────────────────────────────────────── -->
                     <ng-container *ngIf="activeTab === 'fees'">
                         <div class="row g-3 mb-3 small">
                             <div class="col-md-4">
@@ -247,7 +413,450 @@
                         </div>
                     </ng-container>
 
+                    <!-- ── LATE ENTRIES TAB ────────────────────────────────────────── -->
+                    <ng-container *ngIf="activeTab === 'late'">
+                        <div *ngIf="lateLoading" class="text-center py-4">
+                            <i class="fa-solid fa-spinner fa-spin fa-lg text-muted"></i>
+                        </div>
+                        <div *ngIf="!lateLoading && !lateEntries.length" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-clock fa-2x mb-2 d-block"></i>
+                            No late entries recorded.
+                        </div>
+                        <list-table *ngIf="!lateLoading && lateEntries.length" [autoFitChars]="true"
+                            [columns]="columnsLate" [data]="lateEntries" [showaction]="false"
+                            [searchPlaceholder]="'Search late entries...'">
+                        </list-table>
+                    </ng-container>
+
+                    <!-- ── REMARKS TAB ────────────────────────────────────────── -->
+                    <ng-container *ngIf="activeTab === 'remark'">
+                        <div class="d-flex justify-content-end mb-3">
+                            <!-- <button class="btn btn-create fs-16 fw-medium"
+                                    (click)="toggleRemarkForm()"
+                                    ngClass="">
+                                    <i class="fa-solid fa-plus me-1"></i>
+                                    {{ showRemarkForm ? 'Cancel' : 'Add Remark' }}
+                                </button> -->
+                            <button class="btn fs-16 fw-medium"
+                                [ngClass]="showRemarkForm ? 'btn-danger' : 'btn-primary'" (click)="toggleRemarkForm()">
+                                <i [class]="showRemarkForm ? 'fa-solid fa-xmark me-1' : 'fa-solid fa-plus me-1'"></i>
+
+                                {{ showRemarkForm ? 'Cancel' : 'Add Remark' }}
+                            </button>
+                        </div>
+                        <div *ngIf="showRemarkForm" class="border rounded-3 p-3 mb-3 bg-light">
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-medium">Type</label>
+                                    <select class="form-select form-select-sm" [(ngModel)]="newRemark.type">
+                                        <option *ngFor="let t of remarkTypes" [value]="t">{{ t }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-medium">
+                                        Date <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        [(ngModel)]="newRemark.dateOfIncident" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-medium">
+                                        Remark <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" class="form-control form-control-sm"
+                                        [(ngModel)]="newRemark.remark" placeholder="Enter remark" />
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="rbyp"
+                                            [(ngModel)]="newRemark.reportedByParent" />
+                                        <label class="form-check-label small" for="rbyp">By Parent</label>
+                                    </div>
+                                </div>
+                                <div class="col-12 d-flex justify-content-end">
+                                    <button class="btn btn-primary fs-16 fw-medium" (click)="submitRemark()"
+                                        [disabled]="remarkLoading">
+                                        <span *ngIf="remarkLoading"
+                                            class="spinner-border spinner-border-sm me-1"></span>
+                                        Save Remark
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div *ngIf="!dataArray4.length" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-comment fa-2x mb-2 d-block"></i>
+                            No remarks recorded.
+                        </div>
+                        <list-table *ngIf="dataArray4.length" [autoFitChars]="true" [columns]="columnsArray4"
+                            [data]="dataArray4" [showaction]="false" [searchPlaceholder]="'Search remarks...'">
+                        </list-table>
+                    </ng-container>
+
+                    <!-- ── BOARD MARKS TAB ────────────────────────────────────────── -->
+                    <ng-container *ngIf="activeTab === 'mark'">
+                        <div *ngIf="!boardExams.length" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-school fa-2x mb-2 d-block opacity-30"></i>
+                            No board exam records found.
+                        </div>
+                        <div *ngIf="boardExams.length">
+                            <div *ngFor="let exam of boardExams" class="border rounded-3 p-3 mb-3">
+                                <!-- Exam header -->
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <div class="fw-semibold">{{ exam.boardExamName || '—' }}</div>
+                                        <div class="text-muted small" *ngIf="exam.schoolId">School ID: {{
+                                            exam.schoolId }}</div>
+                                    </div>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border fs-6"
+                                        *ngIf="exam.total != null">
+                                        Total: {{ exam.total }}
+                                    </span>
+                                </div>
+                                <!-- Subject scores grid -->
+                                <div class="row g-2">
+                                    <div class="col-6 col-md-3" *ngIf="exam.s1 != null">
+                                        <div class="border rounded p-2 text-center">
+                                            <div class="fw-bold text-primary">{{ exam.s1 }}</div>
+                                            <div class="small text-muted">Subject 1</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3" *ngIf="exam.s2 != null">
+                                        <div class="border rounded p-2 text-center">
+                                            <div class="fw-bold text-primary">{{ exam.s2 }}</div>
+                                            <div class="small text-muted">Subject 2</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3" *ngIf="exam.s3 != null">
+                                        <div class="border rounded p-2 text-center">
+                                            <div class="fw-bold text-primary">{{ exam.s3 }}</div>
+                                            <div class="small text-muted">Subject 3</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3" *ngIf="exam.s4 != null">
+                                        <div class="border rounded p-2 text-center">
+                                            <div class="fw-bold text-primary">{{ exam.s4 }}</div>
+                                            <div class="small text-muted">Subject 4</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3" *ngIf="exam.s5 != null">
+                                        <div class="border rounded p-2 text-center">
+                                            <div class="fw-bold text-primary">{{ exam.s5 }}</div>
+                                            <div class="small text-muted">Subject 5</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3" *ngIf="exam.s6 != null">
+                                        <div class="border rounded p-2 text-center">
+                                            <div class="fw-bold text-primary">{{ exam.s6 }}</div>
+                                            <div class="small text-muted">Subject 6</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 col-md-3" *ngIf="exam.s7 != null">
+                                        <div class="border rounded p-2 text-center">
+                                            <div class="fw-bold text-primary">{{ exam.s7 }}</div>
+                                            <div class="small text-muted">Subject 7</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </ng-container>
+
+                    <!-- ── ALUMNI INFO TAB ────────────────────────────────────────── -->
+                    <ng-container *ngIf="activeTab === 'alumni'">
+                        
+                            <div *ngIf="alumniLoading" class="text-center py-4">
+                                <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                                <p class="mt-2 text-muted small">Loading entrance exam data...</p>
+                            </div>
+
+                            <div *ngIf="!alumniLoading && !alumniData" class="text-center text-muted py-4">
+                                <i class="fa-solid fa-trophy fa-2x mb-2 d-block opacity-30"></i>
+                                No entrance exam records found.
+                            </div>
+
+                            <div *ngIf="!alumniLoading && alumniData">
+                                <!-- JEE Main card -->
+                                <div *ngIf="alumniData.jeeMain" class="border rounded-3 p-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="fw-semibold mb-0">
+                                            <i class="fa-solid fa-atom me-2 text-primary"></i>JEE Main
+                                        </h6>
+                                        <div class="d-flex gap-2 align-items-center">
+                                            <span *ngIf="alumniData.jeeMain.rank" class="badge bg-secondary">Rank: {{
+                                                alumniData.jeeMain.rank }}</span>
+                                            <span *ngIf="alumniData.jeeMain.selected === 'YES'"
+                                                class="badge bg-success">Selected</span>
+                                            <span *ngIf="alumniData.jeeMain.selected === 'NO'"
+                                                class="badge bg-danger">Not Selected</span>
+                                        </div>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-6 col-md-3" *ngIf="alumniData.jeeMain.physics != null">
+                                            <div class="border rounded p-2 text-center">
+                                                <div class="fw-bold text-primary">{{ alumniData.jeeMain.physics }}</div>
+                                                <div class="small text-muted">Physics</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3" *ngIf="alumniData.jeeMain.chemistry != null">
+                                            <div class="border rounded p-2 text-center">
+                                                <div class="fw-bold text-success">{{ alumniData.jeeMain.chemistry }}
+                                                </div>
+                                                <div class="small text-muted">Chemistry</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3" *ngIf="alumniData.jeeMain.maths != null">
+                                            <div class="border rounded p-2 text-center">
+                                                <div class="fw-bold text-warning">{{ alumniData.jeeMain.maths }}</div>
+                                                <div class="small text-muted">Maths</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3" *ngIf="alumniData.jeeMain.total != null">
+                                            <div class="border rounded p-2 text-center bg-primary bg-opacity-10">
+                                                <div class="fw-bold text-primary fs-5">{{ alumniData.jeeMain.total }}
+                                                </div>
+                                                <div class="small text-muted">Total</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- JEE Advanced card -->
+                                <div *ngIf="alumniData.jeeAdv" class="border rounded-3 p-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="fw-semibold mb-0">
+                                            <i class="fa-solid fa-flask me-2 text-success"></i>JEE Advanced
+                                        </h6>
+                                        <div class="d-flex gap-2 align-items-center">
+                                            <span *ngIf="alumniData.jeeAdv.grandTotal != null"
+                                                class="badge bg-success">Grand Total: {{ alumniData.jeeAdv.grandTotal
+                                                }}</span>
+                                            <span *ngIf="alumniData.jeeAdv.rank" class="badge bg-secondary">Rank: {{
+                                                alumniData.jeeAdv.rank }}</span>
+                                            <span *ngIf="alumniData.jeeAdv.selected === 'YES'"
+                                                class="badge bg-success">Selected</span>
+                                            <span *ngIf="alumniData.jeeAdv.selected === 'NO'"
+                                                class="badge bg-danger">Not Selected</span>
+                                        </div>
+                                    </div>
+                                    <!-- Paper 1 -->
+                                    <div *ngIf="alumniData.jeeAdv.paper1" class="mb-2">
+                                        <div class="small fw-semibold text-muted mb-1">Paper 1</div>
+                                        <div class="row g-2">
+                                            <div class="col-6 col-md-3"
+                                                *ngIf="alumniData.jeeAdv.paper1.physics != null">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold text-primary">{{
+                                                        alumniData.jeeAdv.paper1.physics }}</div>
+                                                    <div class="small text-muted">Physics</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3"
+                                                *ngIf="alumniData.jeeAdv.paper1.chemistry != null">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold text-success">{{
+                                                        alumniData.jeeAdv.paper1.chemistry }}</div>
+                                                    <div class="small text-muted">Chemistry</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3" *ngIf="alumniData.jeeAdv.paper1.maths != null">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold text-warning">{{ alumniData.jeeAdv.paper1.maths
+                                                        }}</div>
+                                                    <div class="small text-muted">Maths</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3" *ngIf="alumniData.jeeAdv.paper1.total != null">
+                                                <div class="border rounded p-2 text-center bg-success bg-opacity-10">
+                                                    <div class="fw-bold text-success fs-5">{{
+                                                        alumniData.jeeAdv.paper1.total }}</div>
+                                                    <div class="small text-muted">Total</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Paper 2 -->
+                                    <div *ngIf="alumniData.jeeAdv.paper2">
+                                        <div class="small fw-semibold text-muted mb-1">Paper 2</div>
+                                        <div class="row g-2">
+                                            <div class="col-6 col-md-3"
+                                                *ngIf="alumniData.jeeAdv.paper2.physics != null">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold text-primary">{{
+                                                        alumniData.jeeAdv.paper2.physics }}</div>
+                                                    <div class="small text-muted">Physics</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3"
+                                                *ngIf="alumniData.jeeAdv.paper2.chemistry != null">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold text-success">{{
+                                                        alumniData.jeeAdv.paper2.chemistry }}</div>
+                                                    <div class="small text-muted">Chemistry</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3" *ngIf="alumniData.jeeAdv.paper2.maths != null">
+                                                <div class="border rounded p-2 text-center">
+                                                    <div class="fw-bold text-warning">{{ alumniData.jeeAdv.paper2.maths
+                                                        }}</div>
+                                                    <div class="small text-muted">Maths</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3" *ngIf="alumniData.jeeAdv.paper2.total != null">
+                                                <div class="border rounded p-2 text-center bg-success bg-opacity-10">
+                                                    <div class="fw-bold text-success fs-5">{{
+                                                        alumniData.jeeAdv.paper2.total }}</div>
+                                                    <div class="small text-muted">Total</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- NEET card -->
+                                <div *ngIf="alumniData.neet" class="border rounded-3 p-3 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="fw-semibold mb-0">
+                                            <i class="fa-solid fa-stethoscope me-2 text-danger"></i>NEET
+                                        </h6>
+                                        <span *ngIf="alumniData.neet.rank" class="badge bg-secondary">Rank: {{
+                                            alumniData.neet.rank }}</span>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-6 col-md-3" *ngIf="alumniData.neet.physics != null">
+                                            <div class="border rounded p-2 text-center">
+                                                <div class="fw-bold text-primary">{{ alumniData.neet.physics }}</div>
+                                                <div class="small text-muted">Physics</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3" *ngIf="alumniData.neet.chemistry != null">
+                                            <div class="border rounded p-2 text-center">
+                                                <div class="fw-bold text-success">{{ alumniData.neet.chemistry }}</div>
+                                                <div class="small text-muted">Chemistry</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3" *ngIf="alumniData.neet.biology != null">
+                                            <div class="border rounded p-2 text-center">
+                                                <div class="fw-bold text-warning">{{ alumniData.neet.biology }}</div>
+                                                <div class="small text-muted">Biology</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6 col-md-3" *ngIf="alumniData.neet.total != null">
+                                            <div class="border rounded p-2 text-center bg-danger bg-opacity-10">
+                                                <div class="fw-bold text-danger fs-5">{{ alumniData.neet.total }}</div>
+                                                <div class="small text-muted">Total</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- College info -->
+                                    <div *ngIf="alumniData.neet.collegeName || alumniData.neet.course"
+                                        class="mt-3 p-2 bg-light rounded">
+                                        <div class="small" *ngIf="alumniData.neet.collegeName">
+                                            <i class="fa-solid fa-hospital me-1 text-danger"></i>
+                                            <strong>College:</strong> {{ alumniData.neet.collegeName }}
+                                        </div>
+                                        <div class="small mt-1" *ngIf="alumniData.neet.course">
+                                            <i class="fa-solid fa-book-medical me-1 text-danger"></i>
+                                            <strong>Course:</strong> {{ alumniData.neet.course }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                    </ng-container>
+
                 </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ── EDIT PROFILE MODAL ──────────────────────────────────────────────────── -->
+<div class="modal-backdrop fade show" *ngIf="showEditModal"></div>
+<div class="modal fade show d-block" tabindex="-1" *ngIf="showEditModal">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h6 class="modal-title fw-semibold">
+                    <i class="fa-solid fa-pen me-1"></i> Edit Profile
+                </h6>
+                <button class="btn-close" (click)="closeEditModal()"></button>
+            </div>
+            <div class="modal-body">
+                <form [formGroup]="editForm" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">
+                            Name <span class="text-danger">*</span>
+                        </label>
+                        <input class="form-control form-control-sm" formControlName="name" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Father Phone Number</label>
+                        <input class="form-control form-control-sm" formControlName="phone" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Mother Phone Number</label>
+                        <input class="form-control form-control-sm" formControlName="phone1" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Alternate Phone Number</label>
+                        <input class="form-control form-control-sm" formControlName="phone2" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Father Email</label>
+                        <input class="form-control form-control-sm" formControlName="email" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Mother Email</label>
+                        <input class="form-control form-control-sm" formControlName="email1" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Alternate Email</label>
+                        <input class="form-control form-control-sm" formControlName="email2" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Gender</label>
+                        <select class="form-select form-select-sm" formControlName="gender">
+                            <option value="">Select</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Date of Birth</label>
+                        <input type="date" class="form-control form-control-sm" formControlName="dob" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Parent Name</label>
+                        <input class="form-control form-control-sm" formControlName="parentName" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Parent Phone</label>
+                        <input class="form-control form-control-sm" formControlName="parentPhone" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">Address</label>
+                        <input class="form-control form-control-sm" formControlName="addressLine1" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-medium">City</label>
+                        <input class="form-control form-control-sm" formControlName="city" />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-close-custom fs-16 fw-medium" (click)="closeEditModal()">
+                    Cancel
+                </button>
+                <button class="btn btn-create fs-16 fw-medium" (click)="saveProfile()"
+                    [disabled]="editLoading || editForm.invalid">
+                    <span *ngIf="editLoading" class="spinner-border spinner-border-sm me-1"></span>
+                    Save
+                </button>
             </div>
         </div>
     </div>

@@ -65,7 +65,8 @@ export class StudentuploadComponent implements OnInit {
   }
 
   back() {
-    this.router.navigate(['/app/student']);
+    // this.router.navigate(['/app/student']);
+      this.router.navigate(['/app/admissions']);
   }
 
   // ================== BATCH LIST ==================

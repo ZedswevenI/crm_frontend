@@ -80,6 +80,7 @@ const parseCsvLine = (line: string): string[] => {
   result.push(current.trim());
   return result;
 };
+
 @Component({
   selector: 'app-timetable',
   standalone: false,
@@ -87,7 +88,7 @@ const parseCsvLine = (line: string): string[] => {
   styleUrl: './timetable.component.scss',
 })
 export class TimetableComponent implements OnInit, OnDestroy {
- private destroy$ = new Subject<void>();
+  private destroy$ = new Subject<void>();
   showUpload = false;
   file: File | null = null;
   loading = false;
@@ -155,10 +156,21 @@ export class TimetableComponent implements OnInit, OnDestroy {
       show: (row: any) => (row?.status).toUpperCase() !== 'DRAFT',
       callback: (row: any) => this.openPublishConfirmRow(row),
     },
+    {
+      type: 'icon',
+      icon: 'fa-solid fa-rotate-left',
+      tooltip: 'Revert to Draft',
+      color: '#6B7280',
+      hoverColor: '#DC2626',
+      show: (row: any) => ( row?.status).toUpperCase() !== 'ACTIVE',
+      callback: (row: any) => this.openRevertConfirmRow(row),
+    },
   ];
   showPublishConfirmRow = false;
   publishTargetRow: any = null;
   saveError = false;
+  showRevertConfirmRow = false;
+  revertTargetRow: any = null;
 
   constructor(
     private alert: AlertService,
@@ -169,7 +181,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
   ) {
     this.tenantId =
       localStorage.getItem('tenantId') || localStorage.getItem('entiId');
-       this.breadcrumb.set([{ label: 'Timetable & Attendance' }, { label: 'Timetable' }]);
+    this.breadcrumb.set([{ label: 'Timetable' }]);
   }
 
   ngOnInit(): void {
@@ -239,10 +251,10 @@ export class TimetableComponent implements OnInit, OnDestroy {
             latestStatus: tt.status,
             lastUpdatedLabel: tt.updatedAt
               ? new Date(tt.updatedAt).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
               : '-',
           }));
           this.totalRecords = this.timetables.length;
@@ -287,7 +299,7 @@ export class TimetableComponent implements OnInit, OnDestroy {
     this.totalRecords = 0;
   }
 
-  onBatchChange() { }
+  onBatchChange() {}
 
   loadAllLookupsAndInit() {
     const tenantId = this.tenantId;
@@ -827,9 +839,9 @@ export class TimetableComponent implements OnInit, OnDestroy {
       }
       const dayName =
         daysOrder[
-        new Date(epoch).getUTCDay() === 0
-          ? 6
-          : new Date(epoch).getUTCDay() - 1
+          new Date(epoch).getUTCDay() === 0
+            ? 6
+            : new Date(epoch).getUTCDay() - 1
         ];
       const startMin = timeToMin(row['TimeStart']);
       const endMin = timeToMin(row['TimeEnd']);
@@ -962,11 +974,11 @@ export class TimetableComponent implements OnInit, OnDestroy {
             ? errBody.conflicts
             : errBody?.message
               ? [
-                {
-                  batchCode: safeTrim(this.parsedPayload?.batchCode) || '-',
-                  message: errBody.message,
-                },
-              ]
+                  {
+                    batchCode: safeTrim(this.parsedPayload?.batchCode) || '-',
+                    message: errBody.message,
+                  },
+                ]
               : [];
           if (conflicts.length) {
             this.validateConflicts = conflicts;
@@ -1299,5 +1311,51 @@ export class TimetableComponent implements OnInit, OnDestroy {
   onRowSelected(row: any) {
     const item = row?._raw || row;
     this.router.navigate(['/app/timetable/view', item.batchCode]);
+  }
+
+  openRevertConfirmRow(row: any) {
+    const item = row?._raw || row;
+    if ((item?.status || '').toUpperCase() !== 'ACTIVE') {
+      this.alert.warning('Only published timetables can be reverted.');
+      return;
+    }
+    this.revertTargetRow = item;
+    this.showRevertConfirmRow = true;
+  }
+
+  closeRevertConfirmRow() {
+    this.showRevertConfirmRow = false;
+    this.revertTargetRow = null;
+  }
+
+  submitRevertRow() {
+    if (!this.revertTargetRow?._id) return;
+    this.loading = true;
+    this.commonApi
+      .fetchData(
+        {
+          tenantId: this.tenantId,
+          timetableId: this.revertTargetRow._id,
+          userId: localStorage.getItem('userId'),
+        },
+        this.moduleName,
+        'unpublish',
+      )
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.loading = false;
+          this.closeRevertConfirmRow();
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.alert.success('Timetable reverted to Draft');
+          this.applyFilters();
+        },
+        error: (err: any) => {
+          this.alert.error(err?.error?.message || 'Revert failed');
+        },
+      });
   }
 }
