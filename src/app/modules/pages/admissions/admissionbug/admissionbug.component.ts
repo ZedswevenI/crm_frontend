@@ -1196,8 +1196,7 @@ export class AdmissionbugComponent implements OnInit {
         }
         this.approvalSent = true;
         this.alert.success('Sent for approval.');
-        this.router.navigate(['/app/admissions/new']);
-        window.location.reload()
+        this.router.navigate(['/app/admissions/view', this.admissionId]);
       });
   }
 

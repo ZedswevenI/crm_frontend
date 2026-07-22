@@ -18,7 +18,7 @@ import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.servic
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 import { Location } from '@angular/common';
 
-type ChequeMode = 'PDC' | 'CDC' | '' | null;
+type ChequeMode = 'PDC' | 'CDC' | 'DD' | 'NEFT' | 'UPI' | 'CASH' | '' | null;
 type ChequeStatus =
   | 'pending'
   | 'deposited'
@@ -203,6 +203,13 @@ export class AdmissionviewnewComponent implements OnInit {
   splitForm!: UntypedFormGroup;
   splitOriginalIndex = -1;
 
+  feeEditForm!: UntypedFormGroup;
+  feePlanHeads: Array<{ key: string; label: string; fee: number; stax: number }> = [];
+  feePlanHeadsLoading = false;
+  private rawProgramId = '';
+  private rawFeePlanId = '';
+  private rawAdmission: any = null;
+
   constructor(
     private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
@@ -239,6 +246,11 @@ export class AdmissionviewnewComponent implements OnInit {
       cheques: this.fb.array([]),
       otherPayments: this.fb.array([]),
       additionalPaymentsEnabled: [false],
+    });
+    this.feeEditForm = this.fb.group({
+      testScholarshipPct: [{ value: 0, disabled: true }],
+      scholarshipPct: [0, [Validators.min(0), Validators.max(100)]],
+      additionalScholarshipPct: [0, [Validators.min(0), Validators.max(100)]],
     });
     this.splitForm = this.fb.group({
       originalAmount: [{ value: 0, disabled: true }],
@@ -306,7 +318,7 @@ export class AdmissionviewnewComponent implements OnInit {
         );
       });
     } else {
-      neftFA.push(this.buildEmptyNeftRow());
+      neftFA.push(this.buildEmptyNeftRow(this.neftSplitAmount));
     }
     this.payForm.setControl('neftRefs', neftFA);
     const chqFA = this.fb.array([]);
@@ -378,7 +390,7 @@ export class AdmissionviewnewComponent implements OnInit {
           .get('neftAmount')
           ?.setValue(this.neftSplitAmount, { emitEvent: false });
         const neftFA = this.fb.array([]);
-        neftFA.push(this.buildEmptyNeftRow());
+        neftFA.push(this.buildEmptyNeftRow(this.neftSplitAmount));
         this.payForm.setControl('neftRefs', neftFA);
         const instalments: any[] = Array.isArray(data.instalments)
           ? data.instalments
@@ -471,10 +483,13 @@ export class AdmissionviewnewComponent implements OnInit {
     });
   }
 
-  private buildEmptyNeftRow(): UntypedFormGroup {
+  private buildEmptyNeftRow(prefillAmount = 0): UntypedFormGroup {
     return this.fb.group({
       utr: ['', [Validators.required, Validators.minLength(6)]],
-      amount: [0, [Validators.required, Validators.min(1)]],
+      amount: [
+        this.roundRupee(prefillAmount),
+        [Validators.required, Validators.min(1)],
+      ],
       paidOn: [null],
       bankName: [''],
       branchName: [''],
@@ -624,6 +639,160 @@ export class AdmissionviewnewComponent implements OnInit {
       }
     });
     this.chequesFA.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private loadFeePlanHeadsForRecalc(): void {
+    if (!this.rawProgramId || !this.rawFeePlanId) return;
+    const tenantId = this.pickTenantId();
+    if (!tenantId) return;
+    this.feePlanHeadsLoading = true;
+    const route = `list?list=full&programId=${encodeURIComponent(this.rawProgramId)}`;
+    this.api.fetchData({ entiId: tenantId }, 'ims/feeplan', route).subscribe({
+      next: (res: any) => {
+        this.feePlanHeadsLoading = false;
+        if (!res?.status) {
+          this.feePlanHeads = [];
+          return;
+        }
+        const arr = Array.isArray(res?.data) ? res.data : [];
+        const plan = arr.find(
+          (x: any) =>
+            String(x.feePlanId || x.id || x._id || '').trim() ===
+            this.rawFeePlanId,
+        );
+        this.feePlanHeads = Array.isArray(plan?.feeHeads)
+          ? plan.feeHeads.map((h: any) => ({
+              key: String(h.key || h.feeHeadKey || '').trim(),
+              label: String(h.label || h.feeHeadName || '').trim(),
+              fee: Number(h.amount || 0),
+              stax: Number(h.gstAmount || 0),
+            }))
+          : [];
+      },
+      error: () => {
+        this.feePlanHeadsLoading = false;
+        this.feePlanHeads = [];
+      },
+    });
+  }
+
+  get liveFeeHeadPreview(): Array<{
+    label: string;
+    total: number;
+    scholBenefits: number;
+  }> {
+    const heads = this.feePlanHeads;
+    if (!heads.length) return [];
+    const clamp = (v: number) => Math.max(0, Math.min(100, Number(v || 0)));
+    const raw = this.feeEditForm.getRawValue();
+    const p1 = clamp(raw.testScholarshipPct);
+    const p2 = clamp(raw.scholarshipPct);
+    const p3 = clamp(raw.additionalScholarshipPct);
+    const applyPct = (amount: number, pct: number) => {
+      const out = Math.round(amount * (1 - pct / 100));
+      return out < 0 ? 0 : out;
+    };
+    return heads.map((h) => {
+      const fee0 = Number(h.fee || 0);
+      const tax0 = Number(h.stax || 0);
+      const rate = fee0 > 0 ? tax0 / fee0 : 0;
+      let outFee = fee0;
+      let outTax = tax0;
+      let scholBenefits = 0;
+      const key = h.key.toLowerCase();
+      const isTuition =
+        key === 'tuition' ||
+        key === 'tuitionfee' ||
+        key === 'tuition_fee' ||
+        h.label.toLowerCase().includes('tuition');
+      if (isTuition) {
+        const fee1 = applyPct(outFee, p1);
+        const fee2 = applyPct(fee1, p2);
+        const fee3 = applyPct(fee2, p3);
+        outFee = fee3;
+        outTax = this.roundRupee(outFee * rate);
+        scholBenefits = this.roundRupee(
+          Math.max(0, fee0 + tax0 - (outFee + outTax)),
+        );
+      }
+      return {
+        label: h.label,
+        total: this.roundRupee(outFee + outTax),
+        scholBenefits,
+      };
+    });
+  }
+
+  get liveFinalFee(): number {
+    if (!this.feePlanHeads.length) return this.finalFee;
+    return this.liveFeeHeadPreview.reduce(
+      (s, r) => s + (Number(r.total) || 0),
+      0,
+    );
+  }
+
+  get liveTotalDiscountPct(): number {
+    const clamp = (v: number) => Math.max(0, Math.min(100, Number(v || 0)));
+    const raw = this.feeEditForm.getRawValue();
+    const a = clamp(raw.testScholarshipPct) / 100;
+    const b = clamp(raw.scholarshipPct) / 100;
+    const c = clamp(raw.additionalScholarshipPct) / 100;
+    const eff = 1 - (1 - a) * (1 - b) * (1 - c);
+    return Math.round(eff * 10000) / 100;
+  }
+
+  recalculateInstallments(): void {
+    if (!this.feePlanHeads.length) {
+      this.alert.error(
+        'Fee plan details are still loading. Please try again shortly.',
+      );
+      return;
+    }
+    const newTotal = this.roundRupee(this.liveFinalFee);
+    const currentNeftAmt = Number(this.payForm.getRawValue().neftAmount || 0);
+    const chequeRows = this.chequesFA.getRawValue() || [];
+    const currentChequeAmts = chequeRows.map(
+      (r: any) => Number(r.amount || 0) || 0,
+    );
+    const baseAmounts = [currentNeftAmt, ...currentChequeAmts];
+    const baseTotal = baseAmounts.reduce((s, x) => s + x, 0);
+    if (!baseTotal || newTotal <= 0) {
+      this.alert.error('No existing payment schedule to rescale.');
+      return;
+    }
+    const scaled = this.scalePlan(baseAmounts, newTotal, baseTotal);
+    const newNeftAmt = scaled[0] || 0;
+    const newChequeAmts = scaled.slice(1);
+
+    this.neftSplitAmount = newNeftAmt;
+    this.payForm
+      .get('neftAmount')
+      ?.setValue(newNeftAmt, { emitEvent: false });
+
+    const neftRows = this.neftRefsFA.getRawValue() || [];
+    const neftBaseAmts = neftRows.map((r: any) => Number(r.amount || 0) || 0);
+    const neftBaseTotal = neftBaseAmts.reduce((s, x) => s + x, 0);
+    const scaledNeftRows = neftBaseTotal
+      ? this.scalePlan(neftBaseAmts, newNeftAmt, neftBaseTotal)
+      : neftRows.length
+        ? [newNeftAmt, ...neftRows.slice(1).map(() => 0)]
+        : [];
+    this.neftRefsFA.controls.forEach((ctrl, i) => {
+      ctrl
+        .get('amount')
+        ?.setValue(scaledNeftRows[i] ?? 0, { emitEvent: false });
+    });
+
+    this.chequesFA.controls.forEach((ctrl, i) => {
+      ctrl
+        .get('amount')
+        ?.setValue(newChequeAmts[i] ?? 0, { emitEvent: false });
+    });
+
+    this.rebuildAllowedMap();
+    this.alert.success(
+      'Installments recalculated based on the updated scholarship. Review and Save Payments to persist.',
+    );
   }
 
   toggleChequeSelection(idx: number, event: any): void {
@@ -852,7 +1021,7 @@ export class AdmissionviewnewComponent implements OnInit {
       this.alert.error('tenantId missing');
       return;
     }
-    const neftRefs = (this.neftRefsFA.getRawValue() || [])
+    const standardNefts = (this.neftRefsFA.getRawValue() || [])
       .map((r: any) => ({
         utr: String(r.utr || '').trim(),
         amount: Number(r.amount || 0),
@@ -863,23 +1032,53 @@ export class AdmissionviewnewComponent implements OnInit {
         remarks: String(r.remarks || '').trim() || null,
       }))
       .filter((x: any) => !!x.utr && x.amount > 0);
-    const cheques = (this.chequesFA.getRawValue() || [])
-      .map((r: any) => ({
+    // Rows switched to "NEFT" mode in the cheque/instalment schedule are
+    // converted into NEFT refs instead of being saved as cheques, matching
+    // the New Admission wizard's behavior.
+    const finalCheques: any[] = [];
+    const convertedNefts: any[] = [];
+    (this.chequesFA.getRawValue() || []).forEach((r: any) => {
+      const mode = String(r.mode || '').toUpperCase();
+      const chequeNo = String(r.chequeNo || '').trim();
+      const amount = Number(r.amount || 0);
+      const dueDate = this.dateInputToEpoch(r.dueDate);
+      const chequeDate = this.dateInputToEpoch(r.chequeDate);
+      const bankName = String(r.bankName || '').trim() || null;
+      const branchName = String(r.branchName || '').trim() || null;
+      const remarks = String(r.remarks || '').trim() || null;
+      if (mode === 'NEFT') {
+        if (!chequeNo || amount <= 0) return;
+        convertedNefts.push({
+          utr: chequeNo,
+          amount,
+          paidOn: chequeDate,
+          bankName,
+          branchName,
+          remarks: `${String(r.description || 'Instalment').trim()} paid via NEFT.${remarks ? ' ' + remarks : ''}`,
+        });
+        return;
+      }
+      if (!chequeNo || !dueDate || amount <= 0) return;
+      finalCheques.push({
         sno: Number(r.sno || 0),
-        chequeNo: String(r.chequeNo || '').trim(),
-        chequeDate: this.dateInputToEpoch(r.chequeDate),
-        dueDate: this.dateInputToEpoch(r.dueDate),
+        chequeNo,
+        chequeDate,
+        dueDate,
         favourOf: String(r.favourOf || this.DEFAULT_FAVOUR_OF).trim(),
-        mode: r.mode === 'CDC' ? 'CDC' : 'PDC',
-        bankName: String(r.bankName || '').trim() || null,
-        branchName: String(r.branchName || '').trim() || null,
-        amount: Number(r.amount || 0),
+        mode: ['PDC', 'CDC', 'DD', 'UPI', 'CASH'].includes(mode)
+          ? mode
+          : 'PDC',
+        bankName,
+        branchName,
+        amount,
         description: String(r.description || '').trim() || null,
         instalmentDate:
           typeof r.instalmentDate === 'number' ? r.instalmentDate : null,
-        remarks: String(r.remarks || '').trim() || null,
-      }))
-      .filter((x: any) => !!x.chequeNo && !!x.dueDate && x.amount > 0);
+        remarks,
+      });
+    });
+    const neftRefs = [...standardNefts, ...convertedNefts];
+    const cheques = finalCheques;
     const otherPayments = this.payForm.getRawValue().additionalPaymentsEnabled
       ? (this.otherPaymentsFA.getRawValue() || [])
           .map((o: any) => ({
@@ -896,28 +1095,98 @@ export class AdmissionviewnewComponent implements OnInit {
       : [];
 
     this.payFormSubmitting = true;
-    const body = {
+    const paymentsBody = {
       entiId: tenantId,
       admissionId: this.admissionId,
       neftRefs,
       cheques,
       otherPayments,
     };
-    this.api.fetchData(body, 'admi', 'payments/save').subscribe({
-      next: (resp: any) => {
-        this.payFormSubmitting = false;
-        if (!resp?.status) {
-          this.alert.error(resp?.message || 'Failed to save payments');
-          return;
-        }
-        this.alert.success('Payments saved successfully');
-        this.loadAdmission();
+    const persistPayments = () => {
+      this.api.fetchData(paymentsBody, 'admi', 'payments/save').subscribe({
+        next: (resp: any) => {
+          this.payFormSubmitting = false;
+          if (!resp?.status) {
+            this.alert.error(resp?.message || 'Failed to save payments');
+            return;
+          }
+          this.alert.success('Payments saved successfully');
+          this.loadAdmission();
+        },
+        error: () => {
+          this.payFormSubmitting = false;
+          this.alert.error('Failed to save payments');
+        },
+      });
+    };
+
+    if (this.isDraft && this.feePlanHeads.length && this.rawAdmission) {
+      const feeUpdateBody = this.buildFeeUpdateBody(tenantId);
+      this.api.fetchData(feeUpdateBody, 'admi', 'update').subscribe({
+        next: (resp: any) => {
+          if (!resp?.status) {
+            this.payFormSubmitting = false;
+            this.alert.error(
+              resp?.message || 'Failed to update scholarship details',
+            );
+            return;
+          }
+          persistPayments();
+        },
+        error: () => {
+          this.payFormSubmitting = false;
+          this.alert.error('Failed to update scholarship details');
+        },
+      });
+    } else {
+      persistPayments();
+    }
+  }
+
+  private buildFeeUpdateBody(tenantId: string): any {
+    const adm = this.rawAdmission || {};
+    const raw = this.feeEditForm.getRawValue();
+    return {
+      entiId: tenantId,
+      admissionId: this.admissionId,
+      academicYear: adm.academicYear || null,
+      sourceType: adm.sourceType || null,
+      registrationNumber: adm.registrationNumber || null,
+      portalStudentId: adm.portalStudentId || null,
+      scholarshipTestId: adm.scholarshipTestId || null,
+      centerId: adm.centerId || null,
+      centerName: adm.centerName || null,
+      programId: this.rawProgramId,
+      programName: adm.programName || null,
+      programCode: adm.programCode || null,
+      feePlanId: this.rawFeePlanId,
+      feePlanCode: adm.feePlanCode || null,
+      student: {
+        name: adm.student?.name || '',
+        phone: adm.student?.phone || '',
+        parentName: adm.student?.parentName || adm.student?.fatherName || '',
+        parentPhone: adm.student?.parentPhone || '',
+        email: adm.student?.email || null,
       },
-      error: () => {
-        this.payFormSubmitting = false;
-        this.alert.error('Failed to save payments');
+      fee: {
+        baseFee: Number(adm.fee?.baseFee || 0),
+        finalFee: this.roundRupee(this.liveFinalFee),
+        testScholarshipPct: Number(raw.testScholarshipPct || 0),
+        scholarshipPct: Number(raw.scholarshipPct || 0),
+        additionalScholarshipPct: Number(raw.additionalScholarshipPct || 0),
+        totalDiscountPct: this.liveTotalDiscountPct,
+        breakup: this.liveFeeHeadPreview.map((x) => ({
+          label: x.label,
+          total: x.total,
+          scholBenefits: x.scholBenefits,
+        })),
       },
-    });
+      schoolMarks: {
+        overallPct: adm.schoolMarks?.overallPct ?? null,
+        coreSubjectPct: adm.schoolMarks?.coreSubjectPct ?? null,
+        remarks: adm.schoolMarks?.remarks || null,
+      },
+    };
   }
 
   openReviewModal(): void {
@@ -1088,12 +1357,33 @@ export class AdmissionviewnewComponent implements OnInit {
         this.rawPayments = Array.isArray(resp.data.payments)
           ? resp.data.payments
           : [];
+        this.rawAdmission = resp.data.admission;
         this.admission = this.mapApiToView(
           resp.data.admission,
           this.rawPayments,
         );
         // CHANGE 1: populate the inline payment form after load
         this.loadPaymentsIntoForm();
+
+        if (this.isDraft) {
+          const adm = resp.data.admission;
+          this.rawProgramId = String(
+            (adm?.programId && typeof adm.programId === 'object'
+              ? adm.programId.programId || adm.programId._id
+              : adm.programId) || '',
+          ).trim();
+          this.rawFeePlanId = String(adm?.feePlanId || '').trim();
+          this.feeEditForm.patchValue(
+            {
+              testScholarshipPct: this.admission.fee.testScholarshipPct,
+              scholarshipPct: this.admission.fee.scholarshipPct,
+              additionalScholarshipPct:
+                this.admission.fee.additionalScholarshipPct,
+            },
+            { emitEvent: false },
+          );
+          this.loadFeePlanHeadsForRecalc();
+        }
       },
       error: () => {
         this.loading = false;

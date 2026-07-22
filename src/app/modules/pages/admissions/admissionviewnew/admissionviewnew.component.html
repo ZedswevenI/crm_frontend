@@ -244,6 +244,43 @@
                         </button>
                     </div>
 
+                    <div class="border rounded-3 p-3 mb-3" *ngIf="isDraft" [formGroup]="feeEditForm">
+                        <div class="fw-semibold mb-2">Scholarship / Discount</div>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Test Scholarship %</label>
+                                <input type="number" class="form-control form-control-sm"
+                                    formControlName="testScholarshipPct" readonly />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Scholarship %</label>
+                                <input type="number" class="form-control form-control-sm" min="0" max="100"
+                                    formControlName="scholarshipPct" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Additional Scholarship %</label>
+                                <input type="number" class="form-control form-control-sm" min="0" max="100"
+                                    formControlName="additionalScholarshipPct" />
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-muted small">Updated Final Fee</div>
+                                <div class="fw-bold">₹{{ liveFinalFee | number:"1.0-0" }}</div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div class="text-muted small" *ngIf="feePlanHeadsLoading">
+                                <i class="fa-solid fa-spinner fa-spin me-1"></i> Loading fee plan…
+                            </div>
+                            <div class="text-muted small" *ngIf="!feePlanHeadsLoading">
+                                Total discount: {{ liveTotalDiscountPct }}%
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                [disabled]="feePlanHeadsLoading" (click)="recalculateInstallments()">
+                                <i class="fa-solid fa-rotate me-1"></i> Recalculate Installments
+                            </button>
+                        </div>
+                    </div>
+
                     <form [formGroup]="payForm">
                         <datalist id="bankListView">
                             <option *ngFor="let b of bankNames" [value]="b"></option>
@@ -393,6 +430,10 @@
                                                 <select class="form-select form-select-sm" formControlName="mode">
                                                     <option value="PDC">PDC</option>
                                                     <option value="CDC">CDC</option>
+                                                    <option value="DD">DD</option>
+                                                    <option value="NEFT">NEFT</option>
+                                                    <option value="UPI">UPI</option>
+                                                    <option value="CASH">CASH</option>
                                                 </select>
                                             </td>
                                             <td>
