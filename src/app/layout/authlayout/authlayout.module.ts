@@ -7,6 +7,7 @@ import { AuthlayoutComponent } from './authlayout/authlayout.component';
 import { LoginComponent } from '../../modules/auth/components/login/login.component';
 import { RegisterComponent } from '../../modules/auth/components/register/register.component';
 import { Routes } from '@angular/router';
+import { UiElementsModule } from '../../modules/ui-elements/ui-elements.module';
 
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -16,6 +17,6 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [AuthlayoutComponent],
-  imports: [CommonModule, AuthlayoutRoutingModule],
+  imports: [CommonModule, AuthlayoutRoutingModule, UiElementsModule],
 })
 export class AuthlayoutModule {}

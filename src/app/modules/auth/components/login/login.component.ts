@@ -3,6 +3,9 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../../service/auth/auth.service';
 import { AlertService } from '../../../../service/alert/alert.service';
+
+const ALLOWED_LOGIN_ROLES = ['L1', 'L2', 'L6'];
+
 @Component({
   selector: 'app-login',
   standalone: false,
@@ -49,10 +52,17 @@ export class LoginComponent {
         next: (response: any) => {
           this.loading = false;
           if (response?.data) {
+            const roleLevel = String(response.data.roleLevel || '').trim();
+            if (!ALLOWED_LOGIN_ROLES.includes(roleLevel)) {
+              this.alert.error(
+                'You are not authorized to access this application.'
+              );
+              return;
+            }
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('tenantId', response.data.tenantId);
             localStorage.setItem('userid', response.data.userId);
-            localStorage.setItem('userRole', response.data.roleLevel);
+            localStorage.setItem('userRole', roleLevel);
             localStorage.setItem('email', response.data.email);
             localStorage.setItem('name', response.data.name);
             this.alert.success('Login Successful!!');

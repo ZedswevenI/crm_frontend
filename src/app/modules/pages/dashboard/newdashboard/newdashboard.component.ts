@@ -21,7 +21,7 @@ interface DashboardCard {
   styleUrl: './newdashboard.component.scss'
 })
 export class NewdashboardComponent {
-  cards: DashboardCard[] = [
+  private allCards: DashboardCard[] = [
     {
       title: 'Admissions',
       icon: 'fa fa-user-graduate',
@@ -89,8 +89,14 @@ export class NewdashboardComponent {
     }
   ];
 
+  cards: DashboardCard[] = this.allCards;
+
   constructor(private router: Router, private breadcrumb: BredcrumpService) {
     this.breadcrumb.set([{ label: 'Dashboard' }]);
+    const role = (localStorage.getItem('userRole') || '').trim().toUpperCase();
+    if (role === 'L6') {
+      this.cards = this.allCards.filter((c) => c.title === 'Accounts');
+    }
   }
 
   go(path: string): void {

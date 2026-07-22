@@ -33,6 +33,10 @@ export class HeaderComponent implements OnInit {
     this.email = localStorage.getItem('email');
   }
 
+  get isAccountRole(): boolean {
+    return (localStorage.getItem('userRole') || '').trim().toUpperCase() === 'L6';
+  }
+
   ngOnInit(): void {
     this.notificationService.unreadCount$
       .pipe(takeUntilDestroyed(this.destroyRef))

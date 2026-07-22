@@ -22,7 +22,7 @@
           </a>
         </li>
 
-        <li class="nav-item dropdown">
+        <li class="nav-item dropdown" *ngIf="!isAccountRole">
           <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
             Admissions & Fees
           </a>
@@ -121,7 +121,7 @@
         </li>
 
         <!-- Students & Batches -->
-        <li class="nav-item dropdown">
+        <li class="nav-item dropdown" *ngIf="!isAccountRole">
           <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
             Students & Batches
           </a>
@@ -139,7 +139,7 @@
         </li>
 
         <!-- Timetable & Classes -->
-        <li class="nav-item dropdown">
+        <li class="nav-item dropdown" *ngIf="!isAccountRole">
           <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">
             Timetable & Attendance
           </a>
@@ -158,43 +158,43 @@
             Org Config's
           </a>
           <ul class="dropdown-menu">
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/institute" routerLinkActive="active">Institute</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/centers" routerLinkActive="active">Centers</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/programs" routerLinkActive="active">Programs</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/staff" routerLinkActive="active">Staff</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/departments"
                 routerLinkActive="active">Departments</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/subject" routerLinkActive="active">Subject</a>
             </li>
             <li>
               <a class="dropdown-item" routerLink="/app/admin/masters/bankaccounts" routerLinkActive="active">Bank
                 Accounts</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/users" routerLinkActive="active">Users & Roles</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/topics" routerLinkActive="active">Topics</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/subtopics" routerLinkActive="active">Subtopics</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/exam/category" routerLinkActive="active">Exam
                 Category</a>
             </li>
-            <li>
+            <li *ngIf="!isAccountRole">
               <a class="dropdown-item" routerLink="/app/admin/masters/exam/subcategory" routerLinkActive="active">Exam
                 Subcategory</a>
             </li>
