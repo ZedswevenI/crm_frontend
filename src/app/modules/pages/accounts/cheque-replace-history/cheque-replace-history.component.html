@@ -42,8 +42,9 @@
                         <thead>
                             <tr class="table-header">
                                 <th class="px-4 py-3 fw-semibold" style="width:80px;">#</th>
+                                <th class="px-4 py-3 fw-semibold">Type</th>
                                 <th class="px-4 py-3 fw-semibold">Payment ID</th>
-                                <th class="px-4 py-3 fw-semibold">Cheque No</th>
+                                <th class="px-4 py-3 fw-semibold">Cheque No / UTR</th>
                                 <th class="px-4 py-3 fw-semibold">Due Date</th>
                                 <th class="px-4 py-3 fw-semibold">Planned Deposit</th>
                                 <th class="px-4 py-3 fw-semibold">Amount</th>
@@ -56,13 +57,22 @@
                             <ng-container *ngFor="let row of chain; let i=index">
                                 <tr class="app-table-row">
                                     <td class="px-4 py-3">{{ i + 1 }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="badge" [ngClass]="typeBadge(row)">
+                                            <i class="fa-solid me-1"
+                                                [ngClass]="isNeft(row) ? 'fa-money-bill-transfer' : 'fa-money-check'"></i>
+                                            {{ row?.paymentType || '-' }}
+                                        </span>
+                                    </td>
                                     <td class="px-4 py-3"><span class="mono">{{ row.paymentId }}</span></td>
-                                    <td class="px-4 py-3">{{ row?.cheque?.chequeNo || '-' }}</td>
+                                    <td class="px-4 py-3">
+                                        {{ isNeft(row) ? (row?.neft?.utr || '-') : (row?.cheque?.chequeNo || '-') }}
+                                    </td>
 
-                                    <!-- ✅ Due Date with date pipe -->
+                                    <!-- ✅ Due Date with date pipe (cheques only; NEFT has no due date) -->
                                     <td class="px-4 py-3">
                                         {{
-                                        row?.cheque?.dueDate
+                                        !isNeft(row) && row?.cheque?.dueDate
                                         ? (row?.cheque?.dueDate | date:'dd/MM/yyyy')
                                         : '-'
                                         }}
@@ -71,9 +81,9 @@
                                     <!-- ✅ Planned Deposit with date pipe + fallback to dueDate -->
                                     <td class="px-4 py-3">
                                         {{
-                                        row?.cheque?.plannedDepositDate
+                                        !isNeft(row) && row?.cheque?.plannedDepositDate
                                         ? (row?.cheque?.plannedDepositDate | date:'dd/MM/yyyy')
-                                        : row?.cheque?.dueDate
+                                        : !isNeft(row) && row?.cheque?.dueDate
                                         ? (row?.cheque?.dueDate | date:'dd/MM/yyyy')
                                         : '-'
                                         }}
@@ -94,7 +104,7 @@
                             </ng-container>
 
                             <tr *ngIf="!loading && (!chain || chain.length === 0)">
-                                <td colspan="8" class="text-center py-4 text-muted">
+                                <td colspan="9" class="text-center py-4 text-muted">
                                     No history loaded
                                 </td>
                             </tr>
@@ -118,7 +128,7 @@
 
             <div class="app-modal-body" *ngIf="viewRow">
                 <div class="row g-3">
-                    <div class="col-md-6">
+                    <div class="col-md-6" *ngIf="!isNeft(viewRow)">
                         <div class="border rounded p-3 h-100">
                             <div class="fw-semibold mb-2">Cheque</div>
                             <div class="small">
@@ -152,6 +162,27 @@
                         </div>
                     </div>
 
+                    <div class="col-md-6" *ngIf="isNeft(viewRow)">
+                        <div class="border rounded p-3 h-100">
+                            <div class="fw-semibold mb-2">NEFT</div>
+                            <div class="small">
+                                <div><span class="text-muted">UTR: </span><span class="mono">{{
+                                        viewRow?.neft?.utr || '-' }}</span></div>
+                                <div><span class="text-muted">Bank: </span>{{ viewRow?.neft?.bankName || '-' }}</div>
+                                <div><span class="text-muted">Branch: </span>{{ viewRow?.neft?.branchName || '-' }}
+                                </div>
+                                <div>
+                                    <span class="text-muted">Paid On: </span>
+                                    {{
+                                    viewRow?.neft?.paidOn
+                                    ? (viewRow?.neft?.paidOn | date:'dd/MM/yyyy')
+                                    : '-'
+                                    }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="col-md-6">
                         <div class="border rounded p-3 h-100">
                             <div class="fw-semibold mb-2">Student</div>
@@ -169,14 +200,21 @@
                         </div>
                     </div>
 
-                    <div class="col-12" *ngIf="viewRow?.cheque?.replacementOf || viewRow?.cheque?.replacedBy">
+                    <div class="col-12"
+                        *ngIf="viewRow?.replacement?.replacesPaymentId || viewRow?.replacement?.replacedByPaymentId">
                         <div class="border rounded p-3">
                             <div class="fw-semibold mb-2">Replacement Links</div>
                             <div class="small">
-                                <div><span class="text-muted">Replacement Of: </span><span class="mono">{{
-                                        viewRow?.cheque?.replacementOf || '-' }}</span></div>
-                                <div><span class="text-muted">Replaced By: </span><span class="mono">{{
-                                        viewRow?.cheque?.replacedBy || '-' }}</span></div>
+                                <div><span class="text-muted">Replaces Payment: </span><span class="mono">{{
+                                        viewRow?.replacement?.replacesPaymentId || '-' }}</span></div>
+                                <div><span class="text-muted">Replaced By Payment: </span><span class="mono">{{
+                                        viewRow?.replacement?.replacedByPaymentId || '-' }}</span></div>
+                                <div *ngIf="viewRow?.replacement?.reason">
+                                    <span class="text-muted">Reason: </span>{{ viewRow?.replacement?.reason }}
+                                </div>
+                                <div *ngIf="viewRow?.failureReason">
+                                    <span class="text-muted">Failure Reason: </span>{{ viewRow?.failureReason }}
+                                </div>
                             </div>
                         </div>
                     </div>

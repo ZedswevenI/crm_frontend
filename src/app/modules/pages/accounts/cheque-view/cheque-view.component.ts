@@ -30,6 +30,9 @@ export class ChequeViewComponent implements OnInit {
   extensionForm!: FormGroup;
   showReplaceModal = false;
   replaceForm!: FormGroup;
+  showReplaceNeftModal = false;
+  replaceNeftForm!: FormGroup;
+  private pendingReplaceAction = '';
   bankAccounts: Array<{
     recId: string;
     bankName: string;
@@ -90,6 +93,17 @@ export class ChequeViewComponent implements OnInit {
       favourOf: ['', Validators.required],
       bankName: [''],
       amount: [null, [Validators.required, Validators.min(1)]],
+      cancelReason: [''],
+      remarks: [''],
+    });
+    this.replaceNeftForm = this.fb.group({
+      utr: ['', Validators.required],
+      amount: [null, [Validators.required, Validators.min(1)]],
+      paidOn: [''],
+      bankName: [''],
+      branchName: [''],
+      referenceNote: [''],
+      cancelReason: [''],
       remarks: [''],
     });
 
@@ -102,6 +116,10 @@ export class ChequeViewComponent implements OnInit {
         chequeDateCtrl?.setValue(dueStr, { emitEvent: false });
       }
     });
+
+    this.pendingReplaceAction = String(
+      this.route.snapshot.queryParamMap.get('action') || ''
+    ).trim();
 
     this.load();
     this.loadBankAccounts();
@@ -172,6 +190,13 @@ export class ChequeViewComponent implements OnInit {
             { emitEvent: false }
           );
           this.loading = false;
+
+          if (this.pendingReplaceAction === 'replace') {
+            this.openReplaceModal();
+          } else if (this.pendingReplaceAction === 'replace-neft') {
+            this.openReplaceNeftModal();
+          }
+          this.pendingReplaceAction = '';
         },
         error: (err: any) => {
           this.loading = false;
@@ -458,14 +483,91 @@ export class ChequeViewComponent implements OnInit {
       favourOf: c?.favourOf || '',
       bankName: c?.bankName || '',
       amount: this.payment?.amount || null,
+      cancelReason: '',
       remarks: '',
     });
-    console.log(this.replaceForm.value)
     this.showReplaceModal = true;
   }
 
   closeReplaceModal() {
     this.showReplaceModal = false;
+  }
+
+  openReplaceNeftModal() {
+    if (!this.canReplaceCheque()) {
+      this.alert.error('CLEARED cheque cannot be replaced');
+      return;
+    }
+    this.replaceNeftForm.reset({
+      utr: '',
+      amount: this.payment?.amount || null,
+      paidOn: '',
+      bankName: '',
+      branchName: '',
+      referenceNote: '',
+      cancelReason: '',
+      remarks: '',
+    });
+    this.showReplaceNeftModal = true;
+  }
+
+  closeReplaceNeftModal() {
+    this.showReplaceNeftModal = false;
+  }
+
+  submitReplaceNeft() {
+    if (!this.paymentId) return;
+    if (!this.canReplaceCheque()) {
+      this.alert.error('CLEARED cheque cannot be replaced');
+      return;
+    }
+    if (this.replaceNeftForm.invalid) {
+      this.replaceNeftForm.markAllAsTouched();
+      this.alert.error('Please fill required fields');
+      return;
+    }
+    const userId = localStorage.getItem('userId') || '';
+    const v = this.replaceNeftForm.value || {};
+
+    const payload = {
+      entiId: this.entiId,
+      userId,
+      oldPaymentId: this.paymentId,
+      cancelReason: String(v.cancelReason || '').trim() || null,
+      remarks: String(v.remarks || '').trim() || null,
+      amount: Number(v.amount || 0),
+      neft: {
+        utr: String(v.utr || '').trim(),
+        paidOn: String(v.paidOn || '').trim() || null,
+        bankName: String(v.bankName || '').trim() || null,
+        branchName: String(v.branchName || '').trim() || null,
+        referenceNote: String(v.referenceNote || '').trim() || null,
+      },
+    };
+
+    this.loading = true;
+    this.commonApi
+      .fetchData(payload, this.moduleName, 'cheque/replacement/request-neft')
+      .subscribe({
+        next: (res: any) => {
+          this.loading = false;
+          const newId = res?.data?.newPaymentId;
+          this.alert.success(res?.message || 'Cheque replaced with NEFT');
+          this.showReplaceNeftModal = false;
+
+          if (newId) {
+            this.router.navigate(['/app/accounts/cheques', newId]);
+            return;
+          }
+          this.load();
+        },
+        error: (err: any) => {
+          this.loading = false;
+          this.alert.error(
+            err?.error?.message || 'Failed to replace cheque with NEFT'
+          );
+        },
+      });
   }
 
   submitReplacement() {
@@ -479,11 +581,14 @@ export class ChequeViewComponent implements OnInit {
       this.alert.error('Please fill required fields');
       return;
     }
+    const userId = localStorage.getItem('userId') || '';
     const v = this.replaceForm.value || {};
 
     const payload = {
       entiId: this.entiId,
+      userId,
       oldPaymentId: this.paymentId,
+      cancelReason: String(v.cancelReason || '').trim() || null,
       remarks: String(v.remarks || '').trim() || null,
       replacement: {
         chequeNo: String(v.chequeNo || '').trim(),
@@ -508,7 +613,7 @@ export class ChequeViewComponent implements OnInit {
 
           // Optional: navigate to new cheque view
           if (newId) {
-            this.router.navigate(['/app/accounts/cheques/view', newId]);
+            this.router.navigate(['/app/accounts/cheques', newId]);
             return;
           }
           this.load();

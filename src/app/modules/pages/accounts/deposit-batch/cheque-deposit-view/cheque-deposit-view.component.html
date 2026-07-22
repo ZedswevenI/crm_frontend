@@ -128,6 +128,12 @@
                                                     class="btn btn-sm btn-outline-dark" (click)="replaceCheque(row)">
                                                     <i class="fa-solid fa-repeat me-1"></i> Replace
                                                 </button>
+                                                <button *ngIf="isReplaceAllowed(row)" type="button"
+                                                    class="btn btn-sm btn-outline-dark"
+                                                    (click)="replaceChequeWithNeft(row)">
+                                                    <i class="fa-solid fa-money-bill-transfer me-1"></i> Replace with
+                                                    NEFT
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>

@@ -217,6 +217,14 @@ export class ChequeDepositViewComponent implements OnInit {
     });
   }
 
+  replaceChequeWithNeft(row: any) {
+    const pid = row?.paymentId;
+    if (!pid) return;
+    this.router.navigate(['/app/accounts/cheques', pid], {
+      queryParams: { action: 'replace-neft' },
+    });
+  }
+
   openBulkReconcile(action: 'CLEAR' | 'FAIL') {
     if (!this.showBulkActions) return;
     if (!this.selectedIds.length) {

@@ -22,7 +22,7 @@ export class ChequeReplaceHistoryComponent {
 
   showViewModal = false;
   viewRow: any = null;
-  private historyEndpoint = 'cheque/replacement-history';
+  private historyEndpoint = 'cheque/replacement/history';
 
   constructor(
     private fb: FormBuilder,
@@ -94,5 +94,13 @@ export class ChequeReplaceHistoryComponent {
     if (!pid) return;
     // same style you used in cheque screens
     this.router.navigate(['/app/accounts/cheques', pid]);
+  }
+
+  isNeft(row: any): boolean {
+    return String(row?.paymentType || '').toUpperCase() === 'NEFT';
+  }
+
+  typeBadge(row: any): string {
+    return this.isNeft(row) ? 'bg-info-subtle text-info' : 'bg-dark-subtle text-dark';
   }
 }

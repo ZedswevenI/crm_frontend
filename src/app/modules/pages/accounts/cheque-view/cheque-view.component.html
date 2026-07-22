@@ -39,6 +39,11 @@
                     <i class="fa-solid fa-repeat"></i>
                     <span>Replace</span>
                 </button>
+                <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1 rounded-pill"
+                    [disabled]="!canReplaceCheque()" (click)="openReplaceNeftModal()">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
+                    <span>Replace with NEFT</span>
+                </button>
 
                 <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 rounded-pill"
                     (click)="back()">
@@ -336,6 +341,11 @@
                         <div class="form-text">New cheque amount (must be > 0)</div>
                     </div>
                     <div class="col-12">
+                        <label class="form-label fw-semibold">Cancel Reason (optional)</label>
+                        <input class="form-control" formControlName="cancelReason"
+                            placeholder="Why the old cheque is being cancelled..." />
+                    </div>
+                    <div class="col-12">
                         <label class="form-label fw-semibold">Remarks (optional)</label>
                         <input class="form-control" formControlName="remarks"
                             placeholder="Replacement reason / notes..." />
@@ -346,6 +356,70 @@
                         (click)="closeReplaceModal()">Cancel</button>
                     <button type="submit" class="btn btn-dark" [disabled]="replaceForm.invalid || loading">
                         Replace Cheque
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Replace with NEFT Modal ===================== -->
+<div class="app-modal-backdrop" *ngIf="showReplaceNeftModal">
+    <div class="app-modal" style="max-width: 900px;">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-0 fw-semibold">Replace Cheque with NEFT</h6>
+                <span class="text-muted small">
+                    This will cancel the old cheque and create a new NEFT payment entry.
+                </span>
+            </div>
+            <button type="button" class="btn-close" (click)="closeReplaceNeftModal()" aria-label="Close"></button>
+        </div>
+
+        <div class="app-modal-body">
+            <form [formGroup]="replaceNeftForm" (ngSubmit)="submitReplaceNeft()">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">UTR</label>
+                        <input class="form-control" formControlName="utr" placeholder="Bank UTR / reference number" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Amount</label>
+                        <input type="number" class="form-control" formControlName="amount" />
+                        <div class="form-text">Must be > 0</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Paid On (optional)</label>
+                        <input type="date" class="form-control" formControlName="paidOn" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Bank Name (optional)</label>
+                        <input class="form-control" formControlName="bankName" placeholder="SBI / HDFC..." />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Branch Name (optional)</label>
+                        <input class="form-control" formControlName="branchName" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Reference Note (optional)</label>
+                        <input class="form-control" formControlName="referenceNote" placeholder="Optional notes..." />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Cancel Reason (optional)</label>
+                        <input class="form-control" formControlName="cancelReason"
+                            placeholder="Why the old cheque is being cancelled..." />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Remarks (optional)</label>
+                        <input class="form-control" formControlName="remarks"
+                            placeholder="Replacement reason / notes..." />
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-outline-secondary"
+                        (click)="closeReplaceNeftModal()">Cancel</button>
+                    <button type="submit" class="btn btn-dark" [disabled]="replaceNeftForm.invalid || loading">
+                        Replace with NEFT
                     </button>
                 </div>
             </form>
