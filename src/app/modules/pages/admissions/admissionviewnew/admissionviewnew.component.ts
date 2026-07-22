@@ -1258,6 +1258,11 @@ export class AdmissionviewnewComponent implements OnInit {
     this.router.navigate(['app/admissions/edit', this.admissionId]);
   }
 
+  goToPaymentsEdit(): void {
+    if (!this.admissionId) return;
+    this.router.navigate(['app/admissions/payments/edit', this.admissionId]);
+  }
+
   get feeHeadPreview(): FeeBreakupRow[] {
     return this.admission?.fee?.breakup || [];
   }

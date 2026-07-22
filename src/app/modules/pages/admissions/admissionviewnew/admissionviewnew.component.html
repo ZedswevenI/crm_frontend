@@ -27,6 +27,10 @@
                 <button *ngIf="isRejected" class="btn btn-outline-warning btn-sm" (click)="goToAdmissionEdit()">
                     <i class="fa-solid fa-pen-to-square me-1"></i> Edit Admission
                 </button>
+                <button *ngIf="isPaymentsSubmitted || isApprovalSent" class="btn btn-outline-warning btn-sm"
+                    (click)="goToPaymentsEdit()">
+                    <i class="fa-solid fa-pen-to-square me-1"></i> Edit Payments
+                </button>
                 <button *ngIf="canSendForApproval && !isUnderReview" class="btn btn-saffron btn-sm"
                     [disabled]="actionBusy" (click)="sendForApproval()">
                     <i class="fa-solid fa-paper-plane me-1"></i> Send for Approval

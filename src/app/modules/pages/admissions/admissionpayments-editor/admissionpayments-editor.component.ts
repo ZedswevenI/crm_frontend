@@ -9,7 +9,7 @@ import {
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 import { AlertService } from '../../../../service/alert/alert.service';
 
-type ChequeMode = 'PDC' | 'CDC';
+type ChequeMode = 'PDC' | 'CDC' | 'DD' | 'NEFT' | 'UPI' | 'CASH';
 
 @Component({
   selector: 'app-admissionpayments-editor',
@@ -22,11 +22,13 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
   registrationNumber = '';
   loading = true;
   submitting = false;
-  form!: UntypedFormGroup;
+  payForm!: UntypedFormGroup;
+  feeEditForm!: UntypedFormGroup;
   finalFee = 0;
-  existingPayments: any[] = [];
-  chequeTemplate: any[] = [];
-  neftTemplateAmount: number | null = null;
+  neftSplitAmount = 0;
+  rawPayments: any[] = [];
+
+  readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
   bankNames: string[] = [
     'STATE BANK OF INDIA',
     'HDFC BANK',
@@ -46,8 +48,6 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
     'BANDHAN BANK',
   ];
 
-  readonly DEFAULT_FAVOUR_OF = 'ZEDSWEVEN I PRIVATE LIMITED';
-
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -66,10 +66,15 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
       return;
     }
 
-    this.form = this.fb.group({
+    this.payForm = this.fb.group({
       neftAmount: [{ value: 0, disabled: true }],
       neftRefs: this.fb.array([]),
       cheques: this.fb.array([]),
+    });
+    this.feeEditForm = this.fb.group({
+      testScholarshipPct: [{ value: 0, disabled: true }],
+      scholarshipPct: [{ value: 0, disabled: true }],
+      additionalScholarshipPct: [{ value: 0, disabled: true }],
     });
 
     this.load();
@@ -80,19 +85,19 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
   }
 
   get neftRefsFA(): UntypedFormArray {
-    return this.form.get('neftRefs') as UntypedFormArray;
+    return this.payForm.get('neftRefs') as UntypedFormArray;
   }
 
   get chequesFA(): UntypedFormArray {
-    return this.form.get('cheques') as UntypedFormArray;
+    return this.payForm.get('cheques') as UntypedFormArray;
   }
 
   get neftAmount(): number {
-    return Number(this.form.getRawValue().neftAmount ?? 0) || 0;
+    return Number(this.payForm.getRawValue().neftAmount ?? 0) || 0;
   }
 
   get neftTotalEntered(): number {
-    return (this.neftRefsFA.value || []).reduce(
+    return (this.neftRefsFA.getRawValue() || []).reduce(
       (s: number, r: any) => s + (Number(r.amount) || 0),
       0,
     );
@@ -114,13 +119,12 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
   }
 
   get balanceAmount(): number {
-    const due = Math.round(this.finalFee || 0);
-    const paid = Math.round(this.totalCollected || 0);
+    const due = this.roundRupee(this.finalFee || 0);
+    const paid = this.roundRupee(this.totalCollected || 0);
     return Math.max(0, due - paid);
   }
 
   private pickTenantId(): string {
-    // ✅ keep your existing storage key (but support both)
     return (
       localStorage.getItem('tenantId') ||
       localStorage.getItem('tenantid') ||
@@ -137,11 +141,10 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
     }
 
     this.loading = true;
-
     const viewBody = { entiId: tenantId, admissionId: this.admissionId };
     this.api.fetchData(viewBody, 'admi', 'view').subscribe({
       next: (resp: any) => {
-        if (!resp?.status) {
+        if (!resp?.status || !resp?.data?.admission) {
           this.loading = false;
           this.alert.error(
             resp?.message || resp?.error || 'Failed to load admission',
@@ -150,125 +153,40 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
           return;
         }
 
-        const root = resp?.data || resp || {};
-        const admission = root?.admission || root?.data?.admission || root;
+        const adm = resp.data.admission;
+        this.rawPayments = Array.isArray(resp.data.payments)
+          ? resp.data.payments
+          : [];
+        this.registrationNumber = safeStr(adm?.registrationNumber);
 
-        this.registrationNumber = safeStr(admission?.registrationNumber);
-
-        // final fee
-        const fee = admission?.fee || root?.fee || {};
-        const breakup = Array.isArray(fee?.breakup) ? fee.breakup : [];
+        const breakup = Array.isArray(adm?.fee?.breakup)
+          ? adm.fee.breakup
+          : [];
         const breakupSum = breakup.reduce(
           (s: number, r: any) => s + (Number(r?.total || 0) || 0),
           0,
         );
+        this.finalFee = this.roundRupee(
+          Number(adm?.fee?.finalFee || 0) || breakupSum,
+        );
+        this.neftSplitAmount = this.roundRupee(
+          Number(adm?.payments?.neft?.splitAmount || 0),
+        );
 
-        const finalFeeRaw =
-          (fee?.finalFee != null ? Number(fee.finalFee) : null) ??
-          (root?.finalFee != null ? Number(root.finalFee) : null) ??
-          (admission?.finalFee != null ? Number(admission.finalFee) : null) ??
-          0;
-
-        const computedFinal = finalFeeRaw > 0 ? finalFeeRaw : breakupSum;
-        this.finalFee = this.roundRupee(computedFinal);
-
-        if (!this.finalFee || this.finalFee <= 0) {
-          this.loading = false;
-          this.alert.error('finalFee missing in admission view response');
-          return;
-        }
-
-        // pull payments
-        const admPaymentsObj = admission?.payments || {};
-        const savedNeftRefsFromObj = Array.isArray(admPaymentsObj?.neft?.refs)
-          ? admPaymentsObj.neft.refs
-          : [];
-        const savedNeftSplitFromObj =
-          Number(admPaymentsObj?.neft?.splitAmount || 0) || 0;
-
-        const paymentsArray = Array.isArray(root?.payments)
-          ? root.payments
-          : Array.isArray(root?.data?.payments)
-            ? root.data.payments
-            : Array.isArray(admission?.payments)
-              ? admission.payments
-              : [];
-
-        this.existingPayments = paymentsArray;
-
-        // Support older fallback shapes if any
-        const neftSaved = Array.isArray(admission?.neftRefs)
-          ? admission.neftRefs
-          : Array.isArray(root?.neftRefs)
-            ? root.neftRefs
-            : null;
-
-        const chqSaved = Array.isArray(admission?.cheques)
-          ? admission.cheques
-          : Array.isArray(root?.cheques)
-            ? root.cheques
-            : null;
-
-        const savedNeftRefs =
-          neftSaved ??
-          (savedNeftRefsFromObj?.length
-            ? savedNeftRefsFromObj
-            : this.extractNeftRefsFromPayments(paymentsArray));
-
-        const savedCheques =
-          chqSaved ?? this.extractChequesFromPayments(paymentsArray);
-
-        // get payment template
-        const tplBody = { entiId: tenantId, admissionId: this.admissionId };
-        this.api.fetchData(tplBody, 'admi', 'paymenttemplate').subscribe({
-          next: (tpl: any) => {
-            if (!tpl?.status) {
-              this.loading = false;
-              this.alert.error(
-                tpl?.message ||
-                  tpl?.error ||
-                  'Failed to load instalment template',
-              );
-              return;
-            }
-
-            const tdata = tpl?.data || {};
-            this.chequeTemplate = Array.isArray(tdata?.chequeTemplate)
-              ? tdata.chequeTemplate
-              : [];
-
-            // ✅ FIX: controller returns neftSplitAmount (not neftAmount)
-            const tplSplit = Number(tdata?.neftSplitAmount || 0) || 0;
-            this.neftTemplateAmount =
-              tplSplit > 0
-                ? tplSplit
-                : savedNeftSplitFromObj > 0
-                  ? savedNeftSplitFromObj
-                  : null;
-
-            if (!this.chequeTemplate.length) {
-              this.loading = false;
-              this.alert.error(
-                'Cheque template not returned from paymenttemplate API',
-              );
-              return;
-            }
-
-            this.buildPaymentsFromFinalFee(
-              this.finalFee,
-              this.neftTemplateAmount,
-              this.chequeTemplate,
-            );
-
-            this.patchSavedPayments(savedNeftRefs, savedCheques);
-
-            this.loading = false;
+        this.feeEditForm.patchValue(
+          {
+            testScholarshipPct: Number(adm?.fee?.testScholarshipPct || 0),
+            scholarshipPct: Number(adm?.fee?.scholarshipPct || 0),
+            additionalScholarshipPct: Number(
+              adm?.fee?.additionalScholarshipPct || 0,
+            ),
           },
-          error: () => {
-            this.loading = false;
-            this.alert.error('Failed to load instalment template');
-          },
-        });
+          { emitEvent: false },
+        );
+
+        this.buildPaymentFormsFromSaved(this.rawPayments);
+
+        this.loading = false;
       },
       error: () => {
         this.loading = false;
@@ -278,289 +196,113 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
     });
   }
 
-  private buildPaymentsFromFinalFee(
-    finalFee: number,
-    neftTplAmount: number | null,
-    chequeTpl: any[],
-  ): void {
-    const due = this.roundRupee(finalFee);
-    const { admissionRow, chequeRows } = this.splitAdmissionRow(
-      chequeTpl || [],
+  private buildPaymentFormsFromSaved(payments: any[]): void {
+    const nefts = (payments || []).filter(
+      (p) => String(p.paymentType || '').toUpperCase() === 'NEFT',
+    );
+    const chqs = (payments || []).filter(
+      (p) => String(p.paymentType || '').toUpperCase() === 'CHEQUE',
     );
 
-    // NEFT base
-    let baseNeft =
-      neftTplAmount != null &&
-      Number.isFinite(neftTplAmount) &&
-      Number(neftTplAmount) > 0
-        ? Number(neftTplAmount)
-        : Number(admissionRow?.amount || 0) || 0;
+    this.payForm
+      .get('neftAmount')
+      ?.setValue(this.neftSplitAmount, { emitEvent: false });
 
-    if (!baseNeft) {
-      const neftPay = (this.existingPayments || []).find(
-        (p: any) => String(p.paymentType || '').toUpperCase() === 'NEFT',
-      );
-      baseNeft = Number(neftPay?.amount || 0) || 0;
-    }
-
-    const chequeBase = (chequeRows || []).map(
-      (x: any) => Number(x?.amount || 0) || 0,
-    );
-    const baseAmounts = [baseNeft, ...chequeBase];
-    const baseTotal = baseAmounts.reduce(
-      (s: number, x: number) => s + (Number(x) || 0),
-      0,
-    );
-
-    if (!baseTotal || due <= 0) {
-      this.form.get('neftAmount')?.setValue(0, { emitEvent: false });
-      this.form.setControl('neftRefs', this.fb.array([]));
-      this.form.setControl('cheques', this.fb.array([]));
-      this.addNeftRef();
-      return;
-    }
-
-    const scaled = this.scalePlan(baseAmounts, due, baseTotal);
-    const neftAmt = scaled[0] || 0;
-    const chequeAmounts = scaled.slice(1);
-
-    this.form.get('neftAmount')?.setValue(neftAmt, { emitEvent: false });
-
-    // NEFT array
-    const neftFA = this.fb.array([]) as UntypedFormArray;
-    neftFA.push(
-      this.fb.group({
-        utr: [
-          '',
-          [
-            Validators.required,
-            Validators.minLength(6),
-            Validators.maxLength(40),
-          ],
-        ],
-        amount: [neftAmt, [Validators.required, Validators.min(1)]],
-        paidOn: [null],
-        bankName: [''],
-        referenceNote: [''],
-        remarks: [''],
-      }),
-    );
-    this.form.setControl('neftRefs', neftFA);
-
-    // Cheques array
-    const chqFA = this.fb.array([]) as UntypedFormArray;
-
-    chequeAmounts.forEach((amt: number, idx: number) => {
-      const tplRow = chequeRows[idx] || {};
-      const sno = Number(tplRow?.sno || idx + 1) || idx + 1;
-
-      const label = String(
-        tplRow?.instalmentLabel || tplRow?.label || `Instalment ${sno}`,
-      ).trim();
-
-      // template dueDate may be ISO string; we store form as YYYY-MM-DD input string
-      const dueDateISO = this.toISODateInput(tplRow?.dueDate || null);
-      const chequeDateISO = this.toISODateInput(
-        tplRow?.chequeDate || tplRow?.dueDate || null,
-      );
-
-      // instalmentDate in UI is display-only; keep epoch if template provides it, else use dueDate epoch if available
-      const instalmentDateEpoch =
-        typeof tplRow?.instalmentDate === 'number'
-          ? tplRow.instalmentDate
-          : typeof tplRow?.dueDate === 'number'
-            ? tplRow.dueDate
-            : null;
-
-      chqFA.push(
-        this.fb.group({
-          sno: [sno],
-          instalmentLabel: [label],
-          instalmentDate: [instalmentDateEpoch],
-
-          // ✅ chequeDate should be editable (not disabled) because required
-          chequeDate: [chequeDateISO, [Validators.required]],
-
-          favourOf: [
-            { value: this.DEFAULT_FAVOUR_OF, disabled: true },
-            [Validators.required],
-          ],
-          amount: [
-            { value: amt, disabled: true },
-            [Validators.required, Validators.min(1)],
-          ],
-
-          chequeNo: [
-            '',
-            [
-              Validators.required,
-              Validators.minLength(4),
-              Validators.maxLength(30),
-            ],
-          ],
-
-          dueDate: [dueDateISO, [Validators.required]],
-          mode: ['PDC' as ChequeMode, [Validators.required]],
-          bankName: ['', [Validators.required]],
-          remarks: [''],
-        }),
-      );
-    });
-
-    this.form.setControl('cheques', chqFA);
-  }
-
-  private splitAdmissionRow(rows: any[]): {
-    admissionRow: any | null;
-    chequeRows: any[];
-  } {
-    if (!Array.isArray(rows) || !rows.length)
-      return { admissionRow: null, chequeRows: [] };
-    const isAdmission = (r: any) => {
-      const label = this.normLabel(r?.instalmentLabel || r?.label || '');
-      return label.includes('admission') || label.includes('advance');
-    };
-    const idx = rows.findIndex(isAdmission);
-    if (idx < 0) return { admissionRow: null, chequeRows: rows };
-    const admissionRow = rows[idx];
-    const chequeRows = rows.filter((_: any, i: number) => i !== idx);
-    return { admissionRow, chequeRows };
-  }
-
-  private normLabel(v: any): string {
-    return String(v || '')
-      .trim()
-      .toLowerCase();
-  }
-
-  private patchSavedPayments(savedNeftRefs: any[], savedCheques: any[]): void {
-    // NEFT patch
-    if (Array.isArray(savedNeftRefs) && savedNeftRefs.length) {
-      const fa = this.fb.array([]);
-      savedNeftRefs.forEach((r: any) => {
-        fa.push(
+    const neftFA = this.fb.array([]);
+    if (nefts.length) {
+      nefts.forEach((p: any) => {
+        neftFA.push(
           this.fb.group({
             utr: [
-              safeStr(r.utr),
-              [
-                Validators.required,
-                Validators.minLength(6),
-                Validators.maxLength(40),
-              ],
+              safeStr(p?.neft?.utr),
+              [Validators.required, Validators.minLength(6)],
             ],
             amount: [
-              Number(r.amount || 0) || 0,
+              Number(p.amount || 0),
               [Validators.required, Validators.min(1)],
             ],
-            paidOn: [this.epochToISODateInput(r.paidOn)],
-            bankName: [safeStr(r.bankName)],
-            referenceNote: [safeStr(r.referenceNote)],
-            remarks: [safeStr(r.remarks)],
+            paidOn: [this.epochToISODateInput(p?.neft?.paidOn || null)],
+            bankName: [safeStr(p?.neft?.bankName)],
+            branchName: [safeStr(p?.neft?.branchName)],
+            referenceNote: [safeStr(p?.neft?.referenceNote)],
+            remarks: [safeStr(p?.remarks)],
           }),
         );
       });
-      this.form.setControl('neftRefs', fa);
-    } else if (this.neftRefsFA.length === 0) {
-      this.addNeftRef();
+    } else {
+      neftFA.push(this.buildEmptyNeftRow(this.neftSplitAmount));
     }
+    this.payForm.setControl('neftRefs', neftFA);
 
-    // Cheque patch by sno
-    if (
-      Array.isArray(savedCheques) &&
-      savedCheques.length &&
-      this.chequesFA.length
-    ) {
-      savedCheques.forEach((s: any) => {
-        const sno = Number(s.sno || 0) || 0;
-        const idx = this.chequesFA.controls.findIndex(
-          (c: any) => Number(c.get('sno')?.value || 0) === sno,
+    const chqFA = this.fb.array([]);
+    chqs
+      .sort(
+        (a: any, b: any) =>
+          (Number(a?.cheque?.sno || 0) || 0) -
+          (Number(b?.cheque?.sno || 0) || 0),
+      )
+      .forEach((p: any) => {
+        chqFA.push(
+          this.fb.group({
+            sno: [Number(p?.cheque?.sno || 0) || 0],
+            description: [safeStr(p?.cheque?.instalmentLabel)],
+            instalmentDate: [p?.cheque?.instalmentDate ?? null],
+            amount: [
+              { value: this.roundRupee(p.amount), disabled: true },
+              [Validators.required, Validators.min(1)],
+            ],
+            favourOf: [
+              {
+                value: safeStr(p?.cheque?.favourOf) || this.DEFAULT_FAVOUR_OF,
+                disabled: true,
+              },
+              [Validators.required],
+            ],
+            mode: [(p?.cheque?.mode || 'PDC') as ChequeMode, [Validators.required]],
+            chequeDate: [
+              this.epochToISODateInput(p?.cheque?.chequeDate),
+              [Validators.required],
+            ],
+            dueDate: [this.epochToISODateInput(p?.cheque?.dueDate)],
+            chequeNo: [
+              safeStr(p?.cheque?.chequeNo),
+              [
+                Validators.required,
+                Validators.minLength(4),
+                Validators.maxLength(30),
+              ],
+            ],
+            bankName: [safeStr(p?.cheque?.bankName), [Validators.required]],
+            branchName: [safeStr(p?.cheque?.branchName)],
+            remarks: [safeStr(p?.remarks)],
+          }),
         );
-        if (idx >= 0) {
-          const g = this.chequesFA.at(idx) as UntypedFormGroup;
-          g.patchValue(
-            {
-              chequeNo: safeStr(s.chequeNo),
-              chequeDate: this.epochToISODateInput(s.chequeDate),
-              dueDate: this.epochToISODateInput(s.dueDate),
-
-              bankName: safeStr(s.bankName),
-              remarks: safeStr(s.remarks),
-              mode: (s.mode === 'CDC' ? 'CDC' : 'PDC') as ChequeMode,
-
-              instalmentLabel:
-                safeStr(s.instalmentLabel) ||
-                g.get('instalmentLabel')?.value ||
-                '',
-              instalmentDate:
-                typeof s.instalmentDate === 'number'
-                  ? s.instalmentDate
-                  : g.get('instalmentDate')?.value || null,
-            },
-            { emitEvent: false },
-          );
-        }
       });
-    }
+    this.payForm.setControl('cheques', chqFA);
+  }
+
+  private buildEmptyNeftRow(prefillAmount = 0): UntypedFormGroup {
+    return this.fb.group({
+      utr: ['', [Validators.required, Validators.minLength(6)]],
+      amount: [
+        this.roundRupee(prefillAmount),
+        [Validators.required, Validators.min(1)],
+      ],
+      paidOn: [null],
+      bankName: [''],
+      branchName: [''],
+      referenceNote: [''],
+      remarks: [''],
+    });
   }
 
   addNeftRef(): void {
-    this.neftRefsFA.push(
-      this.fb.group({
-        utr: [
-          '',
-          [
-            Validators.required,
-            Validators.minLength(6),
-            Validators.maxLength(40),
-          ],
-        ],
-        amount: [0, [Validators.required, Validators.min(1)]],
-        paidOn: [null],
-        bankName: [''],
-        referenceNote: [''],
-        remarks: [''],
-      }),
-    );
+    this.neftRefsFA.push(this.buildEmptyNeftRow());
   }
 
   removeNeftRef(i: number): void {
     if (this.neftRefsFA.length <= 1) return;
     this.neftRefsFA.removeAt(i);
-  }
-
-  private extractNeftRefsFromPayments(payments: any[]): any[] {
-    const nefts = (payments || []).filter(
-      (p) => String(p.paymentType || '').toUpperCase() === 'NEFT',
-    );
-    return nefts
-      .map((p: any) => ({
-        utr: safeStr(p.neft?.utr || p.utr || ''),
-        amount: Number(p.amount || 0) || 0,
-        paidOn: p.neft?.paidOn ?? null,
-        bankName: safeStr(p.neft?.bankName || ''),
-        referenceNote: safeStr(p.neft?.referenceNote || ''),
-        remarks: safeStr(p.remarks || ''),
-      }))
-      .filter((x: any) => !!safeStr(x.utr) || Number(x.amount || 0) > 0);
-  }
-
-  private extractChequesFromPayments(payments: any[]): any[] {
-    const chq = (payments || []).filter(
-      (p) => String(p.paymentType || '').toUpperCase() === 'CHEQUE',
-    );
-    return chq.map((p: any) => ({
-      sno: Number(p.cheque?.sno || 0) || 0,
-      chequeNo: safeStr(p.cheque?.chequeNo || ''),
-      chequeDate: p.cheque?.chequeDate ?? null,
-      dueDate: p.cheque?.dueDate ?? null,
-      favourOf: safeStr(p.cheque?.favourOf || this.DEFAULT_FAVOUR_OF),
-      mode: (p.cheque?.mode === 'CDC' ? 'CDC' : 'PDC') as ChequeMode,
-      bankName: safeStr(p.cheque?.bankName || ''),
-      amount: Number(p.amount || 0) || 0,
-      remarks: safeStr(p.remarks || ''),
-      instalmentLabel: safeStr(p.cheque?.instalmentLabel || ''),
-      instalmentDate: p.cheque?.instalmentDate ?? null,
-    }));
   }
 
   save(): void {
@@ -576,13 +318,72 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
       return;
     }
 
-    this.form.markAllAsTouched();
-    if (this.form.invalid) {
+    this.payForm.markAllAsTouched();
+    if (this.payForm.invalid) {
       this.alert.error('Please fill required NEFT/cheque details.');
       return;
     }
 
-    const entered = this.neftTotalEntered;
+    const standardNefts = (this.neftRefsFA.getRawValue() || [])
+      .map((r: any) => ({
+        utr: safeStr(r.utr),
+        amount: Number(r.amount || 0),
+        paidOn: this.dateInputToEpoch(r.paidOn),
+        bankName: safeStr(r.bankName) || null,
+        branchName: safeStr(r.branchName) || null,
+        referenceNote: safeStr(r.referenceNote) || null,
+        remarks: safeStr(r.remarks) || null,
+      }))
+      .filter((x: any) => !!x.utr && x.amount > 0);
+
+    // Rows switched to "NEFT" mode in the cheque schedule are converted into
+    // NEFT refs instead of being saved as cheques.
+    const finalCheques: any[] = [];
+    const convertedNefts: any[] = [];
+    (this.chequesFA.getRawValue() || []).forEach((r: any) => {
+      const mode = String(r.mode || '').toUpperCase();
+      const chequeNo = safeStr(r.chequeNo);
+      const amount = Number(r.amount || 0);
+      const dueDate = this.dateInputToEpoch(r.dueDate);
+      const chequeDate = this.dateInputToEpoch(r.chequeDate);
+      const bankName = safeStr(r.bankName) || null;
+      const branchName = safeStr(r.branchName) || null;
+      const remarks = safeStr(r.remarks) || null;
+      if (mode === 'NEFT') {
+        if (!chequeNo || amount <= 0) return;
+        convertedNefts.push({
+          utr: chequeNo,
+          amount,
+          paidOn: chequeDate,
+          bankName,
+          branchName,
+          remarks: `${safeStr(r.description) || 'Instalment'} paid via NEFT.${remarks ? ' ' + remarks : ''}`,
+        });
+        return;
+      }
+      if (!chequeNo || !dueDate || amount <= 0) return;
+      finalCheques.push({
+        sno: Number(r.sno || 0) || 0,
+        chequeNo,
+        chequeDate,
+        dueDate,
+        favourOf: safeStr(this.DEFAULT_FAVOUR_OF),
+        mode: ['PDC', 'CDC', 'DD', 'UPI', 'CASH'].includes(mode)
+          ? mode
+          : 'PDC',
+        bankName,
+        branchName,
+        amount,
+        instalmentLabel: safeStr(r.description) || null,
+        instalmentDate:
+          typeof r.instalmentDate === 'number' ? r.instalmentDate : null,
+        remarks,
+      });
+    });
+    const neftRefs = [...standardNefts, ...convertedNefts];
+    const cheques = finalCheques;
+
+    const entered = neftRefs.reduce((s, r) => s + r.amount, 0);
     if (entered <= 0) {
       this.alert.error('Please add at least one NEFT reference amount.');
       return;
@@ -594,46 +395,16 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
       return;
     }
 
-    const totalPaid = entered + this.chequeTotal;
+    const totalPaid = entered + cheques.reduce((s, c) => s + c.amount, 0);
     const totalDue = this.roundRupee(this.finalFee || 0);
-    if (totalDue > 0 && Math.round(totalPaid) !== totalDue) {
+    if (totalDue > 0 && Math.abs(totalPaid - totalDue) > 5) {
       this.alert.error(
         `Total of NEFT and cheques (₹${totalPaid}) must match final fee (₹${totalDue}).`,
       );
       return;
     }
 
-    // ✅ NEFT: convert paidOn to epoch
-    const neftRefs = (this.neftRefsFA.value || [])
-      .map((r: any) => ({
-        utr: safeStr(r.utr),
-        amount: Number(r.amount || 0),
-        paidOn: this.dateInputToEpoch(r.paidOn),
-        bankName: safeStr(r.bankName) || null,
-        referenceNote: safeStr(r.referenceNote) || null,
-        remarks: safeStr(r.remarks) || null,
-      }))
-      .filter((x: any) => !!x.utr && x.amount > 0);
-
-    // ✅ Cheques: convert chequeDate/dueDate + send instalment fields
-    const cheques = (this.chequesFA.getRawValue() || [])
-      .map((r: any) => ({
-        sno: Number(r.sno || 0) || 0,
-        chequeNo: safeStr(r.chequeNo),
-        chequeDate: this.dateInputToEpoch(r.chequeDate),
-        dueDate: this.dateInputToEpoch(r.dueDate),
-        instalmentLabel: safeStr(r.instalmentLabel) || null,
-        instalmentDate: this.dateInputToEpoch(r.instalmentDate),
-        favourOf: safeStr(this.DEFAULT_FAVOUR_OF),
-        mode: (r.mode === 'CDC' ? 'CDC' : 'PDC') as ChequeMode,
-        bankName: safeStr(r.bankName) || null,
-        amount: Number(r.amount || 0),
-        remarks: safeStr(r.remarks) || null,
-      }))
-      .filter((x: any) => !!x.chequeNo && !!x.dueDate && x.amount > 0);
-
     this.submitting = true;
-
     const body: any = {
       entiId: tenantId,
       admissionId: this.admissionId,
@@ -675,82 +446,14 @@ export class AdmissionpaymentsEditorComponent implements OnInit {
     return sign * rounded;
   }
 
-  private scalePlan(
-    amounts: number[],
-    targetTotal: number,
-    baseTotal: number,
-  ): number[] {
-    const target = this.roundRupee(targetTotal);
-    if (!baseTotal || target <= 0) return amounts.map(() => 0);
-
-    const raw = amounts.map((a) => (Number(a || 0) / baseTotal) * target);
-    const rounded = raw.map((x) => {
-      const b = Math.floor(x);
-      const f = x - b;
-      return f >= 0.5 ? b + 1 : b;
-    });
-
-    let sum = rounded.reduce((s, x) => s + x, 0);
-    let diff = target - sum;
-
-    let idx = rounded.length - 1;
-    while (diff > 0 && rounded.length) {
-      rounded[idx] = rounded[idx] + 1;
-      diff--;
-      idx--;
-      if (idx < 0) idx = rounded.length - 1;
-    }
-
-    idx = rounded.length - 1;
-    while (diff < 0 && rounded.length) {
-      if (rounded[idx] > 0) {
-        rounded[idx] = rounded[idx] - 1;
-        diff++;
-      }
-      idx--;
-      if (idx < 0) idx = rounded.length - 1;
-    }
-
-    return rounded;
-  }
-
-  // For template labels etc.
-  private toISODateInput(v: any): string | null {
-    if (!v) return null;
-    const s = String(v).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-    const iso = s.match(/^(\d{4}-\d{2}-\d{2})T/);
-    if (iso?.[1]) return iso[1];
-
-    const dm = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (dm) {
-      const dd = dm[1].padStart(2, '0');
-      const mm = dm[2].padStart(2, '0');
-      const yyyy = dm[3];
-      return `${yyyy}-${mm}-${dd}`;
-    }
-
-    const d = new Date(s);
-    if (!isNaN(d.getTime())) {
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    }
-    return null;
-  }
-
   private epochToISODateInput(v: any): string | null {
     if (!v) return null;
     if (typeof v === 'string') {
-      // if already ISO date input
       const s = v.trim();
       if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-      // if epoch in string
       const asNum = Number(s);
       if (Number.isFinite(asNum) && asNum > 0) v = asNum;
-      else return this.toISODateInput(s);
+      else return null;
     }
     if (typeof v === 'number' && Number.isFinite(v)) {
       const d = new Date(v);
