@@ -2,8 +2,6 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { ListComponent } from './list/list.component';
 
-import { AdmissionsComponent } from './admissions/admissions.component';
-import { AdmissionviewComponent } from './admissionview/admissionview.component';
 import { AdmissionreportsComponent } from './admissionreports/admissionreports.component';
 import { AdmissioncommunicationComponent } from './admissioncommunication/admissioncommunication.component';
 import { AdmissionfeecalComponent } from './admissionfeecal/admissionfeecal.component';
@@ -19,7 +17,6 @@ import { AdmissionApproveComponent } from './admission-approve/admission-approve
 const routes: Routes = [
   { path: '', component: ListComponent },
   { path: 'waitforapproval', component: AdmissionWaitComponent },
-  { path: 'new1', component: AdmissionsComponent },
   { path: 'new', component: AdmissionbugComponent },
   { path: 'print/acknowledgement', component: PrintAcknowledgementComponent },
   { path: 'view/:id', component: AdmissionviewnewComponent },
