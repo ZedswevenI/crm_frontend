@@ -1,5 +1,14 @@
 /* .btn-saffron colors moved to the global unified set in src/styles.scss */
 
+/* This screen re-tints the shared --z7i-saffron token to brand blue, scoped
+   to this component only (Angular's style encapsulation keeps it from
+   leaking into the original New Admission screen) — every global rule that
+   reads var(--z7i-saffron) (.btn-saffron, focus rings, etc.) picks up blue
+   here instead, so the two forms are visually distinguishable at a glance. */
+.admission-page {
+  --z7i-saffron: #1b6fb0;
+}
+
 /* Make all action buttons feel consistent */
 .admission-page .btn {
   border-radius: 0.65rem;
@@ -7,4 +16,19 @@
 
 .admission-page .btn.btn-sm {
   border-radius: 0.55rem;
+}
+
+.flat-discount-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: #e2eef8;
+  color: #1b6fb0;
+  vertical-align: middle;
 }

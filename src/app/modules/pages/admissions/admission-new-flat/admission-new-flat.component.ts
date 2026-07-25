@@ -264,10 +264,18 @@ export class AdmissionNewFlatComponent implements OnInit {
 
   readonly chequeTotal$ = () =>
     this.chequesFA.valueChanges.pipe(
-      startWith(this.chequesFA.getRawValue()),
-      map((rows: any[]) =>
+      startWith(null),
+      // Always re-read via getRawValue() — `valueChanges` emits `.value`,
+      // which excludes disabled controls entirely (e.g. a locked `amount`
+      // field), so relying on the emitted payload would silently drop
+      // locked rows out of the running total the moment any other field
+      // in the array changes.
+      map(() =>
         this.roundRupee(
-          (rows || []).reduce((s, r) => s + (Number(r?.amount) || 0), 0),
+          (this.chequesFA.getRawValue() || []).reduce(
+            (s: number, r: any) => s + (Number(r?.amount) || 0),
+            0,
+          ),
         ),
       ),
       shareReplay(1),
@@ -2408,13 +2416,22 @@ export class AdmissionNewFlatComponent implements OnInit {
       const rows = (fa?.getRawValue?.() || []) as any[];
       if (!rows.length) return null;
       const sumByDate = new Map<number, number>();
+      const countByDate = new Map<number, number>();
       for (const r of rows) {
         const dt = Number(r?.instalmentDate || 0) || 0;
         const amt = Number(r?.amount || 0) || 0;
         if (!dt || amt <= 0) continue;
         sumByDate.set(dt, (sumByDate.get(dt) || 0) + amt);
+        countByDate.set(dt, (countByDate.get(dt) || 0) + 1);
       }
+      // This cap only makes sense once a due date has actually been split
+      // into more than one row — it stops the split parts from exceeding
+      // the original single row's amount. A single row for a date is a
+      // direct user edit (e.g. to close a total-mismatch gap) and is
+      // intentionally allowed to differ from the plan-computed amount;
+      // the overall Paid-vs-Due check in submitPayments() governs that.
       for (const [dt, sum] of sumByDate.entries()) {
+        if ((countByDate.get(dt) || 0) < 2) continue;
         const allowed = Number(this.chequeAllowedByDate.get(dt) || 0) || 0;
         if (allowed > 0 && this.roundRupee(sum) > this.roundRupee(allowed)) {
           return { chequeSplitExceed: { instalmentDate: dt, sum, allowed } };
@@ -2540,6 +2557,16 @@ export class AdmissionNewFlatComponent implements OnInit {
       remarks: [data.remarks],
       isSplit: [false],
     });
+  }
+
+  toggleAmountEdit(idx: number): void {
+    const control = this.chequesFA.at(idx)?.get('amount');
+    if (!control) return;
+    if (control.disabled) {
+      control.enable();
+    } else {
+      control.disable();
+    }
   }
 
   private reindexCheques(): void {

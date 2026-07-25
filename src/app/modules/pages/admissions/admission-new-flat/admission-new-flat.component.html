@@ -2,7 +2,10 @@
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <h5 class="mb-1 fw-semibold">New Admission (Flat Discount)</h5>
+                <h5 class="mb-1 fw-semibold d-flex align-items-center gap-2">
+                    New Admission
+                    <span class="flat-discount-badge">Flat Discount</span>
+                </h5>
             </div>
             <div class="stepper d-flex align-items-center gap-2">
                 <span class="step-pill" [class.active]="step === 0">0</span>
@@ -519,8 +522,17 @@
                                             </span>
                                         </td>
                                         <td class="text-end">
-                                            <input class="form-control form-control-sm text-end" type="number"
-                                                formControlName="amount" readonly />
+                                            <div class="d-flex align-items-center gap-1">
+                                                <input class="form-control form-control-sm text-end" type="number"
+                                                    formControlName="amount"
+                                                    [readonly]="row.get('amount')?.disabled" />
+                                                <button type="button" class="btn btn-sm btn-outline-secondary px-2"
+                                                    (click)="toggleAmountEdit(idx)"
+                                                    [title]="row.get('amount')?.disabled ? 'Edit amount' : 'Lock amount'">
+                                                    <i class="fa-solid"
+                                                        [ngClass]="row.get('amount')?.disabled ? 'fa-pen' : 'fa-lock-open'"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                         <td>
                                             <input class="form-control form-control-sm" formControlName="favourOf"
