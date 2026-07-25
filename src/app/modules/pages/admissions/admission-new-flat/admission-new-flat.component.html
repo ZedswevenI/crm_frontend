@@ -798,3 +798,39 @@
         </div>
     </div>
 </div>
+
+<!-- Amount mismatch confirmation -->
+<div class="app-modal-backdrop" *ngIf="showMismatchModal">
+    <div class="app-modal" style="max-width: 440px">
+        <div class="app-modal-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Amount doesn't match the flat-discount total</h6>
+            <button type="button" class="btn-close" (click)="cancelMismatchModal()"></button>
+        </div>
+        <div class="app-modal-body" *ngIf="mismatchInfo as m">
+            <p class="text-muted small mb-3">
+                One or more installments were manually adjusted, so the total collected differs from the
+                flat-discount fee by more than ₹5. Confirm you want to submit anyway.
+            </p>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+                <span class="text-muted">Paid</span>
+                <span class="fw-semibold">₹{{ m.paid | number:"1.0-0" }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+                <span class="text-muted">Due (after flat discount)</span>
+                <span class="fw-semibold">₹{{ m.due | number:"1.0-0" }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1">
+                <span class="text-muted">Difference</span>
+                <span class="fw-semibold text-danger">₹{{ m.diff | number:"1.0-0" }}</span>
+            </div>
+        </div>
+        <div class="app-modal-body pt-0 d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelMismatchModal()">
+                Cancel
+            </button>
+            <button type="button" class="btn btn-saffron btn-sm" (click)="confirmMismatchAndSubmit()">
+                Confirm & Submit
+            </button>
+        </div>
+    </div>
+</div>

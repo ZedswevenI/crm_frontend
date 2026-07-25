@@ -165,6 +165,9 @@ export class AdmissionNewFlatComponent implements OnInit {
   splitOriginalAmount: number = 0;
   selectedChequeIndices: Set<number> = new Set();
 
+  showMismatchModal = false;
+  mismatchInfo: { paid: number; due: number; diff: number } | null = null;
+
   constructor(
     private fb: UntypedFormBuilder,
     private alert: AlertService,
@@ -1070,9 +1073,144 @@ export class AdmissionNewFlatComponent implements OnInit {
     finalFee = finalFee + this.roundRupee(otherTotal);
     const diff = Math.abs(totalPaid - finalFee);
     if (diff > 5) {
-      this.alert.error(
-        `Total Mismatch. Paid: ₹${totalPaid}, Due: ₹${finalFee} (Diff: ₹${diff})`,
-      );
+      // Unlike the tiered-scholarship screen, this form lets staff manually
+      // raise/lower individual installment amounts beyond the flat discount
+      // (per-case negotiation), so a >₹5 mismatch isn't necessarily an
+      // error here — confirm with the user instead of hard-blocking.
+      this.mismatchInfo = { paid: totalPaid, due: finalFee, diff };
+      this.showMismatchModal = true;
+      return;
+    }
+    this.proceedPaymentSubmit();
+  }
+
+  confirmMismatchAndSubmit(): void {
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+    const info = this.mismatchInfo;
+    this.showMismatchModal = false;
+    this.mismatchInfo = null;
+    if (!info) {
+      this.proceedPaymentSubmit();
+      return;
+    }
+    // The actual collected total (the amount the user just confirmed) is
+    // now the real grand total for this admission, not the flat-discount
+    // computed figure — update the admission record's fee.finalFee to
+    // match before saving the payments themselves.
+    const body = this.buildGrandTotalUpdateBody(tenantId, info.paid);
+    this.api
+      .fetchData(body, 'admi', 'update')
+      .pipe(
+        catchError(() => {
+          this.alert.error('Failed to update grand total');
+          return of(null);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((res: any) => {
+        if (!res?.status) {
+          this.alert.error(res?.message || 'Failed to update grand total');
+          return;
+        }
+        this.proceedPaymentSubmit();
+      });
+  }
+
+  cancelMismatchModal(): void {
+    this.showMismatchModal = false;
+    this.mismatchInfo = null;
+  }
+
+  private buildGrandTotalUpdateBody(tenantId: string, newFinalFee: number): any {
+    const plan =
+      this.feePlansSub
+        .getValue()
+        .find(
+          (p) =>
+            p.id ===
+            String(this.step1Form.get('feePlanId')?.value || '').trim(),
+        ) || null;
+    const s1 = this.step1Form.getRawValue();
+    const rawYear = s1.courseStartYear;
+    const yearStr =
+      rawYear && typeof rawYear === 'object' && rawYear.value
+        ? String(rawYear.value)
+        : String(rawYear || '').trim();
+    const sourceType = s1.portalStudentId ? 'PORTAL' : 'DIRECT';
+    const feePreview = this.computeFeeHeadPreview(
+      plan,
+      Number(s1.testScholarshipPct || 0),
+      Number(s1.scholarshipPct || 0),
+      Number(s1.additionalScholarshipPct || 0),
+    );
+    const totalDisc = this.computeTotalDiscountPct(
+      Number(s1.testScholarshipPct || 0),
+      Number(s1.scholarshipPct || 0),
+      Number(s1.additionalScholarshipPct || 0),
+    );
+    return {
+      entiId: tenantId,
+      admissionId: this.admissionId,
+      academicYear: String(s1.courseStartYear || '').trim() || null,
+      courseStartYear: yearStr,
+      sourceType,
+      feePlanId: String(s1.feePlanId || '').trim(),
+      feePlanCode: s1.feePlanCode || plan?.feePlanCode || '',
+      centerName: String(s1.centerName || '').trim(),
+      centerId: s1.centerId || '',
+      centerCode: String(s1.centerCode || '').trim() || null,
+      studyCentre: String(s1.studyCentre || '').trim() || null,
+      programName: String(s1.programName || '').trim(),
+      programId: s1.programId || '',
+      programCode: s1.programCode || '',
+      registrationNumber: String(s1.regNo || '').trim() || null,
+      portalStudentId: s1.portalStudentId || null,
+      scholarshipTestId:
+        this.directMode === 'WITH_TEST' ? null : s1.scholarshipTestId || null,
+      student: {
+        name: String(s1.name || '').trim(),
+        phone: String(s1.phone || '').trim(),
+        parentName: String(s1.parentName || '').trim(),
+        parentPhone: String(s1.parentPhone || '').trim(),
+        email: String(s1.email || '').trim() || null,
+        address: String(s1.address || '').trim() || null,
+        city: String(s1.city || '').trim() || null,
+        state: String(s1.state || '').trim() || null,
+        pincode: String(s1.pincode || '').trim() || null,
+      },
+      fee: {
+        baseFee: Number(s1.baseFee || 0),
+        finalFee: this.roundRupee(newFinalFee),
+        testScholarshipPct:
+          this.directMode === 'WITH_TEST'
+            ? 0
+            : Number(s1.testScholarshipPct || 0),
+        scholarshipPct: Number(s1.scholarshipPct || 0),
+        additionalScholarshipPct: Number(s1.additionalScholarshipPct || 0),
+        totalDiscountPct: Number(totalDisc || 0),
+        breakup: feePreview.map((x) => ({
+          label: x.label,
+          total: x.total,
+          scholBenefits: x.scholBenefits,
+        })),
+      },
+      schoolMarks: {
+        overallPct: s1.schoolOverallPct,
+        coreSubjectPct: s1.schoolCorePct,
+        remarks: String(s1.schoolRemarks || '').trim() || null,
+      },
+      test: this.normalizeTestInfoForPayload(this.testInfo),
+    };
+  }
+
+  private proceedPaymentSubmit(): void {
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
       return;
     }
     const rawCheques = this.chequesFA.getRawValue();
