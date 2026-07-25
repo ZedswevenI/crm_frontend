@@ -106,6 +106,19 @@ export class ChequeComponent implements OnInit {
     });
   }
 
+  // Excel export dumps raw DB values (epoch millis) directly otherwise —
+  // convert to a plain locale date, no time component, matching the
+  // dd/MM/yyyy format already shown on-screen via the `date` pipe.
+  private formatDateForExcel(value: any): string {
+    if (value === null || value === undefined || value === '') return '-';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '-';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  }
+
   private buildQueryParams(params: Record<string, any>) {
     const keys = Object.keys(params || {}).filter(
       (k) => params[k] !== undefined && params[k] !== null && params[k] !== '',
@@ -640,9 +653,10 @@ export class ChequeComponent implements OnInit {
           const excelRows = rows.map((x: any, idx: number) => ({
             'S.No': idx + 1,
             'Cheque No': x?.cheque?.chequeNo || '-',
-            'Due Date': x?.cheque?.dueDate || '-',
-            'Planned Deposit':
-              x?.cheque?.plannedDepositDate || x?.cheque?.dueDate || '-',
+            'Due Date': this.formatDateForExcel(x?.cheque?.dueDate),
+            'Planned Deposit': this.formatDateForExcel(
+              x?.cheque?.plannedDepositDate || x?.cheque?.dueDate,
+            ),
             'Student Name': x?.studentName || '-',
             'Admission No': x?.admissionId?.admissionNo || '-',
             Center: x?.centerName || x?.centerCode || '-',
@@ -652,7 +666,9 @@ export class ChequeComponent implements OnInit {
             Mode: x?.cheque?.mode || '-',
             'Cheque Bank': x?.cheque?.bankName || '-',
             'Deposit Bank': x?.deposit?.bankName || x?.depositBankName || '-',
-            'Deposit Date': x?.deposit?.depositDate || x?.depositDate || '-',
+            'Deposit Date': this.formatDateForExcel(
+              x?.deposit?.depositDate || x?.depositDate,
+            ),
           }));
           const ws = XLSX.utils.json_to_sheet(excelRows);
           const wb = XLSX.utils.book_new();
