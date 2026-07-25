@@ -88,12 +88,28 @@
               </td>
 
               <td class="px-4 py-3 fw-normal" *ngFor="let col of columns">
-                <ng-container *ngIf="col.date; else normal">
+                <ng-container *ngIf="col.date; else statusOrProgram">
                   <span class="truncate-cell" [style.maxWidth.px]="col.maxWidthPx || 240"
                     [attr.title]="needsTooltip(getCellValue(row, col.key), col) ? getCellValue(row, col.key) : null">
                     {{ (getCellValue(row, col.key) | date : 'dd/MM/yyyy') || '--' }}
                   </span>
                 </ng-container>
+
+                <ng-template #statusOrProgram>
+                  <ng-container *ngIf="isStatusColumn(col.key); else programCheck">
+                    <span class="status-pill" [ngClass]="statusTone(getCellValue(row, col.key))">
+                      {{ getCellValue(row, col.key) }}
+                    </span>
+                  </ng-container>
+
+                  <ng-template #programCheck>
+                    <ng-container *ngIf="isProgramColumn(col.key) && getCellValue(row, col.key) !== '--'; else normal">
+                      <span class="program-chip" [ngClass]="programTone(getCellValue(row, col.key))">
+                        {{ getCellValue(row, col.key) }}
+                      </span>
+                    </ng-container>
+                  </ng-template>
+                </ng-template>
 
                 <ng-template #normal>
                   <span class="truncate-cell" [style.maxWidth.px]="col.maxWidthPx || 240"

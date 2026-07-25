@@ -61,16 +61,13 @@
                 <button class="btn btn-sm btn-print" *ngIf="isApproved" (click)="printContract()">
                     <i class="fa-solid fa-file-signature me-1"></i> Contract
                 </button>
-                <button class="btn btn-sm" style="background-color:#0891b2;border-color:#0891b2;color:#fff;"
-                    (click)="printFeeCalculation()">
+                <button class="btn btn-sm btn-print" (click)="printFeeCalculation()">
                     <i class="fa-solid fa-calculator me-1"></i> Fee Calculation Sheet
                 </button>
-                <button class="btn btn-sm" style="background-color:#7c3aed;border-color:#7c3aed;color:#fff;"
-                    *ngIf="isSubmittedOrApproved" (click)="printEnrollmentReport()">
+                <button class="btn btn-sm btn-print" *ngIf="isSubmittedOrApproved" (click)="printEnrollmentReport()">
                     <i class="fa-solid fa-file-invoice me-1"></i> Enrollment Report
                 </button>
-                <button class="btn btn-sm" style="background-color:#0d9488;border-color:#0d9488;color:#fff;"
-                    *ngIf="isSubmittedOrApproved" (click)="printFeeAcknowledgement()">
+                <button class="btn btn-sm btn-print" *ngIf="isSubmittedOrApproved" (click)="printFeeAcknowledgement()">
                     <i class="fa-solid fa-receipt me-1"></i> Acknowledgement
                 </button>
 

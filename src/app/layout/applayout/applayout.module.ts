@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 import { ApplayoutComponent } from './applayout/applayout.component'; 
 import { ApplayoutRoutingModule } from './applayout.routing.module';
@@ -19,6 +20,7 @@ import { UiElementsModule } from '../../modules/ui-elements/ui-elements.module';
   ],
   imports: [
     CommonModule,
+    FormsModule,
     ApplayoutRoutingModule,
     TablerIconsModule.pick(TablerIcons),
     UiElementsModule

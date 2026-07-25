@@ -1,3 +1,10 @@
+$brand-orange: #f26522;
+$brand-orange-dark: #d9541a;
+$brand-ink: #0f0f10;
+$brand-ink-soft: #45454a;
+$brand-sunken: #f4f4f5;
+$brand-line: #e4e4e7;
+
 :root {
   --z7i-saffron: #f47b20;
 }
@@ -7,6 +14,12 @@
   background-color: #ffffff;
   color: #111827;
   border-bottom: 1px solid #e5e7eb;
+
+  /* Bootstrap's .navbar sets display:flex on this element, which would lay
+     row 1 (logo/bell/user) and row 2 (tabs) out side-by-side as flex items
+     instead of stacking them as separate rows. Force block stacking here;
+     each row still uses flex internally via its own utility classes. */
+  display: block !important;
 
   .navbar-brand img {
     height: 40px;
@@ -18,24 +31,109 @@
   }
 }
 
-/* Nav links */
-.app-navbar .navbar-nav .nav-link {
-  color: #111827;
-  font-size: 0.9rem;
-  padding-inline: 0.75rem;
-  border-bottom: 2px solid transparent;
+/* Row 1 — logo, bell, user */
+.topbar-row {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.app-navbar .navbar-nav .nav-link:hover {
-  color: var(--z7i-saffron);
+/* Row 2 — nav tabs */
+.tabs-row {
+  border-bottom: 1px solid $brand-line;
 }
 
-.app-navbar .navbar-nav .nav-link.active {
-  color: var(--z7i-saffron);
-  border-bottom-color: var(--z7i-saffron);
+.nav-tabs-brand {
+  margin-bottom: 0 !important;
 }
 
-/* Dropdown menus */
+/* Breadcrumb, inline next to the logo in row 1 */
+.topbar-left app-bredcrump nav {
+  padding: 0;
+}
+
+/* Search bar, row 1 */
+.topbar-search {
+  width: 220px;
+}
+
+.topbar-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  color: $brand-ink-soft;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.topbar-search-input {
+  height: 36px;
+  padding-left: 32px;
+  border-radius: 8px;
+  border-color: $brand-line;
+  font-size: 0.82rem;
+  background-color: $brand-sunken;
+
+  &:focus {
+    background-color: #ffffff;
+    border-color: $brand-orange;
+    box-shadow: 0 0 0 2px rgba(242, 101, 34, 0.12);
+  }
+}
+
+/* Nav tabs — on-brand: bold uppercase, thick orange underline on the active module */
+.nav-tabs-brand .nav-link {
+  color: $brand-ink-soft;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0.9rem 0.85rem;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+
+.nav-tabs-brand .nav-link:hover {
+  color: $brand-ink;
+}
+
+.nav-tabs-brand .nav-link.active {
+  color: $brand-ink;
+  border-bottom-color: $brand-orange;
+}
+
+/* Contextual sub-nav row for the active module */
+.subnav-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 24px;
+  background-color: $brand-sunken;
+  border-bottom: 1px solid $brand-line;
+}
+
+.subnav-bar .subnav-link {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: $brand-ink-soft;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.subnav-bar .subnav-link:hover {
+  color: $brand-ink;
+}
+
+.subnav-bar .subnav-link.active {
+  background-color: $brand-ink;
+  color: #ffffff;
+}
+
+/* Dropdown menus (still used by the notification/user menus) */
 .app-navbar .dropdown-menu {
   font-size: 0.85rem;
   padding: 0.4rem 0;
@@ -48,12 +146,12 @@
 
 .app-navbar .dropdown-menu .dropdown-item:hover {
   background-color: #f5f5f5;
-  color: var(--z7i-saffron);
+  color: $brand-orange;
 }
 
 .app-navbar .dropdown-menu .dropdown-item.active,
 .app-navbar .dropdown-menu .dropdown-item:active {
-  background-color: var(--z7i-saffron);
+  background-color: $brand-orange;
   color: #ffffff;
 }
 

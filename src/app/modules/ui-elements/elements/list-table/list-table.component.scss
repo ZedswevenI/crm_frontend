@@ -120,6 +120,77 @@
   }
 }
 
+.status-pill,
+.program-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.status-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.status-pill.tone-good {
+  background-color: #e2f5e7;
+  color: #2fa84f;
+}
+
+.status-pill.tone-warn {
+  background-color: #fdecd9;
+  color: #b8460f;
+}
+
+.status-pill.tone-bad {
+  background-color: #fbe4e4;
+  color: #d93a3a;
+}
+
+.status-pill.tone-info {
+  background-color: #e2eef8;
+  color: #1b6fb0;
+}
+
+.status-pill.tone-neutral {
+  background-color: #f0f0f1;
+  color: #71717a;
+}
+
+.program-chip {
+  border-radius: 5px;
+}
+
+.program-chip.tone-jee {
+  background-color: #fdecd9;
+  color: #b8460f;
+}
+
+.program-chip.tone-neet {
+  background-color: #e2f5e7;
+  color: #2fa84f;
+}
+
+.program-chip.tone-foundation {
+  background-color: #e2eef8;
+  color: #1b6fb0;
+}
+
+.program-chip.tone-neutral {
+  background-color: #f0f0f1;
+  color: #45454a;
+}
+
 .truncate-cell {
   display: inline-block;
   max-width: 240px;

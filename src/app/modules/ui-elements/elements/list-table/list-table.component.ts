@@ -399,6 +399,34 @@ export class ListTableComponent {
     return {};
   }
 
+  // Column-key checks used by the template to decide whether a cell should
+  // render as a status pill / program chip instead of plain truncated text.
+  isStatusColumn(key: string): boolean {
+    return String(key || '').toLowerCase().includes('status');
+  }
+
+  isProgramColumn(key: string): boolean {
+    return String(key || '').toLowerCase().includes('program');
+  }
+
+  statusTone(value: any): string {
+    const s = String(value ?? '').toLowerCase();
+    if (!s || s === '--') return 'tone-neutral';
+    if (/(reject|fail|bounce|cancel)/.test(s)) return 'tone-bad';
+    if (/(wait|pending|hold|submitted|review)/.test(s)) return 'tone-warn';
+    if (/(approv|confirm|clear|active|success|paid)/.test(s)) return 'tone-good';
+    if (/draft/.test(s)) return 'tone-neutral';
+    return 'tone-info';
+  }
+
+  programTone(value: any): string {
+    const s = String(value ?? '').toLowerCase();
+    if (s.includes('jee')) return 'tone-jee';
+    if (s.includes('neet')) return 'tone-neet';
+    if (s.includes('found')) return 'tone-foundation';
+    return 'tone-neutral';
+  }
+
   moveDropdownToBody(button: HTMLElement) {
     const menu = button.parentElement?.querySelector(
       '.dropdown-menu',

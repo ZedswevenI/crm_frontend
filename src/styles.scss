@@ -1,8 +1,8 @@
 :root {
-  --z7i-saffron: #f47b20;
-  --z7i-blue: #f47b20;
-  --z7i-green: #00a651;
-  --z7i-lightblue: #00a0e3;
+  --z7i-saffron: #f26522;
+  --z7i-blue: #1b6fb0;
+  --z7i-green: #2fa84f;
+  --z7i-lightblue: #1b6fb0;
 }
 
 html,
@@ -65,21 +65,22 @@ body {
 }
 
 .app-navbar .nav-link.active {
-  color: #f47b20 !important; /* saffron */
-  border-bottom: 2px solid #f47b20; /* underline */
+  color: #0f0f10 !important;
+  border-bottom: 3px solid #f26522;
 }
 
 .app-navbar .nav-link:hover {
-  color: #f47b20 !important;
+  color: #0f0f10 !important;
 }
 
-/* Global button look: saffron + pill radius */
+/* Global button look: on-brand orange + modest rounded corners (not a forced pill) */
 .btn,
 button.btn {
-  border-radius: 999px; // curved / pill
+  border-radius: 8px;
+  font-weight: 600;
 }
 
-/* Primary button -> saffron */
+/* Primary button -> brand orange */
 .btn-primary {
   background-color: var(--z7i-saffron) !important;
   border-color: var(--z7i-saffron) !important;
@@ -89,33 +90,119 @@ button.btn {
 .btn-primary:hover,
 .btn-primary:focus,
 .btn-primary:active {
-  background-color: #e96f16; // slightly darker saffron
-  border-color: #e96f16;
+  background-color: #d9541a; // darker brand orange
+  border-color: #d9541a;
   color: #ffffff;
 }
 
 /* Disabled state */
 .btn-primary:disabled,
 .btn-primary.disabled {
-  background-color: #fbb98a; // lighter saffron
-  border-color: #fbb98a;
+  background-color: #f7b98f; // lighter brand orange
+  border-color: #f7b98f;
   color: #ffffff;
 }
 
 /* For .btn-check + .btn-primary (Bootstrap toggle buttons) */
 .btn-check:checked + .btn-primary,
 .btn-check:active + .btn-primary {
-  background-color: #cf6415; // another darker step
-  border-color: #cf6415;
+  background-color: #b8460f; // another darker step
+  border-color: #b8460f;
   color: #ffffff;
 }
 
-/* Outline variant in saffron */
+/* Outline variant in brand orange */
 .btn-outline-saffron {
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--z7i-saffron);
   color: var(--z7i-saffron);
   background-color: transparent;
+}
+
+/* ===== Unified custom action-button classes (single source of truth) =====
+   Previously .btn-saffron/.btn-approve/.btn-reject/.btn-back/.btn-print were
+   redefined per-component with conflicting one-off hex colors. Defined once
+   here, on-brand, so every page that uses these class names looks the same. */
+
+.btn-saffron {
+  background-color: var(--z7i-saffron);
+  border-color: var(--z7i-saffron);
+  color: #ffffff;
+
+  &:hover,
+  &:focus {
+    background-color: #d9541a;
+    border-color: #d9541a;
+    color: #ffffff;
+  }
+
+  &:disabled,
+  &.disabled {
+    background-color: #f7b98f;
+    border-color: #f7b98f;
+    opacity: 1;
+  }
+}
+
+.text-saffron {
+  color: var(--z7i-saffron);
+}
+
+/* Approve — brand green */
+.btn-approve {
+  background-color: var(--z7i-green);
+  border-color: var(--z7i-green);
+  color: #ffffff;
+
+  &:hover,
+  &:focus {
+    background-color: #257f3d;
+    border-color: #257f3d;
+    color: #ffffff;
+  }
+}
+
+/* Reject — red, distinct from the orange brand accent */
+.btn-reject {
+  background-color: #d93a3a;
+  border-color: #d93a3a;
+  color: #ffffff;
+
+  &:hover,
+  &:focus {
+    background-color: #b92e2e;
+    border-color: #b92e2e;
+    color: #ffffff;
+  }
+}
+
+/* Back / low-emphasis navigation — neutral outline, not filled */
+.btn-back {
+  background-color: transparent;
+  border-color: #d1d5db;
+  color: #45454a;
+
+  &:hover,
+  &:focus {
+    background-color: #f4f4f5;
+    border-color: #9ca3af;
+    color: #0f0f10;
+  }
+}
+
+/* Print / export family — one brand-blue treatment for every "produce a
+   document" action, instead of a different one-off color per document type */
+.btn-print {
+  background-color: var(--z7i-blue);
+  border-color: var(--z7i-blue);
+  color: #ffffff;
+
+  &:hover,
+  &:focus {
+    background-color: #155a8f;
+    border-color: #155a8f;
+    color: #ffffff;
+  }
 }
 
 .btn-outline-saffron:hover,
