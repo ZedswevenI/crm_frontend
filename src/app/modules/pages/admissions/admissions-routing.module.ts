@@ -8,6 +8,7 @@ import { AdmissionfeecalComponent } from './admissionfeecal/admissionfeecal.comp
 import { AdmissionpaymentsEditorComponent } from './admissionpayments-editor/admissionpayments-editor.component';
 import { AdmissionEditComponent } from './admission-edit/admission-edit.component';
 import { AdmissionbugComponent } from './admissionbug/admissionbug.component';
+import { AdmissionNewFlatComponent } from './admission-new-flat/admission-new-flat.component';
 import { AdmissionWaitComponent } from './admission-wait/admission-wait.component';
 import { AdmissionviewnewComponent } from './admissionviewnew/admissionviewnew.component';
 import { StudentuploadComponent } from './studentupload/studentupload.component';
@@ -18,6 +19,7 @@ const routes: Routes = [
   { path: '', component: ListComponent },
   { path: 'waitforapproval', component: AdmissionWaitComponent },
   { path: 'new', component: AdmissionbugComponent },
+  { path: 'new-flat', component: AdmissionNewFlatComponent },
   { path: 'print/acknowledgement', component: PrintAcknowledgementComponent },
   { path: 'view/:id', component: AdmissionviewnewComponent },
   { path: 'reports', component: AdmissionreportsComponent },

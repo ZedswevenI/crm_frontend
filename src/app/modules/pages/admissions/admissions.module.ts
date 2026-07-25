@@ -17,6 +17,7 @@ import { StudentuploadComponent } from './studentupload/studentupload.component'
 import { AdmissionviewnewComponent } from './admissionviewnew/admissionviewnew.component';
 import { PrintAcknowledgementComponent } from './print-acknowledgement/print-acknowledgement.component';
 import { AdmissionApproveComponent } from './admission-approve/admission-approve.component';
+import { AdmissionNewFlatComponent } from './admission-new-flat/admission-new-flat.component';
 
 @NgModule({
   declarations: [
@@ -28,6 +29,7 @@ import { AdmissionApproveComponent } from './admission-approve/admission-approve
     AdmissionpaymentsEditorComponent,
     AdmissionEditComponent,
     AdmissionbugComponent,
+    AdmissionNewFlatComponent,
     StudentuploadComponent,
     AdmissionviewnewComponent,
     PrintAcknowledgementComponent,

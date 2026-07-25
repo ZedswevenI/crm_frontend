@@ -1,0 +1,10 @@
+/* .btn-saffron colors moved to the global unified set in src/styles.scss */
+
+/* Make all action buttons feel consistent */
+.admission-page .btn {
+  border-radius: 0.65rem;
+}
+
+.admission-page .btn.btn-sm {
+  border-radius: 0.55rem;
+}

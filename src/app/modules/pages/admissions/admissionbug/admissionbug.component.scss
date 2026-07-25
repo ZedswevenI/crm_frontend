@@ -8,3 +8,19 @@
 .admission-page .btn.btn-sm {
   border-radius: 0.55rem;
 }
+
+.flat-discount-cta {
+  background-color: #fde6d9;
+  border: 1px dashed #f7c9a3;
+}
+
+.flat-discount-cta .btn-outline-saffron {
+  background-color: #ffffff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.flat-discount-cta .btn-outline-saffron:hover {
+  background-color: var(--z7i-saffron);
+  color: #ffffff;
+}
