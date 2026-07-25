@@ -286,7 +286,7 @@ export class ChequeComponent implements OnInit {
             plannedDepositDate:
               x?.cheque?.plannedDepositDate || x?.cheque?.dueDate || null,
             studentName: x?.studentName || '-',
-            admissionNo: x?.admissionId.admissionNo || '-',
+            admissionNo: x?.admissionNo || '-',
             amount: x?.amount || 0,
             status: x?.status || '-',
             bankName: x?.cheque?.bankName || '-',
@@ -658,7 +658,7 @@ export class ChequeComponent implements OnInit {
               x?.cheque?.plannedDepositDate || x?.cheque?.dueDate,
             ),
             'Student Name': x?.studentName || '-',
-            'Admission No': x?.admissionId?.admissionNo || '-',
+            'Enrollment No': x?.admissionNo || '-',
             Center: x?.centerName || x?.centerCode || '-',
             Program: x?.programName || x?.programCode || '-',
             Amount: Number(x?.amount || 0),

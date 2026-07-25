@@ -79,7 +79,7 @@
                                     <th class="px-4 py-3 fw-semibold" (click)="onSort('admissionNo')"
                                         style="cursor:pointer;">
                                         <div class="d-flex align-items-center gap-1">
-                                            <span>Admission No</span>
+                                            <span>Enrollment No</span>
                                             <i class="fas icon-14" [ngClass]="sortIcon('admissionNo')"></i>
                                         </div>
                                     </th>
@@ -203,7 +203,7 @@
                             <div class="fw-semibold mb-2">Student</div>
                             <div class="small">
                                 <div><span class="text-muted">Name: </span>{{ viewRow?.studentName || '-' }}</div>
-                                <div><span class="text-muted">Admission No: </span><span class="mono">{{
+                                <div><span class="text-muted">Enrollment No: </span><span class="mono">{{
                                         viewRow?.admissionNo || '-' }}</span></div>
                                 <div><span class="text-muted">Center: </span>{{ viewRow?.centerName || '-' }}</div>
                                 <div><span class="text-muted">Program: </span>{{ viewRow?.programName || '-' }}</div>
