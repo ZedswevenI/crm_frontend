@@ -268,38 +268,43 @@
   font-size: 0.9rem;
 }
 
-.app-table-pagination {
-  border: 1px solid #e5e7eb;
-  border-top: none;
-  border-radius: 0 0 0.75rem 0.75rem;
-  background-color: #ffffff;
-  font-size: 0.85rem;
+/* Pagination, now inline in the top bar between search and page-size/filter */
+.app-table-pagination-top {
+  flex-wrap: nowrap;
 }
 
-.app-table-page-link {
-  color: #6b7280 !important;
-  text-decoration: none;
+.app-table-page-arrow {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background-color: #ffffff;
+  color: #6b7280;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding-inline: 0.5rem;
-  img {
-    opacity: 0.8;
+  justify-content: center;
+  font-size: 0.7rem;
+
+  &:hover:not(:disabled) {
+    background-color: #f3f4f6;
+    color: #0f0f10;
   }
+
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
 }
 
-.app-table-page-ellipsis {
-  width: 36px;
-  height: 36px;
+.app-table-page-ellipsis-top {
+  width: 20px;
+  text-align: center;
 }
 
 .app-table-page-btn {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   border: none;
   background-color: transparent;
   &.pagination-active {
@@ -323,16 +328,10 @@
   .app-table-filter-btn {
     width: 100%;
   }
-  .app-table-pagination {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: stretch;
-    .app-table-page-link {
-      justify-content: center;
-    }
-    > div {
-      justify-content: center;
-    }
+  .app-table-pagination-top {
+    width: 100%;
+    justify-content: center;
+    order: 3;
   }
 }
 

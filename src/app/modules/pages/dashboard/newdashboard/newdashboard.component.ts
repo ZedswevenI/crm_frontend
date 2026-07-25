@@ -31,7 +31,7 @@ export class NewdashboardComponent {
         { label: 'Search Enrollment', path: '/app/admissions' },
         { label: 'Wait for Approval', path: '/app/admissions/waitforapproval' },
         { label: 'Admission Reports', path: '/app/admissions/reports' },
-        { label: 'Communication', path: '/app/admissions/communication' },
+        // { label: 'Communication', path: '/app/admissions/communication' },
         { label: 'Fee Calculator', path: '/app/admissions/fee-calculator' },
         { label: 'Fee Plans', path: '/app/fees/plans' }
       ]
@@ -95,7 +95,7 @@ export class NewdashboardComponent {
     this.breadcrumb.set([{ label: 'Dashboard' }]);
     const role = (localStorage.getItem('userRole') || '').trim().toUpperCase();
     if (role === 'L6') {
-      this.cards = this.allCards.filter((c) => c.title === 'Accounts');
+      this.cards = this.allCards.filter(c => c.title === 'Accounts');
     }
   }
 

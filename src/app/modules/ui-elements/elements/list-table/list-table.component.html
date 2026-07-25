@@ -1,6 +1,6 @@
 <div class="app-table">
 
-  <!-- Top bar: search + page size + filter -->
+  <!-- Top bar: search + pagination + page size + filter -->
   <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <!-- Search -->
     <div class="position-relative app-table-search" *ngIf="showsearch">
@@ -12,6 +12,31 @@
         class="btn btn-link position-absolute app-table-search-clear text-muted px-0"
         (click)="searchText = ''; onSearch()" aria-label="Clear search">
         <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <!-- Pagination (top, between search and page-size/filter) -->
+    <div *ngIf="totalPages > 1" class="d-flex align-items-center gap-1 app-table-pagination-top">
+      <button type="button" class="btn btn-sm app-table-page-arrow" [disabled]="currentPage <= 1"
+        (click)="onPageChange(currentPage - 1)" aria-label="Previous page">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+
+      <ng-container *ngFor="let item of paginationItems">
+        <span *ngIf="item.page === '...'" class="app-table-page-ellipsis-top text-muted small">…</span>
+
+        <button *ngIf="item.page !== '...'" type="button"
+          class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle app-table-page-btn"
+          [class.pagination-active]="item.isActive" (click)="onPageChange(+item.page)">
+          <span class="fw-medium small" [class.text-dark]="item.isActive" [class.text-muted]="!item.isActive">
+            {{ item.page }}
+          </span>
+        </button>
+      </ng-container>
+
+      <button type="button" class="btn btn-sm app-table-page-arrow" [disabled]="currentPage >= totalPages"
+        (click)="onPageChange(currentPage + 1)" aria-label="Next page">
+        <i class="fas fa-chevron-right"></i>
       </button>
     </div>
 
@@ -205,37 +230,5 @@
         </tbody>
       </table>
     </div>
-  </div>
-
-  <!-- Pagination -->
-  <div *ngIf="totalPages > 1" class="d-flex align-items-center justify-content-between px-2 py-2 app-table-pagination">
-    <button class="btn btn-link app-table-page-link" [disabled]="currentPage <= 1"
-      (click)="onPageChange(currentPage - 1)">
-      <img src="assets/icons/pageileft.svg" alt="pageleft" width="20" height="20" />
-      Previous
-    </button>
-
-    <div class="d-flex align-items-center gap-1">
-      <ng-container *ngFor="let item of paginationItems">
-        <div *ngIf="item.page === '...'"
-          class="d-flex align-items-center justify-content-center app-table-page-ellipsis">
-          <span class="fw-medium text-muted small">...</span>
-        </div>
-
-        <button *ngIf="item.page !== '...'" type="button"
-          class="btn btn-sm d-flex align-items-center justify-content-center rounded-circle app-table-page-btn"
-          [class.pagination-active]="item.isActive" (click)="onPageChange(+item.page)">
-          <span class="fw-medium small" [class.text-dark]="item.isActive" [class.text-muted]="!item.isActive">
-            {{ item.page }}
-          </span>
-        </button>
-      </ng-container>
-    </div>
-
-    <button class="btn btn-link app-table-page-link" [disabled]="currentPage >= totalPages"
-      (click)="onPageChange(currentPage + 1)">
-      Next
-      <img src="assets/icons/pageiright.svg" alt="pageright" width="20" height="20" />
-    </button>
   </div>
 </div>

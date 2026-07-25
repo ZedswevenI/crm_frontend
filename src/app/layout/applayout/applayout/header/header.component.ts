@@ -33,7 +33,7 @@ const NAV_MODULES: NavModule[] = [
       { label: 'Search Enrollment', path: '/app/admissions' },
       { label: 'Waiting for Approval', path: '/app/admissions/waitforapproval' },
       { label: 'Reports', path: '/app/admissions/reports' },
-      { label: 'Communication', path: '/app/admissions/communication' },
+      // { label: 'Communication', path: '/app/admissions/communication' },
       { label: 'Fee Calculator', path: '/app/admissions/fee-calculator' },
       { label: 'Student Bulk Upload', path: '/app/admissions/student/upload' },
       { label: 'Print Acknowledgement', path: '/app/admissions/print/acknowledgement' },
