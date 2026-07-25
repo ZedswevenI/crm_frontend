@@ -1034,10 +1034,9 @@ export class AdmissionNewFlatComponent implements OnInit {
       this.alert.error('Please fill all required NEFT/cheque details.');
       return;
     }
-    if (this.neftError) {
-      this.alert.error(`NEFT Amount mismatch: ${this.neftError}`);
-      return;
-    }
+    // NEFT amount can be manually adjusted on this screen too, same as
+    // cheque installments — a mismatch here no longer hard-blocks; it just
+    // feeds into the overall Paid-vs-Due confirm-modal check below.
     const neftTotal = (this.neftRefsFA.getRawValue() || []).reduce(
       (s: number, r: any) => s + (Number(r.amount) || 0),
       0,
@@ -2590,10 +2589,13 @@ export class AdmissionNewFlatComponent implements OnInit {
     return (ctrl: AbstractControl): ValidationErrors | null => {
       const fa = ctrl as UntypedFormArray;
       const rows = (fa?.getRawValue?.() || []) as any[];
-      const entered = (rows || []).reduce(
-        (s, r) => s + (Number(r?.amount) || 0),
-        0,
-      );
+      // Same relaxation as chequeSplitValidator: this cap only makes sense
+      // once the NEFT split has actually produced more than one row. A
+      // single row is a direct user edit — intentionally allowed to differ
+      // from the plan-computed split; the overall Paid-vs-Due confirm-modal
+      // in submitPayments() governs that instead.
+      if (rows.length < 2) return null;
+      const entered = rows.reduce((s, r) => s + (Number(r?.amount) || 0), 0);
       const split =
         Number(this.step2Form?.getRawValue?.()?.neftAmount ?? 0) || 0;
       if (!split) return null;
@@ -2859,7 +2861,6 @@ export class AdmissionNewFlatComponent implements OnInit {
       !!this.admissionId &&
       !this.submittedForAck &&
       this.step === 2 &&
-      !this.neftError &&
       this.step2Form.valid
     );
   }
