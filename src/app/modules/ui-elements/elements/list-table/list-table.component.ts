@@ -5,6 +5,7 @@ import {
   EventEmitter,
   OnInit,
   OnChanges,
+  OnDestroy,
   SimpleChanges,
   input,
   ViewChild,
@@ -36,8 +37,10 @@ export class ListTableComponent {
   @Input() actions: any[] = [];
   @Input() showaction: boolean = true;
   @Input() showfilter: boolean = false;
-  @Input() pageSizeOptions = [5, 10, 20, 50];
+  @Input() pageSizeOptions = [5, 10, 20, 50, 100, 200];
   @Input() pageSize = 5;
+  @Input() currentPage = 1;
+  @Output() currentPageChange = new EventEmitter<number>();
   @Input() totalRecords: number = 0;
   @Input() loading: boolean = false;
   @Input() showpageoptions: boolean = true;
@@ -70,7 +73,6 @@ export class ListTableComponent {
   @Output() filterClicked = new EventEmitter<void>();
 
   // pagination options
-  currentPage = 1;
   // pageSize = 5;
   sortKey: string = '';
   sortDirection: 'asc' | 'desc' = 'asc';
@@ -83,11 +85,17 @@ export class ListTableComponent {
 
   constructor() {}
 
+  private dropdownListener = (event: any) => {
+    const btn = event.target as HTMLElement;
+    this.moveDropdownToBody(btn);
+  };
+
   ngAfterViewInit() {
-    document.addEventListener('shown.bs.dropdown', (event: any) => {
-      const btn = event.target as HTMLElement;
-      this.moveDropdownToBody(btn);
-    });
+    document.addEventListener('shown.bs.dropdown', this.dropdownListener);
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener('shown.bs.dropdown', this.dropdownListener);
   }
 
   ngOnInit(): void {
@@ -163,6 +171,7 @@ export class ListTableComponent {
 
   onSearch() {
     this.currentPage = 1;
+    this.currentPageChange.emit(this.currentPage);
     this.emitRequest();
     this.updatePagination();
   }
@@ -170,6 +179,7 @@ export class ListTableComponent {
   onPageChange(page: number) {
     if (page < 1 || page > this.totalPages) return;
     this.currentPage = page;
+    this.currentPageChange.emit(this.currentPage);
     this.emitRequest();
     this.updatePagination();
   }
@@ -177,6 +187,7 @@ export class ListTableComponent {
   onPageSizeChange(size: number) {
     this.pageSize = +size;
     this.currentPage = 1;
+    this.currentPageChange.emit(this.currentPage);
     this.emitRequest();
     this.updatePagination();
   }
@@ -419,12 +430,31 @@ export class ListTableComponent {
     return 'tone-info';
   }
 
+  // Beyond JEE/NEET/Foundation (the exam categories on the logo), real
+  // program names are institute-specific (e.g. "Magnum", "Aspire") and
+  // won't match any keyword — give those a stable color from a fixed
+  // palette (hashed from the name) instead of falling back to plain gray.
+  private readonly programPalette = [
+    'tone-indigo',
+    'tone-teal',
+    'tone-pink',
+    'tone-slate',
+    'tone-amber',
+    'tone-violet',
+  ];
+
   programTone(value: any): string {
     const s = String(value ?? '').toLowerCase();
+    if (!s || s === '--') return 'tone-neutral';
     if (s.includes('jee')) return 'tone-jee';
     if (s.includes('neet')) return 'tone-neet';
     if (s.includes('found')) return 'tone-foundation';
-    return 'tone-neutral';
+
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) {
+      hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+    }
+    return this.programPalette[hash % this.programPalette.length];
   }
 
   moveDropdownToBody(button: HTMLElement) {

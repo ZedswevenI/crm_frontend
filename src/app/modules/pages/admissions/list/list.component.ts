@@ -197,6 +197,7 @@ export class ListComponent implements OnInit {
   totalRecords = 0;
 
   pageSize = 10;
+  currentPage = 1;
   searchText = '';
   statusFilter = 'all';
 
@@ -244,6 +245,7 @@ export class ListComponent implements OnInit {
 
   onStatusFilterChange(value: string) {
     this.statusFilter = value;
+    this.currentPage = 1;
     this.fetchTableData({
       page: 1,
       pageSize: this.pageSize,

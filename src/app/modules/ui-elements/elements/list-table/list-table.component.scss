@@ -1,5 +1,5 @@
 .app-table {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .app-table-search {
@@ -83,11 +83,19 @@
 .app-table-grid {
   border-collapse: separate;
   border-spacing: 0;
+  /* Bootstrap 5's own table cell rule (`.table > :not(caption) > * > *`) is
+     more specific than a plain `td`/`th` class selector and was silently
+     winning over our padding/background rules below. Override Bootstrap's
+     own CSS variables instead of fighting its specificity. */
+  --bs-table-cell-padding-y: 0.4rem;
+  --bs-table-cell-padding-x: 1rem;
 }
 
 .table-header {
-  background-color: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  --bs-table-bg: #f4f4f5;
+  --bs-table-cell-padding-y: 0.5rem;
+  background-color: #f4f4f5;
+  border-bottom: 1px solid #d4d4d8;
   th {
     font-size: 0.78rem;
     text-transform: uppercase;
@@ -108,15 +116,23 @@
 }
 
 .app-table-row {
+  --bs-table-bg: #ffffff;
+
   td {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    line-height: 1.2;
     color: #111827;
     border-top: 1px solid #f3f4f6;
     vertical-align: middle;
   }
 
-  &:hover td {
-    background-color: #f9fafb;
+  .btn.btn-sm {
+    padding-top: 0.15rem;
+    padding-bottom: 0.15rem;
+  }
+
+  &:hover {
+    --bs-table-bg: #f4f4f5;
   }
 }
 
@@ -191,6 +207,37 @@
   color: #45454a;
 }
 
+/* Fallback palette for program names that aren't JEE/NEET/Foundation */
+.program-chip.tone-indigo {
+  background-color: #e0e7ff;
+  color: #4338ca;
+}
+
+.program-chip.tone-teal {
+  background-color: #ccfbf1;
+  color: #0f766e;
+}
+
+.program-chip.tone-pink {
+  background-color: #fce7f3;
+  color: #be185d;
+}
+
+.program-chip.tone-slate {
+  background-color: #e2e8f0;
+  color: #334155;
+}
+
+.program-chip.tone-amber {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.program-chip.tone-violet {
+  background-color: #ede9fe;
+  color: #6d28d9;
+}
+
 .truncate-cell {
   display: inline-block;
   max-width: 240px;
@@ -204,11 +251,11 @@
   border-radius: 999px;
   border: none;
   background-color: transparent;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   i {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
   &:hover {
     background-color: #f3f4f6;
@@ -291,16 +338,4 @@
 
 .app-table-row td:last-child {
   white-space: normal;
-}
-
-.app-table-row:nth-child(odd) td {
-  background-color: #ffffff;
-}
-
-.app-table-row:nth-child(even) td {
-  background-color: #fff9e6;
-}
-
-.app-table-row:hover td {
-  background-color: #f9fafb !important;
 }
