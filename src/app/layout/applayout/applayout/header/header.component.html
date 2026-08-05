@@ -104,7 +104,8 @@
 
 <!-- Contextual sub-nav for the active module -->
 <div class="subnav-bar" *ngIf="activeModule as mod">
-  <a class="subnav-link" *ngFor="let link of visibleLinks(mod)" [routerLink]="link.path" routerLinkActive="active"
+  <a class="subnav-link" *ngFor="let link of visibleLinks(mod)" [routerLink]="link.path"
+    [queryParams]="link.queryParams || null" routerLinkActive="active"
     [routerLinkActiveOptions]="{ exact: link.path === '/app/admissions' }">
     {{ link.label }}
   </a>

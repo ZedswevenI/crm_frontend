@@ -164,10 +164,12 @@
 // }
 
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 import { AlertService } from '../../../../service/alert/alert.service';
+import { ADMISSION_EXPORT_FIELD_GROUPS } from './admission-export-fields';
+import { ExcelExportService } from '../../../../service/excel-export/excel-export.service';
 
 type AdmissionStatus =
   | 'draft'
@@ -230,16 +232,37 @@ export class ListComponent implements OnInit {
     },
   ];
 
+  // ── Export to Excel ───────────────────────────────────────────────────────
+  showExportPicker = false;
+  exportingExcel = false;
+  exportFieldGroups = ADMISSION_EXPORT_FIELD_GROUPS;
+
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private breadcrumb: BredcrumpService,
     private api: CommonapiService,
     private alert: AlertService,
+    private excelExport: ExcelExportService,
   ) {
     this.breadcrumb.set([{ label: 'Admissions & Fees' }, { label: 'Admission' }, { label: 'Search Enrollment'}]);
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    // "Export Admissions" nav link deep-links here with ?export=1 to open
+    // the picker directly; subscribe (not just snapshot) so clicking the
+    // link again while already on this page still reopens it.
+    this.route.queryParamMap.subscribe((params) => {
+      if (params.get('export') === '1') {
+        this.openExportPicker();
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: {},
+          replaceUrl: true,
+        });
+      }
+    });
+  }
 
   onStatusChange(): void {}
 
@@ -354,5 +377,53 @@ export class ListComponent implements OnInit {
   edit(id: string): void {
     if (!id) return;
     this.router.navigate(['/app/admissions/edit', id]);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // EXPORT TO EXCEL
+  // ══════════════════════════════════════════════════════════════════════════
+  openExportPicker(): void {
+    this.showExportPicker = true;
+  }
+
+  closeExportPicker(): void {
+    this.showExportPicker = false;
+  }
+
+  onExportFields(fields: string[]): void {
+    const body: any = {
+      entiId: localStorage.getItem('tenantId'),
+      fields,
+    };
+    if (this.searchText) body.search = this.searchText;
+    if (this.statusFilter && this.statusFilter !== 'all') {
+      body.status = this.statusFilter;
+    }
+
+    this.exportingExcel = true;
+    this.api.fetchData(body, 'admi', 'export').subscribe({
+      next: (res: any) => {
+        this.exportingExcel = false;
+        if (!res?.status) {
+          this.alert.error(res?.message || 'Export failed');
+          return;
+        }
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        const columns = this.exportFieldGroups
+          .flatMap((g) => g.fields)
+          .filter((f) => fields.includes(f.key));
+        this.excelExport.exportRows(
+          rows,
+          columns,
+          `Admission_Export_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        );
+        this.showExportPicker = false;
+        this.alert.success('Excel exported');
+      },
+      error: () => {
+        this.exportingExcel = false;
+        this.alert.error('Export failed');
+      },
+    });
   }
 }

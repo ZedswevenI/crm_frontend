@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
@@ -10,6 +10,8 @@ import * as XLSX from 'xlsx';
 import { RpaimportComponent } from '../rpaimport/rpaimport.component';
 import { BoardExamImportComponent } from '../board-exam-import/board-exam-import.component';
 import { AlumniImportComponent } from '../alumni-import/alumni-import.component';
+import { STUDENT_EXPORT_FIELD_GROUPS } from './student-export-fields';
+import { ExcelExportService } from '../../../../service/excel-export/excel-export.service';
 
 type ViewMode = 'list' | 'grid';
 
@@ -93,11 +95,18 @@ export class StudentsComponent implements OnInit {
     },
   ];
 
+  // ── Export to Excel ───────────────────────────────────────────────────────
+  showExportPicker = false;
+  exportingExcel = false;
+  exportFieldGroups = STUDENT_EXPORT_FIELD_GROUPS;
+
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private commonApi: CommonapiService,
+    private excelExport: ExcelExportService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([{ label: 'Students & Batches' }, { label: 'Students' }]);
@@ -105,6 +114,19 @@ export class StudentsComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadAllLookupsAndInit();
+    // "Export Students" nav link deep-links here with ?export=1 to open the
+    // picker directly; subscribe (not just snapshot) so clicking the link
+    // again while already on this page still reopens it.
+    this.route.queryParamMap.subscribe((params) => {
+      if (params.get('export') === '1') {
+        this.openExportPicker();
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: {},
+          replaceUrl: true,
+        });
+      }
+    });
     // this.loadPrograms();
     // this.loadCenters();
     // this.loadStudents();
@@ -556,5 +578,58 @@ export class StudentsComponent implements OnInit {
   }
   onAlumniImported(): void {
     /* optionally refresh list */
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // EXPORT TO EXCEL
+  // ══════════════════════════════════════════════════════════════════════════
+  openExportPicker(): void {
+    this.showExportPicker = true;
+  }
+
+  closeExportPicker(): void {
+    this.showExportPicker = false;
+  }
+
+  onExportFields(fields: string[]): void {
+    const query: any = {};
+    if (this.searchText) query.search = this.searchText;
+    if (this.statusFilter && this.statusFilter !== 'all') {
+      query.status = this.statusFilter;
+    }
+    if (this.selectedProgram) query.programId = this.selectedProgram;
+    if (this.selectedCenter) query.centerId = this.selectedCenter;
+
+    const body: any = {
+      entiId: localStorage.getItem('tenantId'),
+      fields,
+      ...query,
+    };
+
+    this.exportingExcel = true;
+    this.commonApi.fetchData(body, 'student', 'export').subscribe({
+      next: (res: any) => {
+        this.exportingExcel = false;
+        if (!res?.status) {
+          this.alert.error(res?.message || 'Export failed');
+          return;
+        }
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        const columns = this.exportFieldGroups
+          .flatMap((g) => g.fields)
+          .filter((f) => fields.includes(f.key));
+        this.excelExport.exportRows(
+          rows,
+          columns,
+          `Student_Export_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        );
+        this.showExportPicker = false;
+        this.alert.success('Excel exported');
+      },
+      error: () => {
+        this.exportingExcel = false;
+        this.alert.error('Export failed');
+      },
+    });
   }
 }

@@ -22,6 +22,7 @@ import { ImportfilesComponent } from './elements/importfiles/importfiles.compone
 import { ReadonlyComponent } from './elements/readonly/readonly.component';
 import { TaginputComponent } from './elements/taginput/taginput.component';
 import { OldListTableComponent } from './elements/old-list-table/old-list-table.component';
+import { ExportFieldPickerComponent } from './elements/export-field-picker/export-field-picker.component';
 
 @NgModule({
   declarations: [
@@ -43,7 +44,8 @@ import { OldListTableComponent } from './elements/old-list-table/old-list-table.
     EditableComponent,
     AlertComponent,
     BredcrumpComponent,
-    OldListTableComponent
+    OldListTableComponent,
+    ExportFieldPickerComponent
   ],
   imports: [
     CommonModule, 
@@ -71,7 +73,8 @@ import { OldListTableComponent } from './elements/old-list-table/old-list-table.
     CommondeleteComponent,
     EditableComponent,
     AlertComponent,
-    BredcrumpComponent
+    BredcrumpComponent,
+    ExportFieldPickerComponent
   ]
 })
 export class UiElementsModule {}

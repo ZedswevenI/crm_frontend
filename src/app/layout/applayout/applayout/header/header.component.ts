@@ -12,6 +12,7 @@ interface NavLink {
   label: string;
   path: string;
   hideForAccount?: boolean;
+  queryParams?: Record<string, string>;
 }
 
 interface NavModule {
@@ -38,6 +39,11 @@ const NAV_MODULES: NavModule[] = [
       { label: 'Student Bulk Upload', path: '/app/admissions/student/upload' },
       { label: 'Print Acknowledgement', path: '/app/admissions/print/acknowledgement' },
       { label: 'Fee Plans', path: '/app/fees/plans' },
+      {
+        label: 'Export Admissions',
+        path: '/app/admissions',
+        queryParams: { export: '1' },
+      },
     ],
   },
   {
@@ -61,6 +67,11 @@ const NAV_MODULES: NavModule[] = [
     links: [
       { label: 'Students', path: '/app/students' },
       { label: 'Batches', path: '/app/batches' },
+      {
+        label: 'Export Students',
+        path: '/app/students',
+        queryParams: { export: '1' },
+      },
     ],
   },
   {

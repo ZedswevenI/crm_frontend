@@ -1,0 +1,63 @@
+.export-field-modal {
+  max-width: 900px !important;
+  width: 100%;
+}
+
+.export-field-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.export-field-group-header {
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #f1f3f5;
+}
+
+.export-field-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 12px;
+}
+
+@media (max-width: 768px) {
+  .export-field-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.export-field-list .form-check {
+  font-size: 0.85rem;
+  position: relative;
+}
+
+.export-field-locked {
+  opacity: 0.85;
+}
+
+.export-field-locked-badge {
+  font-size: 0.65rem;
+  color: #9ca3af;
+  font-style: italic;
+  margin-left: auto;
+}
+
+.export-field-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.export-field-footer .btn {
+  min-width: 100px;
+  font-weight: 600;
+}
+
+@media (max-width: 576px) {
+  .export-field-list {
+    grid-template-columns: 1fr;
+  }
+}

@@ -48,6 +48,11 @@
                     </ul>
                 </div>
 
+                <button type="button" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
+                    (click)="openExportPicker()">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Export</span>
+                </button>
 
 
 
@@ -368,3 +373,7 @@
 <app-rpaimport #rpaImportRef (imported)="onRpaImported()"></app-rpaimport>
 <app-board-exam-import #boardExamImportRef (imported)="onBoardExamImported()"></app-board-exam-import>
 <app-alumni-import #alumniImportRef (imported)="onAlumniImported()"></app-alumni-import>
+
+<export-field-picker [visible]="showExportPicker" title="Export Students to Excel" [groups]="exportFieldGroups"
+    [exporting]="exportingExcel" (closed)="closeExportPicker()" (exportClick)="onExportFields($event)">
+</export-field-picker>
