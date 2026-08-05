@@ -55,6 +55,10 @@
                     (click)="openEditProfile()">
                     <i class="fa-solid fa-pen btn-icon"></i> Edit Profile
                 </button>
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                    (click)="goToAddPayment()">
+                    <i class="fa-solid fa-indian-rupee-sign btn-icon"></i> Add Payment
+                </button>
                 <!-- <button *appHasRole="['L1']" class="btn fs-16 fw-medium"
                     [ngClass]="student.basic?.isTabletBlocked ? 'btn-success' : 'btn-danger'"
                     [disabled]="tabletLockLoading" (click)="toggleTabletLock()">

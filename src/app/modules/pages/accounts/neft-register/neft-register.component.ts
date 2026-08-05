@@ -16,6 +16,12 @@ export class NeftRegisterComponent implements OnInit {
 
   filterForm!: FormGroup;
   statusList = ['PENDING', 'SUBMITTED', 'CANCELLED'];
+  paymentCategoryOptions = [
+    'ADMISSION',
+    'HOSTEL',
+    'TRANSPORT',
+    'MISCELLANEOUS',
+  ];
 
   neftData: any[] = [];
   totalRecords = 0;
@@ -46,6 +52,7 @@ export class NeftRegisterComponent implements OnInit {
     this.filterForm = this.fb.group({
       search: [''],
       status: ['ALL'],
+      paymentCategory: ['ALL'],
       includeInactive: [false],
     });
 
@@ -97,6 +104,9 @@ export class NeftRegisterComponent implements OnInit {
       limit,
       ...(f.search ? { search: String(f.search).trim() } : {}),
       ...(f.status ? { status: String(f.status).trim() } : { status: 'ALL' }),
+      ...(f.paymentCategory && f.paymentCategory !== 'ALL'
+        ? { paymentCategory: String(f.paymentCategory).trim() }
+        : {}),
       ...(f.includeInactive ? { includeInactive: 'yes' } : {}),
       ...(sort ? { sort } : {}),
     });
@@ -121,6 +131,8 @@ export class NeftRegisterComponent implements OnInit {
           status: x?.status || '-',
           utr: x?.neft?.utr || '-',
           remarks: x?.neft?.remarks || x?.remarks || null,
+          paymentCategory: x?.paymentCategory || 'ADMISSION',
+          categoryLabel: x?.categoryLabel || '',
           _raw: x,
         }));
 
@@ -183,7 +195,7 @@ export class NeftRegisterComponent implements OnInit {
   }
 
   resetFilters() {
-    this.filterForm.reset({ search: '', status: 'ALL', includeInactive: false });
+    this.filterForm.reset({ search: '', status: 'ALL', paymentCategory: 'ALL', includeInactive: false });
     this.loadNeft({ page: 1, pageSize: this.pageSize });
   }
 

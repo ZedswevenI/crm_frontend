@@ -25,6 +25,12 @@ export class PaymentsComponent implements OnInit {
     'FAILED',
     'CANCELLED',
   ];
+  paymentCategoryOptions = [
+    'ADMISSION',
+    'HOSTEL',
+    'TRANSPORT',
+    'MISCELLANEOUS',
+  ];
   paymentsData: any[] = [];
   totalRecords = 0;
   loading = false;
@@ -55,6 +61,7 @@ export class PaymentsComponent implements OnInit {
       search: [''],
       paymentType: ['ALL'],
       status: ['ALL'],
+      paymentCategory: ['ALL'],
       programCode: [''],
       academicYear: [''],
       fromDue: [''],
@@ -116,6 +123,9 @@ export class PaymentsComponent implements OnInit {
         ? { paymentType: String(f.paymentType).trim() }
         : { paymentType: 'ALL' }),
       ...(f.status ? { status: String(f.status).trim() } : { status: 'ALL' }),
+      ...(f.paymentCategory && f.paymentCategory !== 'ALL'
+        ? { paymentCategory: String(f.paymentCategory).trim() }
+        : {}),
       ...(f.programCode ? { programCode: String(f.programCode).trim() } : {}),
       ...(f.academicYear
         ? { academicYear: String(f.academicYear).trim() }
@@ -168,6 +178,8 @@ export class PaymentsComponent implements OnInit {
               cheque: x?.cheque || null,
               centerName: x?.centerName || '-',
               programName: x?.programName || '-',
+              paymentCategory: x?.paymentCategory || 'ADMISSION',
+              categoryLabel: x?.categoryLabel || '',
               _raw: x,
             };
           });
@@ -233,6 +245,7 @@ export class PaymentsComponent implements OnInit {
       search: '',
       paymentType: 'ALL',
       status: 'ALL',
+      paymentCategory: 'ALL',
       programCode: '',
       academicYear: '',
       fromDue: '',
@@ -291,6 +304,9 @@ export class PaymentsComponent implements OnInit {
         ? { paymentType: String(f.paymentType).trim() }
         : { paymentType: 'ALL' }),
       ...(f.status ? { status: String(f.status).trim() } : { status: 'ALL' }),
+      ...(f.paymentCategory && f.paymentCategory !== 'ALL'
+        ? { paymentCategory: String(f.paymentCategory).trim() }
+        : {}),
       ...(f.programCode ? { programCode: String(f.programCode).trim() } : {}),
       ...(f.academicYear
         ? { academicYear: String(f.academicYear).trim() }
@@ -321,6 +337,8 @@ export class PaymentsComponent implements OnInit {
               PaymentId: x?.paymentId || '',
               Type: type,
               Status: x?.status || '',
+              Category: x?.paymentCategory || 'ADMISSION',
+              CategoryLabel: x?.categoryLabel || '',
               Amount: Number(x?.amount || 0),
               AdmissionNo: x?.admissionNo || '',
               StudentName: x?.studentName || '',

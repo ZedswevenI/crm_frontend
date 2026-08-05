@@ -60,6 +60,13 @@
                         </select>
                     </div>
                     <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Category</label>
+                        <select class="form-select form-select-sm" formControlName="paymentCategory">
+                            <option value="ALL">ALL</option>
+                            <option *ngFor="let c of paymentCategoryOptions" [value]="c">{{ c }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label small fw-semibold">Center Code</label>
                         <select class="form-select form-select-sm" formControlName="centerCode">
                             <option value="">ALL</option>
@@ -184,6 +191,7 @@
                                         </div>
                                     </th>
                                     <th class="px-4 py-3 fw-semibold">Mode</th>
+                                    <th class="px-4 py-3 fw-semibold">Category</th>
                                     <th class="px-4 py-3 fw-semibold text-center action-col">
                                         Action
                                     </th>
@@ -236,6 +244,11 @@
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 fw-normal">{{ row.mode }}</td>
+                                        <td class="px-4 py-3 fw-normal">
+                                            <span class="badge bg-light text-dark border" [title]="row.categoryLabel">
+                                                {{ row.paymentCategory }}
+                                            </span>
+                                        </td>
                                         <td class="px-4 py-3 text-center">
                                             <div
                                                 class="d-flex align-items-center justify-content-center gap-2 flex-wrap">

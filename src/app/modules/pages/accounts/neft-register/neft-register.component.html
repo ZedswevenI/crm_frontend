@@ -30,6 +30,13 @@
                             <option *ngFor="let s of statusList" [value]="s">{{ s }}</option>
                         </select>
                     </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Category</label>
+                        <select class="form-select form-select-sm" formControlName="paymentCategory">
+                            <option value="ALL">ALL</option>
+                            <option *ngFor="let c of paymentCategoryOptions" [value]="c">{{ c }}</option>
+                        </select>
+                    </div>
                     <div class="col-md-2 d-flex gap-2 mb-2 justify-content-end ms-auto">
                         <button type="button" class="btn btn-sm btn-outline-secondary"
                             (click)="resetFilters()">Clear</button>
@@ -97,6 +104,7 @@
                                             <i class="fas icon-14" [ngClass]="sortIcon('status')"></i>
                                         </div>
                                     </th>
+                                    <th class="px-4 py-3 fw-semibold">Category</th>
                                     <th class="px-4 py-3 fw-semibold text-center action-col">Action</th>
                                 </tr>
                             </thead>
@@ -121,6 +129,11 @@
                                         <td class="px-4 py-3 fw-normal">
                                             <span class="badge" [ngClass]="statusBadge(row.status)">{{ row.status
                                                 }}</span>
+                                        </td>
+                                        <td class="px-4 py-3 fw-normal">
+                                            <span class="badge bg-light text-dark border" [title]="row.categoryLabel">
+                                                {{ row.paymentCategory }}
+                                            </span>
                                         </td>
                                         <td class="px-4 py-3 text-center">
                                             <button type="button" class="btn btn-sm btn-outline-secondary"

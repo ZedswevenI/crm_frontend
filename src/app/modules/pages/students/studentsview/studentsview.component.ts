@@ -422,6 +422,17 @@ export class StudentsviewComponent implements OnInit {
     });
   }
 
+  goToAddPayment() {
+    this.router.navigate(['/app/accounts/student-fee'], {
+      queryParams: {
+        admissionNo: this.student?.basic?.admissionNo || '',
+        studentName: this.student?.basic?.name || '',
+        programName: this.student?.program?.programName || '',
+        centerName: this.student?.program?.centerName || '',
+      },
+    });
+  }
+
   openEditProfile() {
     const b = this.student?.basic || {};
     this.editForm.patchValue({

@@ -44,6 +44,13 @@
                             <option *ngFor="let s of statusList" [value]="s">{{ s }}</option>
                         </select>
                     </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Category</label>
+                        <select class="form-select form-select-sm" formControlName="paymentCategory">
+                            <option value="ALL">ALL</option>
+                            <option *ngFor="let c of paymentCategoryOptions" [value]="c">{{ c }}</option>
+                        </select>
+                    </div>
                     <div class="col-md-2 d-flex gap-2 mb-2 justify-content-end">
                         <button type="button" class="btn btn-sm btn-outline-secondary"
                             (click)="resetFilters()">Clear</button>
@@ -116,6 +123,8 @@
                                     <!-- Key Date column: use date pipe -->
                                     <th class="px-4 py-3 fw-semibold">Key Date</th>
 
+                                    <th class="px-4 py-3 fw-semibold">Category</th>
+
                                     <th class="px-4 py-3 fw-semibold text-center action-col">Action</th>
                                 </tr>
                             </thead>
@@ -144,6 +153,12 @@
                                         <!-- Key Date with date pipe & safe fallback -->
                                         <td class="px-4 py-3">
                                             {{ row.keyDate ? (row.keyDate | date: 'dd/MM/yyyy') : '-' }}
+                                        </td>
+
+                                        <td class="px-4 py-3">
+                                            <span class="badge bg-light text-dark border" [title]="row.categoryLabel">
+                                                {{ row.paymentCategory }}
+                                            </span>
                                         </td>
 
                                         <td class="px-4 py-3 text-center">

@@ -10,8 +10,13 @@ import { PaymentsComponent } from './payments/payments/payments.component';
 import { ChequeDepositViewComponent } from './deposit-batch/cheque-deposit-view/cheque-deposit-view.component';
 import { ChequeExtensionViewComponent } from './cheque-extension/cheque-extension-view/cheque-extension-view.component';
 import { ChequeReplaceHistoryComponent } from './cheque-replace-history/cheque-replace-history.component';
+import { StudentFeePaymentComponent } from './student-fee-payment/student-fee-payment.component';
 
 const routes: Routes = [
+  {
+    path: 'student-fee',
+    component: StudentFeePaymentComponent
+  },
   {
     path: 'cheques',
     component: ChequeComponent

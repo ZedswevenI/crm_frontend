@@ -57,6 +57,7 @@ const NAV_MODULES: NavModule[] = [
       { label: 'Cheque Deposit', path: '/app/accounts/deposit' },
       { label: 'Cheque Extensions', path: '/app/accounts/extention' },
       { label: 'Cheque Replacements', path: '/app/accounts/replacements' },
+      { label: 'Add Payment', path: '/app/accounts/student-fee' },
     ],
   },
   {

@@ -1,0 +1,236 @@
+<div class="student-fee-page">
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-header bg-white border-0">
+            <h5 class="mb-1 fw-semibold">Add Payment</h5>
+            <p class="mb-0 text-muted small">
+                Record a hostel / transport / miscellaneous fee payment for a student — separate from admission
+                payments, and never replaces anything already saved.
+            </p>
+        </div>
+
+        <div class="card-body">
+            <!-- Student picker -->
+            <div class="border rounded-3 p-3 mb-3">
+                <div class="fw-semibold mb-2">Student</div>
+
+                <div *ngIf="!selectedStudent">
+                    <div class="position-relative" style="max-width: 420px;">
+                        <input type="text" class="form-control" placeholder="Search by name, admission no or phone"
+                            [(ngModel)]="studentSearch" [ngModelOptions]="{standalone: true}"
+                            (input)="onStudentSearchInput()" />
+                        <div class="student-search-results" *ngIf="studentResults.length || searching">
+                            <div class="text-muted small p-2" *ngIf="searching">Searching…</div>
+                            <button type="button" class="student-search-hit" *ngFor="let s of studentResults"
+                                (click)="pickStudent(s)">
+                                <span class="fw-semibold">{{ s.name || '—' }}</span>
+                                <span class="text-muted small">{{ s.admissionNo }} · {{ s.programName }} · {{
+                                    s.centerName }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div *ngIf="selectedStudent" class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="fw-semibold">{{ selectedStudent.name || '—' }}</div>
+                        <div class="text-muted small">
+                            {{ selectedStudent.admissionNo }} · {{ selectedStudent.programName }} · {{
+                            selectedStudent.centerName }}
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="clearStudent()">
+                        Change
+                    </button>
+                </div>
+            </div>
+
+            <form [formGroup]="form">
+                <datalist id="bankList">
+                    <option *ngFor="let b of bankNames" [value]="b"></option>
+                </datalist>
+
+                <!-- Category -->
+                <div class="border rounded-3 p-3 mb-3">
+                    <div class="fw-semibold mb-2">Category</div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Payment Category</label>
+                            <select class="form-select" formControlName="paymentCategory">
+                                <option *ngFor="let c of categoryOptions" [value]="c.value">{{ c.label }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" *ngIf="isOtherCategory">
+                            <label class="form-label small text-muted">Custom Category</label>
+                            <input type="text" class="form-control" formControlName="customCategory"
+                                placeholder="e.g. LIBRARY" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Label (optional)</label>
+                            <input type="text" class="form-control" formControlName="categoryLabel"
+                                placeholder="e.g. Hostel Fee - Term 1" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cheque rows -->
+                <div class="border rounded-3 p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">Cheques</div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="addChequeRow()">
+                            <i class="fa-solid fa-plus me-1"></i> Add Cheque
+                        </button>
+                    </div>
+
+                    <div class="table-responsive" *ngIf="chequesFA.length">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Cheque No</th>
+                                    <th>Cheque Date</th>
+                                    <th>Due Date</th>
+                                    <th>Favour Of</th>
+                                    <th>Mode</th>
+                                    <th>Bank</th>
+                                    <th class="text-end">Amount</th>
+                                    <th>Description</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody [formArrayName]="'cheques'">
+                                <tr *ngFor="let row of chequesFA.controls; let i = index" [formGroupName]="i">
+                                    <td><input class="form-control form-control-sm" formControlName="chequeNo" /></td>
+                                    <td><input class="form-control form-control-sm" type="date"
+                                            formControlName="chequeDate" /></td>
+                                    <td><input class="form-control form-control-sm" type="date"
+                                            formControlName="dueDate" /></td>
+                                    <td><input class="form-control form-control-sm" formControlName="favourOf" /></td>
+                                    <td>
+                                        <select class="form-select form-select-sm" formControlName="mode">
+                                            <option value="PDC">PDC</option>
+                                            <option value="CDC">CDC</option>
+                                        </select>
+                                    </td>
+                                    <td><input class="form-control form-control-sm" formControlName="bankName" list="bankList" placeholder="Bank" /></td>
+                                    <td><input class="form-control form-control-sm text-end" type="number"
+                                            formControlName="amount" /></td>
+                                    <td><input class="form-control form-control-sm" formControlName="description" /></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                                            (click)="removeChequeRow(i)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-muted small" *ngIf="!chequesFA.length">No cheque rows added.</div>
+                </div>
+
+                <!-- NEFT rows -->
+                <div class="border rounded-3 p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">NEFT</div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="addNeftRow()">
+                            <i class="fa-solid fa-plus me-1"></i> Add NEFT
+                        </button>
+                    </div>
+
+                    <div class="table-responsive" *ngIf="neftRefsFA.length">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>UTR</th>
+                                    <th>Paid On</th>
+                                    <th>Bank</th>
+                                    <th>Branch</th>
+                                    <th class="text-end">Amount</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody [formArrayName]="'neftRefs'">
+                                <tr *ngFor="let row of neftRefsFA.controls; let i = index" [formGroupName]="i">
+                                    <td><input class="form-control form-control-sm" formControlName="utr" /></td>
+                                    <td><input class="form-control form-control-sm" type="date"
+                                            formControlName="paidOn" /></td>
+                                    <td><input class="form-control form-control-sm" formControlName="bankName" list="bankList" placeholder="Bank" /></td>
+                                    <td><input class="form-control form-control-sm" formControlName="branchName" /></td>
+                                    <td><input class="form-control form-control-sm text-end" type="number"
+                                            formControlName="amount" /></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                                            (click)="removeNeftRow(i)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-muted small" *ngIf="!neftRefsFA.length">No NEFT rows added.</div>
+                </div>
+
+                <!-- Other payment rows -->
+                <div class="border rounded-3 p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">Other Payments</div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="addOtherRow()">
+                            <i class="fa-solid fa-plus me-1"></i> Add Other
+                        </button>
+                    </div>
+
+                    <div class="table-responsive" *ngIf="otherPaymentsFA.length">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mode</th>
+                                    <th>Ref No</th>
+                                    <th>Paid On</th>
+                                    <th>Bank</th>
+                                    <th class="text-end">Amount</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody [formArrayName]="'otherPayments'">
+                                <tr *ngFor="let row of otherPaymentsFA.controls; let i = index" [formGroupName]="i">
+                                    <td>
+                                        <select class="form-select form-select-sm" formControlName="mode">
+                                            <option value="UPI">UPI</option>
+                                            <option value="CASH">CASH</option>
+                                            <option value="CARD">CARD</option>
+                                            <option value="OTHER">OTHER</option>
+                                        </select>
+                                    </td>
+                                    <td><input class="form-control form-control-sm" formControlName="refNo" /></td>
+                                    <td><input class="form-control form-control-sm" type="date"
+                                            formControlName="paidOn" /></td>
+                                    <td><input class="form-control form-control-sm" formControlName="bankName" list="bankList" placeholder="Bank" /></td>
+                                    <td><input class="form-control form-control-sm text-end" type="number"
+                                            formControlName="amount" /></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                                            (click)="removeOtherRow(i)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-muted small" *ngIf="!otherPaymentsFA.length">No other payment rows added.</div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary" [disabled]="submitting"
+                        (click)="cancel()">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-saffron" [disabled]="!canSubmit" (click)="submit()">
+                        <span *ngIf="submitting" class="spinner-border spinner-border-sm me-1"></span>
+                        Submit Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

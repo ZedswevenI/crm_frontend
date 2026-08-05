@@ -18,6 +18,7 @@ import { ChequeExtensionRequestComponent } from './cheque-extension/cheque-exten
 import { ChequeExtensionViewComponent } from './cheque-extension/cheque-extension-view/cheque-extension-view.component';
 import { ChequeReplaceHistoryComponent } from './cheque-replace-history/cheque-replace-history.component';
 import { ChequeViewComponent } from './cheque-view/cheque-view.component';
+import { StudentFeePaymentComponent } from './student-fee-payment/student-fee-payment.component';
 
 @NgModule({
   declarations: [
@@ -33,7 +34,8 @@ import { ChequeViewComponent } from './cheque-view/cheque-view.component';
     ChequeExtensionRequestComponent,
     ChequeExtensionViewComponent,
     ChequeReplaceHistoryComponent,
-    ChequeViewComponent
+    ChequeViewComponent,
+    StudentFeePaymentComponent
   ],
   imports: [CommonModule, AccountsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
 })

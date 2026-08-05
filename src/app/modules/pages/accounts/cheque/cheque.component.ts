@@ -25,6 +25,12 @@ export class ChequeComponent implements OnInit {
     'FAILED',
     'CANCELLED',
   ];
+  paymentCategoryOptions = [
+    'ADMISSION',
+    'HOSTEL',
+    'TRANSPORT',
+    'MISCELLANEOUS',
+  ];
   centerOptions: any[] = [];
   programOptions: any[] = [];
   chequeData: any[] = [];
@@ -85,6 +91,7 @@ export class ChequeComponent implements OnInit {
       search: [''],
       status: ['ALL'],
       mode: [''],
+      paymentCategory: ['ALL'],
       centerCode: [''],
       programCode: [''],
       fromDue: [''],
@@ -259,6 +266,9 @@ export class ChequeComponent implements OnInit {
       ...(f.search ? { search: String(f.search).trim() } : {}),
       ...(f.status ? { status: String(f.status).trim() } : { status: 'ALL' }),
       ...(f.mode ? { mode: String(f.mode).trim() } : {}),
+      ...(f.paymentCategory && f.paymentCategory !== 'ALL'
+        ? { paymentCategory: String(f.paymentCategory).trim() }
+        : {}),
       ...(f.centerCode ? { centerCode: String(f.centerCode).trim() } : {}),
       ...(f.programCode ? { programCode: String(f.programCode).trim() } : {}),
       ...(f.fromDue ? { fromDue: f.fromDue } : {}),
@@ -291,6 +301,8 @@ export class ChequeComponent implements OnInit {
             status: x?.status || '-',
             bankName: x?.cheque?.bankName || '-',
             mode: x?.cheque?.mode || '-',
+            paymentCategory: x?.paymentCategory || 'ADMISSION',
+            categoryLabel: x?.categoryLabel || '',
             _raw: x,
           }));
 
@@ -471,6 +483,7 @@ export class ChequeComponent implements OnInit {
       search: '',
       status: 'ALL',
       mode: '',
+      paymentCategory: 'ALL',
       centerCode: '',
       programCode: '',
       fromDue: '',
@@ -626,6 +639,9 @@ export class ChequeComponent implements OnInit {
       ...(f.search ? { search: String(f.search).trim() } : {}),
       ...(f.status ? { status: String(f.status).trim() } : { status: 'ALL' }),
       ...(f.mode ? { mode: String(f.mode).trim() } : {}),
+      ...(f.paymentCategory && f.paymentCategory !== 'ALL'
+        ? { paymentCategory: String(f.paymentCategory).trim() }
+        : {}),
       ...(f.centerCode ? { centerCode: String(f.centerCode).trim() } : {}),
       ...(f.programCode ? { programCode: String(f.programCode).trim() } : {}),
       ...(f.fromDue ? { fromDue: f.fromDue } : {}),
@@ -664,6 +680,8 @@ export class ChequeComponent implements OnInit {
             Amount: Number(x?.amount || 0),
             Status: x?.status || '-',
             Mode: x?.cheque?.mode || '-',
+            Category: x?.paymentCategory || 'ADMISSION',
+            'Category Label': x?.categoryLabel || '-',
             'Cheque Bank': x?.cheque?.bankName || '-',
             'Deposit Bank': x?.deposit?.bankName || x?.depositBankName || '-',
             'Deposit Date': this.formatDateForExcel(
