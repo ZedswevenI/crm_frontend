@@ -320,17 +320,21 @@
                 <form [formGroup]="depositForm" (ngSubmit)="createDepositBatch()">
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Deposit Date</label>
-                            <input type="date" class="form-control" formControlName="depositDate" />
+                            <label class="form-label fw-semibold">Deposit Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" formControlName="depositDate"
+                                [class.is-invalid]="depositForm.get('depositDate')?.invalid && depositForm.get('depositDate')?.touched" />
+                            <div class="invalid-feedback">Deposit date is required.</div>
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label fw-semibold">Deposit Bank</label>
-                            <select class="form-select" formControlName="bankName" [disabled]="bankAccountsLoading">
+                            <label class="form-label fw-semibold">Deposit Bank <span class="text-danger">*</span></label>
+                            <select class="form-select" formControlName="bankName" [disabled]="bankAccountsLoading"
+                                [class.is-invalid]="depositForm.get('bankName')?.invalid && depositForm.get('bankName')?.touched">
                                 <option value="">-- Select Bank Account --</option>
                                 <option *ngFor="let b of bankAccounts" [value]="b.depositLabel">
                                     {{ b.depositLabel }}
                                 </option>
                             </select>
+                            <div class="invalid-feedback">Deposit bank is required.</div>
                             <div class="form-text" *ngIf="bankAccountsLoading">Loading bank accounts...</div>
                             <div class="form-text text-danger" *ngIf="!bankAccountsLoading && !bankAccounts.length">
                                 No bank accounts found. Please add bank accounts first.

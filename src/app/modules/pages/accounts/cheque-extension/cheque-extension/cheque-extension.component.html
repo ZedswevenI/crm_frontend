@@ -67,20 +67,6 @@
                                             <span>S.No</span>
                                         </div>
                                     </th>
-                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('requestId')"
-                                        style="cursor:pointer">
-                                        <div class="d-flex align-items-center gap-1">
-                                            <span>Request ID</span>
-                                            <i class="fas icon-14" [ngClass]="sortIcon('requestId')"></i>
-                                        </div>
-                                    </th>
-                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('paymentId')"
-                                        style="cursor:pointer">
-                                        <div class="d-flex align-items-center gap-1">
-                                            <span>Payment ID</span>
-                                            <i class="fas icon-14" [ngClass]="sortIcon('paymentId')"></i>
-                                        </div>
-                                    </th>
                                     <th class="px-4 py-3 fw-semibold" (click)="onSort('oldPlannedDepositDate')"
                                         style="cursor:pointer">
                                         <div class="d-flex align-items-center gap-1">
@@ -110,12 +96,6 @@
                                     <tr class="app-table-row">
                                         <td class="px-4 py-3">
                                             <span class="mono">{{ i+1}}</span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="mono">{{ row.requestId }}</span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="mono">{{ row.paymentId }}</span>
                                         </td>
                                         <td class="px-4 py-3">
                                             {{

@@ -43,7 +43,6 @@
                             <tr class="table-header">
                                 <th class="px-4 py-3 fw-semibold" style="width:80px;">#</th>
                                 <th class="px-4 py-3 fw-semibold">Type</th>
-                                <th class="px-4 py-3 fw-semibold">Payment ID</th>
                                 <th class="px-4 py-3 fw-semibold">Cheque No / UTR</th>
                                 <th class="px-4 py-3 fw-semibold">Due Date</th>
                                 <th class="px-4 py-3 fw-semibold">Planned Deposit</th>
@@ -64,7 +63,6 @@
                                             {{ row?.paymentType || '-' }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3"><span class="mono">{{ row.paymentId }}</span></td>
                                     <td class="px-4 py-3">
                                         {{ isNeft(row) ? (row?.neft?.utr || '-') : (row?.cheque?.chequeNo || '-') }}
                                     </td>
@@ -121,7 +119,6 @@
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">Cheque Details</h6>
-                    <span class="text-muted small">Payment ID: <span class="mono">{{ viewRow?.paymentId }}</span></span>
                 </div>
                 <button type="button" class="btn-close" (click)="closeView()" aria-label="Close"></button>
             </div>

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../service/alert/alert.service';
@@ -103,8 +103,8 @@ export class ChequeComponent implements OnInit {
       includeInactive: [false],
     });
     this.depositForm = this.fb.group({
-      depositDate: [''],
-      bankName: [''],
+      depositDate: ['', Validators.required],
+      bankName: ['', Validators.required],
     });
     this.reconcileForm = this.fb.group({
       date: [''],
@@ -534,7 +534,8 @@ export class ChequeComponent implements OnInit {
 
   createDepositBatch() {
     if (this.depositForm.invalid) {
-      this.alert.error('Please select deposit date');
+      this.depositForm.markAllAsTouched();
+      this.alert.error('Please select deposit bank and deposit date');
       return;
     }
     if (!this.selectedIds.length) {

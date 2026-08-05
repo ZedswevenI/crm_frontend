@@ -69,13 +69,6 @@
                                             <span>S.No.</span>
                                         </div>
                                     </th>
-                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('depositBatchId')"
-                                        style="cursor:pointer;">
-                                        <div class="d-flex align-items-center gap-1">
-                                            <span>Batch ID</span>
-                                            <i class="fas icon-14" [ngClass]="sortIcon('depositBatchId')"></i>
-                                        </div>
-                                    </th>
                                     <th class="px-4 py-3 fw-semibold" (click)="onSort('depositDate')"
                                         style="cursor:pointer;">
                                         <div class="d-flex align-items-center gap-1">
@@ -106,9 +99,6 @@
                                     <tr class="app-table-row">
                                         <td class="px-4 py-3">
                                             <span class="mono">{{ i+1 }}</span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="mono">{{ row.depositBatchId }}</span>
                                         </td>
                                         <td class="px-4 py-3">
                                             {{

@@ -77,13 +77,6 @@
                         <table class="table mb-0 align-middle app-table-grid">
                             <thead>
                                 <tr class="table-header">
-                                    <th class="px-4 py-3 fw-semibold" (click)="onSort('paymentId')"
-                                        style="cursor:pointer;">
-                                        <div class="d-flex align-items-center gap-1">
-                                            <span>Payment ID</span>
-                                            <i class="fas icon-14" [ngClass]="sortIcon('paymentId')"></i>
-                                        </div>
-                                    </th>
                                     <th class="px-4 py-3 fw-semibold" (click)="onSort('type')" style="cursor:pointer;">
                                         <div class="d-flex align-items-center gap-1">
                                             <span>Type</span>
@@ -131,7 +124,6 @@
                             <tbody>
                                 <ng-container *ngFor="let row of paymentsData">
                                     <tr class="app-table-row">
-                                        <td class="px-4 py-3"><span class="mono">{{ row.paymentId }}</span></td>
                                         <td class="px-4 py-3">{{ row.paymentType }}</td>
                                         <td class="px-4 py-3">
                                             <span class="truncate-cell" [style.maxWidth.px]="220">{{ row.ref }}</span>
@@ -214,7 +206,6 @@
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">Payment Details</h6>
-                    <span class="text-muted small">Payment ID: <span class="mono">{{ viewRow?.paymentId }}</span></span>
                 </div>
                 <button type="button" class="btn-close" (click)="closeView()
           " aria-label="Close"></button>

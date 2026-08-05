@@ -111,8 +111,8 @@
                         <div class="fw-semibold mb-2">Student</div>
                         <div class="small">
                             <div><span class="text-muted">Name: </span> {{ payment?.studentName || '-' }}</div>
-                            <div><span class="text-muted">Admission No: </span> <span class="mono">{{
-                                    payment?.admissionId?.admissionNo || '-' }}</span></div>
+                            <div><span class="text-muted">Enrollment No: </span> <span class="mono">{{
+                                    payment?.admissionNo || '-' }}</span></div>
                             <div><span class="text-muted">Program: </span> {{ payment?.programName || '-' }}</div>
                             <div><span class="text-muted">Center: </span> {{ payment?.centerName || '-' }}</div>
                             <div><span class="text-muted">Amount: </span> ₹{{ payment?.amount || 0 | number:'1.0-0' }}
@@ -120,6 +120,13 @@
                             <div><span class="text-muted">Status: </span> <span class="fw-semibold">{{ payment?.status
                                     ||
                                     '-' }}</span></div>
+                            <div>
+                                <span class="text-muted">Category: </span>
+                                <span class="badge bg-light text-dark border">{{ payment?.paymentCategory ||
+                                    'ADMISSION' }}</span>
+                                <span class="text-muted small" *ngIf="payment?.categoryLabel">({{
+                                    payment?.categoryLabel }})</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -217,7 +224,6 @@
         <div class="app-modal-header d-flex justify-content-between align-items-center">
             <div>
                 <h6 class="mb-0 fw-semibold">Update Remarks</h6>
-                <span class="text-muted small">Payment ID: <span class="mono">{{ paymentId }}</span></span>
             </div>
             <button type="button" class="btn-close" (click)="closeRemarksModal()" aria-label="Close"></button>
         </div>
