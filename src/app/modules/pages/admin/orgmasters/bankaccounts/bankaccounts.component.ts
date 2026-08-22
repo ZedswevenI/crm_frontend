@@ -3,6 +3,8 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { PermissionService } from '../../../../../shared/permission.service';
+import { filterActionsByTooltip } from '../../../../../shared/action-permission.util';
 import * as XLSX from 'xlsx';
 import { finalize } from 'rxjs/operators';
 
@@ -68,11 +70,19 @@ export class BankaccountsComponent implements OnInit {
     },
   ];
 
+  get visibleActions() {
+    return filterActionsByTooltip(this.actions, this.permissionService, {
+      Edit: 'orgBankAccount:edit',
+      Delete: 'orgBankAccount:delete',
+    });
+  }
+
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private commonApi: CommonapiService,
+    private permissionService: PermissionService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([

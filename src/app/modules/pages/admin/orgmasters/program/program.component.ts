@@ -6,6 +6,8 @@ import * as XLSX from 'xlsx';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { PermissionService } from '../../../../../shared/permission.service';
+import { filterActionsByTooltip } from '../../../../../shared/action-permission.util';
 
 type ImportMode = 'insert' | 'upsert';
 
@@ -132,12 +134,23 @@ export class ProgramComponent implements OnInit {
     },
   ];
 
+  get visibleActions() {
+    return filterActionsByTooltip(this.actions, this.permissionService, {
+      Edit: 'orgProgram:edit',
+      Delete: 'orgProgram:delete',
+      'Add Subjects': 'orgProgram:addSubjects',
+      'Remove Subjects': 'orgProgram:removeSubjects',
+      'Exam Mapping': 'orgProgram:examMapping',
+    });
+  }
+
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private commonApi: CommonapiService,
     private cdr: ChangeDetectorRef,
+    private permissionService: PermissionService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([

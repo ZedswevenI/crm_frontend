@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { UiElementsModule } from '../../ui-elements/ui-elements.module';
+import { PermissionSharedModule } from '../../../shared/permission-shared.module';
 
 import { AdmissionsRoutingModule } from './admissions-routing.module';
 import { ListComponent } from './list/list.component';
@@ -35,6 +36,6 @@ import { AdmissionNewFlatComponent } from './admission-new-flat/admission-new-fl
     PrintAcknowledgementComponent,
     AdmissionApproveComponent
   ],
-  imports: [CommonModule, AdmissionsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
+  imports: [CommonModule, AdmissionsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule, PermissionSharedModule]
 })
 export class AdmissionsModule {}

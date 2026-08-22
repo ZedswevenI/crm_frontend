@@ -9,13 +9,13 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()"
+                <button *appHasPermission="'orgBankAccount:create'" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()"
                     [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-file-import"></i>
                     <span>Import Bank Accounts</span>
                 </button>
 
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()"
+                <button *appHasPermission="'orgBankAccount:create'" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()"
                     [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-plus"></i>
                     <span>Add Bank Account</span>
@@ -25,7 +25,7 @@
 
         <div class="card-body pt-0">
             <list-table [autoFitChars]="true" [columns]="columns" [totalRecords]="totalRecords" [data]="bankData"
-                [actions]="actions" [loading]="loading" [pageSizeOptions]="[10,20,50]"
+                [actions]="visibleActions" [loading]="loading" [pageSizeOptions]="[10,20,50]"
                 (requestData)="fetchTableData($event)">
             </list-table>
         </div>

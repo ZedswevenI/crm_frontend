@@ -6,17 +6,17 @@
                 <p class="mb-0 text-muted small">Manage staff, roles, faculty mapping, department and weekoff.</p>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                <button *appHasPermission="'orgStaff:create'" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
                     <i class="fa-solid fa-file-import"></i><span>Import Staff</span>
                 </button>
-                <button *appHasRole="['L6','L1']" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                <button *appHasPermission="'orgStaff:create'" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
                     <i class="fa-solid fa-plus"></i><span>Add Staff</span>
                 </button>
             </div>
         </div>
         <div class="card-body pt-0">
             <list-table [autoFitChars]="true" (requestData)="fetchTableData($event)" [columns]="columns"
-                [totalRecords]="totalRecords" [data]="staffData" [actions]="actions" [showpageoptions]="true">
+                [totalRecords]="totalRecords" [data]="staffData" [actions]="visibleActions" [showpageoptions]="true">
             </list-table>
         </div>
     </div>

@@ -65,14 +65,14 @@
                 <div class="text-muted small">Add multiple venues under this center</div>
             </div>
 
-            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="addVenue()">
+            <button *appHasPermission="'orgCenter:create'" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="addVenue()">
                 <i class="fa-solid fa-plus"></i>
                 <span>Add Venue</span>
             </button>
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="venueColumns" [data]="venues" [actions]="venueActions"
+            <list-table [autoFitChars]="true" [columns]="venueColumns" [data]="venues" [actions]="visibleVenueActions"
                 [loading]="venueLoading" [totalRecords]="venueTotalRecords" [pageSizeOptions]="[10,20,50]"
                 (requestData)="fetchVenues($event)">
             </list-table>

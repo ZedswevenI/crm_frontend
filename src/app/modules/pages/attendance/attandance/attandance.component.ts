@@ -206,7 +206,7 @@ export class AttandanceComponent implements OnInit, OnDestroy {
   mapAOData(raw: any[]): void {
     const today = this.getTodayUtcMs();
     const isFuture =
-      this.selectedDate! > today && (this.auth.getRole() === 'admin')
+      this.selectedDate! > today && (this.auth.getRole() === 'L1')
       // (this.auth.getRole() === 'admin' || this.auth.getRole() === 'L3');
     this.originalData = raw.map((r: any) => this.enrichRow(r, !isFuture));
     this.buildActions();

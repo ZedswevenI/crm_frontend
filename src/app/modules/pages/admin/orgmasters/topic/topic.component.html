@@ -9,13 +9,13 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()"
+                <button *appHasPermission="'orgTopic:create'" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()"
                     [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-file-import"></i>
                     <span>Import Topics</span>
                 </button>
 
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()"
+                <button *appHasPermission="'orgTopic:create'" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()"
                     [disabled]="loading || saving || importing">
                     <i class="fa-solid fa-plus"></i>
                     <span>Add Topic</span>
@@ -24,7 +24,7 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="tableData" [actions]="actions"
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="tableData" [actions]="visibleActions"
                 [loading]="loading" [totalRecords]="totalRecords" [pageSizeOptions]="[10, 20, 50]"
                 (requestData)="fetchTableData($event)">
             </list-table>

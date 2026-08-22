@@ -5,6 +5,8 @@ import { finalize } from 'rxjs/operators';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
+import { PermissionService } from '../../../../../shared/permission.service';
+import { filterActionsByTooltip } from '../../../../../shared/action-permission.util';
 @Component({
   selector: 'app-subtopic',
   standalone: false,
@@ -67,11 +69,19 @@ export class SubtopicComponent implements OnInit {
     },
   ];
 
+  get visibleActions() {
+    return filterActionsByTooltip(this.actions, this.permissionService, {
+      Edit: 'orgSubTopic:edit',
+      Delete: 'orgSubTopic:delete',
+    });
+  }
+
   constructor(
     private fb: FormBuilder,
     private alert: AlertService,
     private api: CommonapiService,
-    private breadcrumb: BredcrumpService
+    private breadcrumb: BredcrumpService,
+    private permissionService: PermissionService,
   ) {
       this.breadcrumb.set([{ label: 'Org Configs' }, { label: 'Subtopics' }]);
   }

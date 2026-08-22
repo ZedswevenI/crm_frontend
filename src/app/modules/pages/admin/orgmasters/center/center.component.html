@@ -7,13 +7,13 @@
                     Manage centers under each institute with location and status.
                 </p>
             </div>
-            <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+            <button *appHasPermission="'orgCenter:create'" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
                 <i class="fa-solid fa-plus"></i>
                 <span>Add Center</span>
             </button>
         </div>
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="centerData" [actions]="actions"
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="centerData" [actions]="visibleActions"
                 [loading]="loading" [totalRecords]="totalRecords" [pageSizeOptions]="[10,20,50]"
                 (requestData)="fetchTableData($event)">
             </list-table>

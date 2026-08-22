@@ -9,12 +9,12 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                <button *appHasPermission="'orgProgram:create'" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
                     <i class="fa-solid fa-file-import"></i>
                     <span>Import Programs</span>
                 </button>
 
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                <button *appHasPermission="'orgProgram:create'" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
                     <i class="fa-solid fa-plus"></i>
                     <span>Add Program</span>
                 </button>
@@ -22,7 +22,7 @@
         </div>
 
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="programData" [actions]="actions"
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="programData" [actions]="visibleActions"
                 [showfilter]="false" [loading]="loading" [totalRecords]="totalRecords"
                 (requestData)="fetchTableData($event)">
             </list-table>

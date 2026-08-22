@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { UiElementsModule } from '../../ui-elements/ui-elements.module';
+import { PermissionSharedModule } from '../../../shared/permission-shared.module';
 
 import { AccountsRoutingModule } from './accounts-routing.module';
 import { PaymentsComponent } from './payments/payments/payments.component';
@@ -37,6 +38,6 @@ import { StudentFeePaymentComponent } from './student-fee-payment/student-fee-pa
     ChequeViewComponent,
     StudentFeePaymentComponent
   ],
-  imports: [CommonModule, AccountsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
+  imports: [CommonModule, AccountsRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule, PermissionSharedModule]
 })
 export class AccountsModule {}

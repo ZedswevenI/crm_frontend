@@ -61,15 +61,15 @@
                         <div class="vr"></div>
 
                         <!-- Action buttons -->
-                        <button class="btn btn-sm btn-outline-warning" [disabled]="actionBusy || loading"
+                        <button *appHasPermission="'admission:review'" class="btn btn-sm btn-outline-warning" [disabled]="actionBusy || loading"
                             (click)="openHoldModal()">
                             <i class="fa-solid fa-hand me-1"></i> Put On Hold
                         </button>
-                        <button class="btn btn-sm btn-reject" [disabled]="actionBusy || loading"
+                        <button *appHasPermission="'admission:reject'" class="btn btn-sm btn-reject" [disabled]="actionBusy || loading"
                             (click)="openRejectModal()">
                             <i class="fa-solid fa-circle-xmark me-1"></i> Reject
                         </button>
-                        <button class="btn btn-sm btn-approve" [disabled]="actionBusy || loading" (click)="approve()">
+                        <button *appHasPermission="'admission:approve'" class="btn btn-sm btn-approve" [disabled]="actionBusy || loading" (click)="approve()">
                             <i class="fa-solid fa-circle-check me-1"></i>
                             <span *ngIf="!actionBusy">Approve</span>
                             <span *ngIf="actionBusy">Processing…</span>
@@ -380,15 +380,15 @@
                         </button>
                     </div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-warning" [disabled]="actionBusy || loading"
+                        <button *appHasPermission="'admission:review'" class="btn btn-sm btn-outline-warning" [disabled]="actionBusy || loading"
                             (click)="openHoldModal()">
                             <i class="fa-solid fa-hand me-1"></i> Put On Hold
                         </button>
-                        <button class="btn btn-sm btn-reject" [disabled]="actionBusy || loading"
+                        <button *appHasPermission="'admission:reject'" class="btn btn-sm btn-reject" [disabled]="actionBusy || loading"
                             (click)="openRejectModal()">
                             <i class="fa-solid fa-circle-xmark me-1"></i> Reject
                         </button>
-                        <button class="btn btn-sm btn-approve" [disabled]="actionBusy || loading" (click)="approve()">
+                        <button *appHasPermission="'admission:approve'" class="btn btn-sm btn-approve" [disabled]="actionBusy || loading" (click)="approve()">
                             <i class="fa-solid fa-circle-check me-1"></i>
                             <span *ngIf="!actionBusy">Approve</span>
                             <span *ngIf="actionBusy">Processing…</span>
@@ -417,7 +417,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" (click)="closeRejectModal()">Cancel</button>
-                <button class="btn btn-danger" [disabled]="actionBusy || !rejectReason.trim()" (click)="rejectNow()">
+                <button *appHasPermission="'admission:reject'" class="btn btn-danger" [disabled]="actionBusy || !rejectReason.trim()" (click)="rejectNow()">
                     <i class="fa-solid fa-circle-xmark me-1"></i> Reject
                 </button>
             </div>
@@ -446,7 +446,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" (click)="closeHoldModal()">Cancel</button>
-                <button class="btn btn-warning" [disabled]="actionBusy || !holdRemarks.trim()" (click)="putOnHold()">
+                <button *appHasPermission="'admission:review'" class="btn btn-warning" [disabled]="actionBusy || !holdRemarks.trim()" (click)="putOnHold()">
                     <i class="fa-solid fa-hand me-1"></i> Put On Hold
                 </button>
             </div>
