@@ -2,22 +2,22 @@
     <!-- QUICK ACTIONS -->
     <div class="card mb-3 shadow-sm border-0">
         <div class="card-body d-flex gap-2 flex-wrap">
-            <button class="btn btn-saffron" (click)="go('/app/admissions/new')">
+            <button *appHasPermission="'admission:create'" class="btn btn-saffron" (click)="go('/app/admissions/new')">
                 <i class="fa-solid fa-user-plus me-1"></i> New Admission
             </button>
-            <button class="btn btn-quick-blue" (click)="go('/app/accounts/payments')">
+            <button *appHasPermission="'accounts:listPayments'" class="btn btn-quick-blue" (click)="go('/app/accounts/payments')">
                 <i class="fa-solid fa-indian-rupee-sign me-1"></i> All Payments
             </button>
-            <button class="btn btn-quick-green" (click)="go('/app/attendance')">
+            <button *appHasPermission="'attendance:list'" class="btn btn-quick-green" (click)="go('/app/attendance')">
                 <i class="fa-solid fa-calendar-check me-1"></i> Attendance Entry
             </button>
-            <button class="btn btn-quick-dark" (click)="go('/app/accounts/cheques')">
+            <button *appHasPermission="'accounts:listCheques'" class="btn btn-quick-dark" (click)="go('/app/accounts/cheques')">
                 <i class="fa-regular fa-note-sticky me-1"></i> Cheque Register
             </button>
-            <button class="btn btn-quick-cyan" (click)="go('/app/timetable')">
+            <button *appHasPermission="['timetable:list','timetable:view']" class="btn btn-quick-cyan" (click)="go('/app/timetable')">
                 <i class="fa-regular fa-clock me-1"></i> Timetable
             </button>
-            <button class="btn btn-quick-purple" (click)="go('/app/students')">
+            <button *appHasPermission="['student:list','student:view']" class="btn btn-quick-purple" (click)="go('/app/students')">
                 <i class="fa-solid fa-users me-1"></i> Students
             </button>
         </div>
@@ -37,7 +37,7 @@
                         </div>
                     </div>
                     <div class="d-flex flex-column gap-1 mt-3">
-                        <button *ngFor="let link of card.links" type="button"
+                        <button *ngFor="let link of visibleLinks(card)" type="button"
                             class="btn btn-sm dashboard-link-btn d-flex align-items-center justify-content-between text-start"
                             (click)="go(link.path)">
                             <span>{{ link.label }}</span>

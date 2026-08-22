@@ -39,7 +39,7 @@ const NAV_MODULES: NavModule[] = [
       { label: 'Fee Calculator', path: '/app/admissions/fee-calculator', permission: 'admission:create' },
       { label: 'Student Bulk Upload', path: '/app/admissions/student/upload', permission: 'admission:bulkUpload' },
       { label: 'Print Acknowledgement', path: '/app/admissions/print/acknowledgement', permission: 'admission:create' },
-      { label: 'Fee Plans', path: '/app/fees/plans' },
+      { label: 'Fee Plans', path: '/app/fees/plans', permission: ['orgFeePlan:list', 'orgFeePlan:view'] },
       {
         label: 'Export Admissions',
         path: '/app/admissions',
