@@ -1016,22 +1016,14 @@ export class AdmissionNewFlatComponent implements OnInit {
       return;
     }
     if (this.step2Form.invalid) {
-      const invalidControls = [];
-      const controls = this.chequesFA.controls;
-      for (let i = 0; i < controls.length; i++) {
-        if (controls[i].invalid) {
-          const row = controls[i] as UntypedFormGroup;
-          const errors = Object.keys(row.controls)
-            .filter((key) => row.get(key)?.invalid)
-            .map((key) => `${key} (${JSON.stringify(row.get(key)?.errors)})`);
-          invalidControls.push(`Row ${i + 1}: ${errors.join(', ')}`);
-        }
-      }
-      console.log('Invalid Cheque Rows:', invalidControls);
-    }
-    if (this.step2Form.invalid) {
       this.step2Form.markAllAsTouched();
-      this.alert.error('Please fill all required NEFT/cheque details.');
+      const detail = this.describeInvalidStep2Rows();
+      console.log('Invalid Step 2 rows:', detail);
+      this.alert.error(
+        detail.length
+          ? `Please check: ${detail.join('; ')}`
+          : 'Please fill all required NEFT/cheque details.',
+      );
       return;
     }
     // NEFT amount can be manually adjusted on this screen too, same as
@@ -2548,35 +2540,16 @@ export class AdmissionNewFlatComponent implements OnInit {
   }
 
   private chequeSplitValidator(): ValidatorFn {
-    return (ctrl: AbstractControl): ValidationErrors | null => {
-      const fa = ctrl as UntypedFormArray;
-      const rows = (fa?.getRawValue?.() || []) as any[];
-      if (!rows.length) return null;
-      const sumByDate = new Map<number, number>();
-      const countByDate = new Map<number, number>();
-      for (const r of rows) {
-        const dt = Number(r?.instalmentDate || 0) || 0;
-        const amt = Number(r?.amount || 0) || 0;
-        if (!dt || amt <= 0) continue;
-        sumByDate.set(dt, (sumByDate.get(dt) || 0) + amt);
-        countByDate.set(dt, (countByDate.get(dt) || 0) + 1);
-      }
-      // This cap only makes sense once a due date has actually been split
-      // into more than one row — it stops the split parts from exceeding
-      // the original single row's amount. A single row for a date is a
-      // direct user edit (e.g. to close a total-mismatch gap) and is
-      // intentionally allowed to differ from the plan-computed amount;
-      // the overall Paid-vs-Due check in submitPayments() governs that.
-      for (const [dt, sum] of sumByDate.entries()) {
-        if ((countByDate.get(dt) || 0) < 2) continue;
-        const allowed = Number(this.chequeAllowedByDate.get(dt) || 0) || 0;
-        if (allowed > 0 && this.roundRupee(sum) > this.roundRupee(allowed)) {
-          return { chequeSplitExceed: { instalmentDate: dt, sum, allowed } };
-        }
-      }
-
-      return null;
-    };
+    // On this screen, amounts are meant to be freely overridden (that's the
+    // entire point of the edit-amount feature) and correctness is governed
+    // by the overall Paid-vs-Due confirm-modal in submitPayments() instead.
+    // A per-due-date cap tied to the original plan-computed amount doesn't
+    // fit that model — e.g. two legitimate cheques dated the same due date
+    // (common when a large installment is split across two physical
+    // cheques) would otherwise get silently blocked with no clear reason.
+    // Disabled here; the equivalent validator in the original tiered-
+    // scholarship wizard (admissionbug) still enforces this.
+    return (): ValidationErrors | null => null;
   }
 
   private bindChequeSplitValidator(): void {
@@ -2586,21 +2559,11 @@ export class AdmissionNewFlatComponent implements OnInit {
   }
 
   private neftSumNotExceedSplitValidator(): ValidatorFn {
-    return (ctrl: AbstractControl): ValidationErrors | null => {
-      const fa = ctrl as UntypedFormArray;
-      const rows = (fa?.getRawValue?.() || []) as any[];
-      // Same relaxation as chequeSplitValidator: this cap only makes sense
-      // once the NEFT split has actually produced more than one row. A
-      // single row is a direct user edit — intentionally allowed to differ
-      // from the plan-computed split; the overall Paid-vs-Due confirm-modal
-      // in submitPayments() governs that instead.
-      if (rows.length < 2) return null;
-      const entered = rows.reduce((s, r) => s + (Number(r?.amount) || 0), 0);
-      const split =
-        Number(this.step2Form?.getRawValue?.()?.neftAmount ?? 0) || 0;
-      if (!split) return null;
-      return entered > split ? { neftSumExceed: { entered, split } } : null;
-    };
+    // Same rationale as chequeSplitValidator: amounts on this screen are
+    // meant to be freely overridden, with the overall Paid-vs-Due
+    // confirm-modal in submitPayments() as the real correctness check —
+    // not a cap tied to the original plan-computed NEFT split.
+    return (): ValidationErrors | null => null;
   }
 
   private bindStep2NeftValidator(): void {
@@ -2697,6 +2660,43 @@ export class AdmissionNewFlatComponent implements OnInit {
       remarks: [data.remarks],
       isSplit: [false],
     });
+  }
+
+  private readonly FIELD_LABELS: Record<string, string> = {
+    chequeNo: 'Cheque No',
+    chequeDate: 'Cheque Date',
+    dueDate: 'Due Date',
+    bankName: 'Bank',
+    mode: 'Mode',
+    amount: 'Amount',
+    favourOf: 'Favour Of',
+    utr: 'UTR',
+    paidOn: 'Paid On',
+  };
+
+  // Pinpoints exactly which row/field is still invalid, since the Submit
+  // button being disabled otherwise gives no clue why — especially for a
+  // row below the fold the user never scrolled to or clicked into.
+  private describeInvalidStep2Rows(): string[] {
+    const describe = (fa: UntypedFormArray, label: string): string[] => {
+      const out: string[] = [];
+      fa.controls.forEach((control, i) => {
+        if (!control.invalid) return;
+        const row = control as UntypedFormGroup;
+        const fields = Object.keys(row.controls)
+          .filter((key) => row.get(key)?.enabled && row.get(key)?.invalid)
+          .map((key) => this.FIELD_LABELS[key] || key);
+        if (fields.length) {
+          out.push(`${label} row ${i + 1}: ${fields.join(', ')}`);
+        }
+      });
+      return out;
+    };
+    return [
+      ...describe(this.chequesFA, 'Cheque'),
+      ...describe(this.neftRefsFA, 'NEFT'),
+      ...describe(this.otherPaymentsFA, 'Other payment'),
+    ];
   }
 
   toggleAmountEdit(idx: number): void {
@@ -2854,14 +2854,19 @@ export class AdmissionNewFlatComponent implements OnInit {
     this.chequesFA.updateValueAndValidity({ emitEvent: false });
   }
 
+  // Deliberately does NOT check step2Form.valid: a hard [disabled] binding
+  // on that would leave the button permanently, silently stuck with no way
+  // to tell the user which row/field is still incomplete. Instead the
+  // button always stays clickable (when otherwise eligible) and
+  // submitPayments() itself validates on click and reports specifics via
+  // describeInvalidStep2Rows().
   get canSubmitPayments(): boolean {
     return (
       !this.submitting &&
       !this.loading &&
       !!this.admissionId &&
       !this.submittedForAck &&
-      this.step === 2 &&
-      this.step2Form.valid
+      this.step === 2
     );
   }
 
