@@ -6,6 +6,8 @@ import { CenterService } from '../../../../../service/admin/orgmasters/center.se
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { PermissionService } from '../../../../../shared/permission.service';
+import { filterActionsByTooltip } from '../../../../../shared/action-permission.util';
 
 @Component({
   selector: 'app-center',
@@ -56,13 +58,21 @@ centerForm!: FormGroup;
   ];
   saving = false;
 
+  get visibleActions() {
+    return filterActionsByTooltip(this.actions, this.permissionService, {
+      Edit: 'orgCenter:edit',
+      Delete: 'orgCenter:delete',
+    });
+  }
+
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alertService: AlertService,
     private centerService: CenterService,
     private api: CommonapiService,
-    private router : Router
+    private router : Router,
+    private permissionService: PermissionService,
   ) {
     this.entiId = localStorage.getItem('tenantId')
     this.breadcrumb.set([

@@ -5,6 +5,8 @@ import { finalize } from 'rxjs/operators';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { PermissionService } from '../../../../../shared/permission.service';
+import { filterActionsByTooltip } from '../../../../../shared/action-permission.util';
 
 @Component({
   selector: 'app-examcategory',
@@ -66,11 +68,20 @@ export class ExamcategoryComponent implements OnInit {
     },
   ];
 
+  get visibleActions() {
+    return filterActionsByTooltip(this.actions, this.permissionService, {
+      Edit: 'orgExamCategory:edit',
+      Delete: 'orgExamCategory:delete',
+      'Add Sub-Categories': 'orgExamCategory:addSubCategories',
+    });
+  }
+
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private commonApi: CommonapiService,
+    private permissionService: PermissionService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([

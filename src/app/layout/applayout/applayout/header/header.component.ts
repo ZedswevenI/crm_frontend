@@ -5,14 +5,17 @@ import { timer } from 'rxjs';
 import { filter, switchMap } from 'rxjs/operators';
 import { NotificationService } from '../../../../service/notification/notification.service';
 import { AppNotification } from '../../../../service/notification/notification.model';
+import { PermissionService } from '../../../../shared/permission.service';
 
 const UNREAD_POLL_MS = 60000;
 
 interface NavLink {
   label: string;
   path: string;
-  hideForAccount?: boolean;
   queryParams?: Record<string, string>;
+  /** Omit to always show (e.g. institute, fee plans — routes not yet permission-gated). */
+  permission?: string | string[];
+  requireAll?: boolean;
 }
 
 interface NavModule {
@@ -20,7 +23,6 @@ interface NavModule {
   label: string;
   matchPrefixes: string[];
   links: NavLink[];
-  hideForAccount?: boolean;
 }
 
 const NAV_MODULES: NavModule[] = [
@@ -28,21 +30,21 @@ const NAV_MODULES: NavModule[] = [
     key: 'admissions',
     label: 'Admissions & Fees',
     matchPrefixes: ['/app/admissions', '/app/fees'],
-    hideForAccount: true,
     links: [
-      { label: 'New Admission', path: '/app/admissions/new' },
-      { label: 'Search Enrollment', path: '/app/admissions' },
-      { label: 'Waiting for Approval', path: '/app/admissions/waitforapproval' },
-      { label: 'Reports', path: '/app/admissions/reports' },
+      { label: 'New Admission', path: '/app/admissions/new', permission: 'admission:create' },
+      { label: 'Search Enrollment', path: '/app/admissions', permission: ['admission:list', 'admission:view'] },
+      { label: 'Waiting for Approval', path: '/app/admissions/waitforapproval', permission: ['admission:list', 'admission:review'] },
+      { label: 'Reports', path: '/app/admissions/reports', permission: 'admission:export' },
       // { label: 'Communication', path: '/app/admissions/communication' },
-      { label: 'Fee Calculator', path: '/app/admissions/fee-calculator' },
-      { label: 'Student Bulk Upload', path: '/app/admissions/student/upload' },
-      { label: 'Print Acknowledgement', path: '/app/admissions/print/acknowledgement' },
-      { label: 'Fee Plans', path: '/app/fees/plans' },
+      { label: 'Fee Calculator', path: '/app/admissions/fee-calculator', permission: 'admission:create' },
+      { label: 'Student Bulk Upload', path: '/app/admissions/student/upload', permission: 'admission:bulkUpload' },
+      { label: 'Print Acknowledgement', path: '/app/admissions/print/acknowledgement', permission: 'admission:create' },
+      { label: 'Fee Plans', path: '/app/fees/plans', permission: ['orgFeePlan:list', 'orgFeePlan:view'] },
       {
         label: 'Export Admissions',
         path: '/app/admissions',
         queryParams: { export: '1' },
+        permission: 'admission:export',
       },
     ],
   },
@@ -51,27 +53,27 @@ const NAV_MODULES: NavModule[] = [
     label: 'Accounts',
     matchPrefixes: ['/app/accounts'],
     links: [
-      { label: 'All Payments', path: '/app/accounts/payments' },
-      { label: 'NEFT Register', path: '/app/accounts/neft' },
-      { label: 'Cheque Register', path: '/app/accounts/cheques' },
-      { label: 'Cheque Deposit', path: '/app/accounts/deposit' },
-      { label: 'Cheque Extensions', path: '/app/accounts/extention' },
-      { label: 'Cheque Replacements', path: '/app/accounts/replacements' },
-      { label: 'Add Payment', path: '/app/accounts/student-fee' },
+      { label: 'All Payments', path: '/app/accounts/payments', permission: 'accounts:listPayments' },
+      { label: 'NEFT Register', path: '/app/accounts/neft', permission: 'accounts:listNeft' },
+      { label: 'Cheque Register', path: '/app/accounts/cheques', permission: 'accounts:listCheques' },
+      { label: 'Cheque Deposit', path: '/app/accounts/deposit', permission: 'accounts:depositBatch' },
+      { label: 'Cheque Extensions', path: '/app/accounts/extention', permission: 'accounts:chequeExtension' },
+      { label: 'Cheque Replacements', path: '/app/accounts/replacements', permission: 'accounts:chequeReplacement' },
+      { label: 'Add Payment', path: '/app/accounts/student-fee', permission: 'accounts:addPayment' },
     ],
   },
   {
     key: 'students',
     label: 'Students & Batches',
     matchPrefixes: ['/app/students', '/app/batches'],
-    hideForAccount: true,
     links: [
-      { label: 'Students', path: '/app/students' },
-      { label: 'Batches', path: '/app/batches' },
+      { label: 'Students', path: '/app/students', permission: ['student:list', 'student:view'] },
+      { label: 'Batches', path: '/app/batches', permission: ['batch:list', 'batch:view'] },
       {
         label: 'Export Students',
         path: '/app/students',
         queryParams: { export: '1' },
+        permission: 'student:export',
       },
     ],
   },
@@ -79,10 +81,9 @@ const NAV_MODULES: NavModule[] = [
     key: 'timetable',
     label: 'Timetable & Attendance',
     matchPrefixes: ['/app/timetable', '/app/attendance'],
-    hideForAccount: true,
     links: [
-      { label: 'Timetable', path: '/app/timetable' },
-      { label: 'Attendance', path: '/app/attendance' },
+      { label: 'Timetable', path: '/app/timetable', permission: ['timetable:list', 'timetable:view'] },
+      { label: 'Attendance', path: '/app/attendance', permission: 'attendance:list' },
     ],
   },
   {
@@ -90,18 +91,18 @@ const NAV_MODULES: NavModule[] = [
     label: "Org Config's",
     matchPrefixes: ['/app/admin'],
     links: [
-      { label: 'Institute', path: '/app/admin/masters/institute', hideForAccount: true },
-      { label: 'Centers', path: '/app/admin/masters/centers', hideForAccount: true },
-      { label: 'Programs', path: '/app/admin/masters/programs', hideForAccount: true },
-      { label: 'Staff', path: '/app/admin/masters/staff', hideForAccount: true },
-      { label: 'Departments', path: '/app/admin/masters/departments', hideForAccount: true },
-      { label: 'Subject', path: '/app/admin/masters/subject', hideForAccount: true },
-      { label: 'Bank Accounts', path: '/app/admin/masters/bankaccounts' },
-      { label: 'Users & Roles', path: '/app/admin/users', hideForAccount: true },
-      { label: 'Topics', path: '/app/admin/masters/topics', hideForAccount: true },
-      { label: 'Subtopics', path: '/app/admin/masters/subtopics', hideForAccount: true },
-      { label: 'Exam Category', path: '/app/admin/masters/exam/category', hideForAccount: true },
-      { label: 'Exam Subcategory', path: '/app/admin/masters/exam/subcategory', hideForAccount: true },
+      { label: 'Institute', path: '/app/admin/masters/institute' },
+      { label: 'Centers', path: '/app/admin/masters/centers', permission: ['orgCenter:list', 'orgCenter:view'], requireAll: true },
+      { label: 'Programs', path: '/app/admin/masters/programs', permission: ['orgProgram:list', 'orgProgram:view'], requireAll: true },
+      { label: 'Staff', path: '/app/admin/masters/staff', permission: ['orgStaff:list', 'orgStaff:view'], requireAll: true },
+      { label: 'Departments', path: '/app/admin/masters/departments', permission: ['orgDept:list', 'orgDept:edit'], requireAll: true },
+      { label: 'Subject', path: '/app/admin/masters/subject', permission: ['orgSubject:list', 'orgSubject:create'], requireAll: true },
+      { label: 'Bank Accounts', path: '/app/admin/masters/bankaccounts', permission: 'orgBankAccount:list' },
+      { label: 'Users & Roles', path: '/app/admin/users', permission: ['orgUser:list', 'orgUser:view'], requireAll: true },
+      { label: 'Topics', path: '/app/admin/masters/topics', permission: ['orgTopic:list', 'orgTopic:create'], requireAll: true },
+      { label: 'Subtopics', path: '/app/admin/masters/subtopics', permission: ['orgSubTopic:list', 'orgSubTopic:create'], requireAll: true },
+      { label: 'Exam Category', path: '/app/admin/masters/exam/category', permission: ['orgExamCategory:list', 'orgExamCategory:create'], requireAll: true },
+      { label: 'Exam Subcategory', path: '/app/admin/masters/exam/subcategory', permission: 'orgExamCategory:addSubCategories' },
     ],
   },
 ];
@@ -129,17 +130,23 @@ export class HeaderComponent implements OnInit {
   constructor(
     private router: Router,
     private notificationService: NotificationService,
+    private permissionService: PermissionService,
   ) {
     this.username = localStorage.getItem('name');
     this.email = localStorage.getItem('email');
   }
 
-  get isAccountRole(): boolean {
-    return (localStorage.getItem('userRole') || '').trim().toUpperCase() === 'L6';
+  private linkAllowed(link: NavLink): boolean {
+    if (!link.permission) return true;
+    const keys = Array.isArray(link.permission) ? link.permission : [link.permission];
+    return link.requireAll ? this.permissionService.hasAll(keys) : this.permissionService.hasAny(keys);
   }
 
+  /** A module survives only if at least one of its links is visible —
+   *  same "parent survives only if a child survives" rule as the menu
+   *  filter in academy_frontend's sidebar. */
   get visibleModules(): NavModule[] {
-    return NAV_MODULES.filter((m) => !(this.isAccountRole && m.hideForAccount));
+    return NAV_MODULES.filter((m) => this.visibleLinks(m).length > 0);
   }
 
   get activeModule(): NavModule | null {
@@ -147,7 +154,7 @@ export class HeaderComponent implements OnInit {
   }
 
   visibleLinks(mod: NavModule): NavLink[] {
-    return mod.links.filter((l) => !(this.isAccountRole && l.hideForAccount));
+    return mod.links.filter((l) => this.linkAllowed(l));
   }
 
   ngOnInit(): void {
@@ -161,6 +168,12 @@ export class HeaderComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({ error: () => {} });
+
+    // Re-evaluate nav visibility once permissions finish loading (e.g. on a
+    // fresh reload where the header renders before the async fetch resolves).
+    this.permissionService.permissions$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.updateActiveModule(this.router.url));
 
     this.updateActiveModule(this.router.url);
     this.router.events

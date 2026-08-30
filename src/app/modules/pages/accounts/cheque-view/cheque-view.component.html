@@ -14,32 +14,32 @@
                     <i class="fa-regular fa-comment-dots"></i>
                     <span>Remarks</span>
                 </button>
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 rounded-pill"
+                <button *appHasPermission="'accounts:depositBatch'" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 rounded-pill"
                     [disabled]="!canDeposit()" (click)="openDepositModal()">
                     <i class="fa-solid fa-building-columns"></i>
                     <span>Deposit</span>
                 </button>
-                <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1 rounded-pill"
+                <button *appHasPermission="'accounts:reconcileCheque'" class="btn btn-sm btn-outline-success d-flex align-items-center gap-1 rounded-pill"
                     [disabled]="!canReconcile()" (click)="openReconcileModal('CLEAR')">
                     <i class="fa-solid fa-circle-check"></i>
                     <span>Mark Cleared</span>
                 </button>
-                <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill"
+                <button *appHasPermission="'accounts:reconcileCheque'" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill"
                     [disabled]="!canReconcile()" (click)="openReconcileModal('FAIL')">
                     <i class="fa-solid fa-circle-xmark"></i>
                     <span>Mark Failed</span>
                 </button>
-                <button class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1 rounded-pill"
+                <button *appHasPermission="'accounts:chequeExtension'" class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1 rounded-pill"
                     [disabled]="!canRequestExtension()" (click)="openExtensionModal()">
                     <i class="fa-solid fa-calendar-days"></i>
                     <span>Extension</span>
                 </button>
-                <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1 rounded-pill"
+                <button *appHasPermission="'accounts:chequeReplacement'" class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1 rounded-pill"
                     [disabled]="!canReplaceCheque()" (click)="openReplaceModal()">
                     <i class="fa-solid fa-repeat"></i>
                     <span>Replace</span>
                 </button>
-                <button class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1 rounded-pill"
+                <button *appHasPermission="'accounts:chequeReplacement'" class="btn btn-sm btn-outline-dark d-flex align-items-center gap-1 rounded-pill"
                     [disabled]="!canReplaceCheque()" (click)="openReplaceNeftModal()">
                     <i class="fa-solid fa-money-bill-transfer"></i>
                     <span>Replace with NEFT</span>

@@ -4,6 +4,7 @@ import { FeesComponent } from './fees/fees.component';
 import { FeesreportsComponent } from './feesreports/feesreports.component';
 import { FeeplansComponent } from './feeplans/feeplans.component';
 import { FeeplanviewComponent } from './feeplanview/feeplanview.component';
+import { PermissionGuard } from '../../../shared/permission.guard';
 
 const routes: Routes = [
   {
@@ -19,12 +20,16 @@ const routes: Routes = [
   {
     path: 'plans',
     component: FeeplansComponent,
-    title: 'Fee Plans'
+    title: 'Fee Plans',
+    canActivate: [PermissionGuard],
+    data: { permission: ['orgFeePlan:list', 'orgFeePlan:view'] }
   },
   {
     path: 'plans/view/:id',
     component: FeeplanviewComponent,
-    title: 'Fee Plan View'
+    title: 'Fee Plan View',
+    canActivate: [PermissionGuard],
+    data: { permission: 'orgFeePlan:view' }
   }
 ];
 

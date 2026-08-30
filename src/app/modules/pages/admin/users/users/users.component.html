@@ -8,29 +8,29 @@
                 </p>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
+                <button *appHasPermission="'orgUser:create'" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" (click)="openImport()">
                     <i class="fa-solid fa-file-import"></i>
                     <span>Import Users</span>
                 </button>
-                <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                <button *appHasPermission="'orgUser:create'" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
                     (click)="syncUsersWithStaff()" [disabled]="syncing">
                     <i class="fa-solid fa-rotate" [class.fa-spin]="syncing"></i>
                     <span>{{ syncing ? 'Syncing...' : 'Sync with Staff' }}</span>
                 </button>
-                <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
+                <button *appHasPermission="'orgUser:create'" class="btn btn-sm btn-primary d-flex align-items-center gap-1" (click)="add()">
                     <i class="fa-solid fa-plus"></i>
                     <span>Add User</span>
                 </button>
             </div>
         </div>
         <div class="card-body pt-0">
-            <list-table [autoFitChars]="true" [columns]="columns" [data]="users" [actions]="actions"
+            <list-table [autoFitChars]="true" [columns]="columns" [data]="users" [actions]="visibleActions"
                 [loading]="loading" [totalRecords]="totalRecords" (requestData)="fetchTableData($event)">
             </list-table>
         </div>
     </div>
     <div class="app-modal-backdrop" *ngIf="showForm">
-        <div class="app-modal">
+        <div class="app-modal" style="max-width: 980px;">
             <div class="app-modal-header d-flex justify-content-between align-items-center">
                 <div>
                     <h6 class="mb-0 fw-semibold">
@@ -105,6 +105,106 @@
                             </checkbox>
                         </div> -->
                     </div>
+
+                    <div class="uf-card mt-4">
+                        <div class="uf-card-head">
+                            <i class="fa-solid fa-window-restore"></i>
+                            <div>
+                                <h6>Portal Access</h6>
+                                <span>Which application(s) this login may enter.</span>
+                            </div>
+                        </div>
+                        <div class="uf-card-body">
+                            <div class="uf-portal-row">
+                                <label class="uf-portal-toggle" *ngFor="let p of portalOptions"
+                                    [class.active]="isPortalSelected(p.value)"
+                                    [class.disabled]="userForm.get('portal')?.disabled">
+                                    <input type="checkbox" [checked]="isPortalSelected(p.value)"
+                                        [disabled]="userForm.get('portal')?.disabled"
+                                        (change)="togglePortal(p.value, $any($event.target).checked)" />
+                                    <i class="fa-solid" [class.fa-headset]="p.value === 'CRM'"
+                                        [class.fa-graduation-cap]="p.value === 'ACADEMIC'"></i>
+                                    <span>{{ p.label }}</span>
+                                    <i class="fa-solid fa-circle-check uf-portal-tick"></i>
+                                </label>
+                            </div>
+                            <div class="form-text text-warning mt-2" *ngIf="!canEditAccess">
+                                <i class="fa-solid fa-lock me-1"></i>Only the institute admin can change portal access for an existing user.
+                            </div>
+                            <div class="form-text text-warning mt-2" *ngIf="editingIsAdmin">
+                                <i class="fa-solid fa-lock me-1"></i>This user is the institute admin — access is fixed and cannot be edited.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="uf-card mt-3">
+                        <div class="uf-card-head">
+                            <i class="fa-solid fa-key"></i>
+                            <div>
+                                <h6>Permissions</h6>
+                                <span>Grant per-action access, grouped by module. Search to jump to a specific action.</span>
+                            </div>
+                            <span class="uf-count-chip">{{ selectedPermissionCount }} selected</span>
+                        </div>
+                        <div class="uf-card-body">
+                            <div class="uf-perm-toolbar">
+                                <div class="uf-search">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                    <input type="text" placeholder="Search module or action…"
+                                        [(ngModel)]="permissionSearch" [ngModelOptions]="{standalone: true}" />
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        [disabled]="userForm.get('permissions')?.disabled"
+                                        (click)="toggleAllPermissions(true)">
+                                        <i class="fa-solid fa-check-double me-1"></i>Select All
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                                        [disabled]="userForm.get('permissions')?.disabled"
+                                        (click)="toggleAllPermissions(false)">
+                                        <i class="fa-solid fa-xmark me-1"></i>Clear All
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="uf-perm-grid" *ngIf="!catalogLoading; else catalogLoadingTpl">
+                                <div class="uf-perm-module" *ngFor="let group of filteredPermissionCatalog"
+                                    [class.is-full]="isModuleFullySelected(group)"
+                                    [class.is-partial]="isModulePartiallySelected(group)">
+                                    <label class="uf-perm-module-head">
+                                        <input type="checkbox"
+                                            [checked]="isModuleFullySelected(group)"
+                                            [indeterminate]="isModulePartiallySelected(group)"
+                                            [disabled]="userForm.get('permissions')?.disabled"
+                                            (change)="toggleModule(group, $any($event.target).checked)" />
+                                        <span class="uf-perm-module-name">{{ group.moduleLabel }}</span>
+                                        <span class="uf-perm-module-count">{{ group.permissions.length }}</span>
+                                    </label>
+                                    <div class="uf-perm-actions">
+                                        <label class="uf-perm-action" *ngFor="let perm of group.permissions"
+                                            [class.checked]="isPermissionSelected(perm.permissionKey)">
+                                            <input type="checkbox"
+                                                [checked]="isPermissionSelected(perm.permissionKey)"
+                                                [disabled]="userForm.get('permissions')?.disabled"
+                                                (change)="togglePermission(perm.permissionKey, $any($event.target).checked)" />
+                                            <span>{{ perm.action }}</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div *ngIf="filteredPermissionCatalog.length === 0" class="uf-perm-empty">
+                                    <i class="fa-regular fa-face-frown"></i>
+                                    <span>No modules or actions match "{{ permissionSearch }}"</span>
+                                </div>
+                            </div>
+                            <ng-template #catalogLoadingTpl>
+                                <div class="uf-perm-empty">
+                                    <i class="fa-solid fa-spinner fa-spin"></i>
+                                    <span>Loading permission catalog…</span>
+                                </div>
+                            </ng-template>
+                        </div>
+                    </div>
+
                     <div class="d-flex justify-content-end gap-2 mt-4">
                         <button type="button" class="btn btn-outline-secondary" (click)="cancel()">Cancel</button>
                         <button type="submit" class="btn btn-primary" [disabled]="userForm.invalid">

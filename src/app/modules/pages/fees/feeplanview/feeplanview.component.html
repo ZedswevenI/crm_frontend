@@ -18,7 +18,7 @@
                     </div>
                 </div>
                 <div class="d-flex align-items-end">
-                    <button class="btn btn-sm btn-outline-success mt-1" (click)="openReviseModal()" *ngIf="doc">
+                    <button *ngIf="doc" appHasPermission="orgFeePlan:create" class="btn btn-sm btn-outline-success mt-1" (click)="openReviseModal()">
                         <i class="fa-solid fa-arrow-up-right-dots me-1"></i> Create Revised Plan
                     </button>
                     <button class="btn btn-sm btn-outline-secondary mt-1" (click)="back()">

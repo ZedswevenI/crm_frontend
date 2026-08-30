@@ -10,6 +10,8 @@ import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.servic
 import { AlertService } from '../../../../service/alert/alert.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
 import { Router } from '@angular/router';
+import { PermissionService } from '../../../../shared/permission.service';
+import { filterActionsByTooltip } from '../../../../shared/action-permission.util';
 import * as XLSX from 'xlsx';
 
 @Component({
@@ -79,12 +81,20 @@ export class FeeplansComponent implements OnInit {
   };
   feeHeadKeyOptions: string[] = ['AM', 'AF', 'IF', 'TF', 'EF', 'BS', 'GM'];
 
+  get visibleActions() {
+    return filterActionsByTooltip(this.actions, this.permissionService, {
+      Edit: 'orgFeePlan:edit',
+      Delete: 'orgFeePlan:delete',
+    });
+  }
+
   constructor(
     private fb: FormBuilder,
     private breadcrumb: BredcrumpService,
     private alert: AlertService,
     private router: Router,
     private commonApi: CommonapiService,
+    private permissionService: PermissionService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     // this.userId = localStorage.getItem('userId') || localStorage.getItem('userid') || '';

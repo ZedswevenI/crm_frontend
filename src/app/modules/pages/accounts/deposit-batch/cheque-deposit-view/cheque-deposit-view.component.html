@@ -6,16 +6,18 @@
             </div>
             <div class="d-flex gap-2 flex-wrap justify-content-end ms-auto">
                 <ng-container *ngIf="showBulkActions">
-                    <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1 rounded-pill"
-                        [disabled]="!selectedIds.length || loading" (click)="openBulkReconcile('CLEAR')">
-                        <i class="fa-solid fa-circle-check"></i>
-                        <span>Mark Cleared</span>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill"
-                        [disabled]="!selectedIds.length || loading" (click)="openBulkReconcile('FAIL')">
-                        <i class="fa-solid fa-circle-xmark"></i>
-                        <span>Mark Not Cleared</span>
-                    </button>
+                    <ng-container *appHasPermission="'accounts:reconcileCheque'">
+                        <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1 rounded-pill"
+                            [disabled]="!selectedIds.length || loading" (click)="openBulkReconcile('CLEAR')">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Mark Cleared</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill"
+                            [disabled]="!selectedIds.length || loading" (click)="openBulkReconcile('FAIL')">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                            <span>Mark Not Cleared</span>
+                        </button>
+                    </ng-container>
                 </ng-container>
                 <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 rounded-pill"
                     (click)="back()">
@@ -121,11 +123,11 @@
                                                     (click)="openChequeView(row)">
                                                     <i class="fa-regular fa-eye me-1"></i> View Cheque
                                                 </button>
-                                                <button *ngIf="isReplaceAllowed(row)" type="button"
+                                                <button *ngIf="isReplaceAllowed(row)" appHasPermission="accounts:chequeReplacement" type="button"
                                                     class="btn btn-sm btn-outline-dark" (click)="replaceCheque(row)">
                                                     <i class="fa-solid fa-repeat me-1"></i> Replace
                                                 </button>
-                                                <button *ngIf="isReplaceAllowed(row)" type="button"
+                                                <button *ngIf="isReplaceAllowed(row)" appHasPermission="accounts:chequeReplacement" type="button"
                                                     class="btn btn-sm btn-outline-dark"
                                                     (click)="replaceChequeWithNeft(row)">
                                                     <i class="fa-solid fa-money-bill-transfer me-1"></i> Replace with

@@ -19,17 +19,17 @@
                     <i class="fa-solid fa-rotate-left"></i>
                     <span>Reset</span>
                 </button>
-                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                <button *appHasPermission="'accounts:depositBatch'" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
                     [disabled]="!selectedIds.length" (click)="openDepositModal()">
                     <i class="fa-solid fa-building-columns"></i>
                     <span>Deposit Batch</span>
                 </button>
-                <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
+                <button *appHasPermission="'accounts:reconcileCheque'" class="btn btn-sm btn-outline-success d-flex align-items-center gap-1"
                     [disabled]="!selectedIds.length" (click)="openBulkReconcile('CLEAR')">
                     <i class="fa-solid fa-circle-check"></i>
                     <span>Bulk Clear</span>
                 </button>
-                <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
+                <button *appHasPermission="'accounts:reconcileCheque'" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
                     [disabled]="!selectedIds.length" (click)="openBulkReconcile('FAIL')">
                     <i class="fa-solid fa-circle-xmark"></i>
                     <span>Bulk Fail</span>

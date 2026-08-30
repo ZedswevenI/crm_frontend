@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { UiElementsModule } from '../../../ui-elements/ui-elements.module';
+import { PermissionSharedModule } from '../../../../shared/permission-shared.module';
 import { OrgmastersRoutingModule } from './orgmasters-routing.module';
 import { InstituteComponent } from './institute/institute.component';
 import { CenterComponent } from './center/center.component';
@@ -19,6 +20,6 @@ import { CenterviewComponent } from './centerview/centerview.component';
 
 @NgModule({
   declarations: [InstituteComponent, CenterComponent, StaffComponent, ProgramComponent, DepartmentComponent, SubjectComponent, BankaccountsComponent, TopicComponent, SubtopicComponent, ExamcategoryComponent, ExamsubcategoryComponent, CenterviewComponent],
-  imports: [CommonModule, OrgmastersRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule]
+  imports: [CommonModule, OrgmastersRoutingModule, FormsModule, ReactiveFormsModule, UiElementsModule, PermissionSharedModule]
 })
 export class OrgmastersModule {}

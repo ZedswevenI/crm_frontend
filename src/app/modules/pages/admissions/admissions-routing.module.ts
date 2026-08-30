@@ -14,21 +14,22 @@ import { AdmissionviewnewComponent } from './admissionviewnew/admissionviewnew.c
 import { StudentuploadComponent } from './studentupload/studentupload.component';
 import { PrintAcknowledgementComponent } from './print-acknowledgement/print-acknowledgement.component';
 import { AdmissionApproveComponent } from './admission-approve/admission-approve.component';
+import { PermissionGuard } from '../../../shared/permission.guard';
 
 const routes: Routes = [
-  { path: '', component: ListComponent },
-  { path: 'waitforapproval', component: AdmissionWaitComponent },
-  { path: 'new', component: AdmissionbugComponent },
-  { path: 'new-flat', component: AdmissionNewFlatComponent },
-  { path: 'print/acknowledgement', component: PrintAcknowledgementComponent },
-  { path: 'view/:id', component: AdmissionviewnewComponent },
-  { path: 'reports', component: AdmissionreportsComponent },
-  { path: 'communication', component: AdmissioncommunicationComponent },
-  { path: 'fee-calculator', component: AdmissionfeecalComponent },
-  { path: 'payments/edit/:id', component: AdmissionpaymentsEditorComponent },
-  { path: 'edit/:id', component: AdmissionEditComponent },
-  { path: 'student/upload', component: StudentuploadComponent },
-  { path: 'approve/:id', component: AdmissionApproveComponent }
+  { path: '', component: ListComponent, canActivate: [PermissionGuard], data: { permission: ['admission:list', 'admission:view'] } },
+  { path: 'waitforapproval', component: AdmissionWaitComponent, canActivate: [PermissionGuard], data: { permission: ['admission:list', 'admission:review'] } },
+  { path: 'new', component: AdmissionbugComponent, canActivate: [PermissionGuard], data: { permission: 'admission:create' } },
+  { path: 'new-flat', component: AdmissionNewFlatComponent, canActivate: [PermissionGuard], data: { permission: 'admission:create' } },
+  { path: 'print/acknowledgement', component: PrintAcknowledgementComponent, canActivate: [PermissionGuard], data: { permission: 'admission:create' } },
+  { path: 'view/:id', component: AdmissionviewnewComponent, canActivate: [PermissionGuard], data: { permission: 'admission:view' } },
+  { path: 'reports', component: AdmissionreportsComponent, canActivate: [PermissionGuard], data: { permission: 'admission:export' } },
+  { path: 'communication', component: AdmissioncommunicationComponent, canActivate: [PermissionGuard], data: { permission: 'admission:list' } },
+  { path: 'fee-calculator', component: AdmissionfeecalComponent, canActivate: [PermissionGuard], data: { permission: 'admission:create' } },
+  { path: 'payments/edit/:id', component: AdmissionpaymentsEditorComponent, canActivate: [PermissionGuard], data: { permission: 'admission:update' } },
+  { path: 'edit/:id', component: AdmissionEditComponent, canActivate: [PermissionGuard], data: { permission: 'admission:update' } },
+  { path: 'student/upload', component: StudentuploadComponent, canActivate: [PermissionGuard], data: { permission: 'admission:bulkUpload' } },
+  { path: 'approve/:id', component: AdmissionApproveComponent, canActivate: [PermissionGuard], data: { permission: ['admission:approve', 'admission:reject', 'admission:review'] } }
 ];
 
 @NgModule({

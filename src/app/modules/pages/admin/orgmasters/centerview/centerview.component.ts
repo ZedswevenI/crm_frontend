@@ -5,6 +5,8 @@ import { finalize } from 'rxjs/operators';
 import { AlertService } from '../../../../../service/alert/alert.service';
 import { BredcrumpService } from '../../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
+import { PermissionService } from '../../../../../shared/permission.service';
+import { filterActionsByTooltip } from '../../../../../shared/action-permission.util';
 
 @Component({
   selector: 'app-centerview',
@@ -58,6 +60,13 @@ export class CenterviewComponent implements OnInit {
   showViewVenue = false;
   viewVenueRec: any = null;
 
+  get visibleVenueActions() {
+    return filterActionsByTooltip(this.venueActions, this.permissionService, {
+      Edit: 'orgCenter:edit',
+      Delete: 'orgCenter:delete',
+    });
+  }
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -65,6 +74,7 @@ export class CenterviewComponent implements OnInit {
     private api: CommonapiService,
     private alert: AlertService,
     private breadcrumb: BredcrumpService,
+    private permissionService: PermissionService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([

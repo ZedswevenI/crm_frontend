@@ -6,14 +6,14 @@
             </div>
 
             <div class="d-flex gap-2 flex-wrap justify-content-end ms-auto">
-                <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1 rounded-pill"
-                    *ngIf="canApproveReject()" (click)="openApproveModal()">
+                <button *ngIf="canApproveReject()" appHasPermission="accounts:chequeExtension" class="btn btn-sm btn-outline-success d-flex align-items-center gap-1 rounded-pill"
+                    (click)="openApproveModal()">
                     <i class="fa-solid fa-circle-check"></i>
                     <span>Approve</span>
                 </button>
 
-                <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill"
-                    *ngIf="canApproveReject()" (click)="openRejectModal()">
+                <button *ngIf="canApproveReject()" appHasPermission="accounts:chequeExtension" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill"
+                    (click)="openRejectModal()">
                     <i class="fa-solid fa-circle-xmark"></i>
                     <span>Reject</span>
                 </button>

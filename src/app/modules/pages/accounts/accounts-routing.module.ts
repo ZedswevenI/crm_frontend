@@ -11,47 +11,68 @@ import { ChequeDepositViewComponent } from './deposit-batch/cheque-deposit-view/
 import { ChequeExtensionViewComponent } from './cheque-extension/cheque-extension-view/cheque-extension-view.component';
 import { ChequeReplaceHistoryComponent } from './cheque-replace-history/cheque-replace-history.component';
 import { StudentFeePaymentComponent } from './student-fee-payment/student-fee-payment.component';
+import { PermissionGuard } from '../../../shared/permission.guard';
 
 const routes: Routes = [
   {
     path: 'student-fee',
-    component: StudentFeePaymentComponent
+    component: StudentFeePaymentComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:addPayment' }
   },
   {
     path: 'cheques',
-    component: ChequeComponent
+    component: ChequeComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:listCheques' }
   },
   {
     path: 'cheques/:id',
-    component: ChequeViewComponent
+    component: ChequeViewComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:listCheques' }
   },
   {
     path: 'deposit',
-    component: ChequeDepositComponent
+    component: ChequeDepositComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:depositBatch' }
   },
   {
     path: 'deposit/:id',
-    component: ChequeDepositViewComponent
+    component: ChequeDepositViewComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:depositBatch' }
   },
   {
     path: 'extention',
-    component: ChequeExtensionComponent
+    component: ChequeExtensionComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:chequeExtension' }
   },
   {
     path: 'extention/:id',
-    component: ChequeExtensionViewComponent
+    component: ChequeExtensionViewComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:chequeExtension' }
   },
   {
     path: 'neft',
-    component: NeftRegisterComponent
+    component: NeftRegisterComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:listNeft' }
   },
   {
     path: 'payments',
-    component: PaymentsComponent
+    component: PaymentsComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:listPayments' }
   },
   {
     path: 'replacements',
-    component: ChequeReplaceHistoryComponent
+    component: ChequeReplaceHistoryComponent,
+    canActivate: [PermissionGuard],
+    data: { permission: 'accounts:chequeReplacement' }
   }
 ];
 

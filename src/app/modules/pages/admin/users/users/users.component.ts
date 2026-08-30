@@ -6,7 +6,15 @@ import { UserService } from '../../../../../service/admin/user.service';
 import { CenterService } from '../../../../../service/admin/orgmasters/center.service';
 import { CommonapiService } from '../../../../../service/commonapi/commonapi.service';
 import { AuthService } from '../../../../../service/auth/auth.service';
+import { PermissionCatalogService, PermissionModuleGroup, computeModuleLabels } from '../../../../../shared/permission-catalog.service';
+import { PermissionService } from '../../../../../shared/permission.service';
+import { resolveDependencies } from '../../../../../shared/permission-dependencies';
+import { filterActionsByTooltip } from '../../../../../shared/action-permission.util';
 import * as XLSX from 'xlsx';
+
+interface DisplayPermissionGroup extends PermissionModuleGroup {
+  moduleLabel: string;
+}
 
 // FIX: L6 and L7 added
 type RoleKey = 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'L6' | 'L7';
@@ -53,6 +61,29 @@ export class UsersComponent implements OnInit {
   importHasInvalidRows = false;
   importInvalidCount = 0;
   importing = false;
+
+  // Portal / permissions picker
+  portalOptions = [
+    { value: 'CRM', label: 'CRM' },
+    { value: 'ACADEMIC', label: 'Academic' },
+  ];
+  permissionCatalog: DisplayPermissionGroup[] = [];
+  totalPermissionCount = 0;
+  catalogLoading = false;
+  permissionSearch = '';
+  editingIsAdmin = false;
+  /** Only the tenant's institute admin (isAdmin=true) may change portal/permissions
+   *  on an existing user — the backend silently ignores the fields otherwise. */
+  get canEditAccess(): boolean {
+    return this.formMode === 'create' || this.authService.getIsAdmin();
+  }
+
+  get visibleActions() {
+    return filterActionsByTooltip(this.actions, this.permissionService, {
+      Edit: 'orgUser:edit',
+      Delete: 'orgUser:delete',
+    });
+  }
 
   columns = [
     { key: 'name',      label: 'User Name', sortable: true  },
@@ -197,6 +228,8 @@ export class UsersComponent implements OnInit {
     private api: CommonapiService,
     private cdr: ChangeDetectorRef,
     private authService: AuthService,   // FIX: inject for self-delete guard
+    private permissionCatalogService: PermissionCatalogService,
+    private permissionService: PermissionService,
   ) {
     this.entiId = localStorage.getItem('tenantId');
     this.breadcrumb.set([
@@ -215,9 +248,116 @@ export class UsersComponent implements OnInit {
       password: [''],
       centerId: [null, Validators.required],
       isActive: [true],
+      portal: [[] as string[]],
+      permissions: [[] as string[]],
     });
     this.applyPasswordRules();
     this.loadCenters();
+    this.loadPermissionCatalog();
+  }
+
+  private loadPermissionCatalog(): void {
+    this.catalogLoading = true;
+    this.permissionCatalogService.getCatalog().subscribe({
+      next: (groups) => {
+        this.catalogLoading = false;
+        const labels = computeModuleLabels(groups);
+        this.permissionCatalog = groups
+          .map((g) => ({ ...g, moduleLabel: labels.get(g.module) || g.module }))
+          .sort((a, b) => a.moduleLabel.localeCompare(b.moduleLabel));
+        this.totalPermissionCount = groups.reduce((n, g) => n + g.permissions.length, 0);
+      },
+      error: () => {
+        this.catalogLoading = false;
+        this.alertService.error('Failed to load permission catalog');
+      },
+    });
+  }
+
+  // ── Portal ───────────────────────────────────────────────
+  isPortalSelected(value: string): boolean {
+    const arr: string[] = this.userForm.get('portal')?.value || [];
+    return arr.includes(value);
+  }
+
+  togglePortal(value: string, checked: boolean): void {
+    const ctrl = this.userForm.get('portal');
+    const arr: string[] = [...(ctrl?.value || [])];
+    const idx = arr.indexOf(value);
+    if (checked && idx === -1) arr.push(value);
+    if (!checked && idx !== -1) arr.splice(idx, 1);
+    ctrl?.setValue(arr);
+    ctrl?.markAsTouched();
+  }
+
+  // ── Permissions ──────────────────────────────────────────
+  get filteredPermissionCatalog(): DisplayPermissionGroup[] {
+    const q = this.permissionSearch.trim().toLowerCase();
+    if (!q) return this.permissionCatalog;
+    return this.permissionCatalog
+      .map((g) => ({
+        ...g,
+        permissions: g.permissions.filter(
+          (p) => p.label.toLowerCase().includes(q) || p.permissionKey.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((g) => g.permissions.length > 0 || g.moduleLabel.toLowerCase().includes(q));
+  }
+
+  get selectedPermissionCount(): number {
+    return (this.userForm.get('permissions')?.value || []).length;
+  }
+
+  isPermissionSelected(key: string): boolean {
+    const arr: string[] = this.userForm.get('permissions')?.value || [];
+    return arr.includes(key);
+  }
+
+  togglePermission(key: string, checked: boolean): void {
+    const ctrl = this.userForm.get('permissions');
+    const arr = new Set<string>(ctrl?.value || []);
+    if (checked) {
+      arr.add(key);
+      // Auto-grant the auxiliary "list" permissions this key's screen
+      // depends on for its filter dropdowns/reference data — otherwise
+      // the action is visible but silently 403s on those lookups.
+      resolveDependencies([key]).forEach((dep) => arr.add(dep));
+    } else {
+      arr.delete(key);
+    }
+    ctrl?.setValue(Array.from(arr));
+    ctrl?.markAsTouched();
+  }
+
+  isModuleFullySelected(group: PermissionModuleGroup): boolean {
+    const arr: string[] = this.userForm.get('permissions')?.value || [];
+    return group.permissions.length > 0 && group.permissions.every((p) => arr.includes(p.permissionKey));
+  }
+
+  isModulePartiallySelected(group: PermissionModuleGroup): boolean {
+    const arr: string[] = this.userForm.get('permissions')?.value || [];
+    const selected = group.permissions.filter((p) => arr.includes(p.permissionKey)).length;
+    return selected > 0 && selected < group.permissions.length;
+  }
+
+  toggleModule(group: PermissionModuleGroup, checked: boolean): void {
+    const ctrl = this.userForm.get('permissions');
+    const arr = new Set<string>(ctrl?.value || []);
+    const keys = group.permissions.map((p) => p.permissionKey);
+    if (checked) {
+      keys.forEach((k) => arr.add(k));
+      resolveDependencies(keys).forEach((dep) => arr.add(dep));
+    } else {
+      keys.forEach((k) => arr.delete(k));
+    }
+    ctrl?.setValue(Array.from(arr));
+    ctrl?.markAsTouched();
+  }
+
+  toggleAllPermissions(checked: boolean): void {
+    const ctrl = this.userForm.get('permissions');
+    ctrl?.setValue(checked ? this.permissionCatalog.flatMap((g) => g.permissions.map((p) => p.permissionKey)) : []);
+    ctrl?.markAsTouched();
   }
 
   private applyPasswordRules() {
@@ -298,9 +438,11 @@ export class UsersComponent implements OnInit {
   add(): void {
     this.formMode = 'create';
     this.editingId = null;
-    this.userForm.reset({ name: '', email: '', phone: '', role: null, centerId: null, isActive: true });
+    this.editingIsAdmin = false;
+    this.userForm.reset({ name: '', email: '', phone: '', role: null, centerId: null, isActive: true, portal: [], permissions: [] });
     this.userForm.get('empCode')?.enable({ emitEvent: false });
     this.userForm.get('empCode')?.setValue('', { emitEvent: false });
+    this.applyAccessLock();
     this.applyPasswordRules();
     this.showForm = true;
   }
@@ -308,6 +450,7 @@ export class UsersComponent implements OnInit {
   edit(row: any): void {
     this.formMode  = 'edit';
     this.editingId = row?._id || null;
+    this.editingIsAdmin = !!row?.isAdmin;
     this.userForm.patchValue({
       name:     row?.name      || '',
       email:    row?.email     || '',
@@ -315,11 +458,32 @@ export class UsersComponent implements OnInit {
       role:     row?.roleLevel || null,
       centerId: row?.centerId  || null,
       isActive: (row?.status || '') === 'Active',
+      portal:      Array.isArray(row?.portal) ? row.portal : [],
+      permissions: Array.isArray(row?.permissions) ? row.permissions : [],
     });
     this.userForm.get('empCode')?.setValue(row?.empCode || '', { emitEvent: false });
     this.userForm.get('empCode')?.disable({ emitEvent: false });
+    this.applyAccessLock();
     this.applyPasswordRules();
     this.showForm = true;
+  }
+
+  /** Locks the portal/permissions picker when the current caller isn't allowed
+   *  to change it — either editing an isAdmin user (backend never accepts
+   *  writes to their access), or the caller themself isn't the tenant admin
+   *  (the backend silently ignores portal/permissions from non-admin callers
+   *  on an edit; disabling here avoids the false impression that a change saved). */
+  private applyAccessLock(): void {
+    const permCtrl = this.userForm.get('permissions');
+    const portalCtrl = this.userForm.get('portal');
+    const locked = this.editingIsAdmin || !this.canEditAccess;
+    if (locked) {
+      permCtrl?.disable({ emitEvent: false });
+      portalCtrl?.disable({ emitEvent: false });
+    } else {
+      permCtrl?.enable({ emitEvent: false });
+      portalCtrl?.enable({ emitEvent: false });
+    }
   }
 
   cancel(): void {
@@ -346,6 +510,8 @@ export class UsersComponent implements OnInit {
       status:     raw.isActive ? 'Active' : 'Inactive',
       centerId:   centerId || null,
       centerName: selectedCenter?.centerName || null,
+      portal:      Array.isArray(raw.portal) ? raw.portal : [],
+      permissions: Array.isArray(raw.permissions) ? raw.permissions : [],
     };
 
     const empCode = String(raw.empCode || '').trim();
