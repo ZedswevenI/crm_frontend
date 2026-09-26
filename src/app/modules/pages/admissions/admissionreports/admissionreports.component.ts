@@ -1,222 +1,392 @@
-import { Component, OnInit } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy } from '@angular/core';
+import { Chart, registerables } from 'chart.js';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
+import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
+import { AlertService } from '../../../../service/alert/alert.service';
+import { ExcelExportService, ExportColumn } from '../../../../service/excel-export/excel-export.service';
+import { REGISTRATION_EXPORT_FIELD_GROUPS } from './admission-registration-export-fields';
+import { ENROLLMENT_EXPORT_FIELD_GROUPS } from './admission-enrollment-export-fields';
 
-type ReportType = 'snj' | 'enrollment';
+Chart.register(...registerables);
+
+type ReportType = 'registration' | 'enrollment' | 'snj' | 'analysis';
+
+const SNJ_COLUMNS: ExportColumn[] = [
+  { key: 'registrationNumber', label: 'Registration Number' },
+  { key: 'name', label: 'Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'mobileNo', label: 'Mobile No' },
+  { key: 'city', label: 'City' },
+  { key: 'testDate', label: 'Test Date' },
+  { key: 'testCity', label: 'Test City' },
+  { key: 'programOffered1', label: 'Program Offered 1' },
+  { key: 'programOffered2', label: 'Program Offered 2' },
+  { key: 'normalizedScore', label: 'Normalized Score' },
+  { key: 'normalizedPercentage', label: 'Normalized %' },
+  { key: 'normalizedRank', label: 'Normalized Rank' },
+  { key: 'testResultStatus', label: 'Result Status' },
+];
 
 @Component({
   selector: 'app-admissionreports',
   standalone: false,
   templateUrl: './admissionreports.component.html',
-  styleUrl: './admissionreports.component.scss'
+  styleUrl: './admissionreports.component.scss',
 })
-export class AdmissionreportsComponent implements OnInit {
-  // ---------------- Report Selection ----------------
-  reportType: ReportType = 'snj';
+export class AdmissionreportsComponent implements AfterViewInit, OnDestroy {
+  reportType: ReportType = 'registration';
+  entiId = localStorage.getItem('tenantId');
 
-  // ---------------- Filters (UI only) ----------------
-  // SNJ filters
+  // ---------------- Registration ----------------
+  registrationFilter = {
+    testDateFrom: '',
+    testDateTo: '',
+    programCode: '',
+    programOffered1: '',
+    testCity: '',
+    testCentre: '',
+    centerCode: '',
+    testResultStatus: '',
+  };
+  registrationFieldGroups = REGISTRATION_EXPORT_FIELD_GROUPS;
+  showRegistrationPicker = false;
+  registrationExporting = false;
+
+  // ---------------- Enrollment ----------------
+  enrollmentFilter = {
+    courseStartYear: new Date().getFullYear(),
+    programId: '',
+    centerId: '',
+    batchId: '',
+    academicYear: '',
+    includeInactive: false,
+  };
+  enrollmentFieldGroups = ENROLLMENT_EXPORT_FIELD_GROUPS;
+  showEnrollmentPicker = false;
+  enrollmentExporting = false;
+
+  // ---------------- SNJ ----------------
   snjFilter = {
-    from: '',
-    to: '',
-    program: 'All',
-    center: 'All',
-    status: 'All',
-    search: ''
+    testDateFrom: '',
+    testDateTo: '',
+    programCode: '',
+    programOffered1: '',
   };
+  snjLoading = false;
+  snjSummary: { totalSelected: number; joined: number; notJoined: number } | null = null;
+  snjRows: any[] = [];
 
-  // Enrollment filters
-  enrollFilter = {
-    yearA: 2024,
-    yearB: 2025,
-    groupBy: 'program' as 'program' | 'center' | 'month',
-    program: 'All',
-    center: 'All'
+  // ---------------- Analysis ----------------
+  analysisFilter = {
+    testDateFrom: '',
+    testDateTo: '',
+    programCode: '',
+    testCity: '',
+    centerCode: '',
   };
+  analysisLoading = false;
+  analysisData: {
+    funnel: { registered: number; selected: number; confirmed: number; enrolled: number };
+    scoreBands: { _id: string; count: number; selected: number }[];
+    geography: { _id: string; registered: number; selected: number; confirmed: number; enrolled: number }[];
+    programWise: { program: string; center: string; registered: number; selected: number; confirmed: number; enrolled: number }[];
+  } | null = null;
 
-  // ---------------- Master filter values ----------------
-  programs = ['All', 'Aspire - 4Y Integrated', 'JEE Weekend', 'NEET Weekend', 'Foundation IX', 'Foundation X', 'JEE Evening'];
-  centers = ['All', 'Coimbatore', 'Tiruppur', 'Erode', 'Salem'];
-  snjStatuses = ['All', 'Not Reachable', 'Awaiting Parent Confirmation', 'Not Interested', 'Part Payment Done', 'Not Paid'];
+  private scoreBandChart?: Chart;
+  private funnelChart?: Chart;
 
-  years = [2023, 2024, 2025, 2026];
-
-  // ---------------- Sample Data (kept inside TS) ----------------
-  SNJ_SAMPLE = [
-    {
-      regNo: 'ENR-2025-0012',
-      studentName: 'Karthik R',
-      phone: '9000011223',
-      program: 'Aspire - 4Y Integrated',
-      center: 'Coimbatore',
-      selectedOn: '2025-09-28',
-      testScore: 72,
-      result: 'Selected',
-      followupStatus: 'Not Reachable',
-      lastContactOn: '2025-10-03',
-      nextFollowupOn: '2025-10-06',
-      remarks: 'Switched off for 3 days'
-    },
-    {
-      regNo: 'ENR-2025-0087',
-      studentName: 'Anu Priya',
-      phone: '9000099988',
-      program: 'NEET Weekend',
-      center: 'Tiruppur',
-      selectedOn: '2025-09-26',
-      testScore: 64,
-      result: 'Selected',
-      followupStatus: 'Awaiting Parent Confirmation',
-      lastContactOn: '2025-09-30',
-      nextFollowupOn: '2025-10-02',
-      remarks: 'Need fee concession discussion'
-    },
-    {
-      regNo: 'ENR-2025-0110',
-      studentName: 'Madhan S',
-      phone: '9000077711',
-      program: 'JEE Evening',
-      center: 'Coimbatore',
-      selectedOn: '2025-09-25',
-      testScore: 58,
-      result: 'Selected',
-      followupStatus: 'Not Interested',
-      lastContactOn: '2025-09-27',
-      nextFollowupOn: null,
-      remarks: 'Joined competitor institute'
-    },
-    {
-      regNo: 'ENR-2025-0181',
-      studentName: 'Rekha V',
-      phone: '9000022211',
-      program: 'Foundation IX',
-      center: 'Erode',
-      selectedOn: '2025-09-29',
-      testScore: 69,
-      result: 'Selected',
-      followupStatus: 'Part Payment Done',
-      lastContactOn: '2025-10-01',
-      nextFollowupOn: '2025-10-04',
-      remarks: 'Advance pending; waiting for cheque'
-    }
-  ];
-
-  ENROLL_YEAR_COMPARISON = [{ year: 2024, totalEnrollments: 1180, confirmed: 1025, cancelled: 45, pending: 110 }, { year: 2025, totalEnrollments: 1410, confirmed: 1210, cancelled: 38, pending: 162 }];
-
-  ENROLL_BY_PROGRAM = [{ program: 'Aspire - 4Y Integrated', y2024: 320, y2025: 410 }, { program: 'JEE Weekend', y2024: 280, y2025: 315 }, { program: 'NEET Weekend', y2024: 240, y2025: 290 }, { program: 'Foundation IX', y2024: 190, y2025: 210 }, { program: 'Foundation X', y2024: 150, y2025: 185 }];
-
-  ENROLL_BY_CENTER = [{ center: 'Coimbatore', y2024: 520, y2025: 640 }, { center: 'Tiruppur', y2024: 260, y2025: 290 }, { center: 'Erode', y2024: 210, y2025: 245 }, { center: 'Salem', y2024: 190, y2025: 235 }];
-
-  ENROLL_MONTH_TREND = [
-    { month: 'Jan', y2024: 60, y2025: 75 },
-    { month: 'Feb', y2024: 70, y2025: 85 },
-    { month: 'Mar', y2024: 90, y2025: 110 },
-    { month: 'Apr', y2024: 110, y2025: 130 },
-    { month: 'May', y2024: 140, y2025: 155 },
-    { month: 'Jun', y2024: 120, y2025: 145 },
-    { month: 'Jul', y2024: 130, y2025: 150 },
-    { month: 'Aug', y2024: 150, y2025: 165 },
-    { month: 'Sep', y2024: 120, y2025: 140 },
-    { month: 'Oct', y2024: 90, y2025: 110 },
-    { month: 'Nov', y2024: 60, y2025: 80 },
-    { month: 'Dec', y2024: 30, y2025: 65 }
-  ];
-
-  constructor(private breadcrumb: BredcrumpService) {
+  constructor(
+    private breadcrumb: BredcrumpService,
+    private api: CommonapiService,
+    private alert: AlertService,
+    private excelExport: ExcelExportService,
+  ) {
     this.breadcrumb.set([{ label: 'Admissions & Fees' }, { label: 'Admission' }, { label: 'Reports' }]);
   }
 
-  // ---------------- Derived: Filtered Data ----------------
-  get filteredSNJ(): any[] {
-    const s = (this.snjFilter.search || '').toLowerCase().trim();
+  ngAfterViewInit(): void {}
 
-    return this.SNJ_SAMPLE.filter(r => {
-      if (this.snjFilter.program !== 'All' && r.program !== this.snjFilter.program) return false;
-      if (this.snjFilter.center !== 'All' && r.center !== this.snjFilter.center) return false;
-      if (this.snjFilter.status !== 'All' && r.followupStatus !== this.snjFilter.status) return false;
-
-      if (this.snjFilter.from && r.selectedOn < this.snjFilter.from) return false;
-      if (this.snjFilter.to && r.selectedOn > this.snjFilter.to) return false;
-
-      if (s) {
-        const hay = `${r.regNo} ${r.studentName} ${r.phone} ${r.program} ${r.center} ${r.followupStatus}`.toLowerCase();
-        if (!hay.includes(s)) return false;
-      }
-      return true;
-    });
+  ngOnDestroy(): void {
+    this.scoreBandChart?.destroy();
+    this.funnelChart?.destroy();
   }
-
-  get snjKpis(): { total: number; notReachable: number; awaiting: number; notInterested: number; partPayment: number } {
-    const rows = this.filteredSNJ;
-    const c = (st: string) => rows.filter(r => r.followupStatus === st).length;
-    return {
-      total: rows.length,
-      notReachable: c('Not Reachable'),
-      awaiting: c('Awaiting Parent Confirmation'),
-      notInterested: c('Not Interested'),
-      partPayment: c('Part Payment Done')
-    };
-  }
-
-  // Enrollment tables depend on year selection (simple mapping to y2024/y2025 in sample)
-  get enrollProgramRows(): any[] {
-    const a = this.enrollFilter.yearA;
-    const b = this.enrollFilter.yearB;
-    return this.ENROLL_BY_PROGRAM
-      .map((x: any) => ({
-        program: x.program,
-        a: a === 2024 ? x.y2024 : a === 2025 ? x.y2025 : 0,
-        b: b === 2024 ? x.y2024 : b === 2025 ? x.y2025 : 0
-      }))
-      .filter(r => this.enrollFilter.program === 'All' || r.program === this.enrollFilter.program);
-  }
-
-  get enrollCenterRows(): any[] {
-    const a = this.enrollFilter.yearA;
-    const b = this.enrollFilter.yearB;
-    return this.ENROLL_BY_CENTER
-      .map((x: any) => ({
-        center: x.center,
-        a: a === 2024 ? x.y2024 : a === 2025 ? x.y2025 : 0,
-        b: b === 2024 ? x.y2024 : b === 2025 ? x.y2025 : 0
-      }))
-      .filter(r => this.enrollFilter.center === 'All' || r.center === this.enrollFilter.center);
-  }
-
-  get enrollMonthRows(): any[] {
-    const a = this.enrollFilter.yearA;
-    const b = this.enrollFilter.yearB;
-    return this.ENROLL_MONTH_TREND.map((x: any) => ({
-      month: x.month,
-      a: a === 2024 ? x.y2024 : a === 2025 ? x.y2025 : 0,
-      b: b === 2024 ? x.y2024 : b === 2025 ? x.y2025 : 0
-    }));
-  }
-
-  ngOnInit(): void { }
 
   setReport(type: ReportType): void {
     this.reportType = type;
   }
 
-  resetSNJ(): void {
-    this.snjFilter = { from: '', to: '', program: 'All', center: 'All', status: 'All', search: '' };
+  private toEpochMs(dateStr: string): number | undefined {
+    if (!dateStr) return undefined;
+    const t = new Date(dateStr).getTime();
+    return isNaN(t) ? undefined : t;
   }
 
-  resetEnrollment(): void {
-    this.enrollFilter = { yearA: 2024, yearB: 2025, groupBy: 'program', program: 'All', center: 'All' };
+  // ===================== Registration =====================
+
+  openRegistrationPicker(): void {
+    this.showRegistrationPicker = true;
   }
 
-  exportExcel(): void {
-    console.log('export excel', this.reportType);
-    alert('Export (dummy) – integrate later');
+  closeRegistrationPicker(): void {
+    this.showRegistrationPicker = false;
   }
 
-  exportPdf(): void {
-    console.log('export pdf', this.reportType);
-    alert('PDF (dummy) – integrate later');
+  resetRegistrationFilter(): void {
+    this.registrationFilter = {
+      testDateFrom: '',
+      testDateTo: '',
+      programCode: '',
+      programOffered1: '',
+      testCity: '',
+      testCentre: '',
+      centerCode: '',
+      testResultStatus: '',
+    };
+  }
+
+  onRegistrationExportFields(fields: string[]): void {
+    const f = this.registrationFilter;
+    const body: any = { tenantId: this.entiId, fields };
+    const testDateFrom = this.toEpochMs(f.testDateFrom);
+    const testDateTo = this.toEpochMs(f.testDateTo);
+    if (testDateFrom) body.testDateFrom = testDateFrom;
+    if (testDateTo) body.testDateTo = testDateTo;
+    if (f.programCode) body.programCode = f.programCode;
+    if (f.programOffered1) body.programOffered1 = f.programOffered1;
+    if (f.testCity) body.testCity = f.testCity;
+    if (f.testCentre) body.testCentre = f.testCentre;
+    if (f.centerCode) body.centerCode = f.centerCode;
+    if (f.testResultStatus) body.testResultStatus = f.testResultStatus;
+
+    this.registrationExporting = true;
+    this.api.fetchData(body, 'reports/admission', 'registration').subscribe({
+      next: (res: any) => {
+        this.registrationExporting = false;
+        if (!res?.status) {
+          this.alert.error(res?.message || 'Failed to load registration report');
+          return;
+        }
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        const columns = this.registrationFieldGroups
+          .flatMap((g) => g.fields)
+          .filter((fld) => fields.includes(fld.key));
+        this.excelExport.exportRows(
+          rows,
+          columns,
+          `Registration_Report_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        );
+        this.showRegistrationPicker = false;
+        this.alert.success(`Exported ${rows.length} record(s)`);
+      },
+      error: (err: any) => {
+        this.registrationExporting = false;
+        this.alert.error(err?.error?.message || 'Failed to load registration report');
+      },
+    });
+  }
+
+  // ===================== Enrollment =====================
+
+  openEnrollmentPicker(): void {
+    if (!this.enrollmentFilter.courseStartYear) {
+      this.alert.error('Course Start Year is required');
+      return;
+    }
+    this.showEnrollmentPicker = true;
+  }
+
+  closeEnrollmentPicker(): void {
+    this.showEnrollmentPicker = false;
+  }
+
+  resetEnrollmentFilter(): void {
+    this.enrollmentFilter = {
+      courseStartYear: new Date().getFullYear(),
+      programId: '',
+      centerId: '',
+      batchId: '',
+      academicYear: '',
+      includeInactive: false,
+    };
+  }
+
+  onEnrollmentExportFields(fields: string[]): void {
+    const f = this.enrollmentFilter;
+    const body: any = {
+      tenantId: this.entiId,
+      courseStartYear: Number(f.courseStartYear),
+      fields,
+    };
+    if (f.programId) body.programId = f.programId;
+    if (f.centerId) body.centerId = f.centerId;
+    if (f.batchId) body.batchId = f.batchId;
+    if (f.academicYear) body.academicYear = f.academicYear;
+    if (f.includeInactive) body.includeInactive = true;
+
+    this.enrollmentExporting = true;
+    this.api.fetchData(body, 'reports/admission', 'enrollment').subscribe({
+      next: (res: any) => {
+        this.enrollmentExporting = false;
+        if (!res?.status) {
+          this.alert.error(res?.message || 'Failed to load enrollment report');
+          return;
+        }
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        const columns = this.enrollmentFieldGroups
+          .flatMap((g) => g.fields)
+          .filter((fld) => fields.includes(fld.key));
+        this.excelExport.exportRows(
+          rows,
+          columns,
+          `Enrollment_Report_${f.courseStartYear}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        );
+        this.showEnrollmentPicker = false;
+        this.alert.success(`Exported ${rows.length} record(s)`);
+      },
+      error: (err: any) => {
+        this.enrollmentExporting = false;
+        this.alert.error(err?.error?.message || 'Failed to load enrollment report');
+      },
+    });
+  }
+
+  // ===================== SNJ =====================
+
+  resetSnjFilter(): void {
+    this.snjFilter = { testDateFrom: '', testDateTo: '', programCode: '', programOffered1: '' };
+    this.snjSummary = null;
+    this.snjRows = [];
+  }
+
+  runSnjReport(): void {
+    const f = this.snjFilter;
+    const body: any = { tenantId: this.entiId };
+    const testDateFrom = this.toEpochMs(f.testDateFrom);
+    const testDateTo = this.toEpochMs(f.testDateTo);
+    if (testDateFrom) body.testDateFrom = testDateFrom;
+    if (testDateTo) body.testDateTo = testDateTo;
+    if (f.programCode) body.programCode = f.programCode;
+    if (f.programOffered1) body.programOffered1 = f.programOffered1;
+
+    this.snjLoading = true;
+    this.api.fetchData(body, 'reports/admission', 'snj').subscribe({
+      next: (res: any) => {
+        this.snjLoading = false;
+        if (!res?.status) {
+          this.alert.error(res?.message || 'Failed to load SNJ report');
+          return;
+        }
+        this.snjSummary = res?.summary || null;
+        this.snjRows = Array.isArray(res?.data) ? res.data : [];
+      },
+      error: (err: any) => {
+        this.snjLoading = false;
+        this.alert.error(err?.error?.message || 'Failed to load SNJ report');
+      },
+    });
+  }
+
+  exportSnj(): void {
+    if (!this.snjRows.length) {
+      this.alert.error('Run the report first');
+      return;
+    }
+    this.excelExport.exportRows(
+      this.snjRows,
+      SNJ_COLUMNS,
+      `SNJ_Report_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
   }
 
   trackByIndex(i: number): number {
     return i;
+  }
+
+  // ===================== Analysis =====================
+
+  resetAnalysisFilter(): void {
+    this.analysisFilter = { testDateFrom: '', testDateTo: '', programCode: '', testCity: '', centerCode: '' };
+    this.analysisData = null;
+    this.scoreBandChart?.destroy();
+    this.funnelChart?.destroy();
+  }
+
+  runAnalysisReport(): void {
+    const f = this.analysisFilter;
+    const body: any = { tenantId: this.entiId };
+    const testDateFrom = this.toEpochMs(f.testDateFrom);
+    const testDateTo = this.toEpochMs(f.testDateTo);
+    if (testDateFrom) body.testDateFrom = testDateFrom;
+    if (testDateTo) body.testDateTo = testDateTo;
+    if (f.programCode) body.programCode = f.programCode;
+    if (f.testCity) body.testCity = f.testCity;
+    if (f.centerCode) body.centerCode = f.centerCode;
+
+    this.analysisLoading = true;
+    this.api.fetchData(body, 'reports/admission', 'analysis').subscribe({
+      next: (res: any) => {
+        this.analysisLoading = false;
+        if (!res?.status) {
+          this.alert.error(res?.message || 'Failed to load analysis report');
+          return;
+        }
+        this.analysisData = res?.data || null;
+        setTimeout(() => this.renderAnalysisCharts(), 0);
+      },
+      error: (err: any) => {
+        this.analysisLoading = false;
+        this.alert.error(err?.error?.message || 'Failed to load analysis report');
+      },
+    });
+  }
+
+  funnelConversion(from: number, to: number): string {
+    if (!from) return '—';
+    return `${Math.round((to / from) * 100)}%`;
+  }
+
+  private renderAnalysisCharts(): void {
+    this.scoreBandChart?.destroy();
+    this.funnelChart?.destroy();
+    if (!this.analysisData) return;
+
+    const bands = this.analysisData.scoreBands || [];
+    const canvas1 = document.getElementById('reportScoreBandChart');
+    if (canvas1) {
+      this.scoreBandChart = new Chart('reportScoreBandChart', {
+        type: 'bar',
+        data: {
+          labels: bands.map((b) => b._id),
+          datasets: [
+            { label: 'Registered', data: bands.map((b) => b.count), backgroundColor: '#1B6FB0' },
+            { label: 'Selected', data: bands.map((b) => b.selected), backgroundColor: '#F26522' },
+          ],
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
+      });
+    }
+
+    const funnel = this.analysisData.funnel;
+    const canvas2 = document.getElementById('reportFunnelChart');
+    if (canvas2 && funnel) {
+      this.funnelChart = new Chart('reportFunnelChart', {
+        type: 'bar',
+        data: {
+          labels: ['Registered', 'Selected', 'Confirmed', 'Enrolled'],
+          datasets: [
+            {
+              label: 'Candidates',
+              data: [funnel.registered, funnel.selected, funnel.confirmed, funnel.enrolled],
+              backgroundColor: ['#1B6FB0', '#F26522', '#2FA84F', '#6c757d'],
+            },
+          ],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
   }
 }

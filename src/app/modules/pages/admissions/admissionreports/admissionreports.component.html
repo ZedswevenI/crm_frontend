@@ -1,170 +1,255 @@
 <div class="admission-reports-page">
     <div class="card shadow-sm border-0 mb-3">
-        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <div>
-                <h5 class="mb-1 fw-semibold">Admission Reports</h5>
-                <p class="mb-0 text-muted small">Select a report and apply filters. Data is currently from TS sample
-                    arrays.</p>
-            </div>
-
-            <div class="d-flex gap-2 flex-wrap">
-                <button class="btn btn-outline-success btn-sm" (click)="exportExcel()">
-                    <i class="fa-solid fa-file-excel me-1"></i> Export Excel
-                </button>
-                <button class="btn btn-outline-danger btn-sm" (click)="exportPdf()">
-                    <i class="fa-solid fa-file-pdf me-1"></i> Export PDF
-                </button>
-            </div>
+        <div class="card-header bg-white border-0">
+            <h5 class="mb-1 fw-semibold">Admission Reports</h5>
+            <p class="mb-0 text-muted small">Registration, Enrollment, SNJ and Analysis reports for admissions.</p>
         </div>
 
         <div class="card-body">
-            <!-- Report Type Tabs (Top) -->
             <div class="reports-topbar mb-3">
                 <div class="report-tabs">
+                    <button type="button" class="tab-btn" [class.active]="reportType==='registration'"
+                        (click)="setReport('registration')">
+                        <i class="fa-solid fa-clipboard-list me-1"></i>
+                        Registration <span class="sub">By test date</span>
+                    </button>
+
+                    <button type="button" class="tab-btn" [class.active]="reportType==='enrollment'"
+                        (click)="setReport('enrollment')">
+                        <i class="fa-solid fa-user-graduate me-1"></i>
+                        Enrollment <span class="sub">By course start year</span>
+                    </button>
+
                     <button type="button" class="tab-btn" [class.active]="reportType==='snj'"
                         (click)="setReport('snj')">
                         <i class="fa-solid fa-user-clock me-1"></i>
                         SNJ <span class="sub">Selected not joined</span>
                     </button>
 
-                    <button type="button" class="tab-btn" [class.active]="reportType==='enrollment'"
-                        (click)="setReport('enrollment')">
+                    <button type="button" class="tab-btn" [class.active]="reportType==='analysis'"
+                        (click)="setReport('analysis')">
                         <i class="fa-solid fa-chart-column me-1"></i>
-                        Enrollment <span class="sub">Year comparison</span>
+                        Data Analysis <span class="sub">Funnel & breakdowns</span>
                     </button>
                 </div>
             </div>
 
-            <div class="row g-3">
-                <!-- LEFT: Filters -->
-                <div class="col-lg-3">
-                    <div class="filter-card border rounded-4 p-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="fw-semibold">Filters</div>
-                            <button class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
-                                (click)="reportType==='snj' ? resetSNJ() : resetEnrollment()">
-                                <i class="fa-solid fa-rotate-left me-1"></i> Reset
-                            </button>
+            <!-- ===================== REGISTRATION ===================== -->
+            <ng-container *ngIf="reportType==='registration'">
+                <div class="row g-3">
+                    <div class="col-lg-3">
+                        <div class="filter-card border rounded-4 p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="fw-semibold">Filters</div>
+                                <button class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
+                                    (click)="resetRegistrationFilter()">
+                                    <i class="fa-solid fa-rotate-left me-1"></i> Reset
+                                </button>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Test Date From</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        [(ngModel)]="registrationFilter.testDateFrom" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Test Date To</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        [(ngModel)]="registrationFilter.testDateTo" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Program Code</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="registrationFilter.programCode" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Program Offered</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="registrationFilter.programOffered1" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Test City</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="registrationFilter.testCity" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Test Centre</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="registrationFilter.testCentre" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Center Code</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="registrationFilter.centerCode" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Result Status</label>
+                                    <select class="form-select form-select-sm"
+                                        [(ngModel)]="registrationFilter.testResultStatus">
+                                        <option value="">All</option>
+                                        <option value="PASS">Pass</option>
+                                        <option value="FAIL">Fail</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-12 mt-2">
+                                    <button class="btn btn-saffron btn-sm w-100" (click)="openRegistrationPicker()">
+                                        <i class="fa-solid fa-file-excel me-1"></i> Export Registration Report
+                                    </button>
+                                </div>
+                            </div>
                         </div>
+                    </div>
 
-                        <!-- SNJ Filters -->
-                        <ng-container *ngIf="reportType==='snj'">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label small text-muted">From</label>
-                                    <input type="date" class="form-control form-control-sm"
-                                        [(ngModel)]="snjFilter.from" />
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small text-muted">To</label>
-                                    <input type="date" class="form-control form-control-sm"
-                                        [(ngModel)]="snjFilter.to" />
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label small text-muted">Program</label>
-                                    <select class="form-select form-select-sm" [(ngModel)]="snjFilter.program">
-                                        <option *ngFor="let p of programs" [value]="p">{{ p }}</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label small text-muted">Center</label>
-                                    <select class="form-select form-select-sm" [(ngModel)]="snjFilter.center">
-                                        <option *ngFor="let c of centers" [value]="c">{{ c }}</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label small text-muted">Status</label>
-                                    <select class="form-select form-select-sm" [(ngModel)]="snjFilter.status">
-                                        <option *ngFor="let s of snjStatuses" [value]="s">{{ s }}</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label small text-muted">Search</label>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text bg-white">
-                                            <i class="fa-solid fa-magnifying-glass text-muted"></i>
-                                        </span>
-                                        <input class="form-control" [(ngModel)]="snjFilter.search"
-                                            placeholder="name / regNo / phone" />
-                                    </div>
-                                </div>
-                            </div>
-                        </ng-container>
-
-                        <!-- Enrollment Filters -->
-                        <ng-container *ngIf="reportType==='enrollment'">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label small text-muted">Year A</label>
-                                    <select class="form-select form-select-sm" [(ngModel)]="enrollFilter.yearA">
-                                        <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small text-muted">Year B</label>
-                                    <select class="form-select form-select-sm" [(ngModel)]="enrollFilter.yearB">
-                                        <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label small text-muted">Group By</label>
-                                    <select class="form-select form-select-sm" [(ngModel)]="enrollFilter.groupBy">
-                                        <option value="program">Program Wise</option>
-                                        <option value="center">Center Wise</option>
-                                        <option value="month">Month Trend</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label small text-muted">Program</label>
-                                    <select class="form-select form-select-sm" [(ngModel)]="enrollFilter.program">
-                                        <option *ngFor="let p of programs" [value]="p">{{ p }}</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <label class="form-label small text-muted">Center</label>
-                                    <select class="form-select form-select-sm" [(ngModel)]="enrollFilter.center">
-                                        <option *ngFor="let c of centers" [value]="c">{{ c }}</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-12">
-                                    <div class="alert alert-light small mb-0">
-                                        Charts can be added later. This screen is optimized for quick filtering +
-                                        export.
-                                    </div>
-                                </div>
-                            </div>
-                        </ng-container>
+                    <div class="col-lg-9">
+                        <div class="hint">
+                            Pick the fields you need, then export — the Excel file is generated directly from the
+                            filters on the left. <b>Registration Number</b> is always included.
+                        </div>
                     </div>
                 </div>
+            </ng-container>
 
-                <!-- RIGHT: Output -->
-                <div class="col-lg-9">
-                    <!-- SNJ -->
-                    <ng-container *ngIf="reportType==='snj'">
-                        <div class="kpi-grid mb-3">
+            <!-- ===================== ENROLLMENT ===================== -->
+            <ng-container *ngIf="reportType==='enrollment'">
+                <div class="row g-3">
+                    <div class="col-lg-3">
+                        <div class="filter-card border rounded-4 p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="fw-semibold">Filters</div>
+                                <button class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
+                                    (click)="resetEnrollmentFilter()">
+                                    <i class="fa-solid fa-rotate-left me-1"></i> Reset
+                                </button>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Course Start Year *</label>
+                                    <input type="number" class="form-control form-control-sm"
+                                        [(ngModel)]="enrollmentFilter.courseStartYear" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Academic Year</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="enrollmentFilter.academicYear" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Program ID</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="enrollmentFilter.programId" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Center ID</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="enrollmentFilter.centerId" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Batch ID</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="enrollmentFilter.batchId" />
+                                </div>
+
+                                <div class="col-12 form-check mt-1">
+                                    <input type="checkbox" class="form-check-input" id="includeInactive"
+                                        [(ngModel)]="enrollmentFilter.includeInactive" />
+                                    <label class="form-check-label small" for="includeInactive">Include
+                                        Inactive</label>
+                                </div>
+
+                                <div class="col-12 mt-2">
+                                    <button class="btn btn-saffron btn-sm w-100" (click)="openEnrollmentPicker()">
+                                        <i class="fa-solid fa-file-excel me-1"></i> Export Enrollment Report
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-9">
+                        <div class="hint">
+                            Only <b>ACTIVE</b> student profiles are included unless "Include Inactive" is checked.
+                            <b>Enrollment No</b> is always included.
+                        </div>
+                    </div>
+                </div>
+            </ng-container>
+
+            <!-- ===================== SNJ ===================== -->
+            <ng-container *ngIf="reportType==='snj'">
+                <div class="row g-3">
+                    <div class="col-lg-3">
+                        <div class="filter-card border rounded-4 p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="fw-semibold">Filters</div>
+                                <button class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
+                                    (click)="resetSnjFilter()">
+                                    <i class="fa-solid fa-rotate-left me-1"></i> Reset
+                                </button>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Test Date From</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        [(ngModel)]="snjFilter.testDateFrom" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Test Date To</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        [(ngModel)]="snjFilter.testDateTo" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Program Code</label>
+                                    <input class="form-control form-control-sm" [(ngModel)]="snjFilter.programCode" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Program Offered</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="snjFilter.programOffered1" />
+                                </div>
+
+                                <div class="col-12 mt-2 d-flex gap-2">
+                                    <button class="btn btn-saffron btn-sm flex-grow-1" (click)="runSnjReport()"
+                                        [disabled]="snjLoading">
+                                        <span *ngIf="snjLoading" class="spinner-border spinner-border-sm me-1"></span>
+                                        Run
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm" (click)="exportSnj()"
+                                        [disabled]="!snjRows.length">
+                                        <i class="fa-solid fa-file-excel"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-9">
+                        <div class="kpi-grid mb-3" *ngIf="snjSummary as s">
                             <div class="kpi-tile">
-                                <div class="kpi-label">Total SNJ</div>
-                                <div class="kpi-value">{{ snjKpis.total }}</div>
+                                <div class="kpi-label">Total Selected (PASS)</div>
+                                <div class="kpi-value">{{ s.totalSelected }}</div>
                             </div>
                             <div class="kpi-tile">
-                                <div class="kpi-label">Not Reachable</div>
-                                <div class="kpi-value">{{ snjKpis.notReachable }}</div>
+                                <div class="kpi-label">Joined</div>
+                                <div class="kpi-value">{{ s.joined }}</div>
                             </div>
                             <div class="kpi-tile">
-                                <div class="kpi-label">Awaiting</div>
-                                <div class="kpi-value">{{ snjKpis.awaiting }}</div>
-                            </div>
-                            <div class="kpi-tile">
-                                <div class="kpi-label">Part Payment</div>
-                                <div class="kpi-value">{{ snjKpis.partPayment }}</div>
+                                <div class="kpi-label">Not Joined</div>
+                                <div class="kpi-value">{{ s.notJoined }}</div>
                             </div>
                         </div>
 
@@ -174,165 +259,226 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th>Reg No</th>
-                                            <th>Student</th>
-                                            <th>Phone</th>
-                                            <th>Program</th>
-                                            <th>Center</th>
-                                            <th>Selected On</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Mobile</th>
+                                            <th>City</th>
+                                            <th>Test City</th>
+                                            <th>Program Offered</th>
                                             <th class="text-end">Score</th>
-                                            <th>Status</th>
-                                            <th>Last Contact</th>
-                                            <th>Next Follow-up</th>
-                                            <th>Remarks</th>
+                                            <th class="text-end">%</th>
+                                            <th class="text-end">Rank</th>
                                         </tr>
                                     </thead>
-
                                     <tbody>
-                                        <tr *ngFor="let r of filteredSNJ; trackBy: trackByIndex">
-                                            <td class="fw-semibold">{{ r.regNo }}</td>
-                                            <td>{{ r.studentName }}</td>
-                                            <td>{{ r.phone }}</td>
-                                            <td>{{ r.program }}</td>
-                                            <td>{{ r.center }}</td>
-                                            <td>{{ r.selectedOn }}</td>
-                                            <td class="text-end">{{ r.testScore }}</td>
-
-                                            <td>
-                                                <span class="status-pill"
-                                                    [class.gray]="r.followupStatus==='Not Reachable'"
-                                                    [class.blue]="r.followupStatus==='Awaiting Parent Confirmation'"
-                                                    [class.red]="r.followupStatus==='Not Interested'"
-                                                    [class.green]="r.followupStatus==='Part Payment Done'">
-                                                    {{ r.followupStatus }}
-                                                </span>
-                                            </td>
-
-                                            <td>{{ r.lastContactOn }}</td>
-                                            <td>{{ r.nextFollowupOn || '—' }}</td>
-                                            <td class="text-muted">{{ r.remarks || '—' }}</td>
+                                        <tr *ngFor="let r of snjRows; trackBy: trackByIndex">
+                                            <td class="fw-semibold">{{ r.registrationNumber }}</td>
+                                            <td>{{ r.name }}</td>
+                                            <td>{{ r.email }}</td>
+                                            <td>{{ r.mobileNo }}</td>
+                                            <td>{{ r.city }}</td>
+                                            <td>{{ r.testCity }}</td>
+                                            <td>{{ r.programOffered1 }}</td>
+                                            <td class="text-end">{{ r.normalizedScore }}</td>
+                                            <td class="text-end">{{ r.normalizedPercentage }}</td>
+                                            <td class="text-end">{{ r.normalizedRank }}</td>
                                         </tr>
-
-                                        <tr *ngIf="!filteredSNJ.length">
-                                            <td colspan="11" class="text-center text-muted py-5">
-                                                <div class="fw-semibold">No records found</div>
-                                                <div class="small">Try changing filters or clearing search.</div>
+                                        <tr *ngIf="!snjRows.length">
+                                            <td colspan="10" class="text-center text-muted py-5">
+                                                <div class="fw-semibold">No data yet</div>
+                                                <div class="small">Set filters (optional) and click Run.</div>
                                             </td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                    </ng-container>
-
-                    <!-- Enrollment -->
-                    <ng-container *ngIf="reportType==='enrollment'">
-                        <div class="row g-3 mb-3">
-                            <div class="col-lg-6">
-                                <div class="border rounded-4 p-3 h-100">
-                                    <div class="fw-semibold mb-2">Year Summary</div>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm mb-0">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>Year</th>
-                                                    <th class="text-end">Total</th>
-                                                    <th class="text-end">Confirmed</th>
-                                                    <th class="text-end">Cancelled</th>
-                                                    <th class="text-end">Pending</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr *ngFor="let y of ENROLL_YEAR_COMPARISON">
-                                                    <td class="fw-semibold">{{ y.year }}</td>
-                                                    <td class="text-end">{{ y.totalEnrollments }}</td>
-                                                    <td class="text-end">{{ y.confirmed }}</td>
-                                                    <td class="text-end">{{ y.cancelled }}</td>
-                                                    <td class="text-end">{{ y.pending }}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-lg-6">
-                                <div class="border rounded-4 p-3 h-100">
-                                    <div class="fw-semibold">Comparison</div>
-                                    <div class="text-muted small mt-1">
-                                        Showing <b>{{ enrollFilter.yearA }}</b> vs <b>{{ enrollFilter.yearB }}</b> •
-                                        Group by:
-                                        <b>{{ enrollFilter.groupBy }}</b>
-                                    </div>
-                                    <div class="hint mt-2">
-                                        Tip: Use “Group By” for Program / Center / Month trend.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-wrap border rounded-4 overflow-hidden">
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr *ngIf="enrollFilter.groupBy==='program'">
-                                            <th>Program</th>
-                                            <th class="text-end">{{ enrollFilter.yearA }}</th>
-                                            <th class="text-end">{{ enrollFilter.yearB }}</th>
-                                            <th class="text-end">Diff</th>
-                                        </tr>
-                                        <tr *ngIf="enrollFilter.groupBy==='center'">
-                                            <th>Center</th>
-                                            <th class="text-end">{{ enrollFilter.yearA }}</th>
-                                            <th class="text-end">{{ enrollFilter.yearB }}</th>
-                                            <th class="text-end">Diff</th>
-                                        </tr>
-                                        <tr *ngIf="enrollFilter.groupBy==='month'">
-                                            <th>Month</th>
-                                            <th class="text-end">{{ enrollFilter.yearA }}</th>
-                                            <th class="text-end">{{ enrollFilter.yearB }}</th>
-                                            <th class="text-end">Diff</th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody *ngIf="enrollFilter.groupBy==='program'">
-                                        <tr *ngFor="let r of enrollProgramRows; trackBy: trackByIndex">
-                                            <td class="fw-semibold">{{ r.program }}</td>
-                                            <td class="text-end">{{ r.a }}</td>
-                                            <td class="text-end">{{ r.b }}</td>
-                                            <td class="text-end fw-semibold">{{ r.b - r.a }}</td>
-                                        </tr>
-                                        <tr *ngIf="!enrollProgramRows.length">
-                                            <td colspan="4" class="text-center text-muted py-5">No rows.</td>
-                                        </tr>
-                                    </tbody>
-
-                                    <tbody *ngIf="enrollFilter.groupBy==='center'">
-                                        <tr *ngFor="let r of enrollCenterRows; trackBy: trackByIndex">
-                                            <td class="fw-semibold">{{ r.center }}</td>
-                                            <td class="text-end">{{ r.a }}</td>
-                                            <td class="text-end">{{ r.b }}</td>
-                                            <td class="text-end fw-semibold">{{ r.b - r.a }}</td>
-                                        </tr>
-                                        <tr *ngIf="!enrollCenterRows.length">
-                                            <td colspan="4" class="text-center text-muted py-5">No rows.</td>
-                                        </tr>
-                                    </tbody>
-
-                                    <tbody *ngIf="enrollFilter.groupBy==='month'">
-                                        <tr *ngFor="let r of enrollMonthRows; trackBy: trackByIndex">
-                                            <td class="fw-semibold">{{ r.month }}</td>
-                                            <td class="text-end">{{ r.a }}</td>
-                                            <td class="text-end">{{ r.b }}</td>
-                                            <td class="text-end fw-semibold">{{ r.b - r.a }}</td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-                        </div>
-                    </ng-container>
+                    </div>
                 </div>
-            </div>
+            </ng-container>
+
+            <!-- ===================== ANALYSIS ===================== -->
+            <ng-container *ngIf="reportType==='analysis'">
+                <div class="row g-3">
+                    <div class="col-lg-3">
+                        <div class="filter-card border rounded-4 p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="fw-semibold">Filters</div>
+                                <button class="btn btn-link btn-sm ms-auto p-0 text-decoration-none"
+                                    (click)="resetAnalysisFilter()">
+                                    <i class="fa-solid fa-rotate-left me-1"></i> Reset
+                                </button>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Test Date From</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        [(ngModel)]="analysisFilter.testDateFrom" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted">Test Date To</label>
+                                    <input type="date" class="form-control form-control-sm"
+                                        [(ngModel)]="analysisFilter.testDateTo" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Program Code</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="analysisFilter.programCode" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Test City</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="analysisFilter.testCity" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label small text-muted">Center Code</label>
+                                    <input class="form-control form-control-sm"
+                                        [(ngModel)]="analysisFilter.centerCode" />
+                                </div>
+
+                                <div class="col-12 mt-2">
+                                    <button class="btn btn-saffron btn-sm w-100" (click)="runAnalysisReport()"
+                                        [disabled]="analysisLoading">
+                                        <span *ngIf="analysisLoading"
+                                            class="spinner-border spinner-border-sm me-1"></span>
+                                        Run
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-9">
+                        <ng-container *ngIf="analysisData as a; else noAnalysis">
+                            <div class="kpi-grid mb-3">
+                                <div class="kpi-tile">
+                                    <div class="kpi-label">Registered</div>
+                                    <div class="kpi-value">{{ a.funnel.registered }}</div>
+                                </div>
+                                <div class="kpi-tile">
+                                    <div class="kpi-label">Selected</div>
+                                    <div class="kpi-value">{{ a.funnel.selected }}</div>
+                                    <div class="kpi-sub">{{ funnelConversion(a.funnel.registered, a.funnel.selected) }}
+                                        of registered</div>
+                                </div>
+                                <div class="kpi-tile">
+                                    <div class="kpi-label">Confirmed</div>
+                                    <div class="kpi-value">{{ a.funnel.confirmed }}</div>
+                                    <div class="kpi-sub">{{ funnelConversion(a.funnel.selected, a.funnel.confirmed) }}
+                                        of selected</div>
+                                </div>
+                                <div class="kpi-tile">
+                                    <div class="kpi-label">Enrolled</div>
+                                    <div class="kpi-value">{{ a.funnel.enrolled }}</div>
+                                    <div class="kpi-sub">{{ funnelConversion(a.funnel.confirmed, a.funnel.enrolled) }}
+                                        of confirmed</div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-lg-6">
+                                    <div class="border rounded-4 p-3 h-100">
+                                        <div class="fw-semibold mb-2">Funnel</div>
+                                        <canvas id="reportFunnelChart" height="180"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <div class="border rounded-4 p-3 h-100">
+                                        <div class="fw-semibold mb-2">Score Bands</div>
+                                        <canvas id="reportScoreBandChart" height="180"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-lg-6">
+                                    <div class="table-wrap border rounded-4 overflow-hidden">
+                                        <div class="fw-semibold p-2 px-3 border-bottom">Geography</div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>City</th>
+                                                        <th class="text-end">Registered</th>
+                                                        <th class="text-end">Selected</th>
+                                                        <th class="text-end">Confirmed</th>
+                                                        <th class="text-end">Enrolled</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr *ngFor="let g of a.geography; trackBy: trackByIndex">
+                                                        <td class="fw-semibold">{{ g._id }}</td>
+                                                        <td class="text-end">{{ g.registered }}</td>
+                                                        <td class="text-end">{{ g.selected }}</td>
+                                                        <td class="text-end">{{ g.confirmed }}</td>
+                                                        <td class="text-end">{{ g.enrolled }}</td>
+                                                    </tr>
+                                                    <tr *ngIf="!a.geography.length">
+                                                        <td colspan="5" class="text-center text-muted py-4">No data
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6">
+                                    <div class="table-wrap border rounded-4 overflow-hidden">
+                                        <div class="fw-semibold p-2 px-3 border-bottom">Program / Center</div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Program</th>
+                                                        <th>Center</th>
+                                                        <th class="text-end">Reg.</th>
+                                                        <th class="text-end">Sel.</th>
+                                                        <th class="text-end">Conf.</th>
+                                                        <th class="text-end">Enr.</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr *ngFor="let p of a.programWise; trackBy: trackByIndex">
+                                                        <td>{{ p.program }}</td>
+                                                        <td>{{ p.center }}</td>
+                                                        <td class="text-end">{{ p.registered }}</td>
+                                                        <td class="text-end">{{ p.selected }}</td>
+                                                        <td class="text-end">{{ p.confirmed }}</td>
+                                                        <td class="text-end">{{ p.enrolled }}</td>
+                                                    </tr>
+                                                    <tr *ngIf="!a.programWise.length">
+                                                        <td colspan="6" class="text-center text-muted py-4">No data
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </ng-container>
+
+                        <ng-template #noAnalysis>
+                            <div class="hint">Set filters (optional) and click Run to load the analysis.</div>
+                        </ng-template>
+                    </div>
+                </div>
+            </ng-container>
         </div>
     </div>
 </div>
+
+<export-field-picker [visible]="showRegistrationPicker" title="Export Registration Report to Excel"
+    [groups]="registrationFieldGroups" [exporting]="registrationExporting" (closed)="closeRegistrationPicker()"
+    (exportClick)="onRegistrationExportFields($event)">
+</export-field-picker>
+
+<export-field-picker [visible]="showEnrollmentPicker" title="Export Enrollment Report to Excel"
+    [groups]="enrollmentFieldGroups" [exporting]="enrollmentExporting" (closed)="closeEnrollmentPicker()"
+    (exportClick)="onEnrollmentExportFields($event)">
+</export-field-picker>

@@ -678,7 +678,13 @@ export class FeeplansComponent implements OnInit {
     reader.onload = (e: any) => {
       try {
         const data = e.target.result;
-        const wb = XLSX.read(data, { type: 'binary' });
+        // cellDates: true asks SheetJS to hand back real JS Date objects
+        // for date-typed cells instead of a raw serial number — it already
+        // knows how to normalize Excel's 1900 (Windows) vs 1904 (Mac) date
+        // systems internally, which is exactly the Mac/Windows mismatch
+        // this file was hitting. Without it, we'd have to guess the source
+        // OS ourselves from a bare number.
+        const wb = XLSX.read(data, { type: 'binary', cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rawRows: any[] = XLSX.utils.sheet_to_json(ws, {
           defval: '',
@@ -709,6 +715,18 @@ export class FeeplansComponent implements OnInit {
       return '';
     };
 
+    // Date-ish columns must NOT be pre-stringified via getAny — if the cell
+    // came through as a real Date (thanks to cellDates:true) or a raw Excel
+    // serial number, String(value) would mangle it before toEpochMs ever
+    // sees the original type. Grab the raw cell value instead.
+    const getAnyRaw = (...keys: string[]): any => {
+      for (const k of keys) {
+        const v = r[k];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+      }
+      return '';
+    };
+
     const centres = getAny('centres', 'center', 'centerCode');
     const feeplancode = getAny('feeplancode', 'feePlanCode', 'FeePlanCode');
     const programcode = getAny('programcode', 'programCode', 'ProgramCode');
@@ -718,12 +736,12 @@ export class FeeplansComponent implements OnInit {
     const chequefavour = getAny('chequefavour', 'chequeFavour', 'ChequeFavour');
     const amountStr = getAny('amount', 'Amount');
     const strateStr = getAny('strate', 'GST', 'gstPercent');
-    const insdate =
-      getAny('insdate', 'insDate', 'InstalmentDate') || 'On Admission';
+    const insdateRaw = getAnyRaw('insdate', 'insDate', 'InstalmentDate');
+    const insdate = insdateRaw === '' ? 'On Admission' : insdateRaw;
 
     // optional plan-level dates per row (we keep to send; backend will take first row values)
-    const testdate = getAny('testdate', 'testDate');
-    const validity = getAny('validity', 'validTill');
+    const testdateRaw = getAnyRaw('testdate', 'testDate');
+    const validityRaw = getAnyRaw('validity', 'validTill');
 
     const errors: string[] = [];
     if (!feeplancode) errors.push('feeplancode required');
@@ -737,6 +755,19 @@ export class FeeplansComponent implements OnInit {
     const ms = this.toEpochMs(insdate);
     if (!/^on\s*admission$/i.test(String(insdate).trim()) && !ms)
       errors.push('insdate invalid');
+
+    const testMs = this.toEpochMs(testdateRaw);
+    if (testdateRaw !== '' && !testMs) errors.push('testdate invalid');
+
+    const validityMs = this.toEpochMs(validityRaw);
+    if (validityRaw !== '' && !validityMs) errors.push('validity invalid');
+
+    // Normalize every date to a plain yyyy-mm-dd string before it's ever
+    // sent anywhere — this is what actually fixes the Mac/Windows mismatch
+    // for the backend too, since previously the raw ambiguous display
+    // string (e.g. "10/01/2026") was sent through untouched.
+    const testdate = testMs ? this.toDateInputValue(testMs) : '';
+    const validity = validityMs ? this.toDateInputValue(validityMs) : '';
 
     return {
       _rowNo: rowNo,
@@ -756,7 +787,10 @@ export class FeeplansComponent implements OnInit {
 
       amount: Number(amountStr || 0),
       strate: strateStr === '' ? 0 : Number(strateStr || 0),
-      insdate,
+      // `insdate` above is still the raw cell value (may be a Date/number
+      // now that cellDates is on) — normalize it to a plain display/send
+      // string here: "On Admission" literally, or yyyy-mm-dd for any date.
+      insdate: ms ? this.toDateInputValue(ms) : 'On Admission',
       _instalmentDate: ms, // epoch or null (On Admission => null)
     };
   }
@@ -880,13 +914,18 @@ export class FeeplansComponent implements OnInit {
   }
 
   // ✅ fix: accept null/undefined to avoid TS2345
+  // These read back dates produced via UTC-anchored math (Excel serial
+  // conversion, and cellDates:true Date objects, are both built with
+  // Date.UTC semantics) — using local getters here would roll the date
+  // back a day in any timezone behind UTC. Read with UTC getters so the
+  // calendar date that was written is the one that comes back out.
   private formatDDMMYYYY(ms?: number | null): string {
     const n = Number(ms || 0);
     if (!n) return '';
     const d = new Date(n);
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
     return `${dd}/${mm}/${yyyy}`;
   }
 
@@ -894,68 +933,138 @@ export class FeeplansComponent implements OnInit {
     const n = Number(ms || 0);
     if (!n || !Number.isFinite(n)) return '';
     const d = new Date(n);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  // epoch parser: supports yyyy-mm-dd, dd/mm/yyyy, dd-MMM-yy, Date.parse
-  private toEpochMs(v: any): number | null {
-    if (v === null || v === undefined) return null;
-    if (typeof v === 'number' && Number.isFinite(v))
-      return v > 0 ? Math.trunc(v) : null;
+  // Converts an Excel serial day number (SheetJS already normalizes the
+  // 1900-vs-1904 date-system difference between Windows- and Mac-authored
+  // workbooks before this ever runs, so this formula is safe regardless of
+  // which OS produced the file) into epoch ms. 25569 = days between the
+  // Excel epoch (1899-12-30) and the Unix epoch (1970-01-01).
+  private excelSerialToEpochMs(serial: number): number | null {
+    if (!Number.isFinite(serial)) return null;
+    // Round rather than floor: these serials represent pure calendar dates
+    // with no meaningful time-of-day, so a fractional part (e.g. 46402.9998
+    // instead of a clean 46403) is float drift, not a real time — rounding
+    // to the nearest whole day avoids losing a day to that drift.
+    const wholeDays = Math.round(serial);
+    const ms = (wholeDays - 25569) * 86400 * 1000;
+    return Number.isFinite(ms) ? ms : null;
+  }
 
-    const s = String(v || '').trim();
+  private static readonly MONTH_MAP: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+
+  // Builds a local-time Date from y/m/d parts, but rejects anything the
+  // calendar itself would silently "correct" (e.g. day 31 in a 30-day
+  // month rolling into the next month) — that's usually a sign the day
+  // and month were guessed in the wrong order.
+  private safeDate(year: number, monthIndex: number, day: number): number | null {
+    if (
+      !Number.isFinite(year) ||
+      !Number.isFinite(monthIndex) ||
+      !Number.isFinite(day) ||
+      monthIndex < 0 ||
+      monthIndex > 11 ||
+      day < 1 ||
+      day > 31
+    ) {
+      return null;
+    }
+    // Built with UTC semantics to match toDateInputValue/formatDDMMYYYY
+    // (which read back with UTC getters) and the Excel-serial/cellDates
+    // math elsewhere in this file — using local time here would round-trip
+    // to a different day in any timezone behind UTC.
+    const ms = Date.UTC(year, monthIndex, day);
+    const dt = new Date(ms);
+    if (
+      dt.getUTCFullYear() !== year ||
+      dt.getUTCMonth() !== monthIndex ||
+      dt.getUTCDate() !== day
+    ) {
+      return null; // calendar rolled over — invalid combination
+    }
+    return ms;
+  }
+
+  // Robust date parser for the Fee Plan bulk-upload columns (insdate /
+  // testdate / validity). Accepts, in order:
+  //   - a real JS Date (from cellDates:true — the normal case for a
+  //     genuine Excel date cell, Mac or Windows alike)
+  //   - a raw Excel serial number (defensive fallback)
+  //   - yyyy-mm-dd / yyyy/mm/dd
+  //   - dd/mm/yyyy, dd-mm-yyyy, mm/dd/yyyy, mm-dd-yyyy — disambiguated by
+  //     whichever ordering actually forms a valid calendar date; if both
+  //     orderings are valid (fully ambiguous, e.g. 03/04/2026) day-first
+  //     is preferred to match this app's own sample template
+  //   - dd-MMM-yy / dd-MMM-yyyy / dd MMM yyyy (28-Sep-25, 28 September 2025)
+  //   - final fallback to the JS engine's own Date.parse
+  private toEpochMs(v: any): number | null {
+    if (v === null || v === undefined || v === '') return null;
+
+    if (v instanceof Date) {
+      const t = v.getTime();
+      if (isNaN(t)) return null;
+      // Some source spreadsheets (notably Mac-exported .xlsx) store a pure
+      // calendar date with a few seconds/hours of floating-point drift
+      // instead of exact midnight (e.g. 23:59:50 the day before). Nudge by
+      // 12h before reading the LOCAL calendar fields so that drift in
+      // either direction still resolves to the intended day.
+      const nudged = new Date(t + 12 * 60 * 60 * 1000);
+      return this.safeDate(
+        nudged.getFullYear(),
+        nudged.getMonth(),
+        nudged.getDate(),
+      );
+    }
+
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      return this.excelSerialToEpochMs(v);
+    }
+
+    const s = String(v).trim();
     if (!s) return null;
     if (/^on\s*admission$/i.test(s)) return null;
 
-    // yyyy-mm-dd
-    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    // yyyy-mm-dd or yyyy/mm/dd
+    const iso = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
     if (iso) {
-      const dt = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-      const ms = dt.getTime();
-      return isNaN(ms) ? null : ms;
+      return this.safeDate(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
     }
 
-    // dd/mm/yyyy or dd-mm-yyyy
-    const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-    if (m1) {
-      const dd = Number(m1[1]);
-      const mm = Number(m1[2]);
-      let yy = Number(m1[3]);
-      if (yy < 100) yy = 2000 + yy;
-      const dt = new Date(yy, mm - 1, dd);
-      const ms = dt.getTime();
-      return isNaN(ms) ? null : ms;
-    }
-
-    // dd-MMM-yy (28-Sep-25)
-    const m2 = s.match(/^(\d{1,2})[\-\s]([A-Za-z]{3})[\-\s](\d{2,4})$/);
+    // dd-MMM-yy / dd-MMM-yyyy / dd MMM yyyy / dd Month yyyy
+    const m2 = s.match(/^(\d{1,2})[\-\s]([A-Za-z]{3,9})[\-\s](\d{2,4})$/);
     if (m2) {
       const dd = Number(m2[1]);
-      const mon = String(m2[2] || '').toLowerCase();
-      const map: any = {
-        jan: 0,
-        feb: 1,
-        mar: 2,
-        apr: 3,
-        may: 4,
-        jun: 5,
-        jul: 6,
-        aug: 7,
-        sep: 8,
-        oct: 9,
-        nov: 10,
-        dec: 11,
-      };
+      const mon = String(m2[2] || '').toLowerCase().slice(0, 3);
       let yy = Number(m2[3]);
       if (yy < 100) yy = 2000 + yy;
-      if (map[mon] === undefined) return null;
-      const dt = new Date(yy, map[mon], dd);
-      const ms = dt.getTime();
-      return isNaN(ms) ? null : ms;
+      const monthIndex = FeeplansComponent.MONTH_MAP[mon];
+      if (monthIndex === undefined) return null;
+      return this.safeDate(yy, monthIndex, dd);
     }
+
+    // Purely numeric with separators: dd/mm/yyyy vs mm/dd/yyyy is genuinely
+    // ambiguous without a locale hint, so try both orderings and pick
+    // whichever forms a valid date (preferring day-first on a tie).
+    const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (m1) {
+      const a = Number(m1[1]);
+      const b = Number(m1[2]);
+      let yy = Number(m1[3]);
+      if (yy < 100) yy = 2000 + yy;
+      const dayFirst = this.safeDate(yy, b - 1, a);
+      if (dayFirst !== null) return dayFirst;
+      const monthFirst = this.safeDate(yy, a - 1, b);
+      if (monthFirst !== null) return monthFirst;
+      return null;
+    }
+
     const t = Date.parse(s);
     if (!isNaN(t)) return t;
 
