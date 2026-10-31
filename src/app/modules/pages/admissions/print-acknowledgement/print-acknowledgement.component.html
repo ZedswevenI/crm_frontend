@@ -3,7 +3,7 @@
         <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
                 <h5 class="mb-0 fw-semibold">Print Acknowledgement</h5>
-                <div class="text-muted small">Fill in details and print — nothing is saved.</div>
+                <div class="text-muted small">Search the student, enter payment details and print — nothing is saved.</div>
             </div>
             <div class="d-flex gap-2">
                 <button class="btn btn-outline-secondary btn-sm" (click)="goBack()">
@@ -24,13 +24,43 @@
                         <div class="border rounded-3 p-3 h-100">
                             <div class="fw-semibold mb-3">Student & Program Details</div>
                             <div class="row g-3">
+                                <div class="col-12" *ngIf="!manualMode">
+                                    <label class="form-label small text-muted">Enrolment / Reg No</label>
+                                    <div class="input-group">
+                                        <input class="form-control" formControlName="lookupRegNo"
+                                            placeholder="Enter Enrolment / Reg No"
+                                            (keydown.enter)="$event.preventDefault(); fetchByRegNo()" />
+                                        <button type="button" class="btn btn-primary" (click)="fetchByRegNo()"
+                                            [disabled]="lookupLoading">
+                                            <i class="fa-solid fa-magnifying-glass me-1"></i>
+                                            {{ lookupLoading ? 'Searching…' : 'Search' }}
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" (click)="clearStudent()">
+                                            Clear
+                                        </button>
+                                    </div>
+                                    <button type="button" class="btn btn-link btn-sm p-0 mt-1" (click)="enterManually()">
+                                        Enter manually
+                                    </button>
+                                </div>
+                                <div class="col-12" *ngIf="manualMode">
+                                    <button type="button" class="btn btn-link btn-sm p-0" (click)="clearStudent()">
+                                        <i class="fa-solid fa-magnifying-glass me-1"></i> Search by Enrolment / Reg No
+                                    </button>
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted">Student Name <span
                                             class="text-danger">*</span></label>
                                     <input class="form-control" formControlName="studentName"
-                                        placeholder="Enter student name"
+                                        [readonly]="!manualMode"
+                                        [placeholder]="manualMode ? 'Enter student name' : 'Search by Enrolment / Reg No'"
                                         [class.is-invalid]="form.get('studentName')?.touched && form.get('studentName')?.invalid" />
                                     <div class="invalid-feedback">Required</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">Reg No</label>
+                                    <input class="form-control" formControlName="regNo" [readonly]="!manualMode"
+                                        placeholder="optional" />
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted">Admission No</label>

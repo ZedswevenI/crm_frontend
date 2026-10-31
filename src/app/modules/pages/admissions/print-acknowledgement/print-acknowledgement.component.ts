@@ -54,6 +54,9 @@ export class PrintAcknowledgementComponent implements OnInit {
   feePlans: FeePlan[] = [];
   feePlansLoading = false;
 
+  lookupLoading = false;
+  manualMode = false;
+
   instalments: InstRow[] = [];
   neftSplitAmount = 0;
 
@@ -80,6 +83,7 @@ export class PrintAcknowledgementComponent implements OnInit {
 
   ngOnInit(): void {
     this.form = this.fb.group({
+      lookupRegNo: [''],
       studentName: ['', Validators.required],
       admissionNo: [''],
       regNo: [''],
@@ -89,10 +93,21 @@ export class PrintAcknowledgementComponent implements OnInit {
       neftTotal: [0, [Validators.required, Validators.min(0)]],
       chequeCount: [0, [Validators.required, Validators.min(0)]],
       chequeTotal: [0, [Validators.required, Validators.min(0)]],
-      enrolledBy: ['', Validators.required],
+      enrolledBy: [(localStorage.getItem('name') || '').trim(), Validators.required],
     });
 
     this.loadPrograms();
+
+    // Editing the search box after a lookup invalidates the fetched student.
+    this.form.get('lookupRegNo')!.valueChanges.subscribe((v) => {
+      if (this.manualMode) return;
+      if (String(v || '').trim() !== String(this.form.get('regNo')!.value || '')) {
+        this.form.patchValue(
+          { studentName: '', regNo: '', admissionNo: '' },
+          { emitEvent: false },
+        );
+      }
+    });
 
     this.form.get('programId')!.valueChanges.subscribe((pid) => {
       this.feePlans = [];
@@ -106,6 +121,77 @@ export class PrintAcknowledgementComponent implements OnInit {
       this.neftSplitAmount = 0;
       if (fpid) this.buildInstalments(fpid);
     });
+  }
+
+  fetchByRegNo(): void {
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+    const regNo = String(this.form.get('lookupRegNo')!.value || '').trim();
+    if (!regNo) {
+      this.alert.error('Please enter Enrolment / Reg No.');
+      return;
+    }
+
+    this.form.patchValue(
+      { studentName: '', regNo: '', admissionNo: '' },
+      { emitEvent: false },
+    );
+    this.lookupLoading = true;
+    this.api
+      .fetchData({ entiId: tenantId, registrationNumber: regNo }, 'admi', 'portal/fetch')
+      .subscribe({
+        next: (res: any) => {
+          this.lookupLoading = false;
+          if (!res?.status) {
+            this.alert.error(res?.message || res?.error || 'Fetch failed');
+            return;
+          }
+          const d = res?.data || {};
+          const name =
+            d.name ||
+            d.studentName ||
+            `${d.firstName || ''} ${d.lastName || ''}`.trim();
+          this.form.patchValue(
+            {
+              studentName: name,
+              regNo: d.regNo || d.registrationNumber || regNo,
+            },
+            { emitEvent: false },
+          );
+          this.alert.success('Fetched student details.');
+        },
+        error: (err) => {
+          this.lookupLoading = false;
+          const p = err?.error;
+          const admissionNo = String(p?.data?.admissionNo || '').trim();
+          if (String(p?.data?.admissionId || '').trim()) {
+            this.alert.error(
+              admissionNo
+                ? `Admission already exists for ${regNo} (Admission No: ${admissionNo}). Enter the payment details below to print, or use Enter manually.`
+                : `Admission already exists for ${regNo}.`,
+              6000,
+            );
+            return;
+          }
+          this.alert.error(p?.message || err?.message || 'Fetch failed');
+        },
+      });
+  }
+
+  enterManually(): void {
+    this.manualMode = true;
+    this.form.patchValue({ lookupRegNo: '' }, { emitEvent: false });
+  }
+
+  clearStudent(): void {
+    this.manualMode = false;
+    this.form.patchValue(
+      { lookupRegNo: '', studentName: '', regNo: '', admissionNo: '' },
+      { emitEvent: false },
+    );
   }
 
   private pickTenantId(): string {
