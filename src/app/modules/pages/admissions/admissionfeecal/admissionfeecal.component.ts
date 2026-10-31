@@ -297,6 +297,14 @@ export class AdmissionfeecalComponent implements OnInit {
 
     const effDisc = this.computeTotalDiscountPct(t, s, a);
 
+    const scholarshipText = [
+      `Test Scholarship ${t}%`,
+      s > 0 ? `${s}%` : '',
+      a > 0 ? `${a}%` : '',
+    ]
+      .filter(Boolean)
+      .join(' + ');
+
     // build multi-page html (one plan per page)
     const pagesHtml = plansToPrint
       .map((plan, idx) => {
@@ -309,14 +317,12 @@ export class AdmissionfeecalComponent implements OnInit {
         const instals = this.computeInstalmentPreview(plan, finalFee, effDisc);
 
         const feePlanName = String(plan.name || '').trim();
-        const feePlanCode = String(plan.feePlanCode || '').trim();
 
         return this.buildFeeCalcPrintHtml(
           programName,
           programCode,
           feePlanName,
-          feePlanCode,
-          heads,
+          scholarshipText,
           instals,
           finalFee,
           idx > 0, // pageBreakBefore
@@ -740,27 +746,12 @@ export class AdmissionfeecalComponent implements OnInit {
     programName: string,
     programCode: string,
     feePlanName: string,
-    feePlanCode: string,
-    heads: any[],
+    scholarshipText: string,
     instals: any[],
     finalFee: number,
     pageBreakBefore: boolean,
   ): string {
     const today = new Date();
-
-    const headRows = heads
-      .map(
-        (r: any) => `
-      <tr>
-        <td>${this.esc(r.label)}</td>
-        <td class="text-right">${Number(r.fee || 0).toLocaleString('en-IN')}</td>
-        <td class="text-right">${Number(r.stax || 0).toLocaleString('en-IN')}</td>
-        <td class="text-right"><b>${Number(r.total || 0).toLocaleString('en-IN')}</b></td>
-        <td class="text-right">${Number(r.scholBenefits || 0).toLocaleString('en-IN')}</td>
-      </tr>
-    `,
-      )
-      .join('');
 
     const instalRows = instals
       .map(
@@ -799,34 +790,10 @@ export class AdmissionfeecalComponent implements OnInit {
           <div class="kv-label">Program</div><div>${this.esc(programName || '')}</div>
           <div class="kv-label">Program Code</div><div>${this.esc(programCode || '')}</div>
           <div class="kv-label">Fee Plan</div><div>${this.esc(feePlanName || '')}</div>
-          <div class="kv-label">Fee Plan Code</div><div>${this.esc(feePlanCode || '')}</div>
+          <div class="kv-label">Scholarships</div><div>${this.esc(scholarshipText)}</div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">Fee Head-wise Split</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Fee Head</th>
-              <th class="text-right" style="width:140px;">Fee</th>
-              <th class="text-right" style="width:140px;">STax</th>
-              <th class="text-right" style="width:140px;">Total</th>
-              <th class="text-right" style="width:170px;">Scholarship Benefits</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${headRows || `<tr><td colspan="5" class="text-center">No fee heads</td></tr>`}
-          </tbody>
-          <tfoot>
-            <tr>
-              <th colspan="3" class="text-right">Grand Total</th>
-              <th class="text-right">₹ ${Number(finalFee || 0).toLocaleString('en-IN')}</th>
-              <th></th>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
       <div class="section">
         <div class="section-title">Cheque / Instalment Schedule</div>
         <table>

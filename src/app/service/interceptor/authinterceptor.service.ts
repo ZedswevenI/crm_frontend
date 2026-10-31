@@ -52,7 +52,6 @@ export class AuthinterceptorService {
         catchError(err => {
           this.isRefreshing = false;
           this.authService.logout();
-          this.router.navigateByUrl('/admin/login');
           return throwError(() => err);
         })
       );

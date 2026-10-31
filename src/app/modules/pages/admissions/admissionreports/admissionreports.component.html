@@ -61,32 +61,47 @@
 
                                 <div class="col-12">
                                     <label class="form-label small text-muted">Program Code</label>
-                                    <input class="form-control form-control-sm"
-                                        [(ngModel)]="registrationFilter.programCode" />
+                                    <select class="form-select form-select-sm"
+                                        [(ngModel)]="registrationFilter.programCode">
+                                        <option value="">All</option>
+                                        <option *ngFor="let o of registrationFilterOptions.programCode" [value]="o">{{ o }}</option>
+                                    </select>
                                 </div>
 
                                 <div class="col-12">
                                     <label class="form-label small text-muted">Program Offered</label>
-                                    <input class="form-control form-control-sm"
-                                        [(ngModel)]="registrationFilter.programOffered1" />
+                                    <select class="form-select form-select-sm"
+                                        [(ngModel)]="registrationFilter.programOffered1">
+                                        <option value="">All</option>
+                                        <option *ngFor="let o of registrationFilterOptions.programOffered" [value]="o">{{ o }}</option>
+                                    </select>
                                 </div>
 
                                 <div class="col-12">
                                     <label class="form-label small text-muted">Test City</label>
-                                    <input class="form-control form-control-sm"
-                                        [(ngModel)]="registrationFilter.testCity" />
+                                    <select class="form-select form-select-sm"
+                                        [(ngModel)]="registrationFilter.testCity">
+                                        <option value="">All</option>
+                                        <option *ngFor="let o of registrationFilterOptions.testCity" [value]="o">{{ o }}</option>
+                                    </select>
                                 </div>
 
                                 <div class="col-12">
                                     <label class="form-label small text-muted">Test Centre</label>
-                                    <input class="form-control form-control-sm"
-                                        [(ngModel)]="registrationFilter.testCentre" />
+                                    <select class="form-select form-select-sm"
+                                        [(ngModel)]="registrationFilter.testCentre">
+                                        <option value="">All</option>
+                                        <option *ngFor="let o of registrationFilterOptions.testCentre" [value]="o">{{ o }}</option>
+                                    </select>
                                 </div>
 
                                 <div class="col-12">
                                     <label class="form-label small text-muted">Center Code</label>
-                                    <input class="form-control form-control-sm"
-                                        [(ngModel)]="registrationFilter.centerCode" />
+                                    <select class="form-select form-select-sm"
+                                        [(ngModel)]="registrationFilter.centerCode">
+                                        <option value="">All</option>
+                                        <option *ngFor="let o of registrationFilterOptions.centerCode" [value]="o">{{ o }}</option>
+                                    </select>
                                 </div>
 
                                 <div class="col-12">
@@ -94,8 +109,13 @@
                                     <select class="form-select form-select-sm"
                                         [(ngModel)]="registrationFilter.testResultStatus">
                                         <option value="">All</option>
-                                        <option value="PASS">Pass</option>
-                                        <option value="FAIL">Fail</option>
+                                        <ng-container *ngIf="registrationFilterOptions.testResultStatus.length; else defaultResultStatus">
+                                            <option *ngFor="let o of registrationFilterOptions.testResultStatus" [value]="o">{{ o }}</option>
+                                        </ng-container>
+                                        <ng-template #defaultResultStatus>
+                                            <option value="PASS">Pass</option>
+                                            <option value="FAIL">Fail</option>
+                                        </ng-template>
                                     </select>
                                 </div>
 

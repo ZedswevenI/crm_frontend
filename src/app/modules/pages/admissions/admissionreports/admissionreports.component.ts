@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, OnDestroy } from '@angular/core';
+import { AfterViewInit, Component, OnDestroy, OnInit } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
 import { BredcrumpService } from '../../../../service/bredcrump/bredcrump.service';
 import { CommonapiService } from '../../../../service/commonapi/commonapi.service';
@@ -33,7 +33,7 @@ const SNJ_COLUMNS: ExportColumn[] = [
   templateUrl: './admissionreports.component.html',
   styleUrl: './admissionreports.component.scss',
 })
-export class AdmissionreportsComponent implements AfterViewInit, OnDestroy {
+export class AdmissionreportsComponent implements OnInit, AfterViewInit, OnDestroy {
   reportType: ReportType = 'registration';
   entiId = localStorage.getItem('tenantId');
 
@@ -47,6 +47,14 @@ export class AdmissionreportsComponent implements AfterViewInit, OnDestroy {
     testCentre: '',
     centerCode: '',
     testResultStatus: '',
+  };
+  registrationFilterOptions = {
+    programCode: [] as string[],
+    programOffered: [] as string[],
+    testCity: [] as string[],
+    testCentre: [] as string[],
+    centerCode: [] as string[],
+    testResultStatus: [] as string[],
   };
   registrationFieldGroups = REGISTRATION_EXPORT_FIELD_GROUPS;
   showRegistrationPicker = false;
@@ -104,6 +112,10 @@ export class AdmissionreportsComponent implements AfterViewInit, OnDestroy {
     this.breadcrumb.set([{ label: 'Admissions & Fees' }, { label: 'Admission' }, { label: 'Reports' }]);
   }
 
+  ngOnInit(): void {
+    this.loadRegistrationFilterOptions();
+  }
+
   ngAfterViewInit(): void {}
 
   ngOnDestroy(): void {
@@ -122,6 +134,28 @@ export class AdmissionreportsComponent implements AfterViewInit, OnDestroy {
   }
 
   // ===================== Registration =====================
+
+  private loadRegistrationFilterOptions(): void {
+    this.api
+      .fetchData({ entiId: this.entiId }, 'reports/admission', 'registration/filters')
+      .subscribe({
+        next: (res: any) => {
+          const d = res?.data;
+          if (!res?.status || !d) return;
+          const list = (v: any): string[] => (Array.isArray(v) ? v : []);
+          this.registrationFilterOptions = {
+            programCode: list(d.programCode),
+            programOffered: list(d.programOffered),
+            testCity: list(d.testCity),
+            testCentre: list(d.testCentre),
+            centerCode: list(d.centerCode),
+            testResultStatus: list(d.testResultStatus),
+          };
+        },
+        error: (err) =>
+          this.alert.error(err?.error?.message || 'Failed to load filter options'),
+      });
+  }
 
   openRegistrationPicker(): void {
     this.showRegistrationPicker = true;

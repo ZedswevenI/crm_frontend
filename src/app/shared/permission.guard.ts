@@ -44,7 +44,7 @@ export class PermissionGuard implements CanActivate {
 
         if (requiredPortal && !this.permission.hasPortal(requiredPortal)) {
           this.alert.error('You are not authorised to access this portal.');
-          this.router.navigate(['/auth/login']);
+          this.router.navigate(['/app/dashboard']);
           return false;
         }
 
@@ -58,7 +58,7 @@ export class PermissionGuard implements CanActivate {
 
           if (!hasAccess) {
             this.alert.error("You don't have permission to access this page.");
-            this.router.navigate(['/auth/login']);
+            this.router.navigate(['/app/dashboard']);
             return false;
           }
         }

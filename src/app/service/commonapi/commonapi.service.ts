@@ -4,6 +4,7 @@ import { HttpHeaders } from '@angular/common/http';
 import { environment } from '../../../environments/environments';
 import { Observable, throwError, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
+import { AlertService } from '../alert/alert.service';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +12,7 @@ import { map, catchError } from 'rxjs/operators';
 export class CommonapiService {
   headers = new HttpHeaders().set('Content-Type', 'application/json');
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private alert: AlertService) { }
 
   // =========================
   // GENERIC POST (existing)
@@ -53,7 +54,7 @@ export class CommonapiService {
     } else {
       errorMessage = `Error Code: ${error.status}\nMessage: ${error.message}`;
     }
-    window.alert(errorMessage);
+    this.alert.error(errorMessage);
     return errorMessage;
   }
 

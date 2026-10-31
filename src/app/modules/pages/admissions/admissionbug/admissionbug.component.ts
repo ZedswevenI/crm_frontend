@@ -49,6 +49,7 @@ interface PortalStudentResult {
   city: string;
   state: string;
   pincode: string;
+  schoolName?: string;
   programName?: string;
   programCode?: string;
   centerName?: string;
@@ -346,6 +347,7 @@ export class AdmissionbugComponent implements OnInit {
       schoolOverallPct: [null],
       schoolCorePct: [null],
       schoolRemarks: [''],
+      schoolName: [''],
       courseStartYear: [''],
     });
     this.step2Form = this.fb.group({
@@ -499,6 +501,7 @@ export class AdmissionbugComponent implements OnInit {
         city: '',
         state: '',
         pincode: '',
+        schoolName: '',
         programId: '',
         programName: '',
         programCode: '',
@@ -536,6 +539,12 @@ export class AdmissionbugComponent implements OnInit {
     this.resetWorkflowFlags();
     this.step = 1;
     this.alert.success('Direct enrolment started (RegNo auto generated).');
+  }
+
+  // Portal sends the pincode inside the address text (pincode field is null).
+  private pincodeFromAddress(address?: string): string {
+    const m = String(address || '').match(/\b\d{6}\b(?!.*\b\d{6}\b)/);
+    return m ? m[0] : '';
   }
 
   fetchByRegNo(): void {
@@ -606,6 +615,7 @@ export class AdmissionbugComponent implements OnInit {
           city: d.city || '',
           state: d.state || '',
           pincode: d.pincode || '',
+          schoolName: d.schoolName || '',
           programName: d.programName || '',
           programCode: d.programCode || '',
           centerName: d.centerName || '',
@@ -631,6 +641,11 @@ export class AdmissionbugComponent implements OnInit {
             parentName: portal.parentName || '',
             parentPhone: portal.parentPhone || portal.phone || '',
             email: portal.email || '',
+            address: portal.address || '',
+            city: portal.city || '',
+            state: portal.state || '',
+            pincode: portal.pincode || this.pincodeFromAddress(portal.address),
+            schoolName: portal.schoolName || '',
             programName: '',
             programCode: portal.programCode || '',
             centerName: portal.centerName || portal.studyCentre || '',
@@ -738,6 +753,7 @@ export class AdmissionbugComponent implements OnInit {
           city: d.city || '',
           state: d.state || '',
           pincode: d.pincode || '',
+          schoolName: d.schoolName || '',
           programName: d.programName || '',
           programCode: d.programCode || '',
           centerName: d.centerName || '',
@@ -762,6 +778,11 @@ export class AdmissionbugComponent implements OnInit {
             parentName: portal.parentName || '',
             parentPhone: portal.parentPhone || portal.phone || '',
             email: portal.email || '',
+            address: portal.address || '',
+            city: portal.city || '',
+            state: portal.state || '',
+            pincode: portal.pincode || this.pincodeFromAddress(portal.address),
+            schoolName: portal.schoolName || '',
             programName: '',
             programCode: portal.programCode || '',
             centerName: portal.centerName || portal.studyCentre || '',
@@ -899,6 +920,7 @@ export class AdmissionbugComponent implements OnInit {
         city: String(s1.city || '').trim() || null,
         state: String(s1.state || '').trim() || null,
         pincode: String(s1.pincode || '').trim() || null,
+        schoolName: String(s1.schoolName || '').trim() || null,
       },
       fee: {
         baseFee: Number(s1.baseFee || 0),
@@ -1624,6 +1646,13 @@ export class AdmissionbugComponent implements OnInit {
     `);
     });
     const total = this.roundRupee(neftAmt + chequeTotal);
+    const scholarshipText = [
+      `Test Scholarship ${Number(s1.testScholarshipPct || 0)}%`,
+      Number(s1.scholarshipPct || 0) > 0 ? `${Number(s1.scholarshipPct)}%` : '',
+      Number(s1.additionalScholarshipPct || 0) > 0 ? `${Number(s1.additionalScholarshipPct)}%` : '',
+    ]
+      .filter(Boolean)
+      .join(' + ');
     return `
   <div class="page">
     <div class="brand-center">
@@ -1646,8 +1675,8 @@ export class AdmissionbugComponent implements OnInit {
         <div class="kv-label">Email</div><div>${this.esc(s1.email || '')}</div>
         <div class="kv-label">Program</div><div>${this.esc(s1.programCode || '')} - ${this.esc(s1.programName || '')}</div>
         <div class="kv-label">Study Centre</div><div>${this.esc(s1.centerCode || '')} - ${this.esc(s1.centerName || '')}</div>
-        <div class="kv-label">Fee Plan</div><div>${this.esc(plan.feePlanCode || s1.feePlanCode || plan.name || '')}</div>
-        <div class="kv-label">Discounts</div><div>Test Scholarship : ${Number(s1.testScholarshipPct || 0).toFixed(2)}% , Scholarship ${Number(s1.scholarshipPct || 0).toFixed(2)}% , Additional Scholarship ${Number(s1.additionalScholarshipPct || 0).toFixed(2)}%}</div>
+        <div class="kv-label">Fee Plan</div><div>${this.esc(plan.name || '')}</div>
+        <div class="kv-label">Scholarships</div><div>${this.esc(scholarshipText)}</div>
       </div>
     </div>
     <div class="section">

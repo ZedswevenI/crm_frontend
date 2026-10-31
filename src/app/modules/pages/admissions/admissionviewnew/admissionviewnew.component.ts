@@ -2197,6 +2197,13 @@ export class AdmissionviewnewComponent implements OnInit {
           .join('')
       : `<tr><td colspan="4" class="text-center">No fee breakup</td></tr>`;
     const instalmentRowsHtml = this.buildFeePlanInstallmentRowsFromPayments();
+    const scholarshipText = [
+      `Test Scholarship ${testSch}%`,
+      schl > 0 ? `${schl}%` : '',
+      addSchl > 0 ? `${addSchl}%` : '',
+    ]
+      .filter(Boolean)
+      .join(' + ');
     return `
     <div class="page">
       <div class="print-header">
@@ -2235,8 +2242,8 @@ export class AdmissionviewnewComponent implements OnInit {
           <div>${this.esc((a as any)?.feePlanName || a?.fee?.feePlanName || '')}</div>
           <div class="kv-label">Study Centre</div>
           <div>${this.esc(a?.academics?.centreName || '')}</div>
-          <div class="kv-label">Discounts </div>
-          <div>Test Scholarship : ${testSch.toFixed(2)}% , Scholarship : ${schl.toFixed(2)}% , Additional Scholarship :${addSchl.toFixed(2)}%</div>
+          <div class="kv-label">Scholarships</div>
+          <div>${this.esc(scholarshipText)}</div>
         </div>
       </div>
       <div class="section">
