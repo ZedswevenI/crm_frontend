@@ -312,7 +312,9 @@ export class AdmissionNewFlatComponent implements OnInit {
   readonly regNoView$ = () =>
     this.step1Form.get('regNo')!.valueChanges.pipe(
       startWith(this.step1Form.get('regNo')!.value),
-      map((v) => String(v || '—')),
+      map((v) =>
+        v ? String(v) : this.isDirectEnrolment ? 'Auto-generated on save' : '—',
+      ),
       shareReplay(1),
     );
 
@@ -489,7 +491,6 @@ export class AdmissionNewFlatComponent implements OnInit {
       this.alert.error('Please select "Direct Enrollment without Test data".');
       return;
     }
-    const newReg = this.uuidv4();
     this.isDirectEnrolment = true;
     this.portal = null;
     this.admissionId = null;
@@ -498,7 +499,7 @@ export class AdmissionNewFlatComponent implements OnInit {
       {
         portalStudentId: '',
         scholarshipTestId: '',
-        regNo: newReg,
+        regNo: '',
         testScholarshipPct: 0,
         scholarshipPct: 0,
         additionalScholarshipPct: 0,
@@ -991,6 +992,8 @@ export class AdmissionNewFlatComponent implements OnInit {
   addNeftRef(): void {
     this.neftRefsFA.push(
       this.fb.group({
+        mode: ['NEFT'],
+        favourOf: [''],
         utr: [
           '',
           [
@@ -1263,7 +1266,9 @@ export class AdmissionNewFlatComponent implements OnInit {
         });
       }
     });
-    const standardNefts = this.neftRefsFA.getRawValue().map((r: any) => ({
+    const advanceRows = (this.neftRefsFA.getRawValue() || []) as any[];
+    const isCdcRow = (r: any) => String(r?.mode || '').toUpperCase() === 'CDC';
+    const standardNefts = advanceRows.filter((r) => !isCdcRow(r)).map((r: any) => ({
       utr: String(r.utr || '').trim(),
       amount: Number(r.amount || 0),
       paidOn: this.dateInputToEpoch(r.paidOn),
@@ -1283,11 +1288,24 @@ export class AdmissionNewFlatComponent implements OnInit {
       remarks: o.remarks,
     }));
     const finalNeftRefs = [...standardNefts, ...convertedNefts];
+    const finalCdc = advanceRows.filter(isCdcRow).map((r: any) => {
+      const favourOf = String(r.favourOf || '').trim();
+      return {
+        chequeNo: String(r.utr || '').trim(),
+        chequeDate: this.dateInputToEpoch(r.paidOn),
+        amount: Number(r.amount || 0),
+        bankName: String(r.bankName || '').trim(),
+        branchName: String(r.branchName || '').trim(),
+        ...(favourOf ? { favourOf } : {}),
+        remarks: String(r.remarks || '').trim(),
+      };
+    });
     this.submitting = true;
     const body: any = {
       entiId: tenantId,
       admissionId: this.admissionId,
       neftRefs: finalNeftRefs,
+      cdcRefs: finalCdc,
       cheques: finalCheques,
       otherPayments: finalOther,
     };
@@ -1998,16 +2016,6 @@ export class AdmissionNewFlatComponent implements OnInit {
     );
   }
 
-  private uuidv4(): string {
-    const c: any = (window as any).crypto;
-    if (c?.randomUUID) return c.randomUUID();
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
-      const r = (Math.random() * 16) | 0;
-      const v = ch === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
-
   private todayISO(): string {
     const d = new Date();
     const yyyy = d.getFullYear();
@@ -2113,7 +2121,10 @@ export class AdmissionNewFlatComponent implements OnInit {
   private buildPaymentsAckHtmlStep2(plan: FeePlan | null): string {
     const s1 = this.step1Form.getRawValue();
     const today = new Date();
-    const nefts = (this.neftRefsFA.getRawValue() || []) as any[];
+    const advance = (this.neftRefsFA.getRawValue() || []) as any[];
+    const nefts = advance.filter(
+      (x) => String(x?.mode || '').toUpperCase() !== 'CDC',
+    );
     const cheques = (this.chequesFA.getRawValue() || []) as any[];
     const neftCount = nefts.filter((x) => (Number(x?.amount) || 0) > 0).length;
     const neftTotal = this.roundRupee(
@@ -2125,7 +2136,16 @@ export class AdmissionNewFlatComponent implements OnInit {
     const chequeTotal = this.roundRupee(
       cheques.reduce((s, x) => s + (Number(x?.amount) || 0), 0),
     );
-    const totalPaid = this.roundRupee(neftTotal + chequeTotal);
+    const cdcRows = advance.filter(
+      (x) =>
+        String(x?.mode || '').toUpperCase() === 'CDC' &&
+        (Number(x?.amount) || 0) > 0,
+    );
+    const cdcCount = cdcRows.length;
+    const cdcTotal = this.roundRupee(
+      cdcRows.reduce((s, x) => s + (Number(x?.amount) || 0), 0),
+    );
+    const totalPaid = this.roundRupee(neftTotal + cdcTotal + chequeTotal);
     const studentName = String(s1.name || '');
     const regNo = String(s1.regNo || '');
     const programName = String(s1.programName || '');
@@ -2166,6 +2186,15 @@ export class AdmissionNewFlatComponent implements OnInit {
             <td class="center">${neftCount}</td>
             <td class="right">${neftTotal}</td>
           </tr>
+          ${
+            cdcCount
+              ? `<tr>
+            <td>Current Dated Cheques (CDC)</td>
+            <td class="center">${cdcCount}</td>
+            <td class="right">${cdcTotal}</td>
+          </tr>`
+              : ''
+          }
           <tr>
             <td>Post Dated Cheques</td>
             <td class="center">${chequeCount}</td>
@@ -2427,6 +2456,8 @@ export class AdmissionNewFlatComponent implements OnInit {
     if (neftAmt > 0) {
       neftFA.push(
         this.fb.group({
+          mode: ['NEFT'],
+          favourOf: [''],
           utr: [
             '',
             [

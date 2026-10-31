@@ -284,9 +284,17 @@ export class AdmissionviewnewComponent implements OnInit {
     const nefts = payments.filter(
       (p) => String(p.paymentType || '').toUpperCase() === 'NEFT',
     );
-    const chqs = payments.filter(
+    const allChqs = payments.filter(
       (p) => String(p.paymentType || '').toUpperCase() === 'CHEQUE',
     );
+    // Advance CDC cheques (saved via cdcRefs) are not tied to an instalment,
+    // so they go back into the CDC block instead of the instalment schedule.
+    const isAdvanceCdc = (p: any) =>
+      String(p?.cheque?.mode || '').toUpperCase() === 'CDC' &&
+      !p?.cheque?.instalmentLabel &&
+      !p?.cheque?.instalmentDate;
+    const cdcChqs = allChqs.filter(isAdvanceCdc);
+    const chqs = allChqs.filter((p) => !isAdvanceCdc(p));
     const others = payments.filter(
       (p) => String(p.paymentType || '').toUpperCase() === 'OTHER',
     );
@@ -301,6 +309,8 @@ export class AdmissionviewnewComponent implements OnInit {
       nefts.forEach((p) => {
         neftFA.push(
           this.fb.group({
+            mode: ['NEFT'],
+            favourOf: [''],
             utr: [
               String(p?.neft?.utr || '').trim(),
               [Validators.required, Validators.minLength(6)],
@@ -317,9 +327,22 @@ export class AdmissionviewnewComponent implements OnInit {
           }),
         );
       });
-    } else {
+    } else if (!cdcChqs.length) {
       neftFA.push(this.buildEmptyNeftRow(this.neftSplitAmount));
     }
+    cdcChqs.forEach((p) => {
+      neftFA.push(
+        this.buildEmptyNeftRow(Number(p.amount || 0), {
+          mode: 'CDC',
+          utr: p?.cheque?.chequeNo || '',
+          paidOn: this.epochToDateInput(p?.cheque?.chequeDate),
+          bankName: p?.cheque?.bankName || '',
+          branchName: p?.cheque?.branchName || '',
+          favourOf: p?.cheque?.favourOf || '',
+          remarks: p?.remarks || '',
+        }),
+      );
+    });
     this.payForm.setControl('neftRefs', neftFA);
     const chqFA = this.fb.array([]);
     chqs
@@ -483,18 +506,20 @@ export class AdmissionviewnewComponent implements OnInit {
     });
   }
 
-  private buildEmptyNeftRow(prefillAmount = 0): UntypedFormGroup {
+  private buildEmptyNeftRow(prefillAmount = 0, v?: any): UntypedFormGroup {
     return this.fb.group({
-      utr: ['', [Validators.required, Validators.minLength(6)]],
+      mode: [v?.mode ?? 'NEFT'],
+      favourOf: [v?.favourOf ?? ''],
+      utr: [v?.utr ?? '', [Validators.required, Validators.minLength(6)]],
       amount: [
         this.roundRupee(prefillAmount),
         [Validators.required, Validators.min(1)],
       ],
-      paidOn: [null],
-      bankName: [''],
-      branchName: [''],
+      paidOn: [v?.paidOn ?? null],
+      bankName: [v?.bankName ?? ''],
+      branchName: [v?.branchName ?? ''],
       referenceNote: [''],
-      remarks: [''],
+      remarks: [v?.remarks ?? ''],
     });
   }
 
@@ -1021,7 +1046,10 @@ export class AdmissionviewnewComponent implements OnInit {
       this.alert.error('tenantId missing');
       return;
     }
-    const standardNefts = (this.neftRefsFA.getRawValue() || [])
+    const advanceRows = (this.neftRefsFA.getRawValue() || []) as any[];
+    const isCdcRow = (r: any) => String(r?.mode || '').toUpperCase() === 'CDC';
+    const standardNefts = advanceRows
+      .filter((r) => !isCdcRow(r))
       .map((r: any) => ({
         utr: String(r.utr || '').trim(),
         amount: Number(r.amount || 0),
@@ -1079,6 +1107,21 @@ export class AdmissionviewnewComponent implements OnInit {
     });
     const neftRefs = [...standardNefts, ...convertedNefts];
     const cheques = finalCheques;
+    const cdcRefs = advanceRows
+      .filter(isCdcRow)
+      .map((r: any) => {
+        const favourOf = String(r.favourOf || '').trim();
+        return {
+          chequeNo: String(r.utr || '').trim(),
+          chequeDate: this.dateInputToEpoch(r.paidOn),
+          amount: Number(r.amount || 0),
+          bankName: String(r.bankName || '').trim() || null,
+          branchName: String(r.branchName || '').trim() || null,
+          ...(favourOf ? { favourOf } : {}),
+          remarks: String(r.remarks || '').trim() || null,
+        };
+      })
+      .filter((x: any) => !!x.chequeNo && !!x.chequeDate && x.amount > 0);
     const otherPayments = this.payForm.getRawValue().additionalPaymentsEnabled
       ? (this.otherPaymentsFA.getRawValue() || [])
           .map((o: any) => ({
@@ -1099,6 +1142,7 @@ export class AdmissionviewnewComponent implements OnInit {
       entiId: tenantId,
       admissionId: this.admissionId,
       neftRefs,
+      cdcRefs,
       cheques,
       otherPayments,
     };

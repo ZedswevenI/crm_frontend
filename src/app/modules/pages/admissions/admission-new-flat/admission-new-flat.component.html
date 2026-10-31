@@ -386,11 +386,11 @@
                     <div class="border rounded-3 p-3 mb-3">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
-                                <div class="fw-semibold">Advance Payment (NEFT)</div>
+                                <div class="fw-semibold">Advance Payment (NEFT / CDC)</div>
                                 <div class="text-muted small">
                                     One NEFT split:
                                     <b>₹{{ step2Form.getRawValue().neftAmount | number:"1.0-0" }}</b>
-                                    — add one or more refs (total must not exceed split).
+                                    — add one or more rows (NEFT or CDC); the total should match the split.
                                 </div>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-primary" (click)="addNeftRef()">
@@ -402,11 +402,13 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th style="width: 60px">#</th>
-                                        <th style="width: 220px">UTR No</th>
+                                        <th style="width: 110px">Mode</th>
+                                        <th style="width: 200px">UTR / Cheque No</th>
                                         <th style="width: 160px">Amount (₹)</th>
-                                        <th style="width: 160px">Paid On</th>
+                                        <th style="width: 160px">Paid On / Cheque Date</th>
                                         <th style="width: 220px">Bank</th>
                                         <th style="width: 220px">Branch</th>
+                                        <th style="width: 200px">Favour Of (CDC)</th>
                                         <th>Remarks</th>
                                         <th style="width: 60px"></th>
                                     </tr>
@@ -416,7 +418,13 @@
                                         [formGroupName]="i">
                                         <td class="fw-semibold">{{ i + 1 }}</td>
                                         <td>
-                                            <input class="form-control form-control-sm" placeholder="UTR Number"
+                                            <select class="form-select form-select-sm" formControlName="mode">
+                                                <option value="NEFT">NEFT</option>
+                                                <option value="CDC">CDC</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input class="form-control form-control-sm" [placeholder]="r.get('mode')?.value === 'CDC' ? 'Cheque No' : 'UTR Number'"
                                                 formControlName="utr"
                                                 [class.is-invalid]="r.get('utr')?.touched && r.get('utr')?.invalid" />
                                             <div class="invalid-feedback">Required</div>
@@ -441,6 +449,10 @@
                                         </td>
 
                                         <td>
+                                            <input *ngIf="r.get('mode')?.value === 'CDC'" class="form-control form-control-sm"
+                                                formControlName="favourOf" placeholder="Defaults to centre" />
+                                        </td>
+                                        <td>
                                             <input class="form-control form-control-sm" placeholder="optional"
                                                 formControlName="remarks" />
                                         </td>
@@ -454,7 +466,7 @@
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
-                                        <th colspan="2" class="text-end">Total Entered</th>
+                                        <th colspan="3" class="text-end">Total Entered</th>
                                         <th colspan="7" class="fw-bold">
                                             ₹{{ (neftTotalEntered$() | async) | number:"1.0-0" }}
                                         </th>
