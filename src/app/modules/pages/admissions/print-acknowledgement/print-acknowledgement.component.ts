@@ -57,6 +57,11 @@ export class PrintAcknowledgementComponent implements OnInit {
   lookupLoading = false;
   manualMode = false;
 
+  emailModalOpen = false;
+  emailList: string[] = [];
+  newEmail = '';
+  emailSending = false;
+
   instalments: InstRow[] = [];
   neftSplitAmount = 0;
 
@@ -106,6 +111,7 @@ export class PrintAcknowledgementComponent implements OnInit {
           { studentName: '', regNo: '', admissionNo: '' },
           { emitEvent: false },
         );
+        this.emailList = [];
       }
     });
 
@@ -139,6 +145,7 @@ export class PrintAcknowledgementComponent implements OnInit {
       { studentName: '', regNo: '', admissionNo: '' },
       { emitEvent: false },
     );
+    this.emailList = [];
     this.lookupLoading = true;
     this.api
       .fetchData({ entiId: tenantId, registrationNumber: regNo }, 'admi', 'portal/fetch')
@@ -161,6 +168,8 @@ export class PrintAcknowledgementComponent implements OnInit {
             },
             { emitEvent: false },
           );
+          const fetchedEmail = String(d.email || '').trim().toLowerCase();
+          this.emailList = this.isValidEmail(fetchedEmail) ? [fetchedEmail] : [];
           this.alert.success('Fetched student details.');
         },
         error: (err) => {
@@ -188,10 +197,106 @@ export class PrintAcknowledgementComponent implements OnInit {
 
   clearStudent(): void {
     this.manualMode = false;
+    this.emailList = [];
     this.form.patchValue(
       { lookupRegNo: '', studentName: '', regNo: '', admissionNo: '' },
       { emitEvent: false },
     );
+  }
+
+  private isValidEmail(v: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }
+
+  openEmailModal(): void {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.alert.error('Please fill all required fields before sending the email.');
+      return;
+    }
+    this.newEmail = '';
+    this.emailModalOpen = true;
+  }
+
+  closeEmailModal(): void {
+    if (this.emailSending) return;
+    this.emailModalOpen = false;
+  }
+
+  addEmail(): boolean {
+    const v = this.newEmail.trim().toLowerCase();
+    if (!v) return true;
+    if (!this.isValidEmail(v)) {
+      this.alert.error(`"${this.newEmail.trim()}" is not a valid email address.`);
+      return false;
+    }
+    if (this.emailList.includes(v)) {
+      this.alert.warning('That email is already in the list.');
+      return false;
+    }
+    this.emailList.push(v);
+    this.newEmail = '';
+    return true;
+  }
+
+  removeEmail(i: number): void {
+    this.emailList.splice(i, 1);
+  }
+
+  sendEmail(): void {
+    if (this.emailSending) return;
+    if (!this.addEmail()) return;
+    if (!this.emailList.length) {
+      this.alert.error('Add at least one email address.');
+      return;
+    }
+    const tenantId = this.pickTenantId();
+    if (!tenantId) {
+      this.alert.error('tenantId (entiId) is missing. Please login again.');
+      return;
+    }
+    const f = this.form.getRawValue();
+    const programName = (
+      this.programs.find((p) => p.programId === f.programId)?.programName || ''
+    ).trim();
+    const body = {
+      entiId: tenantId,
+      emails: this.emailList,
+      studentName: String(f.studentName || '').trim(),
+      programName,
+    };
+
+    this.emailSending = true;
+    this.api
+      .fetchData(body, 'communication', 'acknowledgement/send')
+      .subscribe({
+        next: (res: any) => {
+          this.emailSending = false;
+          if (!res?.status) {
+            this.alert.error(res?.message || 'Failed to send email');
+            return;
+          }
+          const failed = (res?.data?.results || []).filter(
+            (r: any) => r?.status === 'FAILED',
+          );
+          const sent = Number(res?.data?.sentCount || 0);
+          if (failed.length) {
+            this.alert.warning(
+              `Sent to ${sent}. Failed: ${failed
+                .map((r: any) => r.email)
+                .join(', ')}`,
+              6000,
+            );
+          } else {
+            this.alert.success(`Acknowledgement email sent to ${sent} recipient(s).`);
+          }
+          this.emailModalOpen = false;
+        },
+        error: (err) => {
+          this.emailSending = false;
+          this.alert.error(err?.error?.message || 'Failed to send email');
+        },
+      });
   }
 
   private pickTenantId(): string {
